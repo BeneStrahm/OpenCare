@@ -120,13 +120,23 @@ recordingsRouter.post('/', allowDeviceOr(...WRITER_ROLES), async (req: KioskRequ
         const elsewhere = await query(`SELECT 1 FROM consultation_recordings WHERE client_id = $1`, [clientId]);
         if (elsewhere.rows.length > 0) return fail(res, 409, 'CLIENT_ID_TAKEN');
 
+        // Zeitpunkt der Bestaetigung auf dem Geraet (kann vor dem Upload liegen, z. B. offline).
+        // Nur plausible Werte: nicht in der Zukunft, hoechstens 30 Tage alt. Sonst Serverzeit.
+        const consentRaw = timestamp(body.consent_at);
+        if (consentRaw === undefined) return fail(res, 400, 'INVALID_CONSENT_AT');
+
         let consultationId: string | null = typeof body.consultation_id === 'string' ? body.consultation_id : null;
         if (consultationId) {
             const c = await loadConsultation(consultationId, circleId);
             if (!c) return fail(res, 404, 'Consultation not found');
-        } else {
+        }
+        const db = await getClient();
+        let inserted;
+        try {
+            await db.query('BEGIN');
+        if (!consultationId) {
             // Vom Tablet ohne vorbereitetes Gespraech: neues Gespraech mit Startzeit anlegen.
-            const created = await query(
+            const created = await db.query(
                 `INSERT INTO consultations (circle_id, scheduled_at, created_by, created_by_device)
                  VALUES ($1, COALESCE($2::timestamp, date_trunc('minute', NOW()::timestamp)), $3, $4) RETURNING id`,
                 [circleId, startedAt, req.kioskDevice ? null : req.userId, req.kioskDevice?.id ?? null]
@@ -134,13 +144,29 @@ recordingsRouter.post('/', allowDeviceOr(...WRITER_ROLES), async (req: KioskRequ
             consultationId = created.rows[0].id as string;
         }
 
-        const inserted = await query(
+        inserted = await db.query(
             `INSERT INTO consultation_recordings
                 (consultation_id, circle_id, client_id, mime_type, consent_at, consent_by_user, consent_by_device, started_at)
-             VALUES ($1, $2, $3, $4, NOW(), $5, $6, $7)
+             VALUES ($1, $2, $3, $4,
+                CASE WHEN $8::timestamp IS NOT NULL AND $8::timestamp <= NOW()::timestamp + interval '5 minutes'
+                      AND $8::timestamp >= NOW()::timestamp - interval '30 days' THEN $8::timestamp ELSE NOW()::timestamp END,
+                $5, $6, $7)
              RETURNING ${RECORDING_PUBLIC}`,
-            [consultationId, circleId, clientId, mime, req.kioskDevice ? null : req.userId, req.kioskDevice?.id ?? null, startedAt]
+            [consultationId, circleId, clientId, mime, req.kioskDevice ? null : req.userId, req.kioskDevice?.id ?? null, startedAt, consentRaw]
         );
+            await db.query('COMMIT');
+        } catch (error) {
+            await db.query('ROLLBACK').catch(() => undefined);
+            // Zwei gleichzeitige Anmeldungen mit derselben client_id: die erste gewinnt.
+            if ((error as { code?: string }).code === '23505') {
+                const again = await recordingByClientId(clientId, circleId);
+                if (again) return res.json({ success: true, data: { ...again, received: await receivedChunks(again.id) } });
+                return fail(res, 409, 'CLIENT_ID_TAKEN');
+            }
+            throw error;
+        } finally {
+            db.release();
+        }
         await notify(circleId, 'created');
         res.json({ success: true, data: { ...inserted.rows[0], received: [] } });
     } catch (error) {
@@ -184,15 +210,25 @@ recordingsRouter.put(
                 // Bereits abgeschlossen: ein erneut gesendetes Stueck ist harmlos.
                 return res.json({ success: true, data: { received: index } });
             }
-            if (Number(rec.size_bytes) + data.length > MAX_RECORDING_BYTES) return fail(res, 413, 'RECORDING_TOO_LARGE');
-
-            const inserted = await query(
-                `INSERT INTO consultation_recording_chunks (recording_id, chunk_index, data)
-                 VALUES ($1, $2, $3) ON CONFLICT (recording_id, chunk_index) DO NOTHING RETURNING chunk_index`,
-                [rec.id, index, data]
+            // Groesse zuerst atomar reservieren, dann speichern; bei Doppel oder Fehler zurueckgeben.
+            const reserved = await query(
+                `UPDATE consultation_recordings SET size_bytes = size_bytes + $1
+                 WHERE id = $2 AND size_bytes + $1 <= $3 RETURNING id`,
+                [data.length, rec.id, MAX_RECORDING_BYTES]
             );
-            if (inserted.rows.length > 0) {
-                await query(`UPDATE consultation_recordings SET size_bytes = size_bytes + $1 WHERE id = $2`, [data.length, rec.id]);
+            if (reserved.rows.length === 0) return fail(res, 413, 'RECORDING_TOO_LARGE');
+            let stored = false;
+            try {
+                const inserted = await query(
+                    `INSERT INTO consultation_recording_chunks (recording_id, chunk_index, data)
+                     VALUES ($1, $2, $3) ON CONFLICT (recording_id, chunk_index) DO NOTHING RETURNING chunk_index`,
+                    [rec.id, index, data]
+                );
+                stored = inserted.rows.length > 0;
+            } finally {
+                if (!stored) {
+                    await query(`UPDATE consultation_recordings SET size_bytes = size_bytes - $1 WHERE id = $2`, [data.length, rec.id]);
+                }
             }
             res.json({ success: true, data: { received: index } });
         } catch (error) {
@@ -219,6 +255,12 @@ recordingsRouter.post('/:clientId/complete', allowDeviceOr(...WRITER_ROLES), asy
         const extra = [...received].filter((i) => i >= total);
         if (extra.length > 0) {
             await query(`DELETE FROM consultation_recording_chunks WHERE recording_id = $1 AND chunk_index >= $2`, [rec.id, total]);
+            await query(
+                `UPDATE consultation_recordings SET size_bytes =
+                    (SELECT COALESCE(SUM(length(data)), 0) FROM consultation_recording_chunks WHERE recording_id = $1)
+                 WHERE id = $1`,
+                [rec.id]
+            );
         }
 
         await query(
@@ -442,6 +484,21 @@ consultationsRouter.put('/:id', requireWriter, async (req: CircleRequest, res: R
                 `UPDATE consultations SET ${sets.join(', ')} WHERE id = $${values.length - 1} AND circle_id = $${values.length}`,
                 values
             );
+            // Den beim Anlegen erzeugten Kalendertermin mitziehen (Zeit, Ort, Titel).
+            if (existing.event_id) {
+                const now = await loadConsultation(existing.id, req.circleId!);
+                if (now?.scheduled_at) {
+                    const label = consultationText(req.headers['accept-language'], 'defaultTitle');
+                    const who = [now.doctor_name, now.specialty].filter(Boolean).join(', ');
+                    await query(
+                        `UPDATE events SET start_time = $1, location = $2, title = $3 WHERE id = $4 AND circle_id = $5`,
+                        [now.scheduled_at, now.location, (who ? `${label}: ${who}` : label).slice(0, 255), existing.event_id, req.circleId]
+                    );
+                } else {
+                    await query(`DELETE FROM events WHERE id = $1 AND circle_id = $2`, [existing.event_id, req.circleId]);
+                }
+                await broadcastToCircle(req.circleId!, { type: 'update', entity: 'events', action: 'updated' });
+            }
             await notify(req.circleId!, 'updated');
         }
         res.json({ success: true, data: await loadConsultation(existing.id, req.circleId!) });
@@ -453,8 +510,13 @@ consultationsRouter.put('/:id', requireWriter, async (req: CircleRequest, res: R
 consultationsRouter.delete('/:id', requireWriter, async (req: CircleRequest, res: Response) => {
     try {
         if (!UUID_RE.test(String(req.params.id))) return fail(res, 404, 'Consultation not found');
-        const r = await query(`DELETE FROM consultations WHERE id = $1 AND circle_id = $2 RETURNING id`, [req.params.id, req.circleId]);
+        const r = await query(`DELETE FROM consultations WHERE id = $1 AND circle_id = $2 RETURNING id, event_id`, [req.params.id, req.circleId]);
         if (r.rows.length === 0) return fail(res, 404, 'Consultation not found');
+        // Der beim Anlegen erzeugte Termin gehoert zum Gespraech und wird mitgeloescht.
+        if (r.rows[0].event_id) {
+            await query(`DELETE FROM events WHERE id = $1 AND circle_id = $2`, [r.rows[0].event_id, req.circleId]);
+            await broadcastToCircle(req.circleId!, { type: 'update', entity: 'events', action: 'deleted' });
+        }
         await notify(req.circleId!, 'deleted');
         res.json({ success: true, data: null });
     } catch (error) {
