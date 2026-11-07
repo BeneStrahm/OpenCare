@@ -12,13 +12,28 @@ export interface ConsultationSummary {
     medication_changes: { name: string; change: string }[];
     recommendations: string[];
     next_steps: { text: string; due: string | null }[];
-    question_answers: { question_index: number; answer: string | null }[];
+    /** question_id ist massgeblich; question_index nur fuer aeltere Entwuerfe ohne ID */
+    question_answers: QuestionAnswer[];
     unclear: string[];
     /** Vorschlaege fuer Termine (erst nach Bestaetigung angelegt) */
     appointments: ProposedAppointment[];
     /** Vorschlaege fuer Notizen an der Familien-Pinnwand */
     family_notes: string[];
 }
+
+export interface QuestionAnswer {
+    question_id?: string | null;
+    question_index: number;
+    answer: string | null;
+}
+
+/** Fragen als Anzahl (alt) oder als IDs in Anzeige-Reihenfolge (bevorzugt). */
+export type QuestionRef = number | readonly string[];
+
+const questionList = (q: QuestionRef): { id: string | null; index: number }[] =>
+    typeof q === 'number'
+        ? Array.from({ length: Math.max(0, q) }, (_, i) => ({ id: null, index: i }))
+        : q.map((id, i) => ({ id, index: i }));
 
 export interface ProposedAppointment {
     title: string;
@@ -82,14 +97,15 @@ export function errorCodeKey(code: string | null | undefined): string | null {
     return `consultations:errors.${known}`;
 }
 
-export function emptySummary(questionCount: number): ConsultationSummary {
+export function emptySummary(questionCount: QuestionRef): ConsultationSummary {
     return {
         overview: '',
         findings: [],
         medication_changes: [],
         recommendations: [],
         next_steps: [],
-        question_answers: Array.from({ length: Math.max(0, questionCount) }, (_, i) => ({ question_index: i, answer: null })),
+        question_answers: questionList(questionCount).map((q) =>
+            q.id ? { question_id: q.id, question_index: q.index, answer: null } : { question_index: q.index, answer: null }),
         unclear: [],
         appointments: [],
         family_notes: [],
@@ -100,7 +116,7 @@ export function emptySummary(questionCount: number): ConsultationSummary {
  * Ergaenzt fehlende Felder (aeltere Entwuerfe ohne appointments/family_notes),
  * damit die Oberflaeche immer mit vollstaendigen Listen arbeitet.
  */
-export function withDefaults(summary: Partial<ConsultationSummary> | null | undefined, questionCount: number): ConsultationSummary {
+export function withDefaults(summary: Partial<ConsultationSummary> | null | undefined, questionCount: QuestionRef): ConsultationSummary {
     const base = emptySummary(questionCount);
     if (!summary) return base;
     const arr = <T,>(v: T[] | undefined | null): T[] => (Array.isArray(v) ? v : []);
@@ -137,14 +153,10 @@ export function isSummaryEmpty(summary: ConsultationSummary | null | undefined):
  * Eintraege fallen weg, Texte werden getrimmt, ungueltige Daten werden null.
  * Antworten werden auf die aktuelle Fragenzahl ausgerichtet.
  */
-export function normalizeSummary(summary: ConsultationSummary, questionCount: number): ConsultationSummary {
+export function normalizeSummary(summary: ConsultationSummary, questionCount: QuestionRef): ConsultationSummary {
     const clean = (s: string | null | undefined) => (typeof s === 'string' ? s.trim() : '');
     const list = (items: string[]) => items.map(clean).filter(Boolean);
-    const answers = new Map<number, string>();
-    for (const a of summary.question_answers) {
-        const text = clean(a.answer);
-        if (text && Number.isInteger(a.question_index)) answers.set(a.question_index, text);
-    }
+    const questions = questionList(questionCount);
     return {
         overview: clean(summary.overview),
         findings: list(summary.findings),
@@ -155,10 +167,16 @@ export function normalizeSummary(summary: ConsultationSummary, questionCount: nu
         next_steps: summary.next_steps
             .map((s) => ({ text: clean(s.text), due: isIsoDate(clean(s.due)) ? clean(s.due) : null }))
             .filter((s) => s.text),
-        question_answers: Array.from({ length: Math.max(0, questionCount) }, (_, i) => ({
-            question_index: i,
-            answer: answers.get(i) ?? null,
-        })),
+        // Antworten haengen an der Frage (ID), nicht am Listenplatz.
+        question_answers: questions.map((q) => {
+            const raw = q.id
+                ? answerForQuestion(summary.question_answers, q.id, q.index)
+                : summary.question_answers.find((a) => a.question_index === q.index)?.answer ?? null;
+            const answer = clean(raw) || null;
+            return q.id
+                ? { question_id: q.id, question_index: q.index, answer }
+                : { question_index: q.index, answer };
+        }),
         unclear: list(summary.unclear),
         appointments: (summary.appointments ?? [])
             .map((a) => ({
@@ -364,4 +382,105 @@ export function backoffDelay(step: number): number {
     const base = 60_000;
     const max = 15 * 60_000;
     return Math.min(max, base * 2 ** Math.max(0, Math.floor(step)));
+}
+
+// ─── Warteschlange: Entscheidungen als reine Funktionen (Pruefungs-Fixes) ────
+
+/** Lebenszeichen einer laufenden Aufnahme: alle 5 s, als verwaist gilt sie nach 60 s. */
+export const HEARTBEAT_MS = 5_000;
+export const HEARTBEAT_STALE_MS = 60_000;
+
+/**
+ * Darf eine als "recording" markierte Aufnahme als abgebrochen beendet werden?
+ * Nur wenn sie nicht in diesem Fenster laeuft UND ihr Lebenszeichen alt ist.
+ * So beendet ein zweites Fenster nie eine Aufnahme, die anderswo noch laeuft.
+ */
+export function isAbandonedRecording(
+    rec: { state: string; last_heartbeat_at?: number | null; updated_at: number },
+    now: number,
+    activeHere: boolean
+): boolean {
+    if (rec.state !== 'recording' || activeHere) return false;
+    const last = Math.max(rec.last_heartbeat_at ?? 0, rec.updated_at ?? 0);
+    return now - last > HEARTBEAT_STALE_MS;
+}
+
+/** Anzahl lueckenloser Stuecke ab Index 0 (nur diese ergeben eine abspielbare Datei). */
+export function contiguousChunkCount(indexes: readonly number[]): number {
+    const set = new Set(indexes);
+    let count = 0;
+    while (set.has(count)) count += 1;
+    return count;
+}
+
+export type UploadErrorKind = 'network' | 'backoff' | 'permanent' | 'auth' | 'retry';
+
+/** Fehlercodes, die sich durch Wiederholen nicht von selbst loesen. */
+export const PERMANENT_UPLOAD_CODES = [
+    'CLIENT_ID_TAKEN',
+    'CONSENT_REQUIRED',
+    'LOCAL_CONSENT_MISSING',
+    'UNSUPPORTED_AUDIO',
+    'INVALID_CLIENT_ID',
+    'RECORDING_TOO_LARGE',
+    'CHUNK_TOO_LARGE',
+] as const;
+
+/**
+ * Wie mit einem Upload-Fehler umgehen?
+ *  - network: offline, spaeter automatisch weiter
+ *  - backoff: Server ueberlastet (429/5xx), mit wachsender Pause weiter
+ *  - auth: Anmeldung fehlt oder Geraet entkoppelt (401), Aufnahme bleibt, Hinweis
+ *  - permanent: braucht eine Entscheidung (404, 403, bekannte Codes)
+ *  - retry: sonstiges, beim naechsten Durchlauf erneut
+ */
+export function classifyUploadError(error: { network?: boolean; status?: number; code?: string | null }): UploadErrorKind {
+    if (error.network) return 'network';
+    const status = error.status ?? 0;
+    if (status === 429 || status >= 500) return 'backoff';
+    if (status === 401) return 'auth';
+    if (status === 403 || status === 404 || status === 413) return 'permanent';
+    if (error.code && (PERMANENT_UPLOAD_CODES as readonly string[]).includes(error.code)) return 'permanent';
+    return 'retry';
+}
+
+/** Gehoert eine lokale Aufnahme der aktuell angemeldeten Person bzw. dem Geraet? */
+export function belongsToOwner(
+    rec: { from_kiosk: boolean; owner_user_id?: string | null; owner_device_id?: string | null },
+    owner: { userId: string | null; deviceId: string | null }
+): boolean {
+    if (rec.from_kiosk) {
+        // Aeltere Datensaetze ohne Geraete-ID gehoeren dem gekoppelten Geraet.
+        return Boolean(owner.deviceId) && (rec.owner_device_id == null || rec.owner_device_id === owner.deviceId);
+    }
+    return Boolean(owner.userId) && (rec.owner_user_id == null || rec.owner_user_id === owner.userId);
+}
+
+/** Tablet: Folgeaufnahme innerhalb von 3 Stunden gehoert zum selben Gespraech. */
+export const KIOSK_FOLLOW_UP_MS = 3 * 60 * 60_000;
+
+export interface KioskLastRecording {
+    client_id: string;
+    consultation_id: string | null;
+    at: number;
+}
+
+export function kioskFollowUp(last: KioskLastRecording | null, now: number): { consultation_id: string | null; follows_client_id: string | null } {
+    if (!last || now - last.at > KIOSK_FOLLOW_UP_MS || now < last.at) return { consultation_id: null, follows_client_id: null };
+    return last.consultation_id
+        ? { consultation_id: last.consultation_id, follows_client_id: null }
+        : { consultation_id: null, follows_client_id: last.client_id };
+}
+
+/** Antwort zu einer Frage: zuerst ueber question_id, nur ohne ID ueber den Listenplatz. */
+export function answerForQuestion(
+    answers: readonly { question_id?: string | null; question_index: number; answer: string | null }[],
+    questionId: string,
+    index: number
+): string | null {
+    const byId = answers.find((a) => a.question_id === questionId);
+    if (byId) return byId.answer;
+    const hasIds = answers.some((a) => a.question_id);
+    if (hasIds) return null;
+    return answers.find((a) => a.question_index === index)?.answer ?? null;
 }

@@ -30,6 +30,25 @@ export interface LocalRecording {
     from_kiosk: boolean;
     last_error: string | null;
     updated_at: number;
+    /** Einwilligung des Arztes wurde auf dem Geraet bestaetigt (Pflicht fuer den Upload) */
+    consent_confirmed?: boolean;
+    /** Wem die Aufnahme gehoert: angemeldete Person ... */
+    owner_user_id?: string | null;
+    /** ... oder gekoppeltes Patienten-Geraet */
+    owner_device_id?: string | null;
+    /** Lebenszeichen der laufenden Aufnahme (ms), auch ueber Fenster hinweg sichtbar */
+    last_heartbeat_at?: number | null;
+    /** Dauerhafter Fehler: wird nicht automatisch wiederholt, braucht eine Entscheidung */
+    needs_help?: string | null;
+    /** Tablet: gehoert zum selben Gespraech wie diese fruehere Aufnahme */
+    follows_client_id?: string | null;
+}
+
+/** Fehler, wenn eine Aufnahme lokal nicht (mehr) existiert. */
+export class LocalRecordingMissingError extends Error {
+    constructor(public clientId: string) {
+        super('LOCAL_RECORDING_MISSING');
+    }
 }
 
 interface ChunkRow {
@@ -104,10 +123,41 @@ export async function listRecordings(): Promise<LocalRecording[]> {
     return (rows as LocalRecording[]).sort((a, b) => a.started_at.localeCompare(b.started_at));
 }
 
-export async function updateRecording(clientId: string, patch: Partial<LocalRecording>): Promise<void> {
-    const current = await getRecording(clientId);
-    if (!current) return;
-    await saveRecording({ ...current, ...patch, client_id: clientId });
+/**
+ * Aenderung in EINER Transaktion lesen und schreiben, damit zwei Fenster sich
+ * nicht gegenseitig ueberschreiben. Fehlt der Datensatz, gibt es einen Fehler
+ * (nie still scheitern).
+ */
+export async function updateRecording(clientId: string, patch: Partial<LocalRecording>): Promise<LocalRecording> {
+    const db = await openDb();
+    const tx = db.transaction(RECORDINGS, 'readwrite');
+    const store = tx.objectStore(RECORDINGS);
+    const current = (await result(store.get(clientId))) as LocalRecording | undefined;
+    if (!current) {
+        tx.abort();
+        throw new LocalRecordingMissingError(clientId);
+    }
+    const next: LocalRecording = { ...current, ...patch, client_id: clientId, updated_at: Date.now() };
+    store.put(next);
+    await done(tx);
+    return next;
+}
+
+/**
+ * Aufnahme unter neuer client_id ablegen (z. B. "als neues Gespraech speichern",
+ * wenn das alte Gespraech geloescht wurde). Stuecke werden mitkopiert, danach
+ * wird der alte Datensatz geloescht.
+ */
+export async function reassignRecording(oldId: string, newId: string, patch: Partial<LocalRecording>): Promise<void> {
+    const current = await getRecording(oldId);
+    if (!current) throw new LocalRecordingMissingError(oldId);
+    const indexes = await listChunkIndexes(oldId);
+    for (const index of indexes) {
+        const blob = await getChunk(oldId, index);
+        if (blob) await saveChunk(newId, index, blob);
+    }
+    await saveRecording({ ...current, ...patch, client_id: newId });
+    await deleteRecording(oldId);
 }
 
 export async function saveChunk(clientId: string, index: number, blob: Blob): Promise<void> {
