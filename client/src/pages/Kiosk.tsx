@@ -16,6 +16,7 @@ import { cn } from '../lib/utils';
 import KioskCompanion from '../components/app/KioskCompanion';
 import KioskEmergency from '../components/app/KioskEmergency';
 import KioskVisitor, { type Visit as KioskVisit } from '../components/app/KioskVisitor';
+import KioskConsultation from '../components/app/KioskConsultation';
 
 // Mode Kiosk OpenCare : la tablette murale chez le proche, et le meme ecran
 // sur son telephone (mode poche). Concu d'apres les maquettes de la revue
@@ -216,6 +217,7 @@ const Kiosk: React.FC<KioskProps> = ({ device }) => {
     const [companionOpen, setCompanionOpen] = useState(false);
     const [visitorOpen, setVisitorOpen] = useState(false);
     const [emergencyOpen, setEmergencyOpen] = useState(false);
+    const [consultationOpen, setConsultationOpen] = useState(false);
     // Rappel de prise pousse par l escalade (niveau 1) : ecran calme, lu a voix haute.
     const [reminderOpen, setReminderOpen] = useState(false);
     const [infoOpen, setInfoOpen] = useState(false);
@@ -783,7 +785,7 @@ const Kiosk: React.FC<KioskProps> = ({ device }) => {
                 </div>
 
                 {/* D. Demander : assistant, mes informations, reglages */}
-                <div className={cn('grid gap-3', isPhone ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-3')}>
+                <div className={cn('grid gap-3', isPhone ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-4')}>
                     <button
                             type="button"
                             onClick={() => setCompanionOpen(true)}
@@ -796,6 +798,19 @@ const Kiosk: React.FC<KioskProps> = ({ device }) => {
                                 <span className="block" style={{ ...fs(15), opacity: 0.9 }}>{t('kiosk:actions.askHint')}</span>
                             </span>
                         </button>
+                    {/* Arztgespraech aufnehmen (Modul Arztgespraeche) */}
+                    <button
+                        type="button"
+                        onClick={() => setConsultationOpen(true)}
+                        className="flex min-h-[80px] items-center gap-4 rounded-2xl px-5 text-left shadow-sm active:shadow-inner"
+                        style={tile}
+                    >
+                        <Stethoscope className="h-10 w-10 shrink-0" style={{ color: C.blueDark }} aria-hidden="true" />
+                        <span>
+                            <span className="block font-bold" style={fs(22)}>{t('consultations:kiosk.button')}</span>
+                            <span className="block" style={{ ...fs(15), color: C.muted }}>{t('consultations:kiosk.buttonHint')}</span>
+                        </span>
+                    </button>
                     <button
                         type="button"
                         onClick={() => setInfoOpen(true)}
@@ -878,6 +893,11 @@ const Kiosk: React.FC<KioskProps> = ({ device }) => {
                     onClose={() => setVisitorOpen(false)}
                     onChanged={() => void loadToday()}
                 />
+            )}
+
+            {/* Arztgespraech aufnehmen (plein ecran) */}
+            {consultationOpen && (
+                <KioskConsultation fontScale={settings.fontScale} onClose={() => setConsultationOpen(false)} />
             )}
 
             {/* Compagnon de conversation (plein ecran) */}

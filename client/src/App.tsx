@@ -11,6 +11,8 @@ import CareLink from './pages/CareLink';
 import Emergency from './pages/Emergency';
 import Handover from './pages/Handover';
 import ConsultationPrep from './pages/ConsultationPrep';
+import Consultations from './pages/Consultations';
+import ConsultationDetail from './pages/ConsultationDetail';
 import KioskGate from './pages/KioskGate';
 import Onboarding from './pages/Onboarding';
 import Dashboard from './pages/Dashboard';
@@ -114,6 +116,8 @@ function App() {
                 <Route path="/contacts" element={<Contacts />} />
                 <Route path="/recipient" element={<Recipient />} />
                 <Route path="/consultation" element={<ConsultationPrep />} />
+                <Route path="/consultations" element={<Consultations />} />
+                <Route path="/consultations/:id" element={<ConsultationDetail />} />
                 <Route path="/circle" element={<Circle />} />
                 <Route path="/visitors" element={<Visitors />} />
                 <Route path="/care-plan" element={<CarePlan />} />
