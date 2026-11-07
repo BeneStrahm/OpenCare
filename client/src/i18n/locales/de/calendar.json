@@ -47,12 +47,25 @@
     "repeatMonthly": "Jeden Monat",
     "repeatDays": "Wochentage",
     "repeatUntil": "Bis (optional)",
-    "dayLetters": ["M", "D", "M", "D", "F", "S", "S"],
+    "dayLetters": [
+      "M",
+      "D",
+      "M",
+      "D",
+      "F",
+      "S",
+      "S"
+    ],
     "reminders": "Erinnerungen",
     "reminder30": "30 Minuten vorher",
     "reminder1h": "1 Stunde vorher",
     "notes": "Notizen (optional)",
-    "notesPlaceholder": "Hinweise, was mitzunehmen ist…"
+    "notesPlaceholder": "Hinweise, was mitzunehmen ist…",
+    "start": "Beginn",
+    "reminderDefaultOn": "Erinnerung 60 Minuten vorher. Ändern unter „Weitere Angaben“.",
+    "reminderDefaultOff": "Keine Erinnerung 60 Minuten vorher.",
+    "moreDetails": "Weitere Angaben (Ende, Ort, Wiederholung, Erinnerungen …)",
+    "lessDetails": "Weitere Angaben ausblenden"
   },
   "confirmDelete": "Diesen Termin löschen?",
   "deleteRecurringHint": "Alle Wiederholungen werden gelöscht.",

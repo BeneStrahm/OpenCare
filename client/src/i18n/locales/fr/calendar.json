@@ -47,12 +47,25 @@
     "repeatMonthly": "Tous les mois",
     "repeatDays": "Jours de la semaine",
     "repeatUntil": "Jusqu'au (facultatif)",
-    "dayLetters": ["L", "M", "M", "J", "V", "S", "D"],
+    "dayLetters": [
+      "L",
+      "M",
+      "M",
+      "J",
+      "V",
+      "S",
+      "D"
+    ],
     "reminders": "Rappels",
     "reminder30": "30 minutes avant",
     "reminder1h": "1 heure avant",
     "notes": "Notes (facultatif)",
-    "notesPlaceholder": "Consignes, choses à apporter…"
+    "notesPlaceholder": "Consignes, choses à apporter…",
+    "start": "Début",
+    "reminderDefaultOn": "Rappel 60 minutes avant. À modifier dans « Plus de détails ».",
+    "reminderDefaultOff": "Pas de rappel 60 minutes avant.",
+    "moreDetails": "Plus de détails (fin, lieu, répétition, rappels …)",
+    "lessDetails": "Masquer les détails"
   },
   "confirmDelete": "Supprimer cet événement ?",
   "deleteRecurringHint": "Toutes ses occurrences seront supprimées.",

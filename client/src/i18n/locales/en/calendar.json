@@ -47,12 +47,25 @@
     "repeatMonthly": "Every month",
     "repeatDays": "Days of the week",
     "repeatUntil": "Until (optional)",
-    "dayLetters": ["M", "T", "W", "T", "F", "S", "S"],
+    "dayLetters": [
+      "M",
+      "T",
+      "W",
+      "T",
+      "F",
+      "S",
+      "S"
+    ],
     "reminders": "Reminders",
     "reminder30": "30 minutes before",
     "reminder1h": "1 hour before",
     "notes": "Notes (optional)",
-    "notesPlaceholder": "Instructions, things to bring…"
+    "notesPlaceholder": "Instructions, things to bring…",
+    "start": "Start",
+    "reminderDefaultOn": "Reminder 60 minutes before. Change it under \"More details\".",
+    "reminderDefaultOff": "No reminder 60 minutes before.",
+    "moreDetails": "More details (end, place, repeat, reminders …)",
+    "lessDetails": "Hide more details"
   },
   "confirmDelete": "Delete this event?",
   "deleteRecurringHint": "All of its occurrences will be deleted.",

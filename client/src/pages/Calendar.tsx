@@ -19,6 +19,7 @@ import { circleWeekStart, weekStartsOn, orderedIsoDays, inWeekOrder } from '../l
 import { useAuth } from '../contexts/AuthContext';
 import { useWebSocketUpdates } from '../hooks/useWebSocketUpdates';
 import { dateLocale, formatClock } from '../i18n/format';
+import { NEW_EVENT_DEFAULTS, hasExtraDetails, longDatePattern } from '../lib/calendarForm';
 
 // ─── Domain types ─────────────────────────────────────────────────────────────
 
@@ -190,19 +191,18 @@ const emptyForm = (): EventForm => ({
     category: 'visit',
     date: format(new Date(), 'yyyy-MM-dd'),
     startTime: '09:00',
-    endTime: '10:00',
     location: '',
     member_ids: [],
     notes: '',
-    reminder_30min: false,
-    reminder_1hour: false,
+    ...NEW_EVENT_DEFAULTS,
     recurrence: { freq: '', byDays: [], until: '' },
 });
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 const Calendar: React.FC = () => {
-    const { t } = useTranslation(['calendar', 'common']);
+    const { t, i18n } = useTranslation(['calendar', 'common']);
+    const longDate = (withYear: boolean) => longDatePattern(i18n.language, withYear);
     const { activeCircle, myRole, canWriteContent } = useCircle();
     const { user } = useAuth();
 
@@ -220,6 +220,8 @@ const Calendar: React.FC = () => {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editingRecurring, setEditingRecurring] = useState(false);
     const [formData, setFormData] = useState<EventForm>(emptyForm());
+    // "Weitere Angaben" im Formular: neu zugeklappt, beim Bearbeiten offen, wenn etwas drin steht.
+    const [showMore, setShowMore] = useState(false);
     const [saving, setSaving] = useState(false);
 
     // Occurrence isolee d'une serie : deplacement ponctuel, sans toucher a la regle.
@@ -334,6 +336,7 @@ const Calendar: React.FC = () => {
         setEditingId(null);
         setEditingRecurring(false);
         setFormData({ ...emptyForm(), date: format(date ?? new Date(), 'yyyy-MM-dd') });
+        setShowMore(false);
         setError('');
         setDialogOpen(true);
     };
@@ -342,7 +345,7 @@ const Calendar: React.FC = () => {
         setSelected(null);
         setEditingId(occ.id);
         setEditingRecurring(occ.is_recurring);
-        setFormData({
+        const form: EventForm = {
             title: occ.title,
             category: occ.category,
             date: occ.start_time.slice(0, 10),
@@ -354,7 +357,9 @@ const Calendar: React.FC = () => {
             reminder_30min: occ.reminder_30min,
             reminder_1hour: occ.reminder_1hour,
             recurrence: parseRRuleToForm(occ.rrule),
-        });
+        };
+        setFormData(form);
+        setShowMore(hasExtraDetails(form));
         setError('');
         setDialogOpen(true);
     };
@@ -738,7 +743,7 @@ const Calendar: React.FC = () => {
                                                     isToday(day) ? 'text-primary' : 'text-muted-foreground'
                                                 )}
                                             >
-                                                {format(day, 'EEEE d MMMM', { locale: dateLocale() })}
+                                                {format(day, longDate(false), { locale: dateLocale() })}
                                                 {isToday(day) ? ` (${t('common:actions.today').toLowerCase()})` : ''}
                                             </h3>
                                             <div className="divide-y divide-border overflow-hidden rounded-card border border-border bg-card">
@@ -857,7 +862,7 @@ const Calendar: React.FC = () => {
                         <div className="flex items-center gap-2 text-caption text-foreground">
                             <CategoryDot category={selected.category} />
                             <span className="capitalize">
-                                {format(parseISO(selected.start_time), 'EEEE d MMMM yyyy', { locale: dateLocale() })}
+                                {format(parseISO(selected.start_time), longDate(true), { locale: dateLocale() })}
                             </span>
                         </div>
                         <div className="flex items-center gap-2 text-caption text-muted-foreground">
@@ -873,7 +878,7 @@ const Calendar: React.FC = () => {
                         {isMovedOccurrence(selected) && (
                             <p className="rounded-input bg-info/10 px-3 py-2 text-micro text-foreground">
                                 {t('calendar:occurrence.movedFrom', {
-                                    date: format(parseISO(selected.occurrence_date), 'EEEE d MMMM', { locale: dateLocale() }),
+                                    date: format(parseISO(selected.occurrence_date), longDate(false), { locale: dateLocale() }),
                                 })}
                             </p>
                         )}
@@ -1048,18 +1053,21 @@ const Calendar: React.FC = () => {
                 title={editingId ? t('calendar:dialog.editTitle') : t('calendar:dialog.createTitle')}
                 description={t('calendar:dialog.description')}
             >
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    {error && (
-                        <div className="rounded-input border border-danger/30 bg-danger/10 px-3 py-2 text-caption text-danger">
-                            {error}
-                        </div>
-                    )}
+                <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+                    <div role="alert" aria-live="assertive">
+                        {error && (
+                            <div className="rounded-input border border-danger/30 bg-danger/10 px-3 py-2 text-body text-danger">
+                                {error}
+                            </div>
+                        )}
+                    </div>
                     {editingId && editingRecurring && (
-                        <p className="rounded-input bg-info/10 px-3 py-2 text-micro text-foreground">
+                        <p className="rounded-input bg-info/10 px-3 py-2 text-caption text-foreground">
                             {t('calendar:dialog.editRecurringHint')}
                         </p>
                     )}
 
+                    {/* 1. Name */}
                     <Input
                         label={t('calendar:form.title')}
                         value={formData.title}
@@ -1068,23 +1076,10 @@ const Calendar: React.FC = () => {
                         placeholder={t('calendar:form.titlePlaceholder')}
                     />
 
-                    <div>
-                        <label className="mb-1.5 block text-label font-medium text-foreground">
-                            {t('calendar:form.category')}
-                        </label>
-                        <Select
-                            value={formData.category}
-                            onValueChange={(value) => setFormData({ ...formData, category: value as EventCategory })}
-                            options={categoryChoices.map((category) => ({
-                                value: category,
-                                label: t(`calendar:categories.${category}`),
-                            }))}
-                        />
-                    </div>
-
-                    <div className="rounded-input border border-border bg-surface-2/40 p-3">
-                        <p className="mb-3 text-caption font-medium text-foreground">{t('calendar:form.scheduling')}</p>
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    {/* 2. Beginn: Datum und Uhrzeit */}
+                    <fieldset className="rounded-input border border-border bg-surface-2/40 p-3">
+                        <legend className="px-1 text-label font-medium text-foreground">{t('calendar:form.start')}</legend>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <DatePicker
                                 label={t('calendar:form.date')}
                                 value={formData.date}
@@ -1096,14 +1091,68 @@ const Calendar: React.FC = () => {
                                 value={formData.startTime}
                                 onChange={(value) => setFormData({ ...formData, startTime: value })}
                             />
-                            <DatePicker
-                                label={t('calendar:form.endTime')}
-                                type="time"
-                                value={formData.endTime}
-                                onChange={(value) => setFormData({ ...formData, endTime: value })}
-                            />
                         </div>
+                        <p className="mt-3 flex items-center gap-2 text-caption text-muted-foreground">
+                            <Bell className="h-4 w-4 shrink-0" aria-hidden="true" />
+                            {formData.reminder_1hour ? t('calendar:form.reminderDefaultOn') : t('calendar:form.reminderDefaultOff')}
+                        </p>
+                    </fieldset>
+
+                    {/* 3. Kategorie: grosse Auswahl mit Text */}
+                    <fieldset>
+                        <legend className="mb-2 text-label font-medium text-foreground">{t('calendar:form.category')}</legend>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                            {categoryChoices.map((category) => {
+                                const active = formData.category === category;
+                                return (
+                                    <label
+                                        key={category}
+                                        className={cn(
+                                            'flex min-h-[48px] cursor-pointer items-center gap-2.5 rounded-input border px-3 py-2 text-body transition-colors duration-fast',
+                                            'focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2',
+                                            active ? 'border-primary bg-primary-soft font-medium text-foreground' : 'border-border bg-surface text-foreground hover:border-border-strong'
+                                        )}
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="event-category"
+                                            value={category}
+                                            checked={active}
+                                            onChange={() => setFormData({ ...formData, category })}
+                                            className="sr-only"
+                                        />
+                                        <CategoryDot category={category} className="h-3 w-3" />
+                                        <span>{t(`calendar:categories.${category}`)}</span>
+                                        {active && <Check className="ml-auto h-4 w-4 text-primary" aria-hidden="true" />}
+                                    </label>
+                                );
+                            })}
+                        </div>
+                    </fieldset>
+
+                    {/* Alles Weitere aufklappbar */}
+                    <div>
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            className="w-full justify-between"
+                            aria-expanded={showMore}
+                            aria-controls="event-more-details"
+                            onClick={() => setShowMore((v) => !v)}
+                        >
+                            <span>{showMore ? t('calendar:form.lessDetails') : t('calendar:form.moreDetails')}</span>
+                            <ChevronRight className={cn('h-5 w-5 transition-transform duration-fast', showMore && 'rotate-90')} aria-hidden="true" />
+                        </Button>
                     </div>
+
+                    {showMore && (
+                    <div id="event-more-details" className="space-y-4">
+                    <DatePicker
+                        label={t('calendar:form.endTime')}
+                        type="time"
+                        value={formData.endTime}
+                        onChange={(value) => setFormData({ ...formData, endTime: value })}
+                    />
 
                     <Input
                         label={t('calendar:form.location')}
@@ -1228,6 +1277,8 @@ const Calendar: React.FC = () => {
                         placeholder={t('calendar:form.notesPlaceholder')}
                         rows={2}
                     />
+                    </div>
+                    )}
 
                     <div className="flex justify-end gap-3 pt-2">
                         <Button type="button" variant="secondary" onClick={() => setDialogOpen(false)}>
