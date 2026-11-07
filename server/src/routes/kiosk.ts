@@ -10,6 +10,7 @@ import { createNotification } from '../lib/notifications';
 import { applyIntakeStatus, fetchIntakeForUpdate, IntakeSource } from '../lib/intakes';
 import { loadTodaySnapshot } from '../lib/todaySnapshot';
 import { getPublicSettings } from '../lib/circleSettings';
+import { isFeatureEnabled, isKioskElementEnabled, type FeatureId } from '../lib/features';
 import { loadCarePlan, filledSections } from '../lib/carePlan';
 import { loadEmergencySheet } from '../lib/emergencySheet';
 import { loadRules, createHelpRequest, resolveTargets } from '../lib/escalation';
@@ -171,10 +172,23 @@ router.get('/today', kioskOrMember(), allowDeviceOr(...HEALTH_READER_ROLES), asy
         const [snapshot, pinHash, settings] = await Promise.all([
             loadTodaySnapshot(circleId), getPinHash(circleId), getPublicSettings(circleId),
         ]);
+        // Fork: ausgeschaltete Funktionen liefert der Server gar nicht erst aus.
+        const off = (id: FeatureId) => !isFeatureEnabled(settings as unknown as Record<string, unknown>, id);
+        if (off('calendar')) snapshot.events_today = [];
+        if (off('medications')) {
+            snapshot.intakes_today = [];
+            snapshot.medications = { ...snapshot.medications, due_now: [], done: [], missed: [], upcoming_count: 0 };
+        }
+        if (off('visitors')) { snapshot.visits_today = []; snapshot.active_visit = null; }
+        if (off('contacts')) snapshot.contacts_key = [];
+        if (off('heatwave')) snapshot.heatwave = null;
         res.json({
             success: true,
             data: {
                 ...snapshot,
+                features: settings.features,
+                kiosk_elements: settings.kiosk_elements,
+                vital_types: settings.vital_types,
                 // Caregiver settings and leaving the screen are protected by a PIN when one is set.
                 pin_required: Boolean(pinHash),
                 device: req.kioskDevice ? publicDevice(req.kioskDevice) : null,

@@ -1,3 +1,4 @@
+import { FEATURE_IDS, KIOSK_ELEMENTS, cleanFlags, cleanVitalTypes, forgetCircleSettings } from './features';
 import { query } from '../db';
 import { pick, type Lang } from './i18n';
 
@@ -13,7 +14,7 @@ import { pick, type Lang } from './i18n';
  */
 
 /** Ce qu'un membre du cercle peut lire. */
-export const PUBLIC_SETTING_KEYS = ['unit_system', 'week_start', 'emergency_numbers', 'aid_types'] as const;
+export const PUBLIC_SETTING_KEYS = ['unit_system', 'week_start', 'emergency_numbers', 'aid_types', 'features', 'kiosk_elements', 'vital_types'] as const;
 
 /** Systeme d'unites de saisie et d'affichage des constantes. */
 export const UNIT_SYSTEMS = ['metric', 'imperial'] as const;
@@ -53,6 +54,12 @@ export interface PublicCircleSettings {
     emergency_numbers: string | null;
     /** null : rien de saisi, DEFAULT_AID_TYPES s'applique. */
     aid_types: string[] | null;
+    /** Fork: ausgeschaltete Funktionen ({ id: false }), siehe lib/features.ts */
+    features: Record<string, false>;
+    /** Fork: ausgeblendete Elemente der Tablet-Ansicht */
+    kiosk_elements: Record<string, false>;
+    /** Fork: erfasste Messwerte, null = alle */
+    vital_types: string[] | null;
 }
 
 const isUnitSystem = (value: unknown): value is UnitSystem =>
@@ -117,6 +124,9 @@ export function publicSettings(raw: unknown): PublicCircleSettings {
             const check = checkAidTypes(source.aid_types ?? null);
             return 'list' in check ? check.list : null;
         })(),
+        features: cleanFlags(source.features, FEATURE_IDS) ?? {},
+        kiosk_elements: cleanFlags(source.kiosk_elements, KIOSK_ELEMENTS) ?? {},
+        vital_types: cleanVitalTypes(source.vital_types ?? null) ?? null,
     };
 }
 
@@ -169,6 +179,22 @@ export function validateSettingsPatch(input: unknown, lang: Lang): { patch?: Rec
                 };
             }
             patch.emergency_numbers = cleaned;
+        }
+        if (key === 'features' || key === 'kiosk_elements') {
+            const cleaned = cleanFlags(value, key === 'features' ? FEATURE_IDS : KIOSK_ELEMENTS);
+            if (!cleaned) {
+                return { error: pick(lang, { fr: `${key} : valeurs invalides`, en: `${key}: invalid values`, es: `${key}: valores no válidos`, de: `${key}: ungültige Werte` }) };
+            }
+            patch[key] = cleaned;
+            continue;
+        }
+        if (key === 'vital_types') {
+            const cleaned = cleanVitalTypes(value);
+            if (cleaned === undefined) {
+                return { error: pick(lang, { fr: 'vital_types : au moins une mesure connue', en: 'vital_types: at least one known measurement', es: 'vital_types: al menos una medición conocida', de: 'vital_types: mindestens ein bekannter Messwert' }) };
+            }
+            patch.vital_types = cleaned;
+            continue;
         }
         if (key === 'aid_types') {
             const check = checkAidTypes(value);
@@ -228,5 +254,6 @@ export async function mergeCircleSettings(circleId: string, patch: Record<string
          RETURNING settings`,
         [circleId, JSON.stringify(patch)]
     );
+    forgetCircleSettings(circleId);
     return publicSettings(result.rows[0]?.settings);
 }
