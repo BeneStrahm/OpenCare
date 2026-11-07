@@ -8,8 +8,49 @@
 // - Die Antwort wird streng geprueft. Was nicht passt, bleibt "fehlend".
 // - Fehler des Modells sind nie fatal: dann fragt die App eben nach.
 
-import { aiComplete, getAiSettings } from '../../services/ai';
+import { aiComplete, getAiSettings, DEFAULT_BASE_URLS } from '../../services/ai';
+import { isLocalServiceUrl } from '../consultations/localOnly';
 import { isValidDate, isValidTime, isoDate } from './parser';
+
+/** Laenger wartet die Sprachsteuerung nicht auf das Modell: danach wird nachgefragt. */
+export const LLM_TIMEOUT_MS = 15_000;
+
+const HOUR_WORDS: Record<string, number> = {
+    eins: 1, ein: 1, zwei: 2, drei: 3, vier: 4, fünf: 5, fuenf: 5, sechs: 6, sieben: 7, acht: 8,
+    neun: 9, zehn: 10, elf: 11, zwölf: 12, zwoelf: 12,
+    one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+    eleven: 11, twelve: 12,
+};
+
+/** Alle im Text genannten Zahlen (Ziffern und Zahlwoerter). */
+function spokenNumbers(text: string): number[] {
+    const out: number[] = [];
+    for (const m of text.matchAll(/\d+/g)) out.push(Number(m[0]));
+    for (const w of text.toLowerCase().split(/[^\p{L}]+/u)) if (w in HOUR_WORDS) out.push(HOUR_WORDS[w]);
+    return out;
+}
+
+/**
+ * Eine Uhrzeit des Modells gilt nur, wenn sie im gesprochenen Text belegt ist:
+ * Die Stunde (oder bei "halb/viertel vor" die naechste Stunde) muss als Zahl
+ * vorkommen, Mitternacht/noon als Wort. Ohne Beleg: nachfragen statt erfinden.
+ */
+export function timeIsSupported(text: string, time: string): boolean {
+    const lower = text.toLowerCase();
+    const [h, min] = time.split(':').map(Number);
+    if (h === 0 && min === 0 && /mitternacht|midnight/.test(lower)) return true;
+    if (h === 12 && min === 0 && /\bnoon\b/.test(lower)) return true;
+    const numbers = spokenNumbers(text).filter((n) => n >= 0 && n <= 24);
+    const h12 = h % 12;
+    return numbers.some((n) => n % 12 === h12 || n % 12 === (h12 + 1) % 12);
+}
+
+const DATE_CUE = /\d|heute|morgen|übermorgen|uebermorgen|today|tomorrow|tonight|woche|week|tag|day|monat|month|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonnabend|sonntag|monday|tuesday|wednesday|thursday|friday|saturday|sunday|januar|jänner|februar|märz|maerz|april|mai|juni|juli|august|september|oktober|november|dezember|january|february|march|may|june|july|october|december/i;
+
+/** Ein Datum des Modells gilt nur, wenn im Text ueberhaupt eine Datumsangabe steckt. */
+export function dateIsSupported(text: string): boolean {
+    return DATE_CUE.test(text);
+}
 
 const DATETIME_SCHEMA: Record<string, unknown> = {
     type: 'object',
@@ -39,6 +80,8 @@ export async function extractDateTimeWithLocalModel(
 ): Promise<LlmDateTime | null> {
     const settings = await getAiSettings(circleId);
     if (!settings || settings.provider !== 'ollama') return null;
+    // Datenschutz: nur ein Modell im eigenen Netz bekommt den gesprochenen Satz.
+    if (!(await isLocalServiceUrl(settings.base_url || DEFAULT_BASE_URLS.ollama))) return null;
 
     const todayIso = isoDate(today);
     const system = [
@@ -54,9 +97,13 @@ export async function extractDateTimeWithLocalModel(
             system,
             user: text.slice(0, 300),
             jsonSchema: DATETIME_SCHEMA,
+            timeoutMs: LLM_TIMEOUT_MS,
         });
-        const date = typeof raw.date === 'string' && isValidDate(raw.date.trim()) ? raw.date.trim() : null;
-        const time = typeof raw.time === 'string' && isValidTime(raw.time.trim()) ? raw.time.trim() : null;
+        const rawDate = typeof raw.date === 'string' && isValidDate(raw.date.trim()) ? raw.date.trim() : null;
+        const rawTime = typeof raw.time === 'string' && isValidTime(raw.time.trim()) ? raw.time.trim() : null;
+        // Nichts uebernehmen, was im gesprochenen Satz nicht vorkommt.
+        const date = rawDate && dateIsSupported(text) ? rawDate : null;
+        const time = rawTime && timeIsSupported(text, rawTime) ? rawTime : null;
         let safeDate = date;
         if (safeDate) {
             const diffDays = (new Date(`${safeDate}T00:00:00`).getTime() - new Date(`${todayIso}T00:00:00`).getTime()) / 86_400_000;
