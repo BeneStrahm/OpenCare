@@ -1,0 +1,26 @@
+# Optional: lokale KI fuer das Arztgespraech-Modul (Texterkennung und Zusammenfassung).
+# Start zusammen mit der App:
+#   docker compose -f docker-compose.yml -f docker-compose.ki.yml up -d --build
+# Laeuft auch ohne Grafikkarte, ist dann aber langsam (siehe LOKAL-TESTEN.md).
+services:
+  speaches:
+    image: ghcr.io/speaches-ai/speaches:latest-cpu
+    container_name: opencare-whisper
+    restart: unless-stopped
+    environment:
+      - STT_MODEL_TTL=-1
+      - WHISPER__INFERENCE_DEVICE=cpu
+      - WHISPER__COMPUTE_TYPE=int8
+    volumes:
+      - whisper-models:/home/ubuntu/.cache/huggingface/hub
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: opencare-ollama
+    restart: unless-stopped
+    volumes:
+      - ollama-models:/root/.ollama
+
+volumes:
+  whisper-models:
+  ollama-models:
