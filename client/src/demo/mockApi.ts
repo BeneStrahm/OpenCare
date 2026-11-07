@@ -6,7 +6,8 @@
 // Le cercle actif est résolu depuis localStorage (la clé qu'utilise
 // ApiClient.setCircleId), faute d'en-tête X-Circle-Id dans le mock.
 import { createSeed, type CircleData, type DemoStore, type Json } from './seed';
-import { detectIntent, answerIntent, hasDistressSignal, distressHint, type CompanionFactsInput, type CompanionLang } from './companionAnswers';
+import { detectIntent, answerIntent, hasDistressSignal, distressHint, type CompanionFactsInput, type CompanionLang, type FactsVitalType } from './companionAnswers';
+import { formatVital } from '../lib/units';
 
 const store: DemoStore = createSeed();
 
@@ -515,6 +516,40 @@ function withTotals(rows: Json[]): Json {
 }
 
 // ── Constantes, tâches, dashboard, kiosk ─────────────────────────────────────
+
+/** Fork: Fakten fuer Vorrat, letzte Messwerte, Aufgaben heute und Termine der Woche (Demo). */
+function demoExtraFacts(c: CircleData, lang: CompanionLang): Pick<CompanionFactsInput, 'medication_stock' | 'vitals_latest' | 'tasks_due' | 'events_week'> {
+    const now = new Date();
+    const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    const dayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+    const weekEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 6, 23, 59, 59);
+    const system = (c.settings as { unit_system?: string } | undefined)?.unit_system === 'imperial' ? 'imperial' : 'metric';
+    const locale = lang === 'de' ? 'de-DE' : lang === 'en' ? 'en-US' : lang === 'es' ? 'es-ES' : 'fr-FR';
+    return {
+        medication_stock: c.medications
+            .filter((m) => m.active !== false && m.stock_quantity !== null && m.stock_quantity !== undefined)
+            .map((m) => ({
+                name: String(m.name),
+                quantity: Number(m.stock_quantity),
+                threshold: m.stock_alert_threshold === null || m.stock_alert_threshold === undefined ? null : Number(m.stock_alert_threshold),
+                unit: (((m.schedules as Json[]) || []).find((s) => s.unit)?.unit as string | undefined) ?? null,
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name)),
+        vitals_latest: latestVitals(c).map((v) => ({
+            type: v.type as FactsVitalType,
+            display: formatVital(v.type, Number(v.value), v.value2 === null || v.value2 === undefined ? null : Number(v.value2), system, locale),
+            measured_at: String(v.measured_at),
+        })),
+        tasks_due: c.tasks
+            .filter((t) => !t.is_completed && t.due_date && new Date(t.due_date).getTime() <= dayEnd.getTime())
+            .sort((a, b) => String(a.due_date).localeCompare(String(b.due_date)))
+            .map((t) => ({ title: String(t.title), due_date: String(t.due_date) })),
+        events_week: expandEvents(c, dayStart, weekEnd)
+            .filter((ev) => new Date(ev.end_time || ev.start_time).getTime() >= now.getTime())
+            .sort((a, b) => String(a.start_time).localeCompare(String(b.start_time)))
+            .map((ev) => ({ title: String(ev.title), category: String(ev.category), location: ev.location ?? null, start_time: String(ev.start_time) })),
+    };
+}
 
 function latestVitals(c: CircleData): Json[] {
     const byType = new Map<string, Json>();
@@ -1930,11 +1965,13 @@ async function route(method: string, path: string, q: Record<string, string>, bo
             visits_today: today.visits_today,
             contacts_key: today.contacts_key,
             heatwave: today.heatwave,
+            // Fork: wie server/src/lib/companionExtraFacts.ts
+            ...demoExtraFacts(c, lang),
         };
         const intent = detectIntent(last);
         if (intent) {
             const hint = intent !== 'help' && hasDistressSignal(last) ? distressHint(lang) : '';
-            return ok({ reply: answerIntent(intent, facts, lang) + hint, flagged: intent === 'help', source: 'facts', intent });
+            return ok({ reply: answerIntent(intent, facts, lang, new Date(), last) + hint, flagged: intent === 'help', source: 'facts', intent });
         }
         const reply = lang === 'en'
             ? 'That is kind of you to tell me. What memory does it bring back?'

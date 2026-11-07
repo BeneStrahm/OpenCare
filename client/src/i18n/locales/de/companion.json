@@ -25,8 +25,12 @@
   "subtitleFacts": "Tippen Sie auf das Mikrofon und stellen Sie Ihre Frage.",
   "quick": {
     "meds": "Was muss ich nehmen?",
+    "stock": "Was geht zur Neige?",
     "visitors": "Wer kommt heute?",
     "appointments": "Meine Termine?",
+    "week": "Was steht diese Woche an?",
+    "tasks": "Was ist heute zu erledigen?",
+    "vitals": "Was wurde zuletzt gemessen?",
     "date": "Welcher Tag ist heute?",
     "call": "Wen kann ich anrufen?"
   }

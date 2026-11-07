@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
-    CalendarDays, Pill, BookOpen, CheckSquare, Activity, ChevronRight, MessageCircle, MonitorPlay,
+    CalendarDays, Pill, BookOpen, CheckSquare, Activity, ChevronRight, MessageCircle, MonitorPlay, Mic,
 } from 'lucide-react';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { api } from '../lib/api';
@@ -17,6 +17,7 @@ import PresenceBanner from '../components/app/PresenceBanner';
 import HeatwaveBanner from '../components/app/HeatwaveBanner';
 import HouseholdOverview from '../components/app/HouseholdOverview';
 import AttentionCard, { type AttentionItem } from '../components/app/AttentionCard';
+import KioskCompanion from '../components/app/KioskCompanion';
 
 // ─── Payload of GET /api/dashboard ────────────────────────────────────────────
 
@@ -183,6 +184,8 @@ const Dashboard: React.FC = () => {
     const [error, setError] = useState('');
     // Vue foyer (couple): 'single' = un proche, 'household' = tout le foyer.
     const [view, setView] = useState<'single' | 'household'>('single');
+    // Fork: "Fragen Sie mich" auch in der PC-Ansicht (feste Antworten aus den Daten, ohne KI).
+    const [askOpen, setAskOpen] = useState(false);
 
     const load = async () => {
         if (!activeCircle) return;
@@ -313,11 +316,22 @@ const Dashboard: React.FC = () => {
                 {/* Le mode Kiosk s'ouvre d'ici : c'est l'ecran qu'on lance en
                     arrivant chez le proche, pas un reglage qu'on va chercher.
                     Masque au role voisin, qui ne voit aucune donnee de sante. */}
+                {/* Fork: Assistent, nicht fuer Bekannte (viewer), die der Server ablehnt. */}
+                {myRole !== 'viewer' && (
+                    <button
+                        type="button"
+                        onClick={() => setAskOpen(true)}
+                        className="ml-auto flex min-h-[44px] shrink-0 items-center gap-2 rounded-card border border-border bg-card px-4 text-caption font-medium text-foreground transition-colors duration-fast hover:bg-surface-2"
+                    >
+                        <Mic className="h-4 w-4 text-primary" aria-hidden="true" />
+                        {t('dashboard:openAskMe')}
+                    </button>
+                )}
                 {myRole !== 'neighbor' && (
                     <button
                         type="button"
                         onClick={() => navigate('/kiosk')}
-                        className="ml-auto flex min-h-[44px] shrink-0 items-center gap-2 rounded-card border border-border bg-card px-4 text-caption font-medium text-foreground transition-colors duration-fast hover:bg-surface-2"
+                        className={cn(myRole === 'viewer' && 'ml-auto', 'flex min-h-[44px] shrink-0 items-center gap-2 rounded-card border border-border bg-card px-4 text-caption font-medium text-foreground transition-colors duration-fast hover:bg-surface-2')}
                     >
                         <MonitorPlay className="h-4 w-4 text-primary" aria-hidden="true" />
                         {t('dashboard:openKiosk')}
@@ -508,6 +522,18 @@ const Dashboard: React.FC = () => {
             {/* Weekly AI digest: full width, below the grid. Built from health data, so never for a neighbor. */}
             {myRole !== 'neighbor' && <WeeklyDigestCard />}
             </>
+            )}
+
+            {askOpen && (
+                <KioskCompanion
+                    /* Leer: Die Begruessung soll nicht die betreute Person ansprechen. */
+                    recipientName=""
+                    aiEnabled={false}
+                    browserSpeech={false}
+                    fontScale={1}
+                    healthTopics={myRole !== 'neighbor'}
+                    onClose={() => setAskOpen(false)}
+                />
             )}
         </div>
     );

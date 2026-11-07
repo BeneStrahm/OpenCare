@@ -85,5 +85,6 @@
     "stockLeft_one": "{{name}} ({{count}} left)",
     "stockLeft_other": "{{name}} ({{count}} left)"
   },
-  "openKiosk": "Kiosk mode"
+  "openKiosk": "Kiosk mode",
+  "openAskMe": "Ask me"
 }

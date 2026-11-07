@@ -25,8 +25,12 @@
   "subtitleFacts": "Toca el micrófono y haz tu pregunta.",
   "quick": {
     "meds": "¿Qué tengo que tomar?",
+    "stock": "¿Qué medicamento se acaba?",
     "visitors": "¿Quién viene hoy?",
     "appointments": "¿Mis citas?",
+    "week": "¿Qué hay esta semana?",
+    "tasks": "¿Qué hay que hacer hoy?",
+    "vitals": "¿Cuáles son las últimas mediciones?",
     "date": "¿Qué día es hoy?",
     "call": "¿A quién puedo llamar?"
   }

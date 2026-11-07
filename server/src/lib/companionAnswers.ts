@@ -333,7 +333,7 @@ function answerWeather(f: CompanionFactsInput, lang: CompanionLang): string {
 
 // ── Fork: neue feste Themen ──
 
-const noAccess = (lang: CompanionLang): string => pick(lang, {
+export const noAccess = (lang: CompanionLang): string => pick(lang, {
     fr: "Je n'ai pas accès à ces informations.",
     en: 'I do not have access to this information.',
     es: 'No tengo acceso a esa información.',

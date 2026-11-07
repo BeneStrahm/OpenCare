@@ -25,8 +25,12 @@
   "subtitleFacts": "Appuie sur le micro et pose ta question.",
   "quick": {
     "meds": "Qu'est-ce que je dois prendre ?",
+    "stock": "Quel médicament va manquer ?",
     "visitors": "Qui vient aujourd'hui ?",
     "appointments": "Mes rendez-vous ?",
+    "week": "Qu'est-ce qui est prévu cette semaine ?",
+    "tasks": "Qu'est-ce qu'il y a à faire aujourd'hui ?",
+    "vitals": "Quelles sont les dernières mesures ?",
     "date": "Quel jour sommes-nous ?",
     "call": "Qui puis-je appeler ?"
   }

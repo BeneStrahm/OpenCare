@@ -13,6 +13,7 @@ import {
     type CompanionStorySection,
 } from '../services/ai/companion';
 import { loadTodaySnapshot } from '../lib/todaySnapshot';
+import { loadCompanionExtraFacts } from '../lib/companionExtraFacts';
 import {
     detectIntent,
     hasDistressSignal,
@@ -20,6 +21,8 @@ import {
     buildTodayFacts,
     capabilitiesReply,
     distressHint,
+    HEALTH_INTENTS,
+    noAccess,
     type CompanionIntent,
 } from '../lib/companionAnswers';
 import { createNotification } from '../lib/notifications';
@@ -146,16 +149,24 @@ router.post('/message', allowDeviceOr(...JOURNAL_WRITER_ROLES), async (req: Kios
         // compte pour un membre, francais sinon.
         const language = langFromRequest(req);
 
-        const [snapshot, storyResult, row] = await Promise.all([
+        // Fork: Gesundheitsdaten nicht fuer Nachbarn (wie Uebersicht und Pflegeplan).
+        const includeHealth = Boolean(req.kioskDevice) || req.circleRole !== 'neighbor';
+
+        const [snapshot, storyResult, row, extra] = await Promise.all([
             loadTodaySnapshot(circleId, now),
             query('SELECT sections FROM recipient_stories WHERE circle_id = $1', [circleId]),
             loadAiSettingsRow(circleId),
+            loadCompanionExtraFacts(circleId, includeHealth, language, now),
         ]);
         const recipientFirstName = snapshot.recipient?.first_name?.trim() || '';
-        const facts = { ...snapshot, recipientFirstName };
+        const facts = { ...snapshot, ...extra, recipientFirstName };
 
         const lastUser = messages[messages.length - 1].content;
         const intent: CompanionIntent | null = detectIntent(lastUser);
+        const answer = (i: CompanionIntent): string =>
+            (!includeHealth && HEALTH_INTENTS.includes(i))
+                ? noAccess(language)
+                : answerIntent(i, facts, language, now, lastUser);
         const distress = hasDistressSignal(lastUser);
         const aiReady = Boolean(row && row.model && row.enabled && row.companion_enabled);
 
@@ -168,7 +179,7 @@ router.post('/message', allowDeviceOr(...JOURNAL_WRITER_ROLES), async (req: Kios
         //    Si un signal de detresse accompagne la question et que l'IA est la,
         //    on la laisse repondre (elle sait escalader avec discernement).
         if (intent && !(distress && aiReady)) {
-            reply = answerIntent(intent, facts, language, now);
+            reply = answer(intent);
             source = 'facts';
             if (intent === 'help') {
                 flagged = true;
@@ -207,7 +218,7 @@ router.post('/message', allowDeviceOr(...JOURNAL_WRITER_ROLES), async (req: Kios
                 // Provider injoignable: une phrase calme (200) plutot qu'une erreur
                 // brute, pour ne pas derouter la personne agee en mode Kiosk.
                 logger.warn('companion.ai_failed', { circleId, code: aiError.code });
-                reply = intent ? answerIntent(intent, facts, language, now) : companionFallback(language);
+                reply = intent ? answer(intent) : companionFallback(language);
                 source = intent ? 'facts' : 'fallback';
             }
         } else {

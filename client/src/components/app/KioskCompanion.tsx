@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { intlLocale } from '../../i18n/format';
-import { Mic, Square, X, Volume2, Send, Loader2, Pill, Users, CalendarClock, CalendarDays, Phone } from 'lucide-react';
+import { Mic, Square, X, Volume2, Send, Loader2, Pill, Users, CalendarClock, CalendarDays, Phone, PackageOpen, CalendarRange, CheckSquare, Activity } from 'lucide-react';
 import { api } from '../../lib/api';
 import { cn } from '../../lib/utils';
 
@@ -60,10 +60,16 @@ const pickRecorderMimeType = (): string => {
 const MAX_AUDIO_BYTES = 5 * 1024 * 1024;
 
 // Questions rapides, toujours disponibles : le serveur y repond depuis les donnees.
-const QUICK_QUESTIONS: Array<{ key: 'meds' | 'visitors' | 'appointments' | 'date' | 'call'; Icon: React.FC<{ className?: string }> }> = [
-    { key: 'meds', Icon: Pill },
+type QuickKey = 'meds' | 'stock' | 'visitors' | 'appointments' | 'week' | 'tasks' | 'vitals' | 'date' | 'call';
+// health: Gesundheitsthema, fuer Nachbarn ausgeblendet (der Server antwortet dort ohnehin "kein Zugriff").
+const QUICK_QUESTIONS: Array<{ key: QuickKey; Icon: React.FC<{ className?: string }>; health?: boolean }> = [
+    { key: 'meds', Icon: Pill, health: true },
+    { key: 'stock', Icon: PackageOpen, health: true },
     { key: 'visitors', Icon: Users },
-    { key: 'appointments', Icon: CalendarClock },
+    { key: 'appointments', Icon: CalendarClock, health: true },
+    { key: 'week', Icon: CalendarRange },
+    { key: 'tasks', Icon: CheckSquare },
+    { key: 'vitals', Icon: Activity, health: true },
     { key: 'date', Icon: CalendarDays },
     { key: 'call', Icon: Phone },
 ];
@@ -75,10 +81,12 @@ interface KioskCompanionProps {
     /** Dictee par le navigateur (reglage aidant), a la place du serveur Whisper. */
     browserSpeech: boolean;
     fontScale: number;
+    /** Gesundheitsthemen anbieten (Standard ja; nein fuer Nachbarn in der PC-Ansicht). */
+    healthTopics?: boolean;
     onClose: () => void;
 }
 
-const KioskCompanion: React.FC<KioskCompanionProps> = ({ recipientName, aiEnabled, browserSpeech, fontScale, onClose }) => {
+const KioskCompanion: React.FC<KioskCompanionProps> = ({ recipientName, aiEnabled, browserSpeech, fontScale, healthTopics = true, onClose }) => {
     const { t } = useTranslation(['companion']);
     // Dictee et voix dans la langue de l'ecran (fr-FR, en-US, es-ES...).
     const speechLang = intlLocale();
@@ -345,7 +353,7 @@ const KioskCompanion: React.FC<KioskCompanionProps> = ({ recipientName, aiEnable
             {!busy && (
                 <div className="px-6 pb-2 lg:px-10">
                     <div className="mx-auto flex max-w-3xl gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
-                        {QUICK_QUESTIONS.map(({ key, Icon }) => (
+                        {QUICK_QUESTIONS.filter((q) => healthTopics || !q.health).map(({ key, Icon }) => (
                             <button
                                 key={key}
                                 type="button"
