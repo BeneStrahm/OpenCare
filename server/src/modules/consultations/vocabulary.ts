@@ -44,9 +44,10 @@ const INTRO: Record<string, string> = {
 export function buildWhisperPrompt(
     groups: { custom: string[]; automatic: string[] },
     lang: string,
-    maxChars = WHISPER_PROMPT_MAX_CHARS
+    maxChars = WHISPER_PROMPT_MAX_CHARS,
+    introOverride?: string
 ): string {
-    const intro = INTRO[lang] ?? INTRO.de;
+    const intro = introOverride ?? INTRO[lang] ?? INTRO.de;
     const ordered = [
         ...groups.custom,
         ...groups.automatic,
@@ -114,4 +115,29 @@ export async function loadVocabulary(circleId: string): Promise<{ custom: Vocabu
         ...doctors.rows.map((r: { v: string }) => r.v),
     ].map(normalizeTerm).filter(Boolean);
     return { custom: custom.rows as VocabularyRow[], automatic: [...new Set(automatic)] };
+}
+
+const DICTATION_INTRO: Record<string, string> = {
+    de: 'Fachbegriffe: ',
+    en: 'Terms: ',
+    fr: 'Termes : ',
+    es: 'Términos: ',
+};
+
+/**
+ * Whisper-Kontext fuer kurze Diktate (Sprachtagebuch, Sprachsteuerung).
+ * Fehler beim Laden duerfen das Diktat nie verhindern: dann ohne Kontext.
+ */
+export async function dictationPromptFor(circleId: string, lang: string): Promise<string> {
+    try {
+        const v = await loadVocabulary(circleId);
+        return buildWhisperPrompt(
+            { custom: v.custom.map((t) => t.term), automatic: v.automatic },
+            lang,
+            WHISPER_PROMPT_MAX_CHARS,
+            DICTATION_INTRO[lang] ?? DICTATION_INTRO.de
+        );
+    } catch {
+        return '';
+    }
 }
