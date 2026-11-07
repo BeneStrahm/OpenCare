@@ -7,6 +7,7 @@ import { createNotification } from '../lib/notifications';
 import { langFromRequest, t, pick, pickLang, type Lang } from '../lib/i18n';
 import { getPublicSettings } from '../lib/circleSettings';
 import { formatVital, isVitalType, numberLocale } from '../lib/units';
+import { isVitalTypeEnabled, loadCircleSettings } from '../lib/features';
 
 const router = Router();
 
@@ -258,6 +259,10 @@ router.post('/', requireHealthWriter, async (req: CircleRequest, res: Response) 
         if (typeof type !== 'string' || !VITAL_TYPES.includes(type)) {
             return res.status(400).json({ success: false, error: 'Invalid vital type' });
         }
+        // Fork: nur ausgewaehlte Messwerte duerfen erfasst werden.
+        if (!isVitalTypeEnabled(await loadCircleSettings(req.circleId!), type)) {
+            return res.status(403).json({ success: false, error: 'FEATURE_DISABLED' });
+        }
 
         const numValue = Number(value);
         if (value === undefined || value === null || value === '' || !Number.isFinite(numValue)) {
@@ -341,6 +346,9 @@ router.put('/:id', async (req: CircleRequest, res: Response) => {
         if (type !== undefined) {
             if (typeof type !== 'string' || !VITAL_TYPES.includes(type)) {
                 return res.status(400).json({ success: false, error: 'Invalid vital type' });
+            }
+            if (!isVitalTypeEnabled(await loadCircleSettings(req.circleId!), type)) {
+                return res.status(403).json({ success: false, error: 'FEATURE_DISABLED' });
             }
             fields.push(`type = $${idx++}`);
             values.push(type);

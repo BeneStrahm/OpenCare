@@ -10,7 +10,7 @@ import { createNotification } from '../lib/notifications';
 import { applyIntakeStatus, fetchIntakeForUpdate, IntakeSource } from '../lib/intakes';
 import { loadTodaySnapshot } from '../lib/todaySnapshot';
 import { getPublicSettings } from '../lib/circleSettings';
-import { isFeatureEnabled, isKioskElementEnabled, type FeatureId } from '../lib/features';
+import { isFeatureEnabled, loadCircleSettings, type FeatureId } from '../lib/features';
 import { loadCarePlan, filledSections } from '../lib/carePlan';
 import { loadEmergencySheet } from '../lib/emergencySheet';
 import { loadRules, createHelpRequest, resolveTargets } from '../lib/escalation';
@@ -109,6 +109,17 @@ const publicDevice = (d: { id: string; name: string; kind: string; settings?: un
 // ============================================================
 // Appairage (public, code a usage unique) et ecrans patient
 // ============================================================
+
+// Fork: Tablet-Aktionen einer ausgeschalteten Funktion sperren (nach kioskOrMember).
+const featureOn = (id: FeatureId) => async (req: KioskRequest, res: Response, next: () => void) => {
+    try {
+        if (isFeatureEnabled(await loadCircleSettings(req.circleId!), id)) return next();
+        return res.status(403).json({ success: false, error: 'FEATURE_DISABLED' });
+    } catch (error) {
+        console.error('Kiosk feature check error:', error);
+        return res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+};
 
 // POST /api/kiosk/pair : la tablette ou le telephone echange le code d'appairage
 // contre son token d'appareil. Public, limite en debit dans app.ts.
@@ -294,7 +305,7 @@ router.post('/status', kioskOrMember(), allowDeviceOr(...JOURNAL_WRITER_ROLES), 
 // the patient phone). Body { intake_ids: string[], source?: 'kiosk' | 'phone' }.
 // Every pending intake of the list is marked taken, attributed to the care
 // recipient by name, with the confirmation source kept for the audit trail.
-router.post('/intakes/confirm', kioskOrMember(), allowDeviceOr(...HEALTH_WRITER_ROLES), async (req: KioskRequest, res: Response) => {
+router.post('/intakes/confirm', kioskOrMember(), featureOn('medications'), allowDeviceOr(...HEALTH_WRITER_ROLES), async (req: KioskRequest, res: Response) => {
     const ids = Array.isArray(req.body?.intake_ids)
         ? (req.body.intake_ids as unknown[]).filter((id): id is string => typeof id === 'string').slice(0, 50)
         : [];
@@ -348,7 +359,7 @@ router.post('/intakes/confirm', kioskOrMember(), allowDeviceOr(...HEALTH_WRITER_
 // ============================================================
 
 // POST /api/kiosk/visits/check-in { visitor_type, visitor_name, member_id? }
-router.post('/visits/check-in', kioskOrMember(), allowDeviceOr(...JOURNAL_WRITER_ROLES), async (req: KioskRequest, res: Response) => {
+router.post('/visits/check-in', kioskOrMember(), featureOn('visitors'), allowDeviceOr(...JOURNAL_WRITER_ROLES), async (req: KioskRequest, res: Response) => {
     try {
         const visitorType = req.body?.visitor_type as VisitorType;
         const visitorName = typeof req.body?.visitor_name === 'string' ? req.body.visitor_name.trim().slice(0, 100) : '';
@@ -376,7 +387,7 @@ router.post('/visits/check-in', kioskOrMember(), allowDeviceOr(...JOURNAL_WRITER
 });
 
 // POST /api/kiosk/visits/:id/check-out
-router.post('/visits/:id/check-out', kioskOrMember(), allowDeviceOr(...JOURNAL_WRITER_ROLES), async (req: KioskRequest, res: Response) => {
+router.post('/visits/:id/check-out', kioskOrMember(), featureOn('visitors'), allowDeviceOr(...JOURNAL_WRITER_ROLES), async (req: KioskRequest, res: Response) => {
     try {
         const visit = await checkOut(req.circleId!, req.params.id, await screenLanguage(req));
         if (!visit) return res.status(404).json({ success: false, error: 'Not found' });
@@ -388,7 +399,7 @@ router.post('/visits/:id/check-out', kioskOrMember(), allowDeviceOr(...JOURNAL_W
 });
 
 // POST /api/kiosk/visits/:id/note { content } : note de passage d'un professionnel
-router.post('/visits/:id/note', kioskOrMember(), allowDeviceOr(...JOURNAL_WRITER_ROLES), async (req: KioskRequest, res: Response) => {
+router.post('/visits/:id/note', kioskOrMember(), featureOn('visitors'), allowDeviceOr(...JOURNAL_WRITER_ROLES), async (req: KioskRequest, res: Response) => {
     try {
         const content = typeof req.body?.content === 'string' ? req.body.content.trim().slice(0, 2000) : '';
         if (!content) return res.status(400).json({ success: false, error: 'content required' });
@@ -606,7 +617,7 @@ router.delete('/pin', ...manage, async (req: CircleRequest, res: Response) => {
 
 // GET /api/kiosk/care-plan : the family's care instructions (non-empty
 // sections only), shown to a professional visitor during a visit.
-router.get('/care-plan', kioskOrMember(), allowDeviceOr(...HEALTH_READER_ROLES), async (req: KioskRequest, res: Response) => {
+router.get('/care-plan', kioskOrMember(), featureOn('care_plan'), allowDeviceOr(...HEALTH_READER_ROLES), async (req: KioskRequest, res: Response) => {
     try {
         const plan = await loadCarePlan(req.circleId!);
         res.json({ success: true, data: { sections: filledSections(plan.sections), updated_at: plan.updated_at } });

@@ -2,6 +2,7 @@ import React, { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
+import { useFeatures } from '../../lib/features';
 import { useCircle } from '../../contexts/CircleContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import {
@@ -119,6 +120,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     const { t } = useTranslation('nav');
     const { user, logout } = useAuth();
     const { myRole } = useCircle();
+    const { isPathOn, isOn } = useFeatures();
+    const visibleTabs = mobileTabs.filter((item) => isPathOn(item.href));
+    const visibleActions = quickActions.filter((item) => isPathOn(item.href));
     const { setTheme, actualTheme } = useTheme();
     const [sidebarOpen, setSidebarOpen] = React.useState(false);
     const [quickActionsOpen, setQuickActionsOpen] = React.useState(false);
@@ -224,7 +228,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
                     <nav aria-label={t('primaryNav')} className="flex-1 overflow-y-auto px-4 py-4 scrollbar-hide">
                         {NAV_GROUPS.map((group, index) => {
-                            const items = group.items.filter((item) => !item.hideFor || !myRole || !item.hideFor.includes(myRole));
+                            const items = group.items.filter((item) => isPathOn(item.href) && (!item.hideFor || !myRole || !item.hideFor.includes(myRole)));
                             if (items.length === 0) return null;
                             return (
                                 <div key={group.key}>
@@ -306,7 +310,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
                         <div className="flex items-center gap-2">
                             {/* Sprachsteuerung: auf dem Handy immer in Reichweite */}
-                            {myRole && myRole !== 'viewer' && <VoiceCommandButton variant="header" />}
+                            {myRole && myRole !== 'viewer' && isOn('voice_commands') && <VoiceCommandButton variant="header" />}
                             <NotificationBell />
                             <div className="hidden items-center gap-2 lg:flex">
                                 <Button
@@ -382,7 +386,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             >
                 <p className="mb-3 text-caption font-semibold text-foreground">{t('quickActions.title')}</p>
                 <div className="grid grid-cols-1 gap-2">
-                    {quickActions.map((action) => {
+                    {visibleActions.map((action) => {
                         const Icon = action.icon;
                         return (
                             <Link
@@ -400,8 +404,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
 
             <nav aria-label={t('mobileNav')} className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 pb-safe backdrop-blur lg:hidden">
-                <div className="grid grid-cols-5 gap-1 px-2 py-2">
-                    {mobileTabs.map((item) => {
+                <div className="grid gap-1 px-2 py-2" style={{ gridTemplateColumns: `repeat(${visibleTabs.length}, minmax(0, 1fr))` }}>
+                    {visibleTabs.map((item) => {
                         const Icon = item.icon;
                         const active = isRouteActive(location.pathname, item.href);
                         return (

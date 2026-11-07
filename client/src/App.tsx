@@ -32,10 +32,11 @@ import Visitors from './pages/Visitors';
 import CarePlan from './pages/CarePlan';
 import Settings from './pages/Settings';
 import Integrations from './pages/Integrations';
+import { isPathEnabled } from './lib/features';
 
 function App() {
     const { isAuthenticated, loading } = useAuth();
-    const { loading: circlesLoading, needsOnboarding } = useCircle();
+    const { loading: circlesLoading, needsOnboarding, activeCircle } = useCircle();
     const { t } = useTranslation('common');
     const location = useLocation();
 
@@ -98,6 +99,11 @@ function App() {
     }
     if (location.pathname === '/onboarding') {
         return <Onboarding />;
+    }
+
+    // Fork: Seiten ausgeschalteter Funktionen fuehren zur Uebersicht.
+    if (activeCircle && !isPathEnabled(activeCircle.settings, location.pathname)) {
+        return <Navigate to="/" replace />;
     }
 
     return (
