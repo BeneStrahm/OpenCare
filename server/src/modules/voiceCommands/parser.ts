@@ -131,6 +131,14 @@ const WEEKDAY_RE = Object.keys(WEEKDAYS).join('|');
 const MONTH_RE = Object.keys(MONTHS).sort((a, b) => b.length - a.length).join('|');
 const NUMWORD_RE = Object.keys(NUMBER_WORDS).sort((a, b) => b.length - a.length).join('|');
 
+/** Naechstes Vorkommen eines Wochentags nach heute (heute selbst zaehlt nicht). */
+const nextWeekday = (today: Date, name: string): string => {
+    const target = WEEKDAYS[name.toLowerCase()];
+    let diff = (target - today.getDay() + 7) % 7;
+    if (diff === 0) diff = 7;
+    return isoDate(addDays(today, diff));
+};
+
 /** Naechstes Datum mit diesem Tag und Monat, heute eingeschlossen. */
 const nextDayMonth = (today: Date, day: number, month: number, year?: number): string | null => {
     if (year !== undefined) {
@@ -165,19 +173,17 @@ export function findDate(text: string, today: Date): Found<string> | null {
             nextDayMonth(today, Number(m[2]), MONTHS[m[1].toLowerCase()], m[3] ? Number(m[3]) : undefined)],
         [U(/\bübermorgen\b|\bday after tomorrow\b/iu), () => isoDate(addDays(today, 2))],
         [U(/\bheute\s+(?:morgen|früh|abend|nachmittag|mittag)\b|\bheute\b|\btoday\b|\btonight\b|\bthis (?:morning|afternoon|evening)\b/iu), () => isoDate(today)],
-        [U(/\bmorgen\b|\btomorrow\b/iu), () => isoDate(addDays(today, 1))],
+        // "Montag morgen", "am Dienstagmorgen", "Freitag abend": Tageszeit des
+        // Wochentags, NICHT der naechste Tag. Muss vor der Regel fuer "morgen" stehen.
+        [R(`\\b(?:am\\s+|nächsten?\\s+|naechsten?\\s+|kommenden?\\s+)?(${WEEKDAY_RE})\\s*(?:morgens?|früh|vormittags?|mittags?|nachmittags?|abends?|nachts?)\\b`, 'iu'), (m) => nextWeekday(today, m[1])],
+        [U(/\bmorgen(?:\s+(?:früh|vormittags?|mittags?|nachmittags?|abends?))?\b|\btomorrow(?:\s+(?:morning|afternoon|evening))?\b/iu), () => isoDate(addDays(today, 1))],
         [R(`\\bin\\s+(\\d+|${NUMWORD_RE})\\s+(tag(?:en)?|days?|woche(?:n)?|weeks?)\\b`, 'iu'), (m) => {
             const n = toNumber(m[1]);
             if (n === null || n < 1 || n > 365) return null;
             const unit = m[2].toLowerCase();
             return isoDate(addDays(today, unit.startsWith('w') ? n * 7 : n));
         }],
-        [R(`\\b(?:am\\s+|on\\s+|nächsten?\\s+|naechsten?\\s+|kommenden?\\s+|next\\s+|this\\s+)?(${WEEKDAY_RE})\\b`, 'iu'), (m) => {
-            const target = WEEKDAYS[m[1].toLowerCase()];
-            let diff = (target - today.getDay() + 7) % 7;
-            if (diff === 0) diff = 7;
-            return isoDate(addDays(today, diff));
-        }],
+        [R(`\\b(?:am\\s+|on\\s+|nächsten?\\s+|naechsten?\\s+|kommenden?\\s+|next\\s+|this\\s+)?(${WEEKDAY_RE})\\b`, 'iu'), (m) => nextWeekday(today, m[1])],
     ];
     for (const [re, toValue] of tries) {
         const m = re.exec(text);
@@ -207,14 +213,18 @@ export function findTime(text: string): TimeFound | null {
         let h = hour;
         void explicit;
         let qualified = false;
-        const pm = U(/^\s*(?:uhr\s+)?(?:nachmittags?|abends?|in der nacht|p\.?\s?m\.?|in the (?:afternoon|evening))\b/iu).test(after)
-            || U(/\b(?:heute|morgen)\s+(?:nachmittag|abend)\b/iu).test(before) || U(/\b(?:tonight|this (?:afternoon|evening))\b/iu).test(text);
-        const am = U(/^\s*(?:uhr\s+)?(?:morgens|früh|vormittags?|a\.?\s?m\.?|in the morning)\b/iu).test(after)
-            || U(/\bheute\s+(?:morgen|früh)\b|\bmorgen\s+früh\b|\bthis morning\b|\btomorrow morning\b/iu).test(before);
+        const pm = U(/^\s*(?:uhr\s+)?(?:nachmittags?|abends?|p\.?\s?m\.?|in the (?:afternoon|evening))\b/iu).test(after)
+            || U(/\b(?:heute|morgen)\s+(?:nachmittag|abend)\b/iu).test(before) || U(/\b(?:tonight|this (?:afternoon|evening))\b/iu).test(text)
+            || R(`\\b(?:${WEEKDAY_RE})\\s*(?:nachmittags?|abends?)\\b`, 'iu').test(before)
+            || R(`\\b(?:${WEEKDAY_RE})\\s+(?:afternoon|evening)\\b`, 'iu').test(before);
+        const am = U(/^\s*(?:uhr\s+)?(?:morgens|früh|vormittags?|nachts|in der nacht|a\.?\s?m\.?|in the morning|at night)\b/iu).test(after)
+            || U(/\bheute\s+(?:morgen|früh)\b|\bmorgen\s+früh\b|\bthis morning\b|\btomorrow morning\b/iu).test(before)
+            || R(`\\b(?:${WEEKDAY_RE})\\s*(?:morgens?|früh|vormittags?)\\b`, 'iu').test(before)
+            || R(`\\b(?:${WEEKDAY_RE})\\s+morning\\b`, 'iu').test(before);
         if (pm && h >= 1 && h <= 11) { h += 12; qualified = true; }
         if (am) { if (h === 12) h = 0; qualified = true; }
         const end = m.index + m[0].length + (() => {
-            const q = after.match(U(/^\s*(?:uhr\s+)?(?:nachmittags?|abends?|morgens|früh|vormittags?|a\.?\s?m\.?|p\.?\s?m\.?|in the (?:afternoon|evening|morning))\b/iu));
+            const q = after.match(U(/^\s*(?:uhr\s+)?(?:nachmittags?|abends?|morgens|früh|vormittags?|nachts|in der nacht|a\.?\s?m\.?|p\.?\s?m\.?|in the (?:afternoon|evening|morning)|at night)\b/iu));
             return q ? q[0].length : 0;
         })();
         const span = { start: m.index, end };
@@ -233,7 +243,9 @@ export function findTime(text: string): TimeFound | null {
     // halb zehn = 9:30, viertel nach neun = 9:15, viertel vor zehn / dreiviertel zehn = 9:45
     if ((m = R(`\\b(?:um\\s+)?halb\\s+${HOUR_WORDS_RE}\\b`, 'iu').exec(text))) {
         const h = hourOf(m[1]);
-        if (h !== null && h >= 1 && h <= 24) return result(m, h - 1, 30, h - 1 > 6);
+        // "halb eins" meint 12:30 (mit "nachts" 0:30, siehe result()).
+        if (h === 1) return result(m, 12, 30, true);
+        if (h !== null && h >= 2 && h <= 24) return result(m, h - 1, 30, h - 1 > 6);
     }
     if ((m = R(`\\b(?:um\\s+)?viertel\\s+nach\\s+${HOUR_WORDS_RE}\\b`, 'iu').exec(text))) {
         const h = hourOf(m[1]);
@@ -241,7 +253,8 @@ export function findTime(text: string): TimeFound | null {
     }
     if ((m = R(`\\b(?:um\\s+)?(?:viertel\\s+vor|dreiviertel)\\s+${HOUR_WORDS_RE}\\b`, 'iu').exec(text))) {
         const h = hourOf(m[1]);
-        if (h !== null && h >= 1) return result(m, h - 1, 45, h - 1 > 6);
+        if (h === 1) return result(m, 12, 45, true);
+        if (h !== null && h >= 2) return result(m, h - 1, 45, h - 1 > 6);
     }
     if ((m = R(`\\b(?:at\\s+)?half\\s+past\\s+${HOUR_WORDS_RE}\\b`, 'iu').exec(text))) {
         const h = hourOf(m[1]);
@@ -250,6 +263,13 @@ export function findTime(text: string): TimeFound | null {
     if ((m = R(`\\b(?:at\\s+)?quarter\\s+(past|to)\\s+${HOUR_WORDS_RE}\\b`, 'iu').exec(text))) {
         const h = hourOf(m[2]);
         if (h !== null) return m[1].toLowerCase() === 'past' ? result(m, h, 15, h > 6) : result(m, h - 1, 45, h - 1 > 6);
+    }
+    // Mitternacht / midnight = 0:00, noon = 12:00 ("Mittag" allein ist zu ungenau: nachfragen)
+    if ((m = U(/\b(?:um\s+|at\s+|gegen\s+)?(?:mitternacht|midnight)\b/iu).exec(text))) {
+        return { value: '00:00', ambiguous: false, span: { start: m.index, end: m.index + m[0].length } };
+    }
+    if ((m = U(/\b(?:at\s+)?noon\b/iu).exec(text))) {
+        return { value: '12:00', ambiguous: false, span: { start: m.index, end: m.index + m[0].length } };
     }
     // 9:30, 9.30 Uhr, 14:05 ("12.03." ist ein Datum, keine Uhrzeit)
     for (const cm of text.matchAll(U(/\b(?:um\s+|at\s+|gegen\s+)?(\d{1,2})[:.](\d{2})(?:\s*uhr)?(?!\d|\.\d)/giu))) {
