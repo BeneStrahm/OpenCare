@@ -72,6 +72,8 @@ export interface AiCompletionRequest {
     user: string;
     /** JSON schema of the expected response object (additionalProperties:false everywhere). */
     jsonSchema: Record<string, unknown>;
+    /** Optional longer timeout (ms) for slow local models on long inputs. Defaults to AI_TIMEOUT_MS. */
+    timeoutMs?: number;
 }
 
 export type AiErrorCode =

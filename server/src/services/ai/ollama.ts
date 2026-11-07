@@ -21,15 +21,15 @@ import {
  * LAN/private targets stay allowed (local Ollama is the whole point); metadata
  * and link-local endpoints are always blocked by safeFetch.
  */
-async function aiSafeFetch(url: string, init: RequestInit): Promise<Response> {
+async function aiSafeFetch(url: string, init: RequestInit, timeoutMs: number = AI_TIMEOUT_MS): Promise<Response> {
     try {
-        return await safeFetch(url, init, { timeoutMs: AI_TIMEOUT_MS });
+        return await safeFetch(url, init, { timeoutMs });
     } catch (error) {
         if (error instanceof UnsafeUrlError) {
             throw new AiError('AI_UNREACHABLE', error.message);
         }
         if (error instanceof Error && error.name === 'AbortError') {
-            throw new AiError('AI_UNREACHABLE', `Le fournisseur IA n'a pas répondu en ${AI_TIMEOUT_MS / 1000}s`);
+            throw new AiError('AI_UNREACHABLE', `Le fournisseur IA n'a pas répondu en ${timeoutMs / 1000}s`);
         }
         throw new AiError('AI_UNREACHABLE', error instanceof Error ? error.message : 'Fournisseur IA injoignable');
     }
@@ -57,7 +57,7 @@ export async function ollamaComplete(
                 stream: false,
                 format,
             }),
-        });
+        }, request.timeoutMs ?? AI_TIMEOUT_MS);
 
     let response = await doRequest(request.jsonSchema);
     if (response.status === 400) {
