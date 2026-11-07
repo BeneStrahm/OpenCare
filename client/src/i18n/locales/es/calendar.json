@@ -47,12 +47,25 @@
     "repeatMonthly": "Todos los meses",
     "repeatDays": "Días de la semana",
     "repeatUntil": "Hasta el (opcional)",
-    "dayLetters": ["L", "M", "M", "J", "V", "S", "D"],
+    "dayLetters": [
+      "L",
+      "M",
+      "M",
+      "J",
+      "V",
+      "S",
+      "D"
+    ],
     "reminders": "Recordatorios",
     "reminder30": "30 minutos antes",
     "reminder1h": "1 hora antes",
     "notes": "Notas (opcional)",
-    "notesPlaceholder": "Indicaciones, cosas que llevar…"
+    "notesPlaceholder": "Indicaciones, cosas que llevar…",
+    "start": "Inicio",
+    "reminderDefaultOn": "Recordatorio 60 minutos antes. Cámbialo en «Más detalles».",
+    "reminderDefaultOff": "Sin recordatorio 60 minutos antes.",
+    "moreDetails": "Más detalles (fin, lugar, repetición, recordatorios …)",
+    "lessDetails": "Ocultar detalles"
   },
   "confirmDelete": "¿Eliminar este evento?",
   "deleteRecurringHint": "Se eliminarán todas las fechas de la serie.",

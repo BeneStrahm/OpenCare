@@ -221,7 +221,8 @@ describe('Uhrzeit und Datum einzeln', () => {
     it('findTime', () => {
         expect(findTime('um 14:05')?.value).toBe('14:05');
         expect(findTime('um 25:00')?.value ?? null).toBeNull();
-        expect(findTime('at noon')).toBeNull();
+        expect(findTime('at noon')?.value).toBe('12:00');
+        expect(findTime('mittags')).toBeNull();
         expect(findTime('morgen früh um 7')?.value).toBe('07:00');
     });
     it('findDate: "morgens" ist nicht morgen', () => {
@@ -285,5 +286,47 @@ describe('matchTask', () => {
     });
     it('kein Treffer', () => {
         expect(matchTask(tasks, 'Fenster putzen')).toEqual({ error: 'TASK_NOT_FOUND' });
+    });
+});
+
+import { timeIsSupported, dateIsSupported } from '../../server/src/modules/voiceCommands/llm';
+
+describe('Pruefungs-Fixes: Tageszeit nach Wochentag', () => {
+    it('"Montag morgen um 9" ist Montag, nicht morgen', () => {
+        expect(findDate('Termin Hausarzt Montag morgen um 9', TODAY)?.value).toBe('2026-11-09');
+        expect(findDate('am Montag morgen', TODAY)?.value).toBe('2026-11-09');
+        expect(findDate('Dienstagmorgen Physiotherapie', TODAY)?.value).toBe('2026-11-10');
+        expect(findDate('Freitag abend Besuch', TODAY)?.value).toBe('2026-11-13');
+    });
+    it('"morgen" allein bleibt der naechste Tag', () => {
+        expect(findDate('morgen um 9 Hausarzt', TODAY)?.value).toBe('2026-11-08');
+        expect(findDate('morgen früh Blut abnehmen', TODAY)?.value).toBe('2026-11-08');
+        expect(findDate('heute Morgen', TODAY)?.value).toBe('2026-11-07');
+        expect(findDate('übermorgen', TODAY)?.value).toBe('2026-11-09');
+    });
+    it('Montag morgen um 9 ergibt 9:00 eindeutig', () => {
+        const t = findTime('Montag morgen um 9');
+        expect(t?.value).toBe('09:00');
+        expect(t?.ambiguous).toBe(false);
+    });
+});
+
+describe('Pruefungs-Fixes: halb eins und Mitternacht', () => {
+    it('halb eins ist 12:30', () => expect(findTime('um halb eins')?.value).toBe('12:30'));
+    it('viertel nach zwölf ist 12:15', () => expect(findTime('viertel nach zwölf')?.value).toBe('12:15'));
+    it('Mitternacht ist 0:00', () => expect(findTime('um Mitternacht')?.value).toBe('00:00'));
+    it('halb drei ohne Zusatz wird nachgefragt', () => expect(findTime('um halb drei')?.ambiguous).toBe(true));
+});
+
+describe('Pruefungs-Fixes: KI-Hilfe darf nichts erfinden', () => {
+    it('Uhrzeit nur, wenn im Satz belegt', () => {
+        expect(timeIsSupported('Termin beim Hausarzt am Montag', '09:00')).toBe(false);
+        expect(timeIsSupported('Termin um neun beim Hausarzt', '09:00')).toBe(true);
+        expect(timeIsSupported('Termin um 14 Uhr 30', '14:30')).toBe(true);
+        expect(timeIsSupported('halb zehn Zahnarzt', '09:30')).toBe(true);
+    });
+    it('Datum nur, wenn im Satz eine Datumsangabe steht', () => {
+        expect(dateIsSupported('Termin beim Zahnarzt')).toBe(false);
+        expect(dateIsSupported('Termin nächste Woche beim Zahnarzt')).toBe(true);
     });
 });

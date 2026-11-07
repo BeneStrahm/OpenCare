@@ -528,7 +528,8 @@ router.post('/', async (req: CircleRequest, res: Response) => {
                 typeof cleanedRRule === 'string' ? cleanedRRule.trim() : null,
                 JSON.stringify(memberIds),
                 Boolean(reminder_30min),
-                Boolean(reminder_1hour),
+                // Fork: ohne Angabe erinnert ein neuer Termin 1 Stunde vorher.
+                reminder_1hour === undefined ? true : Boolean(reminder_1hour),
                 toNullIfEmpty(notes),
                 req.userId,
             ]

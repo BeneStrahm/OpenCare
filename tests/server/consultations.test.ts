@@ -194,3 +194,26 @@ describe('Vorschlaege fuer Termine und Notizen', () => {
         expect(() => validateSummary({ family_notes: ['Termin vereinbaren'] }, 0)).not.toThrow();
     });
 });
+
+import { isLocalAddress, isLocalServiceUrl } from '../../server/src/modules/consultations/localOnly';
+
+describe('nur lokale Dienste', () => {
+    it('erkennt Adressen im eigenen Netz', () => {
+        for (const ip of ['127.0.0.1', '10.0.0.5', '172.20.0.3', '192.168.1.10', '100.101.102.103', '::1', 'fd00::1']) {
+            expect(isLocalAddress(ip)).toBe(true);
+        }
+    });
+    it('lehnt Internet- und Metadaten-Adressen ab', () => {
+        for (const ip of ['8.8.8.8', '104.18.0.1', '169.254.169.254', '2606:4700::1']) {
+            expect(isLocalAddress(ip)).toBe(false);
+        }
+    });
+    it('prueft alle aufgeloesten Adressen eines Hostnamens', async () => {
+        expect(await isLocalServiceUrl('http://speaches:8000', async () => ['172.18.0.4'])).toBe(true);
+        expect(await isLocalServiceUrl('https://api.openai.com', async () => ['104.18.33.45'])).toBe(false);
+        expect(await isLocalServiceUrl('http://mixed', async () => ['10.0.0.1', '8.8.8.8'])).toBe(false);
+        expect(await isLocalServiceUrl('http://kaputt', async () => { throw new Error('dns'); })).toBe(false);
+        expect(await isLocalServiceUrl('ftp://10.0.0.1')).toBe(false);
+        expect(await isLocalServiceUrl(null)).toBe(false);
+    });
+});

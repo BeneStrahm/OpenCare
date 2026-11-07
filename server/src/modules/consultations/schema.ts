@@ -96,4 +96,10 @@ export const CONSULTATION_MIGRATIONS: string[] = [
     // Welche Vorschlaege (Aufgaben, Termine, Notizen) schon uebernommen wurden:
     // { "task:0": "<task id>", "event:1": "<event id>", "note:0": "<note id>" }
     `ALTER TABLE consultations ADD COLUMN IF NOT EXISTS applied JSONB NOT NULL DEFAULT '{}'::jsonb;`,
+
+    // Schutz von Freigaben (Fork-Fix nach Pruefung): Herkunft der Zusammenfassung,
+    // Hinweis auf neue Aufnahmen und erzwungenes Neu-Erstellen.
+    `ALTER TABLE consultations ADD COLUMN IF NOT EXISTS summary_source VARCHAR(10);`,
+    `ALTER TABLE consultations ADD COLUMN IF NOT EXISTS summary_outdated BOOLEAN NOT NULL DEFAULT FALSE;`,
+    `ALTER TABLE consultation_recordings ADD COLUMN IF NOT EXISTS force_summary BOOLEAN NOT NULL DEFAULT FALSE;`,
 ];

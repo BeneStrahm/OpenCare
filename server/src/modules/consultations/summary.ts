@@ -51,6 +51,8 @@ export interface NextStep {
 export interface QuestionAnswer {
     /** Index der vorbereiteten Frage (0-basiert, Reihenfolge wie im Prompt). */
     question_index: number;
+    /** ID der Frage. Massgeblich fuer die Zuordnung, falls Fragen spaeter verschoben oder geloescht werden. */
+    question_id?: string | null;
     /** null, wenn die Frage im Gespraech nicht beantwortet wurde. */
     answer: string | null;
 }
@@ -421,4 +423,37 @@ export function sanitizeEditedSummary(raw: unknown, questionCount: number): Cons
             family_notes: [],
         };
     }
+}
+
+/** Haengt die Fragen-IDs an (Reihenfolge wie im Prompt bzw. wie questionIds). */
+export function bindQuestionIds(summary: ConsultationSummary, questionIds: string[]): ConsultationSummary {
+    return {
+        ...summary,
+        question_answers: summary.question_answers.map((qa) => ({
+            ...qa,
+            question_id: questionIds[qa.question_index] ?? null,
+        })),
+    };
+}
+
+/**
+ * Wie sanitizeEditedSummary, aber die Antworten werden ueber question_id den
+ * AKTUELLEN Fragen zugeordnet. Antworten zu geloeschten Fragen fallen weg,
+ * verschobene Fragen behalten ihre Antwort. Nur Eintraege ohne question_id
+ * (aeltere Entwuerfe) werden ueber den Listenplatz zugeordnet.
+ */
+export function sanitizeSummaryForQuestions(raw: unknown, questionIds: string[]): ConsultationSummary {
+    const obj = raw && typeof raw === 'object' ? { ...(raw as Record<string, unknown>) } : {};
+    if (Array.isArray(obj.question_answers)) {
+        obj.question_answers = (obj.question_answers as unknown[]).flatMap((item) => {
+            if (!item || typeof item !== 'object') return [];
+            const o = item as Record<string, unknown>;
+            if (typeof o.question_id === 'string') {
+                const index = questionIds.indexOf(o.question_id);
+                return index === -1 ? [] : [{ ...o, question_index: index }];
+            }
+            return [o];
+        });
+    }
+    return bindQuestionIds(sanitizeEditedSummary(obj, questionIds.length), questionIds);
 }

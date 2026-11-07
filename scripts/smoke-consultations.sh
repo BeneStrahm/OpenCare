@@ -23,6 +23,9 @@ v=$(curl -s $A/api/consultations/vocabulary "${H[@]}"); echo "$v" | jq -e '.data
 CON=$(curl -s -X POST $A/api/consultations "${H[@]}" -d '{"doctor_name":"Dr. Weber","specialty":"Kardiologie","scheduled_at":"2026-11-10T09:30","reason":"Kontrolle","create_event":true}')
 ID=$(echo $CON | jq -r .data.id); [ "$(echo $CON | jq -r .data.event_id)" != null ] && ok "Gespräch mit Termin" || bad "Gespräch $CON"
 curl -s "$A/api/events?from=2026-11-01T00:00:00&to=2026-11-30T23:59:59" "${H[@]}" | jq -e '.data | any(.[]; .title == "Arztgespräch: Dr. Weber, Kardiologie")' >/dev/null && ok "Kalendertermin" || bad "Kalender"
+EV=$(echo $CON | jq -r .data.event_id)
+curl -s -X PUT $A/api/consultations/$ID "${H[@]}" -d '{"scheduled_at":"2026-11-11T10:15","location":"Praxis Süd"}' >/dev/null
+curl -s "$A/api/events?from=2026-11-01T00:00:00&to=2026-11-30T23:59:59" "${H[@]}" | jq -e --arg ev "$EV" '.data | any(.[]; .id==$ev and .start_time=="2026-11-11T10:15:00" and .location=="Praxis Süd")' >/dev/null && ok "Kalendertermin mitgeändert" || bad "Kalender-Sync"
 Q1=$(curl -s -X POST $A/api/consultations/$ID/questions "${H[@]}" -d '{"text":"Woher kommt der Schwindel?"}' | jq -r .data.id)
 curl -s -X POST $A/api/consultations/$ID/questions "${H[@]}" -d '{"text":"Darf sie weiter Rad fahren?"}' >/dev/null
 c=$(curl -s -o /dev/null -w '%{http_code}' -X PUT $A/api/consultations/$ID "${H[@]}" -d '{"scheduled_at":"10.11.2026"}'); [ "$c" = 400 ] && ok "ungültiges Datum 400" || bad "Datum $c"
@@ -30,8 +33,9 @@ c=$(curl -s -o /dev/null -w '%{http_code}' -X PUT $A/api/consultations/$ID "${H[
 # Aufnahme ohne Einwilligung
 CL=$(cat /proc/sys/kernel/random/uuid)
 c=$(curl -s -o /dev/null -w '%{http_code}' -X POST $A/api/consultations/recordings "${H[@]}" -d "{\"client_id\":\"$CL\",\"consultation_id\":\"$ID\",\"mime_type\":\"audio/webm;codecs=opus\"}"); [ "$c" = 400 ] && ok "ohne Einwilligung 400" || bad "consent $c"
-r=$(curl -s -X POST $A/api/consultations/recordings "${H[@]}" -d "{\"client_id\":\"$CL\",\"consultation_id\":\"$ID\",\"consent_confirmed\":true,\"mime_type\":\"audio/webm;codecs=opus\",\"started_at\":\"2026-11-10T09:31:00\"}")
+r=$(curl -s -X POST $A/api/consultations/recordings "${H[@]}" -d "{\"client_id\":\"$CL\",\"consultation_id\":\"$ID\",\"consent_confirmed\":true,\"consent_at\":\"$(date -d '-2 hours' +%Y-%m-%dT%H:%M:%S)\",\"mime_type\":\"audio/webm;codecs=opus\",\"started_at\":\"2026-11-10T09:31:00\"}")
 RID=$(echo $r | jq -r .data.id); [ "$RID" != null ] && ok "Aufnahme angemeldet" || bad "anmelden $r"
+ca=$(sudo -n -u postgres psql -tA opencare -c "select (now()::timestamp - consent_at) > interval '1 hour' from consultation_recordings where id='$RID'"); [ "$ca" = t ] && ok "Einwilligungszeit vom Gerät" || bad "consent_at $ca"
 r2=$(curl -s -X POST $A/api/consultations/recordings "${H[@]}" -d "{\"client_id\":\"$CL\",\"consultation_id\":\"$ID\",\"consent_confirmed\":true,\"mime_type\":\"audio/webm\"}"); [ "$(echo $r2 | jq -r .data.id)" = "$RID" ] && ok "idempotent" || bad "idem"
 B=(-H "Authorization: Bearer $TOKEN" -H "X-Circle-Id: $CID" -H 'Content-Type: application/octet-stream')
 printf 'FAKEAUDIO-0' | curl -s -X PUT $A/api/consultations/recordings/$CL/chunks/0 "${B[@]}" --data-binary @- >/dev/null
@@ -100,4 +104,6 @@ k=$(curl -s -X POST $A/api/consultations/recordings -H "X-Kiosk-Token: $KT" -H '
 c=$(curl -s -o /dev/null -w '%{http_code}' $A/api/consultations -H "X-Kiosk-Token: $KT"); [ "$c" = 401 ] && ok "Tablet liest keine Gespräche" || bad "Tablet liest $c"
 c=$(curl -s -o /dev/null -w '%{http_code}' -X POST $A/api/consultations/recordings/$RID/retry -H "X-Kiosk-Token: $KT"); [ "$c" = 403 ] && ok "Tablet kein retry" || bad "Tablet retry $c"
 curl -s -X DELETE $A/api/consultations/$ID "${H[@]}" | jq -e .success >/dev/null && ok "Gespräch gelöscht" || bad "delete"
+n=$(sudo -n -u postgres psql -tA opencare -c "select count(*) from events where id='$EV'"); [ "$n" = 0 ] && ok "Termin mitgelöscht" || bad "Termin bleibt $n"
+
 echo "Fehler: $FAILS"

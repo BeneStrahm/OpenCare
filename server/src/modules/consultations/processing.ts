@@ -16,6 +16,7 @@ import { decryptCredentials } from '../../utils/crypto';
 import { safeFetch } from '../../utils/safeFetch';
 import { aiComplete, getAiSettings, type AiSettings } from '../../services/ai';
 import {
+    bindQuestionIds,
     DIRECT_SUMMARY_MAX_CHARS,
     buildSegmentPrompt,
     buildSummaryPrompt,
@@ -27,6 +28,7 @@ import {
 } from './summary';
 import { buildWhisperPrompt, loadVocabulary, vocabularyForSummary } from './vocabulary';
 import { consultationText } from './texts';
+import { isLocalServiceUrl } from './localOnly';
 
 const POLL_MS = 20_000;
 const MAX_ATTEMPTS = 3;
@@ -40,6 +42,19 @@ const envMs = (name: string, fallback: number): number => {
 /** Lange Aufnahmen brauchen auf kleiner Hardware deutlich laenger als ein Diktat. */
 const TRANSCRIBE_TIMEOUT_MS = envMs('CONSULTATION_TRANSCRIBE_TIMEOUT_MS', 30 * 60_000);
 const SUMMARY_TIMEOUT_MS = envMs('CONSULTATION_SUMMARY_TIMEOUT_MS', 10 * 60_000);
+
+/** Liest den Antworttext mit Zeitgrenze: safeFetch begrenzt nur bis zu den Kopfzeilen. */
+async function readJsonWithTimeout(response: Response, ms: number): Promise<unknown> {
+    let timer: NodeJS.Timeout | undefined;
+    try {
+        return await Promise.race([
+            response.json().catch(() => null),
+            new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('BODY_TIMEOUT')), ms); }),
+        ]);
+    } finally {
+        if (timer) clearTimeout(timer);
+    }
+}
 
 export class ProcessingError extends Error {
     constructor(public code: string, public retryable: boolean) {
@@ -56,6 +71,7 @@ interface RecordingRow {
     attempts: number;
     consent_by_user: string | null;
     transcript: string | null;
+    force_summary: boolean;
 }
 
 // ─── Whisper ─────────────────────────────────────────────────────────────────
@@ -72,6 +88,8 @@ async function transcribe(rec: RecordingRow, lang: SummaryLang): Promise<string>
         [rec.circle_id]
     )).rows[0] as { base_url: string; encrypted_credentials: string | null; config: Record<string, unknown> | null } | undefined;
     if (!integration) throw new ProcessingError('WHISPER_NOT_CONFIGURED', false);
+    // Nur an Dienste im eigenen Netz senden (siehe localOnly.ts).
+    if (!(await isLocalServiceUrl(integration.base_url))) throw new ProcessingError('LOCAL_SERVICE_REQUIRED', false);
 
     const chunks = await query(
         `SELECT data FROM consultation_recording_chunks WHERE recording_id = $1 ORDER BY chunk_index`,
@@ -100,7 +118,7 @@ async function transcribe(rec: RecordingRow, lang: SummaryLang): Promise<string>
 
     const baseType = rec.mime_type.split(';')[0].trim().toLowerCase();
     const form = new FormData();
-    form.append('file', new Blob([new Uint8Array(audio)], { type: rec.mime_type }), `consultation.${EXTENSIONS[baseType] ?? 'webm'}`);
+    form.append('file', new Blob([audio], { type: rec.mime_type }), `consultation.${EXTENSIONS[baseType] ?? 'webm'}`);
     form.append('model', model);
     form.append('language', language);
     if (prompt) form.append('prompt', prompt);
@@ -123,7 +141,12 @@ async function transcribe(rec: RecordingRow, lang: SummaryLang): Promise<string>
         logger.warn('consultations.whisper_status', { status: response.status });
         throw new ProcessingError('WHISPER_UNAVAILABLE', response.status >= 500 || response.status === 429);
     }
-    const json = (await response.json().catch(() => null)) as { text?: unknown } | null;
+    let json: { text?: unknown } | null;
+    try {
+        json = (await readJsonWithTimeout(response, TRANSCRIBE_TIMEOUT_MS)) as { text?: unknown } | null;
+    } catch {
+        throw new ProcessingError('WHISPER_UNAVAILABLE', true);
+    }
     const text = json && typeof json.text === 'string' ? json.text.trim() : '';
     if (!text) throw new ProcessingError('EMPTY_TRANSCRIPT', false);
     return text;
@@ -132,10 +155,12 @@ async function transcribe(rec: RecordingRow, lang: SummaryLang): Promise<string>
 // ─── Zusammenfassung ─────────────────────────────────────────────────────────
 
 /** Lokale KI des Kreises, oder ein Fehlercode, warum es keine gibt. */
-export async function localAiFor(circleId: string): Promise<AiSettings | 'AI_NOT_CONFIGURED' | 'LOCAL_AI_REQUIRED'> {
+export async function localAiFor(circleId: string): Promise<AiSettings | 'AI_NOT_CONFIGURED' | 'LOCAL_AI_REQUIRED' | 'LOCAL_SERVICE_REQUIRED'> {
     const settings = await getAiSettings(circleId);
     if (!settings) return 'AI_NOT_CONFIGURED';
     if (settings.provider !== 'ollama') return 'LOCAL_AI_REQUIRED';
+    // Auch ein "Ollama" im Internet ist nicht lokal.
+    if (!(await isLocalServiceUrl(settings.base_url || 'http://localhost:11434'))) return 'LOCAL_SERVICE_REQUIRED';
     return settings;
 }
 
@@ -144,17 +169,32 @@ export async function localAiFor(circleId: string): Promise<AiSettings | 'AI_NOT
  * Mitschriften und speichert sie als Entwurf. Gibt einen Hinweis-Code zurueck,
  * wenn keine Zusammenfassung moeglich war (Mitschrift bleibt erhalten).
  */
-export async function summarizeConsultation(consultationId: string, circleId: string): Promise<string | null> {
+/**
+ * Ergebnis-Codes: null = neuer Entwurf gespeichert; 'SUMMARY_KEPT' = Freigabe
+ * oder Handbearbeitung blieb erhalten (summary_outdated gesetzt); sonst ein
+ * Hinweis-Code, warum keine Zusammenfassung entstand.
+ */
+export async function summarizeConsultation(consultationId: string, circleId: string, force = false): Promise<string | null> {
     const ai = await localAiFor(circleId);
     if (typeof ai === 'string') return ai;
 
     const consultation = (await query(
         `SELECT doctor_name, specialty, reason, to_char(scheduled_at, 'YYYY-MM-DD') AS date,
-                to_char(created_at, 'YYYY-MM-DD') AS created_date
+                to_char(created_at, 'YYYY-MM-DD') AS created_date,
+                summary_status, summary_source
          FROM consultations WHERE id = $1 AND circle_id = $2`,
         [consultationId, circleId]
     )).rows[0];
-    if (!consultation) return null;
+    if (!consultation) return 'CONSULTATION_DELETED';
+
+    // Freigegebene oder von Hand bearbeitete Fassung nicht automatisch ersetzen.
+    const protectedSummary = (row: { summary_status: string; summary_source: string | null }) =>
+        row.summary_status === 'approved' || row.summary_source === 'human';
+    const keep = async () => {
+        await query(`UPDATE consultations SET summary_outdated = TRUE WHERE id = $1`, [consultationId]);
+        return 'SUMMARY_KEPT';
+    };
+    if (!force && protectedSummary(consultation)) return keep();
 
     const transcripts = await query(
         `SELECT transcript FROM consultation_recordings
@@ -164,10 +204,11 @@ export async function summarizeConsultation(consultationId: string, circleId: st
     const transcript = transcripts.rows.map((r: { transcript: string }) => r.transcript).join('\n\n').trim();
     if (!transcript) return 'EMPTY_TRANSCRIPT';
 
-    const questions = (await query(
-        `SELECT text FROM consultation_questions WHERE consultation_id = $1 ORDER BY position, created_at`,
+    const questionRows = (await query(
+        `SELECT id, text FROM consultation_questions WHERE consultation_id = $1 ORDER BY position, created_at`,
         [consultationId]
-    )).rows.map((r: { text: string }) => r.text);
+    )).rows as Array<{ id: string; text: string }>;
+    const questions = questionRows.map((r) => r.text);
 
     const lang = await circleLanguage(circleId);
     const vocabulary = await loadVocabulary(circleId);
@@ -195,13 +236,19 @@ export async function summarizeConsultation(consultationId: string, circleId: st
     }
 
     const raw = await aiComplete(ai, { ...buildSummaryPrompt(material, ctx), timeoutMs: SUMMARY_TIMEOUT_MS });
-    const summary = validateSummary(raw, questions.length);
+    const summary = bindQuestionIds(validateSummary(raw, questions.length), questionRows.map((r) => r.id));
 
-    await query(
-        `UPDATE consultations SET summary = $1::jsonb, summary_status = 'draft', approved_by = NULL, approved_at = NULL
-         WHERE id = $2 AND circle_id = $3`,
-        [JSON.stringify(summary), consultationId, circleId]
+    // Die Bedingung steht auch im UPDATE: Wurde waehrend der Verarbeitung
+    // freigegeben oder bearbeitet, bleibt diese Fassung erhalten.
+    const updated = await query(
+        `UPDATE consultations SET summary = $1::jsonb, summary_status = 'draft', summary_source = 'ai',
+                summary_outdated = FALSE, approved_by = NULL, approved_at = NULL
+         WHERE id = $2 AND circle_id = $3
+           AND ($4::boolean OR (summary_status <> 'approved' AND COALESCE(summary_source, 'ai') <> 'human'))
+         RETURNING id`,
+        [JSON.stringify(summary), consultationId, circleId, force]
     );
+    if (updated.rows.length === 0) return keep();
     return null;
 }
 
@@ -258,7 +305,7 @@ async function claimNext(): Promise<RecordingRow | null> {
             ORDER BY uploaded_at NULLS LAST, created_at
             FOR UPDATE SKIP LOCKED LIMIT 1
          )
-         RETURNING id, consultation_id, circle_id, mime_type, attempts, consent_by_user, transcript`
+         RETURNING id, consultation_id, circle_id, mime_type, attempts, consent_by_user, transcript, force_summary`
     );
     return (result.rows[0] as RecordingRow) ?? null;
 }
@@ -278,17 +325,21 @@ export async function processRecording(rec: RecordingRow): Promise<void> {
 
         let note: string | null;
         try {
-            note = await summarizeConsultation(rec.consultation_id, rec.circle_id);
+            note = await summarizeConsultation(rec.consultation_id, rec.circle_id, rec.force_summary);
         } catch (error) {
             logger.warn('consultations.summary_failed', { error: error instanceof Error ? error.message : String(error) });
             throw new ProcessingError('AI_FAILED', true);
         }
         await query(
-            `UPDATE consultation_recordings SET status = 'done', error_code = $1, processed_at = NOW(), next_attempt_at = NULL
-             WHERE id = $2`,
-            [note, rec.id]
+            `UPDATE consultation_recordings SET status = 'done', error_code = $1, processed_at = NOW(), next_attempt_at = NULL,
+                force_summary = FALSE WHERE id = $2`,
+            [note === 'SUMMARY_KEPT' ? null : note, rec.id]
         );
-        await notifyFamily(rec.circle_id, rec.consultation_id, note ? 'transcript' : 'summary');
+        // Eine fehlgeschlagene Benachrichtigung darf die fertige Aufnahme nicht zuruecksetzen.
+        if (note !== 'CONSULTATION_DELETED') {
+            await notifyFamily(rec.circle_id, rec.consultation_id, note ? 'transcript' : 'summary')
+                .catch((e) => logger.warn('consultations.notify_failed', { error: String(e) }));
+        }
     } catch (error) {
         const code = error instanceof ProcessingError ? error.code : 'INTERNAL';
         const retryable = error instanceof ProcessingError ? error.retryable : true;
@@ -303,7 +354,8 @@ export async function processRecording(rec: RecordingRow): Promise<void> {
             );
         } else {
             await query(`UPDATE consultation_recordings SET status = 'failed', error_code = $1 WHERE id = $2`, [code, rec.id]);
-            await notifyFamily(rec.circle_id, rec.consultation_id, 'failed');
+            await notifyFamily(rec.circle_id, rec.consultation_id, 'failed')
+                .catch((e) => logger.warn('consultations.notify_failed', { error: String(e) }));
         }
     } finally {
         await broadcast();
@@ -331,7 +383,10 @@ export async function processQueueOnce(): Promise<void> {
 /** Startet die Warteschlange. Nach einem Neustart werden haengende Aufnahmen neu eingereiht. */
 export function startConsultationProcessor(): void {
     void query(
-        `UPDATE consultation_recordings SET status = 'queued' WHERE status IN ('transcribing', 'summarizing')`
+        `UPDATE consultation_recordings
+         SET status = CASE WHEN attempts >= ${MAX_ATTEMPTS} THEN 'failed' ELSE 'queued' END,
+             error_code = CASE WHEN attempts >= ${MAX_ATTEMPTS} THEN 'INTERNAL' ELSE error_code END
+         WHERE status IN ('transcribing', 'summarizing')`
     ).catch((error) => logger.error('consultations.requeue_failed', { error: String(error) }))
         .finally(() => {
             void processQueueOnce();

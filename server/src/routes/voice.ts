@@ -16,6 +16,7 @@ import { broadcastToCircle } from '../lib/broadcaster';
 import logger from '../lib/logger';
 import { langFromRequest, t } from '../lib/i18n';
 import { dictationPromptFor } from '../modules/consultations/vocabulary';
+import { isLocalServiceUrl } from '../modules/consultations/localOnly';
 
 // Journal vocal: l'aidant dicte une note, le serveur la transcrit via un
 // service Whisper auto-hébergé compatible OpenAI (speaches, faster-whisper-server)
@@ -128,7 +129,8 @@ router.post('/transcribe', allowDeviceOr(...JOURNAL_WRITER_ROLES), async (req: C
         form.append('model', model);
         form.append('language', language);
         // Fork: Fachwoerter des Kreises als Whisper-Kontext (modules/consultations/vocabulary.ts)
-        const prompt = await dictationPromptFor(req.circleId!, language);
+        // Fachwoerter nur an Whisper im eigenen Netz geben.
+        const prompt = (await isLocalServiceUrl(integration.base_url)) ? await dictationPromptFor(req.circleId!, language) : '';
         if (prompt) form.append('prompt', prompt);
 
         const headers: Record<string, string> = {};
