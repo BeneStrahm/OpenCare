@@ -35,6 +35,7 @@ import { cn } from '../../lib/utils';
 import { subscribe as subscribeToWriteQueue } from '../../lib/offlineQueue';
 import { Button } from '../ui/Button';
 import { NotificationBell } from '../ui/NotificationBell';
+import VoiceCommandButton from '../app/VoiceCommandButton';
 import { DemoBanner } from '../app/DemoBanner';
 import { CircleSwitcher } from '../app/CircleSwitcher';
 
@@ -302,6 +303,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         </div>
 
                         <div className="flex items-center gap-2">
+                            {/* Sprachsteuerung: auf dem Handy immer in Reichweite */}
+                            {myRole && myRole !== 'viewer' && <VoiceCommandButton variant="header" />}
                             <NotificationBell />
                             <div className="hidden items-center gap-2 lg:flex">
                                 <Button

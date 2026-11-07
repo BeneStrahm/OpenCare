@@ -1,0 +1,82 @@
+{
+  "title": "Sprachsteuerung",
+  "trigger": "Sprechen",
+  "triggerHint": "Termin, Aufgabe oder Messwert sagen",
+  "typeInstead": "Lieber tippen",
+  "textPlaceholder": "Zum Beispiel: Termin Fußpflege morgen um 10 Uhr",
+  "send": "Senden",
+  "heard": "Verstanden: {{text}}",
+  "mic": {
+    "start": "Tippen und sprechen",
+    "stop": "Fertig",
+    "working": "Einen Moment bitte"
+  },
+  "examples": {
+    "title": "Das können Sie sagen:",
+    "event": "Termin Fußpflege morgen um 10 Uhr",
+    "list": "Welche Termine habe ich heute?",
+    "task": "Neue Aufgabe: Rezept abholen bis Freitag",
+    "done": "Aufgabe Rezept abholen ist erledigt",
+    "weight": "Gewicht 72,5 Kilo",
+    "glucose": "Blutzucker 110"
+  },
+  "intents": {
+    "create_event": "Neuer Termin",
+    "list_events": "Termine",
+    "create_task": "Neue Aufgabe",
+    "complete_task": "Aufgabe erledigt",
+    "record_weight": "Gewicht eintragen",
+    "record_glucose": "Blutzucker eintragen"
+  },
+  "fields": {
+    "title": "Bezeichnung",
+    "date": "Datum",
+    "time": "Uhrzeit",
+    "value": "Wert",
+    "unit": "Einheit",
+    "task": "Aufgabe",
+    "due_date": "Zu erledigen bis (freiwillig)"
+  },
+  "edit": {
+    "missing": "Bitte ergänzen Sie: {{fields}}",
+    "pleaseComplete": "Bitte ergänzen Sie die fehlenden Angaben.",
+    "next": "Weiter",
+    "chooseUnit": "Einheit wählen"
+  },
+  "confirm": {
+    "yes": "Ja, speichern",
+    "no": "Nein, abbrechen",
+    "edit": "Ändern",
+    "readAloud": "Vorlesen",
+    "sayYes": "Tippen Sie auf Ja oder Nein.",
+    "localAi": "Datum oder Uhrzeit hat das lokale Sprachmodell erkannt. Bitte prüfen Sie die Angaben."
+  },
+  "choose": {
+    "question": "Welche Aufgabe meinen Sie?"
+  },
+  "result": {
+    "saved": "Gespeichert.",
+    "again": "Noch etwas sagen",
+    "close": "Schließen"
+  },
+  "errors": {
+    "generic": "Das hat leider nicht geklappt. Bitte versuchen Sie es noch einmal.",
+    "notUnderstood": "Das habe ich leider nicht verstanden: „{{text}}“. Bitte nutzen Sie eines der Beispiele.",
+    "notUnderstoodShort": "Das habe ich leider nicht verstanden.",
+    "empty": "Ich habe nichts gehört. Bitte noch einmal.",
+    "tooLong": "Die Aufnahme ist zu lang. Bitte sprechen Sie einen kurzen Befehl.",
+    "micDenied": "Das Mikrofon ist nicht freigegeben. Sie können den Befehl auch tippen.",
+    "WHISPER_NOT_CONFIGURED": "Die Spracherkennung ist gerade nicht erreichbar. Sie können den Befehl tippen.",
+    "NOT_ALLOWED": "Das dürfen Sie mit Ihrem Zugang nicht eintragen.",
+    "TASK_NOT_FOUND": "Ich habe keine offene Aufgabe mit diesem Namen gefunden.",
+    "TASK_AMBIGUOUS": "Dazu passen mehrere Aufgaben.",
+    "TASK_REQUIRED": "Bitte sagen Sie, welche Aufgabe erledigt ist.",
+    "UNIT_REQUIRED": "Bitte wählen Sie die Einheit.",
+    "VALUE_OUT_OF_RANGE": "Dieser Wert ist ungewöhnlich. Bitte prüfen Sie ihn.",
+    "INVALID_VALUE": "Bitte geben Sie eine Zahl ein.",
+    "INVALID_DATE": "Bitte prüfen Sie das Datum.",
+    "INVALID_TIME": "Bitte prüfen Sie die Uhrzeit.",
+    "TITLE_REQUIRED": "Bitte geben Sie eine Bezeichnung ein.",
+    "UNKNOWN_INTENT": "Diesen Befehl kenne ich nicht."
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "title": "Control por voz",
+  "trigger": "Hablar",
+  "triggerHint": "Decir una cita, una tarea o una medición",
+  "typeInstead": "Mejor escribir",
+  "textPlaceholder": "Por ejemplo: Appointment physio tomorrow at 10 am",
+  "send": "Enviar",
+  "heard": "Entendido: {{text}}",
+  "mic": {
+    "start": "Toca y habla",
+    "stop": "Listo",
+    "working": "Un momento, por favor"
+  },
+  "examples": {
+    "title": "Puedes decir (en alemán o en inglés):",
+    "event": "Appointment physio tomorrow at 10 am",
+    "list": "What appointments do I have today?",
+    "task": "New task: pick up prescription by Friday",
+    "done": "Task pick up prescription is done",
+    "weight": "Weight 72.5 kg",
+    "glucose": "Blood sugar 110"
+  },
+  "intents": {
+    "create_event": "Nueva cita",
+    "list_events": "Citas",
+    "create_task": "Nueva tarea",
+    "complete_task": "Tarea hecha",
+    "record_weight": "Registrar el peso",
+    "record_glucose": "Registrar la glucemia"
+  },
+  "fields": {
+    "title": "Nombre",
+    "date": "Fecha",
+    "time": "Hora",
+    "value": "Valor",
+    "unit": "Unidad",
+    "task": "Tarea",
+    "due_date": "Para antes de (opcional)"
+  },
+  "edit": {
+    "missing": "Completa: {{fields}}",
+    "pleaseComplete": "Completa los datos que faltan.",
+    "next": "Continuar",
+    "chooseUnit": "Elige la unidad"
+  },
+  "confirm": {
+    "yes": "Sí, guardar",
+    "no": "No, cancelar",
+    "edit": "Cambiar",
+    "readAloud": "Leer en voz alta",
+    "sayYes": "Toca sí o no.",
+    "localAi": "La fecha o la hora las ha leído el modelo de lenguaje local. Revísalas."
+  },
+  "choose": {
+    "question": "¿Qué tarea quieres decir?"
+  },
+  "result": {
+    "saved": "Guardado.",
+    "again": "Decir otra cosa",
+    "close": "Cerrar"
+  },
+  "errors": {
+    "generic": "No ha funcionado. Inténtalo de nuevo.",
+    "notUnderstood": "No he entendido: «{{text}}». Usa uno de los ejemplos.",
+    "notUnderstoodShort": "No he entendido.",
+    "empty": "No he oído nada. Inténtalo de nuevo.",
+    "tooLong": "La grabación es demasiado larga. Di una orden corta.",
+    "micDenied": "El micrófono no está permitido. Puedes escribir la orden.",
+    "WHISPER_NOT_CONFIGURED": "El reconocimiento de voz no está disponible ahora. Puedes escribir la orden.",
+    "NOT_ALLOWED": "Tu acceso no permite esta acción.",
+    "TASK_NOT_FOUND": "No hay ninguna tarea abierta con ese nombre.",
+    "TASK_AMBIGUOUS": "Coinciden varias tareas.",
+    "TASK_REQUIRED": "Di qué tarea está hecha.",
+    "UNIT_REQUIRED": "Elige la unidad.",
+    "VALUE_OUT_OF_RANGE": "Este valor es inusual. Revísalo.",
+    "INVALID_VALUE": "Escribe un número.",
+    "INVALID_DATE": "Revisa la fecha.",
+    "INVALID_TIME": "Revisa la hora.",
+    "TITLE_REQUIRED": "Escribe un nombre.",
+    "UNKNOWN_INTENT": "No conozco esta orden."
+  }
+}

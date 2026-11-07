@@ -1,0 +1,82 @@
+{
+  "title": "Voice control",
+  "trigger": "Speak",
+  "triggerHint": "Say an appointment, task or reading",
+  "typeInstead": "Type instead",
+  "textPlaceholder": "For example: appointment physio tomorrow at 10 am",
+  "send": "Send",
+  "heard": "Heard: {{text}}",
+  "mic": {
+    "start": "Tap and speak",
+    "stop": "Done",
+    "working": "One moment please"
+  },
+  "examples": {
+    "title": "You can say:",
+    "event": "Appointment physio tomorrow at 10 am",
+    "list": "What appointments do I have today?",
+    "task": "New task: pick up prescription by Friday",
+    "done": "Task pick up prescription is done",
+    "weight": "Weight 72.5 kg",
+    "glucose": "Blood sugar 110"
+  },
+  "intents": {
+    "create_event": "New appointment",
+    "list_events": "Appointments",
+    "create_task": "New task",
+    "complete_task": "Task done",
+    "record_weight": "Record weight",
+    "record_glucose": "Record blood sugar"
+  },
+  "fields": {
+    "title": "Name",
+    "date": "Date",
+    "time": "Time",
+    "value": "Value",
+    "unit": "Unit",
+    "task": "Task",
+    "due_date": "Due by (optional)"
+  },
+  "edit": {
+    "missing": "Please add: {{fields}}",
+    "pleaseComplete": "Please add the missing details.",
+    "next": "Continue",
+    "chooseUnit": "Choose a unit"
+  },
+  "confirm": {
+    "yes": "Yes, save",
+    "no": "No, cancel",
+    "edit": "Change",
+    "readAloud": "Read aloud",
+    "sayYes": "Tap yes or no.",
+    "localAi": "The date or time was read by the local language model. Please check it."
+  },
+  "choose": {
+    "question": "Which task do you mean?"
+  },
+  "result": {
+    "saved": "Saved.",
+    "again": "Say something else",
+    "close": "Close"
+  },
+  "errors": {
+    "generic": "Sorry, that did not work. Please try again.",
+    "notUnderstood": "Sorry, I did not understand: \"{{text}}\". Please use one of the examples.",
+    "notUnderstoodShort": "Sorry, I did not understand.",
+    "empty": "I did not hear anything. Please try again.",
+    "tooLong": "The recording is too long. Please say a short command.",
+    "micDenied": "The microphone is not allowed. You can type the command instead.",
+    "WHISPER_NOT_CONFIGURED": "Speech recognition is not available right now. You can type the command.",
+    "NOT_ALLOWED": "Your access does not allow this.",
+    "TASK_NOT_FOUND": "I found no open task with that name.",
+    "TASK_AMBIGUOUS": "Several tasks match.",
+    "TASK_REQUIRED": "Please say which task is done.",
+    "UNIT_REQUIRED": "Please choose the unit.",
+    "VALUE_OUT_OF_RANGE": "This value is unusual. Please check it.",
+    "INVALID_VALUE": "Please enter a number.",
+    "INVALID_DATE": "Please check the date.",
+    "INVALID_TIME": "Please check the time.",
+    "TITLE_REQUIRED": "Please enter a name.",
+    "UNKNOWN_INTENT": "I do not know this command."
+  }
+}

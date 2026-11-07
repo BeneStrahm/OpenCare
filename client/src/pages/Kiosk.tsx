@@ -14,6 +14,7 @@ import { formatClock, intlLocale } from '../i18n/format';
 import { SUPPORTED_LANGUAGES } from '../i18n';
 import { cn } from '../lib/utils';
 import KioskCompanion from '../components/app/KioskCompanion';
+import VoiceCommandButton from '../components/app/VoiceCommandButton';
 import KioskEmergency from '../components/app/KioskEmergency';
 import KioskVisitor, { type Visit as KioskVisit } from '../components/app/KioskVisitor';
 
@@ -783,7 +784,9 @@ const Kiosk: React.FC<KioskProps> = ({ device }) => {
                 </div>
 
                 {/* D. Demander : assistant, mes informations, reglages */}
-                <div className={cn('grid gap-3', isPhone ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-3')}>
+                <div className={cn('grid gap-3', isPhone ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4')}>
+                    {/* Sprachsteuerung: Termin, Aufgabe oder Messwert sagen, mit Ja/Nein-Rueckfrage */}
+                    <VoiceCommandButton variant="kiosk" fontScale={settings.fontScale} />
                     <button
                             type="button"
                             onClick={() => setCompanionOpen(true)}

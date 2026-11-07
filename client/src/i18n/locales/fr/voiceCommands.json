@@ -1,0 +1,82 @@
+{
+  "title": "Commande vocale",
+  "trigger": "Parler",
+  "triggerHint": "Dire un rendez-vous, une tâche ou une mesure",
+  "typeInstead": "Plutôt écrire",
+  "textPlaceholder": "Par exemple : Appointment physio tomorrow at 10 am",
+  "send": "Envoyer",
+  "heard": "Compris : {{text}}",
+  "mic": {
+    "start": "Touchez et parlez",
+    "stop": "Terminé",
+    "working": "Un instant, s'il vous plaît"
+  },
+  "examples": {
+    "title": "Vous pouvez dire (en allemand ou en anglais) :",
+    "event": "Appointment physio tomorrow at 10 am",
+    "list": "What appointments do I have today?",
+    "task": "New task: pick up prescription by Friday",
+    "done": "Task pick up prescription is done",
+    "weight": "Weight 72.5 kg",
+    "glucose": "Blood sugar 110"
+  },
+  "intents": {
+    "create_event": "Nouveau rendez-vous",
+    "list_events": "Rendez-vous",
+    "create_task": "Nouvelle tâche",
+    "complete_task": "Tâche faite",
+    "record_weight": "Enregistrer le poids",
+    "record_glucose": "Enregistrer la glycémie"
+  },
+  "fields": {
+    "title": "Intitulé",
+    "date": "Date",
+    "time": "Heure",
+    "value": "Valeur",
+    "unit": "Unité",
+    "task": "Tâche",
+    "due_date": "À faire avant (facultatif)"
+  },
+  "edit": {
+    "missing": "Merci de compléter : {{fields}}",
+    "pleaseComplete": "Merci de compléter les informations manquantes.",
+    "next": "Continuer",
+    "chooseUnit": "Choisir l'unité"
+  },
+  "confirm": {
+    "yes": "Oui, enregistrer",
+    "no": "Non, annuler",
+    "edit": "Modifier",
+    "readAloud": "Lire à voix haute",
+    "sayYes": "Touchez oui ou non.",
+    "localAi": "La date ou l'heure a été lue par le modèle de langue local. Merci de vérifier."
+  },
+  "choose": {
+    "question": "De quelle tâche s'agit-il ?"
+  },
+  "result": {
+    "saved": "Enregistré.",
+    "again": "Dire autre chose",
+    "close": "Fermer"
+  },
+  "errors": {
+    "generic": "Cela n'a pas fonctionné. Merci de réessayer.",
+    "notUnderstood": "Je n'ai pas compris : « {{text}} ». Merci d'utiliser un des exemples.",
+    "notUnderstoodShort": "Je n'ai pas compris.",
+    "empty": "Je n'ai rien entendu. Merci de réessayer.",
+    "tooLong": "L'enregistrement est trop long. Merci de dire une commande courte.",
+    "micDenied": "Le micro n'est pas autorisé. Vous pouvez écrire la commande.",
+    "WHISPER_NOT_CONFIGURED": "La reconnaissance vocale n'est pas disponible. Vous pouvez écrire la commande.",
+    "NOT_ALLOWED": "Votre accès ne permet pas cette action.",
+    "TASK_NOT_FOUND": "Aucune tâche ouverte ne porte ce nom.",
+    "TASK_AMBIGUOUS": "Plusieurs tâches correspondent.",
+    "TASK_REQUIRED": "Merci de dire quelle tâche est faite.",
+    "UNIT_REQUIRED": "Merci de choisir l'unité.",
+    "VALUE_OUT_OF_RANGE": "Cette valeur est inhabituelle. Merci de la vérifier.",
+    "INVALID_VALUE": "Merci de saisir un nombre.",
+    "INVALID_DATE": "Merci de vérifier la date.",
+    "INVALID_TIME": "Merci de vérifier l'heure.",
+    "TITLE_REQUIRED": "Merci de saisir un intitulé.",
+    "UNKNOWN_INTENT": "Je ne connais pas cette commande."
+  }
+}
