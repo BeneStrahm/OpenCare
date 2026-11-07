@@ -90,7 +90,7 @@
   },
   "emergency": {
     "title": "Notfallblatt (QR-Code für den Kühlschrank)",
-    "description": "Ein QR-Code zum Ausdrucken und an den Kühlschrank Kleben. Der Rettungsdienst scannt ihn und sieht ohne Konto das Notfallblatt (Behandlungen, Allergien, Kontakte).",
+    "description": "Ein QR-Code zum Ausdrucken und an den Kühlschrank Kleben. Der Rettungsdienst scannt ihn und sieht ohne Konto das Notfallblatt (Medikamentenplan, Allergien, Kontakte).",
     "selfContainedNote": "Das Blatt steckt im QR-Code selbst. Es funktioniert mit jedem Handy über das Mobilfunknetz, ohne dass OpenCare im Internet erreichbar sein muss und ohne dass Daten online gespeichert werden.",
     "tooBig": "Das Blatt ist umfangreich, der QR-Code lässt sich vielleicht schwer scannen. Kürzen Sie die Vorerkrankungen oder die Patientenverfügung.",
     "managedByFamily": "Das Notfallblatt wird von der Familie (Administrator) verwaltet.",

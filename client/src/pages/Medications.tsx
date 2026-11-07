@@ -21,7 +21,7 @@ import { MEDICATION_FORMS, MEDICATION_UNITS, formatAmount, safeQuantity } from '
 import { useCircle } from '../contexts/CircleContext';
 import { circleWeekStart, orderedIsoDays, sortIsoDays } from '../lib/weekStart';
 import { useWebSocketUpdates } from '../hooks/useWebSocketUpdates';
-import { dateLocale, formatClock } from '../i18n/format';
+import { dateLocale, formatClock, intlLocale } from '../i18n/format';
 import {
     Card,
     CardContent,
@@ -319,7 +319,7 @@ const Medications: React.FC = () => {
         source ? t(`medications:today.source.${source}`) : null;
 
     const fmtDate = (value: string) =>
-        format(parseISO(value.slice(0, 10)), 'd MMM yyyy', { locale: dateLocale() });
+        format(parseISO(value.slice(0, 10)), 'PP', { locale: dateLocale() });
 
     // ─── Loading ──────────────────────────────────────────────────────────────
 
@@ -485,7 +485,7 @@ const Medications: React.FC = () => {
     const todaySection = (
         <div className="space-y-6">
             <p className="text-caption text-muted-foreground first-letter:uppercase">
-                {format(new Date(), 'EEEE d MMMM', { locale: dateLocale() })}
+                {new Date().toLocaleDateString(intlLocale(), { weekday: 'long', day: 'numeric', month: 'long' })}
             </p>
             {intakes.length === 0 ? (
                 <Card>
@@ -1604,7 +1604,8 @@ const Medications: React.FC = () => {
                             placeholder={t('medications:stock.thresholdPlaceholder')}
                         />
                     </div>
-                    <p className="text-micro text-muted-foreground">{t('medications:stock.hint')}</p>
+                    <p className="text-sm text-muted-foreground">{t('medications:stock.thresholdHint')}</p>
+                    <p className="text-sm text-muted-foreground">{t('medications:stock.hint')}</p>
 
                     <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
                         <Button

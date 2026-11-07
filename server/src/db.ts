@@ -331,6 +331,8 @@ export const runMigrations = async () => {
         // un des quatre types francais.
         `ALTER TABLE aid_records DROP CONSTRAINT IF EXISTS aid_records_type_check;`,
         `ALTER TABLE aid_records ALTER COLUMN type TYPE VARCHAR(40);`,
+        // Fork: einmalige Erinnerung bei niedrigem Vorrat (lib/stockAlerts.ts)
+        `ALTER TABLE medications ADD COLUMN IF NOT EXISTS stock_alert_sent_at TIMESTAMP;`,
         // Arztgespraech-Modul (Fork), siehe modules/consultations/schema.ts
         ...CONSULTATION_MIGRATIONS,
     ];

@@ -1,10 +1,10 @@
 {
   "loading": "Medikamente werden geladen…",
   "title": "Medikamente",
-  "subtitle": "Einnahmen von heute, Behandlungen und Rezepte",
+  "subtitle": "Einnahmen von heute, Medikamentenplan und Rezepte",
   "tabs": {
     "today": "Heute",
-    "treatments": "Behandlungen",
+    "treatments": "Medikamentenplan",
     "prescriptions": "Rezepte"
   },
   "moments": {
@@ -24,7 +24,7 @@
   ],
   "today": {
     "empty": "Heute ist keine Einnahme geplant.",
-    "emptyHint": "Legen Sie eine Behandlung mit Einnahmezeiten an, um die Einnahmen hier zu verfolgen.",
+    "emptyHint": "Legen Sie ein Medikament mit Einnahmezeiten an, um die Einnahmen hier zu verfolgen.",
     "status": {
       "pending": "Zu nehmen",
       "taken": "Genommen",
@@ -49,10 +49,10 @@
     }
   },
   "treatments": {
-    "add": "Behandlung hinzufügen",
-    "empty": "Keine aktive Behandlung.",
+    "add": "Medikament hinzufügen",
+    "empty": "Der Medikamentenplan ist leer.",
     "emptyHint": "Tragen Sie die Medikamente Ihres Angehörigen ein, damit der tägliche Plan entsteht.",
-    "showArchived": "Archivierte Behandlungen anzeigen",
+    "showArchived": "Abgesetzte Medikamente anzeigen",
     "archived": "Archiviert",
     "archive": "Archivieren",
     "unarchive": "Wieder aktivieren",
@@ -78,13 +78,14 @@
     "manage": "Vorrat bearbeiten",
     "dialogTitle": "Vorrat von {{name}}",
     "dialogDescription": "Tragen Sie ein, wie viel noch da ist und ab wann gewarnt werden soll, in der Einheit einer Einnahme.",
-    "quantity": "Restmenge",
+    "quantity": "Vorrat",
     "quantityPlaceholder": "z. B. 30",
-    "threshold": "Warnen ab",
+    "threshold": "Erinnern ab",
     "thresholdPlaceholder": "z. B. 7",
     "hint": "Lassen Sie ein Feld leer, um diesen Wert nicht mehr zu verfolgen. Der Vorrat sinkt mit jeder bestätigten Einnahme von selbst.",
     "stopTracking": "Vorrat nicht mehr verfolgen",
-    "invalid": "Geben Sie eine Zahl zwischen 0 und 100000 ein oder lassen Sie das Feld leer."
+    "invalid": "Geben Sie eine Zahl zwischen 0 und 100000 ein oder lassen Sie das Feld leer.",
+    "thresholdHint": "Fällt der Vorrat auf diesen Wert, bekommen Familie und Admins einmal eine Erinnerung."
   },
   "forms": {
     "tablet": "Tablette",
@@ -99,8 +100,8 @@
     "cream": "Creme"
   },
   "form": {
-    "createTitle": "Neue Behandlung",
-    "editTitle": "Behandlung bearbeiten",
+    "createTitle": "Neues Medikament",
+    "editTitle": "Medikament bearbeiten",
     "description": "Tragen Sie das Medikament und die Einnahmezeiten ein.",
     "name": "Name des Medikaments",
     "namePlaceholder": "z. B. Paracetamol",
@@ -138,7 +139,7 @@
     "prnNoSchedule": "Medikament bei Bedarf: Es gibt keine Einnahmezeiten festzulegen. Einnahmen werden im Bereich Heute eingetragen.",
     "withFood": "In Bezug auf Mahlzeiten",
     "withFoodPlaceholder": "Keine Angabe",
-    "reason": "Wofür diese Behandlung ist",
+    "reason": "Wofür dieses Medikament ist",
     "reasonPlaceholder": "z. B. für den Blutdruck",
     "appearance": "Wie es aussieht",
     "appearancePlaceholder": "z. B. kleine runde weiße Tablette"
@@ -172,11 +173,11 @@
     "load": "Die Medikamente konnten nicht geladen werden.",
     "loadIntakes": "Die Einnahmen von heute konnten nicht geladen werden.",
     "loadPrescriptions": "Die Rezepte konnten nicht geladen werden.",
-    "save": "Die Behandlung konnte nicht gespeichert werden.",
+    "save": "Das Medikament konnte nicht gespeichert werden.",
     "saveIntake": "Die Einnahme konnte nicht aktualisiert werden.",
     "savePrescription": "Das Rezept konnte nicht gespeichert werden.",
     "deletePrescription": "Das Rezept konnte nicht gelöscht werden.",
-    "archive": "Die Behandlung konnte nicht aktualisiert werden.",
+    "archive": "Das Medikament konnte nicht aktualisiert werden.",
     "photo": "Das Foto konnte nicht verarbeitet werden.",
     "photoTooLarge": "Das Foto ist auch nach dem Verkleinern noch zu groß (höchstens 1,5 MB).",
     "logPrn": "Diese Einnahme konnte nicht eingetragen werden.",
