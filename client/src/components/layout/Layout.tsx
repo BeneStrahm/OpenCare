@@ -30,6 +30,7 @@ import {
     RefreshCw,
     DoorOpen,
     ClipboardList,
+    Stethoscope,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { subscribe as subscribeToWriteQueue } from '../../lib/offlineQueue';
@@ -65,6 +66,7 @@ const NAV_GROUPS: Array<{ key: string; items: NavItem[] }> = [
         { labelKey: 'items.carePlan', href: '/care-plan', icon: ClipboardList },
         { labelKey: 'items.medications', href: '/medications', icon: Pill, hideFor: HEALTH_HIDDEN },
         { labelKey: 'items.health', href: '/health', icon: Activity, hideFor: HEALTH_HIDDEN },
+        { labelKey: 'items.consultations', href: '/consultations', icon: Stethoscope, hideFor: HEALTH_HIDDEN },
         { labelKey: 'items.visitors', href: '/visitors', icon: DoorOpen },
     ] },
     { key: 'organise', items: [

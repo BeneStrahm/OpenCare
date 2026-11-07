@@ -35,6 +35,7 @@ export type WsEntity =
     | 'visits'
     | 'care_plan'
     | 'help_requests'
+    | 'consultations'
     | 'reminder';
 
 export type WsAction = 'created' | 'updated' | 'deleted' | 'synced';
