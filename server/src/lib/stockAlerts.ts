@@ -68,6 +68,7 @@ interface StockRow {
     id: string;
     circle_id: string;
     name: string;
+    active: boolean;
     stock_quantity: string | null;
     stock_alert_threshold: string | null;
     stock_alert_sent_at: string | null;
@@ -77,16 +78,18 @@ interface StockRow {
 export async function checkLowStock(): Promise<void> {
     try {
         const { rows } = await query(
-            `SELECT m.id, m.circle_id, m.name, m.stock_quantity, m.stock_alert_threshold, m.stock_alert_sent_at,
+            `SELECT m.id, m.circle_id, m.name, m.active, m.stock_quantity, m.stock_alert_threshold, m.stock_alert_sent_at,
                     (SELECT s.unit FROM medication_schedules s WHERE s.medication_id = m.id ORDER BY s.time_of_day LIMIT 1) AS unit
              FROM medications m
-             WHERE m.active = TRUE
-               AND (m.stock_alert_sent_at IS NOT NULL
-                    OR (m.stock_quantity IS NOT NULL AND m.stock_alert_threshold IS NOT NULL
-                        AND m.stock_quantity <= m.stock_alert_threshold))`
+             WHERE m.stock_alert_sent_at IS NOT NULL
+                OR (m.active = TRUE AND m.stock_quantity IS NOT NULL AND m.stock_alert_threshold IS NOT NULL
+                    AND m.stock_quantity <= m.stock_alert_threshold)`
         );
         for (const med of rows as StockRow[]) {
-            const action = stockAction(stockState(med.stock_quantity, med.stock_alert_threshold), med.stock_alert_sent_at !== null);
+            // Archivierte Medikamente gelten als nicht verfolgt: Markierung wird geloescht,
+            // damit nach dem Wiederaktivieren erneut gemeldet werden kann.
+            const state = med.active ? stockState(med.stock_quantity, med.stock_alert_threshold) : 'untracked';
+            const action = stockAction(state, med.stock_alert_sent_at !== null);
             if (action === 'reset') {
                 await query(`UPDATE medications SET stock_alert_sent_at = NULL WHERE id = $1`, [med.id]);
                 continue;
