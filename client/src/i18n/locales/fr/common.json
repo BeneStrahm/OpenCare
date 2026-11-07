@@ -105,5 +105,8 @@
     "Oct",
     "Nov",
     "Déc"
-  ]
+  ],
+  "errors": {
+    "featureDisabled": "Cette fonctionnalité est désactivée. Un administrateur peut la réactiver dans Réglages, Fonctionnalités."
+  }
 }

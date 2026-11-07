@@ -105,5 +105,8 @@
     "Oct",
     "Nov",
     "Dic"
-  ]
+  ],
+  "errors": {
+    "featureDisabled": "Esta función está desactivada. Un administrador puede volver a activarla en Ajustes, Funciones."
+  }
 }

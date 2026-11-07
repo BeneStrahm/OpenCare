@@ -191,6 +191,10 @@ class ApiClient {
                 );
             }
 
+            // Fork: vom Admin ausgeschaltete Funktion verstaendlich melden.
+            if (data?.error === 'FEATURE_DISABLED') {
+                throw new Error(i18n.t('common:errors.featureDisabled'));
+            }
             const fallbackMessage = `HTTP ${response.status}`;
             throw new Error(data?.error || data?.message || fallbackMessage);
         }
