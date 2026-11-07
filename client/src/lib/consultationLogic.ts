@@ -85,8 +85,20 @@ export const KNOWN_ERROR_CODES = [
     'AI_NOT_CONFIGURED',
     'LOCAL_AI_REQUIRED',
     'AI_FAILED',
+    'LOCAL_SERVICE_REQUIRED',
+    'AUDIO_MISSING',
+    'CONSULTATION_DELETED',
     'INTERNAL',
 ] as const;
+
+/**
+ * Hilft "Erneut versuchen" bei diesem Fehler? Fehlt das Audio (geloescht oder
+ * nie angekommen), aendert Wiederholen nichts.
+ */
+export function isRetryableRecording(code: string | null | undefined, audioDeleted: boolean): boolean {
+    if (audioDeleted) return false;
+    return code !== 'AUDIO_MISSING' && code !== 'CONSULTATION_DELETED';
+}
 
 export type KnownErrorCode = typeof KNOWN_ERROR_CODES[number];
 
@@ -424,6 +436,7 @@ export const PERMANENT_UPLOAD_CODES = [
     'INVALID_CLIENT_ID',
     'RECORDING_TOO_LARGE',
     'CHUNK_TOO_LARGE',
+    'LOCAL_CHUNK_MISSING',
 ] as const;
 
 /**

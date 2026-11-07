@@ -24,6 +24,8 @@ interface Props {
 const RecorderPanel: React.FC<Props> = ({ circleId, consultationId, onStopped }) => {
     const { t } = useTranslation(['consultations']);
     const [consent, setConsent] = useState(false);
+    // Zeitpunkt, zu dem die Zustimmung des Arztes bestaetigt wurde
+    const [consentAt, setConsentAt] = useState<Date | null>(null);
     const [active, setActive] = useState<ActiveRecording | null>(null);
     const [elapsed, setElapsed] = useState(0);
     const [busy, setBusy] = useState(false);
@@ -54,8 +56,13 @@ const RecorderPanel: React.FC<Props> = ({ circleId, consultationId, onStopped })
                 consultationId,
                 fromKiosk: false,
                 consentConfirmed: true,
+                consentAt: consentAt ?? new Date(),
             });
-            rec.onStorageError(() => setError(t('consultations:recorder.errors.STORAGE_FULL')));
+            // Speicher voll: Die Aufnahme endet von selbst, Gespeichertes bleibt erhalten.
+            rec.onStorageError(() => {
+                setError(t('consultations:recorder.errors.STORAGE_FULL'));
+                void stopRef.current?.();
+            });
             setElapsed(0);
             setWakeLock(rec.wakeLockActive());
             setActive(rec);
@@ -68,6 +75,7 @@ const RecorderPanel: React.FC<Props> = ({ circleId, consultationId, onStopped })
     };
 
     const stop = async () => {
+        const active = activeRef.current;
         if (!active) return;
         setBusy(true);
         try {
@@ -75,10 +83,14 @@ const RecorderPanel: React.FC<Props> = ({ circleId, consultationId, onStopped })
         } finally {
             setActive(null);
             setConsent(false);
+            setConsentAt(null);
             setBusy(false);
             onStopped();
         }
     };
+
+    const stopRef = useRef<(() => Promise<void>) | null>(null);
+    stopRef.current = stop;
 
     if (!isRecordingSupported()) {
         return (
@@ -121,7 +133,10 @@ const RecorderPanel: React.FC<Props> = ({ circleId, consultationId, onStopped })
                 <input
                     type="checkbox"
                     checked={consent}
-                    onChange={(e) => setConsent(e.target.checked)}
+                    onChange={(e) => {
+                        setConsent(e.target.checked);
+                        setConsentAt(e.target.checked ? new Date() : null);
+                    }}
                     className="mt-1 h-6 w-6 shrink-0 accent-primary"
                 />
                 <span>

@@ -2,7 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, AlertTriangle } from 'lucide-react';
 import { Button, Input, Textarea } from '../ui';
-import type { ConsultationSummary } from '../../lib/consultationLogic';
+import { answerForQuestion, type ConsultationSummary } from '../../lib/consultationLogic';
 
 interface Props {
     value: ConsultationSummary;
@@ -75,10 +75,12 @@ const SummaryEditor: React.FC<Props> = ({ value, onChange, questions, readOnly }
         emptyText: t('consultations:summary.none'),
     };
 
-    const answerFor = (index: number) => value.question_answers.find((a) => a.question_index === index)?.answer ?? '';
+    // Zuordnung ueber die Fragen-ID; der Listenplatz zaehlt nur bei aelteren Entwuerfen ohne ID.
+    const answerFor = (index: number) => answerForQuestion(value.question_answers, questions[index].id, index) ?? '';
     const setAnswer = (index: number, answer: string) => {
-        const others = value.question_answers.filter((a) => a.question_index !== index);
-        set('question_answers', [...others, { question_index: index, answer }].sort((a, b) => a.question_index - b.question_index));
+        const id = questions[index].id;
+        const others = value.question_answers.filter((a) => (a.question_id ? a.question_id !== id : a.question_index !== index));
+        set('question_answers', [...others, { question_id: id, question_index: index, answer }]);
     };
 
     return (

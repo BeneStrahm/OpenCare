@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-    ArrowLeft, ArrowUp, ArrowDown, Printer, Trash2, Plus, Save, CheckCircle2, RefreshCw,
+    ArrowLeft, ArrowUp, ArrowDown, Printer, Trash2, Plus, Save, CheckCircle2, RefreshCw, AlertTriangle,
     Sparkles, FileText, ListChecks, Mic, ClipboardList, CloudUpload, Pencil,
 } from 'lucide-react';
 import { api } from '../lib/api';
@@ -13,7 +13,7 @@ import RecorderPanel from '../components/consultations/RecorderPanel';
 import SummaryEditor from '../components/consultations/SummaryEditor';
 import ProposalsPanel from '../components/consultations/ProposalsPanel';
 import { useLocalRecordings } from '../components/consultations/useLocalRecordings';
-import { discardLocalRecording, kick } from '../lib/consultationUploader';
+import { discardLocalRecording, kick, retryLocalRecording, saveAsNewConsultation } from '../lib/consultationUploader';
 import { consultationTitle, formatConsultationDate } from './Consultations';
 import {
     emptySummary,
@@ -30,8 +30,7 @@ import {
     withDefaults,
     type ConsultationSummary,
     type RecordingStatus,
-    type SummaryStatus,
-} from '../lib/consultationLogic';
+    type SummaryStatus, isRetryableRecording } from '../lib/consultationLogic';
 
 interface Consultation {
     id: string;
@@ -48,6 +47,8 @@ interface Consultation {
     approved_at: string | null;
     /** Uebernommene Vorschlaege: { [schluessel]: angelegte id } */
     applied?: Record<string, string> | null;
+    summary_source?: 'ai' | 'human' | null;
+    summary_outdated?: boolean;
     created_at: string;
     updated_at: string;
 }
@@ -96,6 +97,8 @@ const ConsultationDetail: React.FC = () => {
     const [detail, setDetail] = useState<Detail | null>(null);
     const [loading, setLoading] = useState(true);
     const [notFound, setNotFound] = useState(false);
+    // Laden scheiterte ohne 404 (meist keine Verbindung)
+    const [loadError, setLoadError] = useState(false);
 
     // Vorbereitung
     const [prep, setPrep] = useState({ doctor_name: '', specialty: '', scheduled_at: '', location: '', reason: '' });
@@ -113,6 +116,11 @@ const ConsultationDetail: React.FC = () => {
     const [notesDirty, setNotesDirty] = useState(false);
     const [busy, setBusy] = useState(false);
 
+    // Aktueller Stand der ungespeicherten Eingaben fuer load(): Intervall und
+    // WebSocket rufen eine aeltere load()-Fassung auf, darum ueber eine Ref.
+    const dirtyRef = useRef({ prep: false, summary: false, notes: false });
+    dirtyRef.current = { prep: prepDirty, summary: summaryDirty, notes: notesDirty };
+
     const questions = useMemo(
         () => (detail ? [...detail.questions].sort((a, b) => a.position - b.position) : []),
         [detail]
@@ -126,8 +134,11 @@ const ConsultationDetail: React.FC = () => {
                 const d = res.data;
                 setDetail(d);
                 setNotFound(false);
+                setLoadError(false);
                 const c = d.consultation;
-                if (!opts.keepEdits || !prepDirty) {
+                const dirty = dirtyRef.current;
+                const questionIds = [...d.questions].sort((a, b) => a.position - b.position).map((q) => q.id);
+                if (!opts.keepEdits || !dirty.prep) {
                     setPrep({
                         doctor_name: c.doctor_name ?? '',
                         specialty: c.specialty ?? '',
@@ -137,11 +148,11 @@ const ConsultationDetail: React.FC = () => {
                     });
                     setPrepDirty(false);
                 }
-                if (!opts.keepEdits || !summaryDirty) {
-                    setSummary(c.summary ? withDefaults(c.summary, d.questions.length) : null);
+                if (!opts.keepEdits || !dirty.summary) {
+                    setSummary(c.summary ? withDefaults(c.summary, questionIds) : null);
                     setSummaryDirty(false);
                 }
-                if (!opts.keepEdits || !notesDirty) {
+                if (!opts.keepEdits || !dirty.notes) {
                     setNotes(c.notes ?? '');
                     setNotesDirty(false);
                 }
@@ -152,8 +163,9 @@ const ConsultationDetail: React.FC = () => {
                 });
             }
         } catch (error) {
+            // Nur ein echtes 404 heisst "nicht gefunden"; sonst meist keine Verbindung.
             if (error instanceof Error && /404|not found/i.test(error.message)) setNotFound(true);
-            else if (!detail) setNotFound(true);
+            else setLoadError(true);
         } finally {
             setLoading(false);
         }
@@ -202,6 +214,19 @@ const ConsultationDetail: React.FC = () => {
 
     if (loading && !detail) {
         return <div className="flex justify-center py-12"><div className="spinner-brand" /></div>;
+    }
+    if (!notFound && loadError && !detail && id) {
+        return (
+            <div className="mx-auto max-w-3xl space-y-4">
+                <Link to="/consultations" className="inline-flex items-center gap-1 text-body text-primary underline-offset-2 hover:underline">
+                    <ArrowLeft className="h-4 w-4" aria-hidden="true" />{t('consultations:detail.back')}
+                </Link>
+                <div className="space-y-3 rounded-input border border-warning/40 bg-warning/10 p-6 text-center" role="alert">
+                    <p className="text-body text-foreground">{t('consultations:detail.loadError')}</p>
+                    <Button onClick={() => { setLoading(true); void load(); }}>{t('consultations:detail.reload')}</Button>
+                </div>
+            </div>
+        );
     }
     if (notFound || !detail || !id) {
         return (
@@ -268,22 +293,26 @@ const ConsultationDetail: React.FC = () => {
             .finally(() => setBusy(false));
     };
 
-    const currentSummary = summary ?? emptySummary(questions.length);
+    const questionIds = questions.map((q) => q.id);
+    const currentSummary = summary ?? emptySummary(questionIds);
     const saveSummary = () => run(
-        () => api.put(`/api/consultations/${id}/summary`, { summary: normalizeSummary(currentSummary, questions.length) })
+        () => api.put(`/api/consultations/${id}/summary`, { summary: normalizeSummary(currentSummary, questionIds) })
             .then(() => setSummaryDirty(false)),
         t('consultations:detail.saved')
     );
     const approveSummary = () => {
         if (!window.confirm(t('consultations:summary.confirmApprove'))) return;
         void run(
-            () => api.post(`/api/consultations/${id}/summary/approve`, { summary: normalizeSummary(currentSummary, questions.length) })
+            () => api.post(`/api/consultations/${id}/summary/approve`, { summary: normalizeSummary(currentSummary, questionIds) })
                 .then(() => setSummaryDirty(false)),
             t('consultations:summary.approved')
         );
     };
     const regenerate = () => {
-        if (!window.confirm(t('consultations:summary.confirmRegenerate'))) return;
+        // Ersetzt auch eine freigegebene oder von Hand bearbeitete Fassung: klar warnen.
+        const protectedVersion = detail.consultation.summary_status === 'approved' || detail.consultation.summary_source === 'human';
+        const message = protectedVersion ? t('consultations:summary.confirmRegenerateProtected') : t('consultations:summary.confirmRegenerate');
+        if (!window.confirm(message)) return;
         void run(() => api.post(`/api/consultations/${id}/summary/regenerate`, {}), t('consultations:summary.regenerating'));
     };
 
@@ -428,22 +457,38 @@ const ConsultationDetail: React.FC = () => {
                         <ul className="space-y-2">
                             {myLocal.map((r) => {
                                 const progress = uploader.progress?.client_id === r.client_id ? uploader.progress : null;
-                                const err = uploader.errors[r.client_id] ?? r.last_error;
+                                const help = uploader.needsHelp[r.client_id] ?? r.needs_help ?? null;
+                                const err = help ? null : (uploader.errors[r.client_id] ?? r.last_error);
                                 return (
-                                    <li key={r.client_id} className="flex flex-wrap items-center gap-3 rounded-input border border-primary/30 bg-primary/5 p-3">
-                                        <CloudUpload className="h-5 w-5 text-primary" aria-hidden="true" />
-                                        <span className="flex-1 text-body">
-                                            {r.state === 'recording'
-                                                ? t('consultations:queue.stateRecording')
-                                                : progress
-                                                    ? t('consultations:queue.uploading', { sent: progress.sent, total: progress.total })
-                                                    : uploader.offline
-                                                        ? t('consultations:queue.stateOffline')
-                                                        : t('consultations:queue.statePending')}
+                                    <li key={r.client_id} className={`flex flex-wrap items-center gap-3 rounded-input border p-3 ${help ? 'border-warning/50 bg-warning/10' : 'border-primary/30 bg-primary/5'}`}>
+                                        {help
+                                            ? <AlertTriangle className="h-5 w-5 text-warning" aria-hidden="true" />
+                                            : <CloudUpload className="h-5 w-5 text-primary" aria-hidden="true" />}
+                                        <span className="flex-1 text-body" role={help ? 'alert' : undefined}>
+                                            {help
+                                                ? t(help === 'CONSULTATION_GONE' ? 'consultations:queue.help.CONSULTATION_GONE' : 'consultations:queue.help.generic')
+                                                : r.state === 'recording'
+                                                    ? t('consultations:queue.stateRecording')
+                                                    : progress
+                                                        ? t('consultations:queue.uploading', { sent: progress.sent, total: progress.total })
+                                                        : uploader.offline
+                                                            ? t('consultations:queue.stateOffline')
+                                                            : t('consultations:queue.statePending')}
                                             {r.duration_seconds != null && ` (${formatDuration(r.duration_seconds)})`}
-                                            {err && <span className="block text-caption text-danger">{t('consultations:queue.error', { code: err })}</span>}
+                                            {err && <span className="block text-caption text-foreground">{t('consultations:queue.errorTemporary')}</span>}
+                                            {(help || err) && <span className="block text-caption text-muted-foreground">{t('consultations:queue.code', { code: help ?? err })}</span>}
                                         </span>
-                                        {err && r.state === 'pending' && (
+                                        {help === 'CONSULTATION_GONE' && (
+                                            <Button variant="secondary" size="sm" onClick={() => void saveAsNewConsultation(r.client_id)}>
+                                                {t('consultations:queue.saveAsNew')}
+                                            </Button>
+                                        )}
+                                        {help && help !== 'CONSULTATION_GONE' && (
+                                            <Button variant="secondary" size="sm" onClick={() => void retryLocalRecording(r.client_id)}>
+                                                {t('consultations:queue.retry')}
+                                            </Button>
+                                        )}
+                                        {(help || err) && r.state === 'pending' && (
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
@@ -481,7 +526,7 @@ const ConsultationDetail: React.FC = () => {
                                         {errKey && <p className="text-caption text-foreground">{t(errKey)}</p>}
                                         {!readOnly && (
                                             <div className="flex flex-wrap gap-2">
-                                                {r.status === 'failed' && (
+                                                {r.status === 'failed' && isRetryableRecording(r.error_code, Boolean(r.audio_deleted_at)) && (
                                                     <Button variant="secondary" size="sm" disabled={busy} onClick={() => void retryRecording(r)}>
                                                         <RefreshCw className="mr-1 h-4 w-4" aria-hidden="true" />{t('common:actions.retry')}
                                                     </Button>
@@ -515,6 +560,19 @@ const ConsultationDetail: React.FC = () => {
                             ? t('consultations:result.approvedBy', { name: c.approved_by_name, date: formatConsultationDate(c.approved_at) ?? '' })
                             : t('consultations:result.approvedPlain')}
                     </p>
+                )}
+                {c.summary_outdated && (
+                    <div className="space-y-3 rounded-input border-2 border-warning/50 bg-warning/10 p-4" role="status">
+                        <p className="flex items-start gap-2 text-body text-foreground">
+                            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-warning" aria-hidden="true" />
+                            {t('consultations:result.outdated')}
+                        </p>
+                        {!readOnly && (
+                            <Button variant="secondary" onClick={regenerate} disabled={busy || serverBusy}>
+                                <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />{t('consultations:summary.regenerate')}
+                            </Button>
+                        )}
+                    </div>
                 )}
                 {c.summary_status === 'none' && (
                     <p className="text-body text-muted-foreground">
@@ -626,7 +684,7 @@ const ConsultationDetail: React.FC = () => {
                         <h3 className="text-h2 font-semibold text-foreground">{t('consultations:proposals.title_section')}</h3>
                         <ProposalsPanel
                             consultationId={c.id}
-                            summary={withDefaults(c.summary, questions.length)}
+                            summary={withDefaults(c.summary, questionIds)}
                             applied={c.applied ?? {}}
                             readOnly={readOnly}
                             onApplied={() => void load({ keepEdits: true })}
