@@ -12,7 +12,7 @@ import { circleMiddleware, requireRole, CircleRequest, CircleRole } from '../../
 import { kioskOrMember, allowDeviceOr, KioskRequest } from '../../middleware/kioskDevice';
 import { broadcastToCircle } from '../../lib/broadcaster';
 import logger from '../../lib/logger';
-import { sanitizeEditedSummary, isValidIsoDate, type ConsultationSummary } from './summary';
+import { sanitizeEditedSummary, isValidIsoDate, isValidTime, type ConsultationSummary } from './summary';
 import { loadVocabulary, normalizeTerm } from './vocabulary';
 import { kickConsultationProcessor } from './processing';
 import { consultationText } from './texts';
@@ -56,7 +56,7 @@ const serverError = (res: Response, where: string, error: unknown) => {
 };
 
 const CONSULTATION_COLUMNS = `c.id, c.circle_id, c.doctor_name, c.specialty, c.scheduled_at, c.location, c.reason,
-    c.event_id, c.notes, c.summary, c.summary_status, c.approved_at, u.name AS approved_by_name,
+    c.event_id, c.notes, c.summary, c.summary_status, c.approved_at, u.name AS approved_by_name, c.applied,
     c.created_at, c.updated_at`;
 
 async function loadConsultation(id: string, circleId: string) {
@@ -617,31 +617,111 @@ consultationsRouter.post('/:id/summary/regenerate', requireWriter, async (req: C
     }
 });
 
-// ─── Naechste Schritte als Aufgaben ──────────────────────────────────────────
+// ─── Vorschlaege uebernehmen (nur nach Bestaetigung) ─────────────────────────
+//
+// Aus dem Gespraech entstehen nur VORSCHLAEGE. Angelegt wird erst hier, wenn
+// ein Mensch einzelne Vorschlaege bestaetigt (und vorher ggf. geaendert) hat.
+// Bereits uebernommene Vorschlaege werden ueber ihren Inhalt erkannt, damit
+// nach dem Neuerzeugen der Zusammenfassung nichts doppelt angelegt wird.
 
-consultationsRouter.post('/:id/tasks', requireWriter, async (req: CircleRequest, res: Response) => {
+/** Schluessel eines Vorschlags: Art + Text ohne Gross/Klein und Mehrfach-Leerzeichen. */
+export function appliedKey(kind: 'task' | 'event' | 'note', textValue: string): string {
+    return `${kind}:${textValue.replace(/\s+/g, ' ').trim().toLocaleLowerCase()}`;
+}
+
+consultationsRouter.post('/:id/apply', requireWriter, async (req: CircleRequest, res: Response) => {
+    const c = await loadConsultation(String(req.params.id), req.circleId!).catch(() => null);
+    if (!c) return fail(res, 404, 'Consultation not found');
+    const b = req.body ?? {};
+    const list = (v: unknown) => (Array.isArray(v) ? v.slice(0, 20) : []);
+
+    // Erst alles pruefen, dann alles in einer Transaktion anlegen.
+    const tasks: Array<{ title: string; due: string | null }> = [];
+    for (const item of list(b.tasks)) {
+        const title = text(item?.text, 255);
+        if (!title) return fail(res, 400, 'TASK_TEXT_REQUIRED');
+        const due = item?.due === null || item?.due === undefined || item?.due === '' ? null : String(item.due);
+        if (due !== null && !isValidIsoDate(due)) return fail(res, 400, 'INVALID_TASK_DUE');
+        tasks.push({ title, due });
+    }
+    const events: Array<{ title: string; start: string; location: string | null }> = [];
+    for (const item of list(b.appointments)) {
+        const title = text(item?.title, 255);
+        if (!title) return fail(res, 400, 'APPOINTMENT_TITLE_REQUIRED');
+        const date = typeof item?.date === 'string' ? item.date : '';
+        const time = typeof item?.time === 'string' ? item.time : '';
+        // Kein Termin ohne Datum UND Uhrzeit: lieber nachfragen als eine Zeit erfinden.
+        if (!isValidIsoDate(date) || !isValidTime(time)) return fail(res, 400, 'APPOINTMENT_DATE_TIME_REQUIRED');
+        events.push({ title, start: `${date}T${time}:00`, location: text(item?.location, 255) });
+    }
+    const notes: string[] = [];
+    for (const item of list(b.notes)) {
+        const content = text(item?.content, 500);
+        if (!content) return fail(res, 400, 'NOTE_TEXT_REQUIRED');
+        notes.push(content);
+    }
+    if (tasks.length + events.length + notes.length === 0) return fail(res, 400, 'NOTHING_TO_APPLY');
+
+    const label = consultationText(req.headers['accept-language'], 'defaultTitle');
+    const who = [c.doctor_name, c.specialty].filter(Boolean).join(', ');
+    const origin = who ? `${label}: ${who}` : label;
+
+    const client = await getClient();
     try {
-        const c = await loadConsultation(String(req.params.id), req.circleId!);
-        if (!c) return fail(res, 404, 'Consultation not found');
-        const steps = Array.isArray(req.body?.steps) ? req.body.steps.slice(0, 20) : [];
-        const label = consultationText(req.headers['accept-language'], 'defaultTitle');
-        const who = [c.doctor_name, c.specialty].filter(Boolean).join(', ');
-        const description = who ? `${label}: ${who}` : label;
-        let created = 0;
-        for (const step of steps) {
-            const title = text(step?.text, 255);
-            if (!title) continue;
-            const due = typeof step?.due === 'string' && isValidIsoDate(step.due) ? step.due : null;
-            await query(
+        await client.query('BEGIN');
+        const current = (await client.query(
+            `SELECT applied FROM consultations WHERE id = $1 FOR UPDATE`, [c.id]
+        )).rows[0]?.applied ?? {};
+        const applied: Record<string, string> = { ...current };
+        const result = { tasks: 0, appointments: 0, notes: 0, skipped: 0 };
+
+        for (const t of tasks) {
+            const key = appliedKey('task', t.title);
+            if (applied[key]) { result.skipped++; continue; }
+            const r = await client.query(
                 `INSERT INTO tasks (circle_id, title, description, category, due_date, assigned_to)
-                 VALUES ($1, $2, $3, 'other', $4, '[]'::jsonb)`,
-                [req.circleId, title, description, due]
+                 VALUES ($1, $2, $3, 'other', $4, '[]'::jsonb) RETURNING id`,
+                [req.circleId, t.title, origin, t.due]
             );
-            created++;
+            applied[key] = r.rows[0].id;
+            result.tasks++;
         }
-        if (created > 0) await broadcastToCircle(req.circleId!, { type: 'update', entity: 'tasks', action: 'created' });
-        res.json({ success: true, data: { created } });
+        for (const e of events) {
+            const key = appliedKey('event', `${e.title} ${e.start}`);
+            if (applied[key]) { result.skipped++; continue; }
+            const r = await client.query(
+                `INSERT INTO events (circle_id, title, description, category, start_time, location, created_by, reminder_1hour)
+                 VALUES ($1, $2, $3, 'medical', $4, $5, $6, TRUE) RETURNING id`,
+                [req.circleId, e.title, origin, e.start, e.location, req.userId]
+            );
+            applied[key] = r.rows[0].id;
+            result.appointments++;
+        }
+        if (notes.length > 0) {
+            const author = (await client.query(`SELECT name FROM users WHERE id = $1`, [req.userId])).rows[0]?.name ?? label;
+            for (const n of notes) {
+                const key = appliedKey('note', n);
+                if (applied[key]) { result.skipped++; continue; }
+                const r = await client.query(
+                    `INSERT INTO circle_notes (circle_id, author_name, content, color) VALUES ($1, $2, $3, 'blue') RETURNING id`,
+                    [req.circleId, String(author).slice(0, 100), n]
+                );
+                applied[key] = r.rows[0].id;
+                result.notes++;
+            }
+        }
+        await client.query(`UPDATE consultations SET applied = $1::jsonb WHERE id = $2`, [JSON.stringify(applied), c.id]);
+        await client.query('COMMIT');
+
+        await notify(req.circleId!, 'updated');
+        if (result.tasks) await broadcastToCircle(req.circleId!, { type: 'update', entity: 'tasks', action: 'created' });
+        if (result.appointments) await broadcastToCircle(req.circleId!, { type: 'update', entity: 'events', action: 'created' });
+        if (result.notes) await broadcastToCircle(req.circleId!, { type: 'update', entity: 'notes', action: 'created' });
+        res.json({ success: true, data: { ...result, applied: Object.keys(applied) } });
     } catch (error) {
-        return serverError(res, 'tasks_create', error);
+        await client.query('ROLLBACK').catch(() => undefined);
+        return serverError(res, 'apply', error);
+    } finally {
+        client.release();
     }
 });

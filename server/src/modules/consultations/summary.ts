@@ -55,6 +55,15 @@ export interface QuestionAnswer {
     answer: string | null;
 }
 
+export interface ProposedAppointment {
+    title: string;
+    /** YYYY-MM-DD oder null, wenn kein eindeutiges Datum genannt wurde */
+    date: string | null;
+    /** HH:MM oder null */
+    time: string | null;
+    location: string | null;
+}
+
 export interface ConsultationSummary {
     overview: string;
     findings: string[];
@@ -63,6 +72,10 @@ export interface ConsultationSummary {
     next_steps: NextStep[];
     question_answers: QuestionAnswer[];
     unclear: string[];
+    /** Vorschlaege fuer Termine (werden erst nach Bestaetigung angelegt) */
+    appointments: ProposedAppointment[];
+    /** Vorschlaege fuer kurze Notizen an der Familien-Pinnwand */
+    family_notes: string[];
 }
 
 // ─── JSON-Schemata (gleiche Regeln wie services/ai/assistant.ts) ─────────────
@@ -81,7 +94,7 @@ export const SUMMARY_SCHEMA: Record<string, unknown> = {
     additionalProperties: false,
     required: [
         'overview', 'findings', 'medication_changes', 'recommendations',
-        'next_steps', 'question_answers', 'unclear',
+        'next_steps', 'question_answers', 'unclear', 'appointments', 'family_notes',
     ],
     properties: {
         overview: { type: 'string' },
@@ -126,6 +139,22 @@ export const SUMMARY_SCHEMA: Record<string, unknown> = {
             },
         },
         unclear: { type: 'array', items: { type: 'string' } },
+        appointments: {
+            type: 'array',
+            items: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['title', 'date', 'time', 'location'],
+                properties: {
+                    title: { type: 'string' },
+                    // '' wenn nicht eindeutig genannt
+                    date: { type: 'string' },
+                    time: { type: 'string' },
+                    location: { type: 'string' },
+                },
+            },
+        },
+        family_notes: { type: 'array', items: { type: 'string' } },
     },
 };
 
@@ -208,6 +237,9 @@ export function buildSummaryPrompt(material: { transcript?: string; notes?: stri
         '- next_steps: konkrete nächste Schritte. "due" nur als Datum JJJJ-MM-TT, wenn ein Datum oder eine eindeutige Frist genannt wurde, sonst leerer Text.',
         '- question_answers: für jede vorbereitete Frage ein Eintrag mit ihrer Nummer (question_index, beginnend bei 0) und der Antwort aus dem Gespräch. Wurde sie nicht beantwortet, ist answer ein leerer Text.',
         '- unclear: Stellen, die unklar oder vermutlich falsch erkannt sind.',
+        '- appointments: im Gespräch vereinbarte oder empfohlene Folgetermine (Kontrolle, Überweisung, Untersuchung). "date" als JJJJ-MM-TT nur, wenn ein Datum genannt wurde oder es sich eindeutig aus dem Gesprächsdatum ergibt (zum Beispiel "in zwei Wochen"), sonst leerer Text. "time" als HH:MM nur, wenn eine Uhrzeit genannt wurde, sonst leerer Text. "location" nur, wenn genannt.',
+        '- family_notes: höchstens fünf kurze Hinweise für die Familie (je ein Satz), zum Beispiel eine geänderte Dosis. Nur was im Gespräch gesagt wurde.',
+        'Termine, Aufgaben und Hinweise sind nur Vorschläge. Ein Mensch prüft und bestätigt sie.',
         'Leere Listen sind erlaubt. Lieber weniger und richtig als mehr und geraten.',
     ].join('\n');
 
@@ -264,6 +296,12 @@ export function isValidIsoDate(value: string): boolean {
     return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
 }
 
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+export function isValidTime(value: string): boolean {
+    return TIME_RE.test(value);
+}
+
 export function validateSegmentNotes(raw: Record<string, unknown>): string[] {
     return cleanList(raw.notes, MAX_NOTES);
 }
@@ -316,6 +354,26 @@ export function validateSummary(raw: Record<string, unknown>, questionCount: num
         answer: answers.get(i) ?? null,
     }));
 
+    const appointments: ProposedAppointment[] = [];
+    if (Array.isArray(raw.appointments)) {
+        for (const item of raw.appointments) {
+            if (!item || typeof item !== 'object') continue;
+            const o = item as Record<string, unknown>;
+            const title = cleanText(o.title, 200);
+            if (!title) continue;
+            const date = cleanText(o.date, 10);
+            const time = cleanText(o.time, 5);
+            const location = cleanText(o.location, 255);
+            appointments.push({
+                title,
+                date: isValidIsoDate(date) ? date : null,
+                time: isValidTime(time) ? time : null,
+                location: location || null,
+            });
+            if (appointments.length >= 10) break;
+        }
+    }
+
     const summary: ConsultationSummary = {
         overview,
         findings: cleanList(raw.findings),
@@ -324,6 +382,8 @@ export function validateSummary(raw: Record<string, unknown>, questionCount: num
         next_steps,
         question_answers,
         unclear: cleanList(raw.unclear),
+        appointments,
+        family_notes: cleanList(raw.family_notes, 5).map((n) => cleanText(n, 300)),
     };
 
     const empty = !summary.overview
@@ -331,6 +391,8 @@ export function validateSummary(raw: Record<string, unknown>, questionCount: num
         && summary.medication_changes.length === 0
         && summary.recommendations.length === 0
         && summary.next_steps.length === 0
+        && summary.appointments.length === 0
+        && summary.family_notes.length === 0
         && answers.size === 0;
     if (empty) {
         throw new Error('EMPTY_SUMMARY');
@@ -355,6 +417,8 @@ export function sanitizeEditedSummary(raw: unknown, questionCount: number): Cons
             next_steps: [],
             question_answers: Array.from({ length: questionCount }, (_, i) => ({ question_index: i, answer: null })),
             unclear: [],
+            appointments: [],
+            family_notes: [],
         };
     }
 }

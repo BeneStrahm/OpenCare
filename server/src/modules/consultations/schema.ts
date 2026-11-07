@@ -92,4 +92,8 @@ export const CONSULTATION_MIGRATIONS: string[] = [
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`,
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_consultation_vocabulary_term ON consultation_vocabulary(circle_id, lower(term));`,
+
+    // Welche Vorschlaege (Aufgaben, Termine, Notizen) schon uebernommen wurden:
+    // { "task:0": "<task id>", "event:1": "<event id>", "note:0": "<note id>" }
+    `ALTER TABLE consultations ADD COLUMN IF NOT EXISTS applied JSONB NOT NULL DEFAULT '{}'::jsonb;`,
 ];

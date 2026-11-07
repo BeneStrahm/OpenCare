@@ -35,7 +35,21 @@ Zeiten sind naive lokale Zeitstempel `YYYY-MM-DDTHH:mm:ss` wie im übrigen OpenC
 | PUT | `/:id/summary` | `{ summary: ConsultationSummary }` | Entwurf bearbeiten, Status bleibt `draft` |
 | POST | `/:id/summary/approve` | `{ summary?: ConsultationSummary }` | Status `approved`, Antworten zu Fragen werden in leere `answer`-Felder übernommen |
 | POST | `/:id/summary/regenerate` | | Zusammenfassung aus allen Mitschriften neu erstellen (läuft im Hintergrund) |
-| POST | `/:id/tasks` | `{ steps: { text, due: string \| null }[] }` | legt Aufgaben an, `data: { created: number }` |
+| POST | `/:id/apply` | `{ tasks?: { text, due: string \| null }[], appointments?: { title, date, time, location }[], notes?: { content }[] }` | legt NUR die bestätigten Vorschläge an (je Liste höchstens 20). Termine brauchen Datum (JJJJ-MM-TT) UND Uhrzeit (HH:MM), sonst 400 `APPOINTMENT_DATE_TIME_REQUIRED`. Bereits übernommene werden übersprungen. `data: { tasks, appointments, notes, skipped, applied: string[] }` |
+
+### Vorschläge und Bestätigung
+
+Die Zusammenfassung enthält nur Vorschläge: `next_steps` (Aufgaben), `appointments` (Termine) und
+`family_notes` (Notizen für die Familien-Pinnwand). Angelegt wird nichts automatisch. Die Oberfläche
+zeigt jeden Vorschlag bearbeitbar mit Auswahl an und schickt erst nach Bestätigung `POST /:id/apply`.
+
+`Consultation.applied` ist ein Objekt `{ [key]: createdId }`. Schlüssel:
+- Aufgabe: `task:` + Text
+- Termin: `event:` + Titel + Leerzeichen + `JJJJ-MM-TTTHH:MM:00`
+- Notiz: `note:` + Text
+
+Der Text wird dabei normalisiert: Mehrfach-Leerraum zu einem Leerzeichen, trim, Kleinschreibung
+(`toLocaleLowerCase`). Ein Vorschlag gilt als übernommen, wenn sein Schlüssel in `applied` steht.
 
 ## Fachwörter für die Spracherkennung
 
@@ -79,6 +93,7 @@ interface Consultation {
   summary: ConsultationSummary | null;
   summary_status: 'none' | 'draft' | 'approved';
   approved_by_name: string | null; approved_at: string | null;
+  applied: Record<string, string>;  // übernommene Vorschläge, siehe oben
   created_at: string; updated_at: string;
 }
 interface ConsultationListItem extends Omit<Consultation, 'summary' | 'notes'> {
@@ -108,5 +123,7 @@ interface ConsultationSummary {
   next_steps: { text: string; due: string | null }[];   // due: YYYY-MM-DD
   question_answers: { question_index: number; answer: string | null }[]; // Index in questions (nach position sortiert)
   unclear: string[];
+  appointments: { title: string; date: string | null; time: string | null; location: string | null }[]; // Vorschläge
+  family_notes: string[]; // Vorschläge für die Pinnwand
 }
 ```
