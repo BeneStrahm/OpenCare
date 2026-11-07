@@ -230,7 +230,8 @@
       "triggers": "Ce qui contrarie",
       "calming": "Ce qui apaise",
       "emergency": "En cas d'urgence"
-    }
+    },
+    "noteLabel": "Votre note pour la famille"
   },
   "reminder": {
     "title": "C'est l'heure de tes médicaments",

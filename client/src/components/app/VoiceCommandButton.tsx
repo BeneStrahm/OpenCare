@@ -16,6 +16,8 @@ const C = {
     bg: '#f5f7fb',
     card: '#ffffff',
     border: '#d5dbe6',
+    // Rand von Eingabefeldern: mind. 3:1 auf Weiss und auf bg (WCAG 1.4.11)
+    inputBorder: '#6b7484',
     text: '#1d2433',
     muted: '#5b6472',
     blue: '#1f4fd1',
@@ -330,7 +332,7 @@ const VoiceCommandButton: React.FC<VoiceCommandButtonProps> = ({ variant, fontSc
     if (!open) return trigger;
 
     const fieldLabel = (f: Field) => t(`voiceCommands:fields.${f}`);
-    const inputStyle: React.CSSProperties = { ...fs(22), backgroundColor: C.card, border: `2px solid ${C.border}`, color: C.text };
+    const inputStyle: React.CSSProperties = { ...fs(22), backgroundColor: C.card, border: `2px solid ${C.inputBorder}`, color: C.text };
 
     const renderEdit = (p: Extract<Phase, { kind: 'edit' }>) => {
         const fields = FIELDS_FOR[p.intent].filter((f) => f !== 'task');

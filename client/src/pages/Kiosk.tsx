@@ -38,6 +38,8 @@ const C = {
     bg: '#f5f7fb',
     card: '#ffffff',
     border: '#d5dbe6',
+    // Rand von Eingabefeldern: mind. 3:1 auf Weiss und auf bg (WCAG 1.4.11)
+    inputBorder: '#6b7484',
     text: '#1d2433',
     muted: '#5b6472',
     blue: '#1f4fd1',
@@ -1049,15 +1051,16 @@ const Kiosk: React.FC<KioskProps> = ({ device }) => {
                                 <p style={{ ...fs(16), color: C.muted }}>{t('kiosk:pin.hint')}</p>
                             </div>
                         </div>
+                        <label htmlFor="kiosk-pin" className="mb-2 block font-bold" style={fs(20)}>{t('kiosk:pin.placeholder')}</label>
                         <input
+                            id="kiosk-pin"
                             value={pinValue}
                             onChange={(e) => { setPinValue(e.target.value.replace(/\D/g, '').slice(0, 8)); setPinError(false); }}
                             type="password"
                             inputMode="numeric"
                             autoFocus
-                            placeholder={t('kiosk:pin.placeholder')}
                             className="w-full rounded-2xl px-5 py-4 text-center font-bold tracking-[0.4em] outline-none"
-                            style={{ ...fs(32), border: `2px solid ${pinError ? C.red : C.border}`, backgroundColor: C.bg, color: C.text }}
+                            style={{ ...fs(32), border: `2px solid ${pinError ? C.red : C.inputBorder}`, backgroundColor: C.bg, color: C.text }}
                         />
                         {pinError && <p className="mt-2 text-center font-bold" style={{ ...fs(18), color: C.red }} role="alert">{t('kiosk:pin.wrong')}</p>}
                         <div className="mt-5 grid grid-cols-2 gap-3">
@@ -1129,7 +1132,7 @@ const Kiosk: React.FC<KioskProps> = ({ device }) => {
 
                         {/* Lieu pour la meteo */}
                         <div className="mt-6 space-y-3">
-                            <p className="font-bold" style={fs(20)}>{t('kiosk:displaySettings.location')}</p>
+                            <label htmlFor="kiosk-city-search" className="block font-bold" style={fs(20)}>{t('kiosk:displaySettings.location')}</label>
                             {settings.location ? (
                                 <div className="flex items-center justify-between gap-3 rounded-xl px-4 py-3" style={{ border: `1px solid ${C.border}`, backgroundColor: C.bg }}>
                                     <span className="inline-flex min-w-0 items-center gap-2" style={fs(18)}>
@@ -1143,13 +1146,14 @@ const Kiosk: React.FC<KioskProps> = ({ device }) => {
                             ) : (
                                 <>
                                     <div className="relative">
-                                        <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2" style={{ color: C.muted }} />
+                                        <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2" style={{ color: C.muted }} aria-hidden="true" />
                                         <input
+                                            id="kiosk-city-search"
                                             value={citySearch}
                                             onChange={(e) => setCitySearch(e.target.value)}
                                             placeholder={t('kiosk:displaySettings.searchPlaceholder')}
                                             className="w-full rounded-xl py-3 pl-12 pr-4 outline-none"
-                                            style={{ ...fs(18), border: `1px solid ${C.border}`, backgroundColor: C.bg, color: C.text }}
+                                            style={{ ...fs(18), border: `2px solid ${C.inputBorder}`, backgroundColor: C.bg, color: C.text }}
                                         />
                                     </div>
                                     {citySearch.trim().length >= 2 && !searchingCity && (

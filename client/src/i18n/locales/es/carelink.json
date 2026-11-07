@@ -8,7 +8,8 @@
     "placeholder": "Por ejemplo: visita de 20 minutos, ha comido bien, buen ánimo.",
     "submit": "Enviar al diario",
     "sending": "Enviando...",
-    "sent": "Enviado. Gracias por su visita."
+    "sent": "Enviado. Gracias por su visita.",
+    "label": "Su entrada"
   },
   "types": {
     "visit": "Visita",

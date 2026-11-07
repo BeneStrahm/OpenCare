@@ -230,7 +230,8 @@
       "triggers": "Lo que le molesta",
       "calming": "Lo que le calma",
       "emergency": "En caso de urgencia"
-    }
+    },
+    "noteLabel": "Su nota para la familia"
   },
   "reminder": {
     "title": "Es la hora de tus medicamentos",

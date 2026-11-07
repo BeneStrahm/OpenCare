@@ -14,7 +14,8 @@
         "vitalTypeLabel": "Tipo de constante",
         "valueWithUnit": "Valor ({{unit}})",
         "systolicLabel": "Sistólica",
-        "diastolicLabel": "Diastólica"
+        "diastolicLabel": "Diastólica",
+        "contentLabel": "Su entrada"
     },
     "types": {
         "visit": "Visita",

@@ -1,5 +1,6 @@
 import React from 'react';
 import { format } from 'date-fns';
+import { useTranslation } from 'react-i18next';
 import { cn } from '../../lib/utils';
 
 interface DatePickerProps {
@@ -33,6 +34,8 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     max,
     className,
 }) => {
+    const { t } = useTranslation('common');
+    const fieldId = React.useId();
     if (type === 'datetime-local') {
         const { date, time } = parseDateTimeValue(value);
         // Local date : toISOString() would give the UTC day, which is wrong near
@@ -44,12 +47,17 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         return (
             <div className="w-full">
                 {label && (
-                    <label className="mb-1.5 block text-caption font-medium text-foreground">
+                    <p id={`${fieldId}-label`} className="mb-1.5 block text-caption font-medium text-foreground">
                         {label}
-                    </label>
+                    </p>
                 )}
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="group" aria-labelledby={label ? `${fieldId}-label` : undefined}>
+                    <div>
+                    <label htmlFor={`${fieldId}-date`} className="mb-1 block text-caption text-muted-foreground">
+                        {t('common:labels.date')}
+                    </label>
                     <input
+                        id={`${fieldId}-date`}
                         type="date"
                         value={date}
                         onChange={(e) => {
@@ -64,7 +72,13 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                         max={maxDate}
                         className={cn('input-nexus py-0 text-caption', className)}
                     />
+                    </div>
+                    <div>
+                    <label htmlFor={`${fieldId}-time`} className="mb-1 block text-caption text-muted-foreground">
+                        {t('common:labels.time')}
+                    </label>
                     <input
+                        id={`${fieldId}-time`}
                         type="time"
                         step={60}
                         value={time}
@@ -82,6 +96,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                         }}
                         className={cn('input-nexus py-0 text-caption', className)}
                     />
+                    </div>
                 </div>
             </div>
         );
@@ -89,12 +104,11 @@ export const DatePicker: React.FC<DatePickerProps> = ({
 
     return (
         <div className="w-full">
-            {label && (
-                <label className="mb-1.5 block text-caption font-medium text-foreground">
-                    {label}
-                </label>
-            )}
+            <label htmlFor={fieldId} className="mb-1.5 block text-caption font-medium text-foreground">
+                {label || t(type === 'time' ? 'common:labels.time' : 'common:labels.date')}
+            </label>
             <input
+                id={fieldId}
                 type={type}
                 value={value}
                 onChange={(e) => onChange(e.target.value)}

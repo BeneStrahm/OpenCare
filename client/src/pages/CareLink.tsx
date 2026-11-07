@@ -220,7 +220,11 @@ const CareLink: React.FC = () => {
                             </button>
                         ))}
                     </div>
+                    <label htmlFor="carelink-content" className="block text-caption font-medium text-foreground">
+                        {t('compose.label')}
+                    </label>
                     <textarea
+                        id="carelink-content"
                         value={content}
                         onChange={(e) => setContent(e.target.value)}
                         placeholder={t('compose.placeholder')}

@@ -21,7 +21,8 @@
       "appointment": "Termin",
       "shopping_item": "Einkauf",
       "budget_entry": "Budget"
-    }
+    },
+    "inputLabel": "Was möchten Sie eintragen?"
   },
   "settings": {
     "title": "KI-Assistent",

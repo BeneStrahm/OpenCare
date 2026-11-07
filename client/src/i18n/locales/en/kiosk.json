@@ -230,7 +230,8 @@
       "triggers": "Triggers",
       "calming": "What calms",
       "emergency": "In an emergency"
-    }
+    },
+    "noteLabel": "Your note for the family"
   },
   "reminder": {
     "title": "It is time for your medication",

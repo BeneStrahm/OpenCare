@@ -21,7 +21,8 @@
       "appointment": "Cita",
       "shopping_item": "Compra",
       "budget_entry": "Presupuesto"
-    }
+    },
+    "inputLabel": "¿Qué desea añadir?"
   },
   "settings": {
     "title": "Asistente de IA",

@@ -18,6 +18,8 @@ const C = {
     bg: '#f5f7fb',
     card: '#ffffff',
     border: '#d5dbe6',
+    // Rand von Eingabefeldern: mind. 3:1 auf Weiss und auf bg (WCAG 1.4.11)
+    inputBorder: '#6b7484',
     text: '#1d2433',
     muted: '#5b6472',
     blue: '#1f4fd1',
@@ -428,14 +430,16 @@ const KioskCompanion: React.FC<KioskCompanionProps> = ({ recipientName, aiEnable
                     </div>
 
                     {showText && (
-                        <form onSubmit={submitText} className="flex w-full items-center gap-2">
+                        <form onSubmit={submitText} className="w-full">
+                            <label htmlFor="kiosk-companion-text" className="mb-2 block font-bold" style={fs(20)}>{t('companion:textLabel')}</label>
+                            <div className="flex w-full items-center gap-2">
                             <input
+                                id="kiosk-companion-text"
                                 value={textInput}
                                 onChange={(e) => setTextInput(e.target.value)}
-                                placeholder={t('companion:textPlaceholder')}
                                 disabled={busy}
                                 className="flex-1 rounded-2xl px-5 py-4 outline-none"
-                                style={{ ...fs(22), border: `1px solid ${C.border}`, backgroundColor: C.card, color: C.text }}
+                                style={{ ...fs(22), border: `2px solid ${C.inputBorder}`, backgroundColor: C.card, color: C.text }}
                             />
                             <button
                                 type="submit"
@@ -446,6 +450,7 @@ const KioskCompanion: React.FC<KioskCompanionProps> = ({ recipientName, aiEnable
                             >
                                 <Send className="h-7 w-7" />
                             </button>
+                            </div>
                         </form>
                     )}
                 </div>

@@ -331,6 +331,7 @@ export const MagicInputButton: React.FC = () => {
                 {proposals === null ? (
                     <div className="space-y-4">
                         <Textarea
+                            label={t('ai:magic.inputLabel')}
                             value={text}
                             onChange={(e) => setText(e.target.value)}
                             placeholder={t('ai:magic.placeholder')}

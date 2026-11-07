@@ -21,7 +21,8 @@
       "appointment": "Rendez-vous",
       "shopping_item": "Course",
       "budget_entry": "Budget"
-    }
+    },
+    "inputLabel": "Que souhaitez-vous ajouter ?"
   },
   "settings": {
     "title": "Assistant IA",

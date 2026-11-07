@@ -66,7 +66,7 @@
 
   --border: 231 228 223;
   --border-strong: 214 210 202;
-  --input: 231 228 223;
+  --input: 128 122 113; /* Rand Eingabefelder, mind. 3:1 (WCAG 1.4.11) */
   --ring: 62 107 84;
 
   --radius: 10px;
@@ -142,7 +142,7 @@
 
   --border: 56 53 48;
   --border-strong: 74 70 63;
-  --input: 56 53 48;
+  --input: 120 114 104; /* Rand Eingabefelder, mind. 3:1 (WCAG 1.4.11) */
   --ring: 143 184 160;
 
   --shadow-surface: 0 1px 2px rgba(0, 0, 0, 0.3);

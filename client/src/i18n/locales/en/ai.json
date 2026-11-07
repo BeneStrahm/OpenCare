@@ -21,7 +21,8 @@
       "appointment": "Appointment",
       "shopping_item": "Shopping",
       "budget_entry": "Budget"
-    }
+    },
+    "inputLabel": "What would you like to add?"
   },
   "settings": {
     "title": "AI assistant",

@@ -33,5 +33,6 @@
     "vitals": "Was wurde zuletzt gemessen?",
     "date": "Welcher Tag ist heute?",
     "call": "Wen kann ich anrufen?"
-  }
+  },
+  "textLabel": "Ihre Frage oder Nachricht"
 }

@@ -8,7 +8,8 @@
     "placeholder": "Par exemple : passage de 20 minutes, a bien mangé, moral bon.",
     "submit": "Envoyer au journal",
     "sending": "Envoi...",
-    "sent": "C'est envoyé. Merci pour votre passage."
+    "sent": "C'est envoyé. Merci pour votre passage.",
+    "label": "Votre note"
   },
   "types": {
     "visit": "Visite",

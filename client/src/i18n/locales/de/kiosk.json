@@ -230,7 +230,8 @@
       "triggers": "Auslöser für Unruhe",
       "calming": "Was beruhigt",
       "emergency": "Im Notfall"
-    }
+    },
+    "noteLabel": "Ihre Notiz für die Familie"
   },
   "reminder": {
     "title": "Es ist Zeit für Ihre Medikamente",

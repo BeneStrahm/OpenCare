@@ -8,7 +8,8 @@
     "placeholder": "Zum Beispiel: Besuch 20 Minuten, gut gegessen, gute Laune.",
     "submit": "Ins Tagebuch senden",
     "sending": "Wird gesendet...",
-    "sent": "Gesendet. Vielen Dank für Ihren Besuch."
+    "sent": "Gesendet. Vielen Dank für Ihren Besuch.",
+    "label": "Ihr Eintrag"
   },
   "types": {
     "visit": "Besuch",

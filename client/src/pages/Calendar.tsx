@@ -811,7 +811,7 @@ const Calendar: React.FC = () => {
                                         value={feedUrl}
                                         onFocus={(e) => e.target.select()}
                                         aria-label={t('calendar:feed.linkLabel')}
-                                        className="min-w-0 flex-1 rounded-input border border-border bg-surface px-3 py-2 text-micro text-foreground"
+                                        className="min-w-0 flex-1 rounded-input border border-input bg-surface px-3 py-2 text-micro text-foreground"
                                     />
                                     <Button variant="secondary" size="icon" onClick={copyFeedUrl} aria-label={t('calendar:feed.copy')}>
                                         {feedCopied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}

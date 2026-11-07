@@ -86,7 +86,7 @@ const KioskPair: React.FC = () => {
                                 inputMode="text"
                                 maxLength={9}
                                 placeholder="ABC234"
-                                className="w-full rounded-2xl border-2 border-[#d5dbe6] px-5 py-4 text-center text-[36px] font-bold uppercase tracking-[0.3em] outline-none focus:border-[#1f4fd1]"
+                                className="w-full rounded-2xl border-2 border-[#6b7484] px-5 py-4 text-center text-[36px] font-bold uppercase tracking-[0.3em] outline-none focus:border-[#1f4fd1]"
                             />
                         </label>
                         {error && (

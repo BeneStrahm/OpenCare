@@ -31,5 +31,6 @@
     "minutes": "hace {{count}} min",
     "hours": "hace {{count}} h",
     "days": "hace {{count}} d"
-  }
+  },
+  "contentLabel": "Texto de la nota"
 }

@@ -8,7 +8,8 @@
     "placeholder": "For example: 20 minute visit, ate well, good spirits.",
     "submit": "Send to the journal",
     "sending": "Sending...",
-    "sent": "Sent. Thank you for your visit."
+    "sent": "Sent. Thank you for your visit.",
+    "label": "Your entry"
   },
   "types": {
     "visit": "Visit",

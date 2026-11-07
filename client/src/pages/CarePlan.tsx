@@ -163,7 +163,7 @@ const CarePlan: React.FC = () => {
                                 </div>
                                 {isEditing ? (
                                     <div className="space-y-2">
-                                        <Textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={5} maxLength={4000} placeholder={t(`careplan:sections.${key}.hint`)} autoFocus />
+                                        <Textarea label={t(`careplan:sections.${key}.title`)} value={draft} onChange={(e) => setDraft(e.target.value)} rows={5} maxLength={4000} placeholder={t(`careplan:sections.${key}.hint`)} autoFocus />
                                         <div className="flex justify-end gap-2">
                                             <Button variant="ghost" size="sm" onClick={() => setEditing(null)} disabled={saving}>{t('common:actions.cancel')}</Button>
                                             <Button size="sm" onClick={() => void save()} disabled={saving}>{t('common:actions.save')}</Button>

@@ -698,6 +698,9 @@ const Messages: React.FC = () => {
                         ))}
                     </div>
                 )}
+                <label htmlFor="message-composer" className="mb-1 block text-caption font-medium text-foreground">
+                    {t('messages:composer.label')}
+                </label>
                 <div className="flex items-end gap-1.5">
                     <input
                         ref={fileInputRef}
@@ -741,7 +744,7 @@ const Messages: React.FC = () => {
                                 ? t('messages:composer.placeholderDm', { name: activeDmName })
                                 : t('messages:composer.placeholder')
                         }
-                        aria-label={t('messages:composer.label')}
+                        id="message-composer"
                         className="max-h-40 min-h-[44px] flex-1 resize-none rounded-input border border-input bg-card px-3 py-2.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     />
                     <Button

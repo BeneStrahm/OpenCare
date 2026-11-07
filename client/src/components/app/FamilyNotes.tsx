@@ -209,6 +209,7 @@ const FamilyNotes: React.FC<FamilyNotesProps> = ({ notes, variant = 'full', onCh
                     <div className="space-y-5">
                         <div>
                             <Textarea
+                                label={t('notes:contentLabel')}
                                 value={content}
                                 onChange={(e) => setContent(e.target.value.slice(0, MAX_CONTENT_LENGTH))}
                                 placeholder={t('notes:placeholder')}

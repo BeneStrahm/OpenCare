@@ -29,7 +29,7 @@ interface Props {
 }
 
 const C = {
-    bg: '#f5f7fb', card: '#ffffff', border: '#d5dbe6', text: '#1d2433', muted: '#5b6472',
+    bg: '#f5f7fb', card: '#ffffff', border: '#d5dbe6', inputBorder: '#6b7484', text: '#1d2433', muted: '#5b6472',
     blue: '#1f4fd1', blueDark: '#1a3a9e', green: '#1f7a3a', greenSoft: '#e6f4ea', red: '#d63b3b',
 };
 const TYPE_STYLES: Record<VisitorType, { bg: string; color: string; Icon: React.FC<{ className?: string }> }> = {
@@ -191,15 +191,19 @@ const KioskVisitor: React.FC<Props> = ({ recipientName, members, dueNow, activeV
 
                     {step === 'name' && (
                         <form onSubmit={(e) => { e.preventDefault(); void doCheckIn(); }} className="space-y-5">
+                            <div>
+                            <label htmlFor="kiosk-visitor-name" className="mb-2 block font-bold" style={fs(20)}>{t('kiosk:visitor.namePlaceholder')}</label>
                             <input
+                                id="kiosk-visitor-name"
                                 value={name}
                                 onChange={(e) => { setName(e.target.value); setMemberId(null); }}
                                 autoFocus
                                 maxLength={100}
-                                placeholder={t('kiosk:visitor.namePlaceholder')}
+                                autoComplete="given-name"
                                 className="w-full rounded-2xl px-5 py-4 font-bold outline-none"
-                                style={{ ...fs(30), border: `2px solid ${C.border}`, backgroundColor: C.card, color: C.text }}
+                                style={{ ...fs(30), border: `2px solid ${C.inputBorder}`, backgroundColor: C.card, color: C.text }}
                             />
+                            </div>
                             {members.length > 0 && !isPro && (
                                 <div>
                                     <p className="mb-2 font-bold" style={{ ...fs(18), color: C.muted }}>{t('kiosk:visitor.namePick')}</p>
@@ -293,7 +297,9 @@ const KioskVisitor: React.FC<Props> = ({ recipientName, members, dueNow, activeV
                                             )}
                                             {noteOpen && (
                                                 <form onSubmit={(e) => { e.preventDefault(); void sendNote(); }} className="mt-4 space-y-3">
+                                                    <label htmlFor="kiosk-visitor-note" className="block font-bold" style={fs(20)}>{t('kiosk:visitor.noteLabel')}</label>
                                                     <textarea
+                                                        id="kiosk-visitor-note"
                                                         value={note}
                                                         onChange={(e) => setNote(e.target.value)}
                                                         rows={4}
@@ -301,7 +307,7 @@ const KioskVisitor: React.FC<Props> = ({ recipientName, members, dueNow, activeV
                                                         autoFocus
                                                         placeholder={t('kiosk:visitor.notePlaceholder')}
                                                         className="w-full rounded-2xl px-4 py-3 outline-none"
-                                                        style={{ ...fs(20), border: `2px solid ${C.border}`, backgroundColor: C.bg, color: C.text }}
+                                                        style={{ ...fs(20), border: `2px solid ${C.inputBorder}`, backgroundColor: C.bg, color: C.text }}
                                                     />
                                                     <button type="submit" disabled={busy || !note.trim()} className="flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl font-bold disabled:opacity-50" style={bigButton(C.blue)}>
                                                         {t('kiosk:visitor.sendNote')}

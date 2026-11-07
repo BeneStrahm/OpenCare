@@ -14,7 +14,8 @@
         "vitalTypeLabel": "Art des Messwerts",
         "valueWithUnit": "Wert ({{unit}})",
         "systolicLabel": "Systolisch",
-        "diastolicLabel": "Diastolisch"
+        "diastolicLabel": "Diastolisch",
+        "contentLabel": "Ihr Eintrag"
     },
     "types": {
         "visit": "Besuch",

@@ -7,15 +7,18 @@ interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement
 }
 
 export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-    ({ className, label, error, ...props }, ref) => {
+    ({ className, label, error, id, ...props }, ref) => {
+        const autoId = React.useId();
+        const textareaId = id || autoId;
         return (
             <div className="w-full">
                 {label && (
-                    <label className="mb-1.5 block text-caption font-medium text-foreground">
+                    <label htmlFor={textareaId} className="mb-1.5 block text-caption font-medium text-foreground">
                         {label}
                     </label>
                 )}
                 <textarea
+                    id={textareaId}
                     className={cn(
                         'input-nexus min-h-[96px] resize-y py-2.5',
                         error && 'border-destructive focus-visible:ring-destructive',

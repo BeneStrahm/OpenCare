@@ -33,5 +33,6 @@
     "vitals": "Quelles sont les dernières mesures ?",
     "date": "Quel jour sommes-nous ?",
     "call": "Qui puis-je appeler ?"
-  }
+  },
+  "textLabel": "Votre question ou message"
 }

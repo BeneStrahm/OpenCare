@@ -16,6 +16,8 @@ export default defineConfig({
             strategies: 'injectManifest',
             srcDir: 'src',
             filename: 'sw.js',
+            // Hauptdatei ist größer als 2 MB; sie muss trotzdem für den Offline-Betrieb gespeichert werden.
+            injectManifest: { maximumFileSizeToCacheInBytes: 4 * 1024 * 1024 },
             includeAssets: ['favicon.ico', 'favicon-32x32.png', 'favicon-16x16.png', 'apple-touch-icon.png', 'icon-72.png', 'OpenCare.png'],
             manifest: {
                 name: 'OpenCare',

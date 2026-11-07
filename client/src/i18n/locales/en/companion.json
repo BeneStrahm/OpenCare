@@ -33,5 +33,6 @@
     "vitals": "What were the latest readings?",
     "date": "What day is it?",
     "call": "Who can I call?"
-  }
+  },
+  "textLabel": "Your question or message"
 }

@@ -14,7 +14,8 @@
         "vitalTypeLabel": "Vital type",
         "valueWithUnit": "Value ({{unit}})",
         "systolicLabel": "Systolic",
-        "diastolicLabel": "Diastolic"
+        "diastolicLabel": "Diastolic",
+        "contentLabel": "Your entry"
     },
     "types": {
         "visit": "Visit",

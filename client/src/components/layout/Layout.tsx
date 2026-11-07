@@ -414,14 +414,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                                 key={item.labelKey}
                                 to={item.href}
                                 className={cn(
-                                    'flex flex-col items-center justify-center gap-1 rounded-input px-1 py-2',
+                                    'flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-input px-0.5 py-1.5',
                                     active
                                         ? 'bg-primary-soft text-primary'
                                         : 'text-muted-foreground hover:bg-surface-2 hover:text-foreground'
                                 )}
                             >
-                                <Icon className="h-4 w-4 shrink-0" />
-                                <span className="text-[10px] font-medium leading-none whitespace-nowrap">{t(item.labelKey)}</span>
+                                <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                                <span className="max-w-full text-center text-[14px] font-medium leading-tight break-words hyphens-auto">{t(item.labelKey)}</span>
                             </Link>
                         );
                     })}

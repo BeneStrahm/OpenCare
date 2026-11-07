@@ -644,6 +644,7 @@ const Journal: React.FC = () => {
                             </div>
 
                             <Textarea
+                                label={t('journal:composer.contentLabel')}
                                 value={content}
                                 onChange={(e) => setContent(e.target.value)}
                                 placeholder={t('journal:composer.placeholder')}

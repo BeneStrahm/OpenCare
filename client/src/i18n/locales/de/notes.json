@@ -31,5 +31,6 @@
     "minutes": "vor {{count}} Min.",
     "hours": "vor {{count}} Std.",
     "days": "vor {{count}} Tg."
-  }
+  },
+  "contentLabel": "Text der Notiz"
 }
