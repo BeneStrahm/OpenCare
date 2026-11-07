@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import { format } from 'date-fns';
 import { query } from '../db';
 import { createNotification } from './notifications';
+import { checkLowStock } from './stockAlerts';
 import logger from './logger';
 import { pickLang } from './i18n';
 
@@ -375,6 +376,11 @@ export function startReminderScheduler(): void {
     // HH:mm slots; the per-circle dedup window makes a double tick idempotent)
     cron.schedule('* * * * *', () => {
         void checkHeatwaveHydration();
+    }, { timezone: tz });
+
+    // Fork: low medication stock, every minute (one alert per drop below the threshold)
+    cron.schedule('* * * * *', () => {
+        void checkLowStock();
     }, { timezone: tz });
 
     // Prescription renewals: every day at 9:00 (the daily dedup makes it idempotent)

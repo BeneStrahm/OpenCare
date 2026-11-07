@@ -78,13 +78,14 @@
     "manage": "Edit the stock",
     "dialogTitle": "{{name}} stock",
     "dialogDescription": "Set what is left and the alert threshold, in the unit of one dose.",
-    "quantity": "Remaining quantity",
+    "quantity": "Stock",
     "quantityPlaceholder": "E.g. 30",
-    "threshold": "Alert threshold",
+    "threshold": "Remind at",
     "thresholdPlaceholder": "E.g. 7",
     "hint": "Leave a field empty to stop tracking that value. The stock goes down on its own with every confirmed dose.",
     "stopTracking": "Stop tracking the stock",
-    "invalid": "Enter a number between 0 and 100000, or leave the field empty."
+    "invalid": "Enter a number between 0 and 100000, or leave the field empty.",
+    "thresholdHint": "When the stock drops to this amount, family and admins get one reminder."
   },
   "forms": {
     "tablet": "Tablet",

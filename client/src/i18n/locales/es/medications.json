@@ -78,13 +78,14 @@
     "manage": "Modificar el stock",
     "dialogTitle": "Stock de {{name}}",
     "dialogDescription": "Indique lo que queda y el umbral de alerta, en la unidad de una toma.",
-    "quantity": "Cantidad restante",
+    "quantity": "Reserva",
     "quantityPlaceholder": "Ej.: 30",
-    "threshold": "Umbral de alerta",
+    "threshold": "Avisar a partir de",
     "thresholdPlaceholder": "Ej.: 7",
     "hint": "Deje un campo vacío para no controlar ese valor. El stock baja solo con cada toma confirmada.",
     "stopTracking": "Dejar de controlar el stock",
-    "invalid": "Indique un número entre 0 y 100000, o deje el campo vacío."
+    "invalid": "Indique un número entre 0 y 100000, o deje el campo vacío.",
+    "thresholdHint": "Cuando la reserva baje a esta cantidad, la familia y los administradores reciben un aviso."
   },
   "forms": {
     "tablet": "Comprimido",

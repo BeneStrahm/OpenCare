@@ -1604,7 +1604,8 @@ const Medications: React.FC = () => {
                             placeholder={t('medications:stock.thresholdPlaceholder')}
                         />
                     </div>
-                    <p className="text-micro text-muted-foreground">{t('medications:stock.hint')}</p>
+                    <p className="text-sm text-muted-foreground">{t('medications:stock.thresholdHint')}</p>
+                    <p className="text-sm text-muted-foreground">{t('medications:stock.hint')}</p>
 
                     <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
                         <Button
