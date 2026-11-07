@@ -21,7 +21,7 @@
   },
   "medications": {
     "title": "Medikamentenplan",
-    "empty": "Keine laufende Behandlung.",
+    "empty": "Keine Medikamente im Plan.",
     "nothing": "Nichts",
     "prn": "Bei Bedarf",
     "slots": { "morning": "Morgens", "midday": "Mittags", "evening": "Abends", "night": "Zur Nacht" },
