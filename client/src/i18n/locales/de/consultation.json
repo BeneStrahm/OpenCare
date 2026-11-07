@@ -1,0 +1,68 @@
+{
+  "title": "Arzttermin vorbereiten",
+  "subtitle": "Mit einem Klick ein druckbares Dokument für den Arzt: wichtige Ereignisse, Verlauf der Messwerte, laufende Behandlungen und die Fragen der Familie.",
+  "noCircle": "Wählen Sie einen Kreis, um einen Termin vorzubereiten.",
+  "error": "Das Dokument konnte nicht erstellt werden.",
+  "controls": {
+    "since": "Ereignisse seit",
+    "sinceHint": "Standard: die letzten 90 Tage.",
+    "questions": "Fragen der Familie",
+    "questionsPlaceholder": "Eine Frage pro Zeile. Zum Beispiel: Sollte die Schmerzbehandlung angepasst werden?",
+    "print": "Drucken / PDF",
+    "preview": "Vorschau des Dokuments"
+  },
+  "doc": {
+    "title": "Vorbereitung auf den Arzttermin",
+    "patient": "Patient",
+    "birthDate": "Geburtsdatum: {{date}}",
+    "generatedOn": "Dokument erstellt am {{date}}",
+    "period": "Zeitraum: vom {{from}} bis {{to}}",
+    "gp": "Hausarzt: {{name}}",
+    "bloodType": "Blutgruppe: {{value}}",
+    "allergies": "Allergien: {{value}}",
+    "history": "Vorerkrankungen: {{value}}",
+    "medications": "Laufende Behandlungen",
+    "medsName": "Medikament",
+    "medsDosage": "Dosierung",
+    "medsSchedule": "Uhrzeiten",
+    "medsInstructions": "Hinweise",
+    "noMedications": "Keine aktive Behandlung.",
+    "intakes": "Einnahmetreue im Zeitraum",
+    "intakesSummary": "{{taken}} von {{scheduled}} geplanten Einnahmen bestätigt ({{percent}} %), {{skipped}} ausgelassen, {{missed}} verpasst.",
+    "noIntakes": "Im Zeitraum war keine Einnahme geplant.",
+    "missed": "Verpasste Einnahmen",
+    "vitals": "Messwerte",
+    "vitalsType": "Messwert",
+    "vitalsFirst": "Beginn des Zeitraums",
+    "vitalsLast": "Letzte Messung",
+    "vitalsTrend": "Verlauf",
+    "vitalsCount_one": "{{count}} Messung",
+    "vitalsCount_other": "{{count}} Messungen",
+    "trend": {
+      "up": "steigend",
+      "down": "fallend",
+      "stable": "gleichbleibend"
+    },
+    "noVitals": "Im Zeitraum wurde kein Messwert erfasst.",
+    "highlights": "Wichtige Ereignisse",
+    "noHighlights": "Keine wichtigen Ereignisse im Zeitraum.",
+    "entryTypes": {
+      "visit": "Besuch",
+      "incident": "Vorfall",
+      "mood": "Stimmung"
+    },
+    "prescriptions": "Rezepte",
+    "renewalOn": "Zu erneuern am {{date}}",
+    "noRenewal": "Kein Erneuerungsdatum",
+    "questions": "Fragen der Familie",
+    "noQuestions": "Keine Frage notiert."
+  },
+  "vitalTypes": {
+    "weight": "Gewicht",
+    "bp": "Blutdruck",
+    "pain": "Schmerz",
+    "mood": "Stimmung",
+    "temperature": "Temperatur",
+    "glucose": "Blutzucker"
+  }
+}

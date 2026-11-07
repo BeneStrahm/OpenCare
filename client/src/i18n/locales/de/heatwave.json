@@ -1,0 +1,48 @@
+{
+  "banner": {
+    "titleOrange": "Hitzeperiode",
+    "titleRed": "Hitzewelle: erhöhte Warnstufe",
+    "intro": "Für {{name}} ist eine Hitzeperiode gemeldet. Mit ein paar einfachen Gewohnheiten kommt man kühl durch den Tag.",
+    "introNoName": "Eine Hitzeperiode ist gemeldet. Mit ein paar einfachen Gewohnheiten kommt man kühl durch den Tag.",
+    "activeSince": "Gemeldet {{since}}",
+    "endEpisode": "Hitzeperiode beenden",
+    "ending": "Wird beendet"
+  },
+  "checklist": {
+    "title": "Was hilft",
+    "items": [
+      "In den heißesten Stunden Fensterläden und Fenster schließen, früh morgens und abends lüften.",
+      "Regelmäßig etwas zu trinken anbieten, auch ohne Durst (Wasser, kalte Suppen, Obst).",
+      "Einen Raum kühl halten und die Person einladen, dort Zeit zu verbringen.",
+      "Leichte, frische Mahlzeiten, die Haut kühlen (feuchtes Tuch, Wasserspray).",
+      "Auf Warnzeichen achten (Kopfschmerzen, ungewöhnliche Müdigkeit, Verwirrtheit, wenig Urin). Im Zweifel den Notruf wählen."
+    ]
+  },
+  "level": {
+    "orange": "Warnstufe Orange",
+    "red": "Warnstufe Rot"
+  },
+  "section": {
+    "title": "Hitzeschutz",
+    "intro": "Während einer Hitzeperiode zeigt OpenCare auf der Startseite und in der Tablet-Ansicht die richtigen Verhaltensregeln und schickt den Pflegenden Erinnerungen zum Trinken.",
+    "enable": "Hitzeschutz für diesen Kreis einschalten",
+    "enableHint": "Danach können Sie bei steigender Hitze mit einem Tippen eine Hitzeperiode melden.",
+    "reminderTimes": "Trink-Erinnerungen",
+    "reminderTimesHint": "Uhrzeiten, zu denen die Pflegenden während einer Hitzeperiode erinnert werden.",
+    "addTime": "Uhrzeit hinzufügen",
+    "removeTime": "Diese Uhrzeit entfernen",
+    "noTimes": "Keine Erinnerung geplant.",
+    "episodeTitle": "Aktuelle Hitzeperiode",
+    "episodeActive": "Eine Hitzeperiode ist aktiv.",
+    "episodeInactive": "Derzeit keine Hitzeperiode.",
+    "level": "Warnstufe",
+    "start": "Hitzeperiode melden",
+    "stop": "Hitzeperiode beenden",
+    "save": "Speichern",
+    "saved": "Gespeichert",
+    "disabledHint": "Schalten Sie zuerst oben den Hitzeschutz ein."
+  },
+  "errors": {
+    "save": "Speichern fehlgeschlagen. Bitte versuchen Sie es erneut."
+  }
+}

@@ -12,7 +12,7 @@ const SUPPORTED_LANGUAGES: readonly string[] = LANGS;
 
 // Update the authenticated user's preferred language (used for the UI and for
 // server-generated notifications such as reminders).
-// PUT /api/auth/language. Body: { "language": "fr" | "en" | "es" }
+// PUT /api/auth/language. Body: { "language": "fr" | "en" | "es" | "de" }
 router.put('/language', authMiddleware, async (req: AuthRequest, res) => {
     try {
         const { language } = req.body as { language?: unknown };

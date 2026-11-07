@@ -132,22 +132,22 @@ export function withPublicSettings<T extends { settings?: unknown }>(row: T): T 
  */
 export function validateSettingsPatch(input: unknown, lang: Lang): { patch?: Record<string, unknown>; error?: string } {
     if (!input || typeof input !== 'object' || Array.isArray(input)) {
-        return { error: pick(lang, { fr: 'Les réglages doivent être un objet', en: 'settings must be an object', es: 'Los ajustes deben ser un objeto' }) };
+        return { error: pick(lang, { fr: 'Les réglages doivent être un objet', en: 'settings must be an object', es: 'Los ajustes deben ser un objeto', de: 'Die Einstellungen müssen ein Objekt sein' }) };
     }
     const patch: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
         if (!(PUBLIC_SETTING_KEYS as readonly string[]).includes(key)) {
-            return { error: pick(lang, { fr: `Réglage inconnu : ${key}`, en: `Unknown setting: ${key}`, es: `Ajuste desconocido: ${key}` }) };
+            return { error: pick(lang, { fr: `Réglage inconnu : ${key}`, en: `Unknown setting: ${key}`, es: `Ajuste desconocido: ${key}`, de: `Unbekannte Einstellung: ${key}` }) };
         }
         if (key === 'unit_system') {
             if (!isUnitSystem(value)) {
-                return { error: pick(lang, { fr: 'unit_system doit valoir metric ou imperial', en: 'unit_system must be metric or imperial', es: 'unit_system debe ser metric o imperial' }) };
+                return { error: pick(lang, { fr: 'unit_system doit valoir metric ou imperial', en: 'unit_system must be metric or imperial', es: 'unit_system debe ser metric o imperial', de: 'unit_system muss metric oder imperial sein' }) };
             }
             patch.unit_system = value;
         }
         if (key === 'week_start') {
             if (!isWeekStart(value)) {
-                return { error: pick(lang, { fr: 'week_start doit valoir monday ou sunday', en: 'week_start must be monday or sunday', es: 'week_start debe ser monday o sunday' }) };
+                return { error: pick(lang, { fr: 'week_start doit valoir monday ou sunday', en: 'week_start must be monday or sunday', es: 'week_start debe ser monday o sunday', de: 'week_start muss monday oder sunday sein' }) };
             }
             patch.week_start = value;
         }
@@ -164,6 +164,7 @@ export function validateSettingsPatch(input: unknown, lang: Lang): { patch?: Rec
                         fr: `emergency_numbers doit tenir sur une ligne de ${MAX_EMERGENCY_NUMBERS_LENGTH} caractères au plus`,
                         en: `emergency_numbers must be one line of at most ${MAX_EMERGENCY_NUMBERS_LENGTH} characters`,
                         es: `emergency_numbers debe caber en una línea de ${MAX_EMERGENCY_NUMBERS_LENGTH} caracteres como máximo`,
+                        de: `emergency_numbers muss in eine Zeile mit höchstens ${MAX_EMERGENCY_NUMBERS_LENGTH} Zeichen passen`,
                     }),
                 };
             }
@@ -176,13 +177,14 @@ export function validateSettingsPatch(input: unknown, lang: Lang): { patch?: Rec
                 const len = MAX_AID_TYPE_LENGTH;
                 return {
                     error: check.error === 'tooMany'
-                        ? pick(lang, { fr: `aid_types : ${max} types au plus`, en: `aid_types: at most ${max} types`, es: `aid_types: ${max} tipos como máximo` })
+                        ? pick(lang, { fr: `aid_types : ${max} types au plus`, en: `aid_types: at most ${max} types`, es: `aid_types: ${max} tipos como máximo`, de: `aid_types: höchstens ${max} Arten` })
                         : check.error === 'duplicate'
-                            ? pick(lang, { fr: 'aid_types : ce type est déjà dans la liste', en: 'aid_types: that type is already in the list', es: 'aid_types: ese tipo ya está en la lista' })
+                            ? pick(lang, { fr: 'aid_types : ce type est déjà dans la liste', en: 'aid_types: that type is already in the list', es: 'aid_types: ese tipo ya está en la lista', de: 'aid_types: diese Art steht bereits in der Liste' })
                             : pick(lang, {
                                 fr: `aid_types doit être une liste de textes d'une ligne, de ${len} caractères au plus`,
                                 en: `aid_types must be a list of one-line texts of at most ${len} characters`,
                                 es: `aid_types debe ser una lista de textos de una línea, de ${len} caracteres como máximo`,
+                                de: `aid_types muss eine Liste einzeiliger Texte mit höchstens ${len} Zeichen sein`,
                             }),
                 };
             }

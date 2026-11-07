@@ -1,0 +1,37 @@
+{
+  "title": "Notfallblatt",
+  "updatedAt": "Automatisch aktualisiert am {{date}}",
+  "fields": {
+    "birthDate": "Geboren am",
+    "age": "{{age}} Jahre alt",
+    "bloodType": "Blutgruppe",
+    "address": "Adresse",
+    "insurance": "Krankenversicherung",
+    "gp": "Hausarzt"
+  },
+  "sections": {
+    "allergies": "Allergien",
+    "medications": "Aktuelle Medikamente",
+    "noMedications": "Kein Medikament eingetragen.",
+    "history": "Vorerkrankungen",
+    "directives": "Patientenverfügung",
+    "notes": "Weitere Informationen",
+    "contacts": "Kontakte"
+  },
+  "categories": {
+    "doctor": "Arzt",
+    "nurse": "Pflegedienst",
+    "aide": "Haushaltshilfe",
+    "physio": "Physiotherapie",
+    "pharmacy": "Apotheke",
+    "family": "Familie",
+    "neighbor": "Nachbar",
+    "other": "Sonstige"
+  },
+  "errors": {
+    "title": "Blatt nicht verfügbar",
+    "notFound": "Dieses Blatt gibt es nicht oder es wurde deaktiviert.",
+    "network": "Keine Verbindung. Bitte prüfen Sie das Netz und versuchen Sie es erneut."
+  },
+  "footer": "Dieses Blatt wurde von OpenCare automatisch aus den Angaben erstellt, die die Familie aktuell hält."
+}

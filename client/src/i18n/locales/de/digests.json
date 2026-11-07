@@ -1,0 +1,22 @@
+{
+  "title": "Die Woche",
+  "weekOf": "Woche vom {{date}}",
+  "stats": {
+    "visits_one": "{{count}} Besuch",
+    "visits_other": "{{count}} Besuche",
+    "entries_one": "{{count}} Tagebucheintrag",
+    "entries_other": "{{count}} Tagebucheinträge"
+  },
+  "attentionPoints": "Worauf achten",
+  "weakSignals": "Leise Anzeichen",
+  "empty": "Noch kein Rückblick vorhanden. Er wird jeden Sonntag um 18 Uhr aus Tagebuch, Messwerten und Medikamenten erstellt.",
+  "generateNow": "Jetzt erstellen",
+  "generating": "Wird erstellt...",
+  "history": "Vorherige Wochen",
+  "historyTitle": "Vorherige Wochen",
+  "historyEmpty": "Noch keine früheren Rückblicke.",
+  "errors": {
+    "notConfigured": "Die KI des Kreises ist nicht eingerichtet oder ausgeschaltet. Sie können sie in den Einstellungen aktivieren.",
+    "generate": "Der Rückblick konnte nicht erstellt werden. Prüfen Sie den KI-Anbieter und versuchen Sie es erneut."
+  }
+}

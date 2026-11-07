@@ -1,0 +1,118 @@
+{
+  "title": "Anbindungen",
+  "subtitle": "Verbinden Sie Ihre selbst gehosteten Programme, um Einkauf, Kalender und Fotos an einem Ort zu haben.",
+  "connected": "Verbunden",
+  "available": "Verfügbar",
+  "status": {
+    "error": "Fehler",
+    "connected": "Verbunden"
+  },
+  "lastSync": "Abgeglichen {{date}}",
+  "syncTitle": "Abgleichen",
+  "disconnectTitle": "Trennen",
+  "confirmDisconnect": "Diese Anbindung trennen?",
+  "modal": {
+    "connect": "{{name}} verbinden",
+    "test": "Testen",
+    "testing": "Wird getestet…",
+    "connecting": "Wird verbunden…",
+    "connectBtn": "Verbinden",
+    "encrypted": "Die Zugangsdaten werden mit AES-256 verschlüsselt und nur auf Ihrem Server gespeichert.",
+    "error": "Fehler"
+  },
+  "syncs": {
+    "shopping": "Einkaufsliste",
+    "stock": "Vorrat",
+    "calendar": "Kalender",
+    "appointments": "Termine",
+    "photos": "Fotos",
+    "voice": "Sprachtagebuch"
+  },
+  "presence": {
+    "title": "Unauffällige Überwachung (Home Assistant)",
+    "intro": "Ein Türsensor, die smarte Steckdose der Kaffeemaschine oder ein Bewegungsmelder genügen, um den Kreis zu beruhigen. Keine Kamera, kein Armband.",
+    "normal": "Heute Morgen normale Aktivität erkannt",
+    "noSignalYet": "Bisher kein Signal",
+    "lastSignal": "Letztes Signal: {{source}} ({{kind}}), {{time}}",
+    "noSignals": "Noch kein Signal empfangen.",
+    "kinds": {
+      "motion": "Bewegung",
+      "door": "Tür",
+      "power": "Strom",
+      "other": "Sonstiges"
+    },
+    "webhookTitle": "Webhook-URL",
+    "webhookHelp": "Wird von einer Home-Assistant-Automatisierung (rest_command) bei jedem Lebenszeichen aufgerufen, das bei Ihrem Angehörigen erkannt wird.",
+    "generate": "URL erstellen",
+    "regenerate": "URL neu erstellen",
+    "copy": "Kopieren",
+    "copied": "Kopiert",
+    "exampleTitle": "Beispiel für eine Home-Assistant-Automatisierung",
+    "rule": {
+      "title": "Alarmregel",
+      "enable": "Alarm, wenn kein Lebenszeichen kommt",
+      "beforeLabel": "Vor",
+      "membersLabel": "Zu benachrichtigende Mitglieder",
+      "membersHint": "Ohne Auswahl werden alle Administratoren und Familienmitglieder benachrichtigt.",
+      "save": "Regel speichern",
+      "saved": "Regel gespeichert"
+    },
+    "banner": {
+      "normal": "Heute Morgen normale Aktivität",
+      "waiting": "Bisher kein Signal",
+      "late": "Bisher kein Signal, die Uhrzeit für die Überwachung ist überschritten"
+    }
+  },
+  "catalog": {
+    "homeassistant": {
+      "tagline": "Smart Home",
+      "description": "Gleichen Sie Ihre Einkaufsliste mit der Liste in Home Assistant ab.",
+      "urlLabel": "URL der Installation",
+      "urlPlaceholder": "http://homeassistant.local:8123",
+      "tokenLabel": "Langlebiger Zugriffstoken",
+      "tokenPlaceholder": "eyJ… (aus Profil > Sicherheit)",
+      "entityLabel": "Todo-Entität (optional)",
+      "entityPlaceholder": "todo.shopping_list"
+    },
+    "grocy": {
+      "tagline": "Haushaltsverwaltung",
+      "description": "Gleichen Sie Einkaufsliste und Vorrat mit Grocy ab.",
+      "urlLabel": "URL der Installation",
+      "urlPlaceholder": "https://grocy.meinedomain.de",
+      "keyLabel": "API-Schlüssel",
+      "keyPlaceholder": "Aus Grocy > Verwalten > API-Schlüssel"
+    },
+    "nextcloud": {
+      "tagline": "Eigene Cloud",
+      "description": "Übernehmen Sie Termine aus Ihrem Nextcloud-Kalender.",
+      "urlLabel": "Nextcloud-URL",
+      "urlPlaceholder": "https://cloud.meinedomain.de",
+      "userLabel": "Benutzername",
+      "userPlaceholder": "ihr.benutzername",
+      "passwordLabel": "Passwort (oder App-Passwort)",
+      "passwordPlaceholder": "****"
+    },
+    "immich": {
+      "tagline": "Fotosammlung",
+      "description": "Zeigt zufällige Fotos aus Ihrer selbst gehosteten Immich-Sammlung als Hintergrund der Tablet-Ansicht.",
+      "urlLabel": "URL der Installation",
+      "urlPlaceholder": "https://immich.meinedomain.de",
+      "keyLabel": "API-Schlüssel",
+      "keyPlaceholder": "Aus Immich > Kontoeinstellungen > API-Schlüssel"
+    },
+    "whisper": {
+      "name": "Spracherkennung (Whisper)",
+      "tagline": "Sprachtagebuch mit Texterkennung",
+      "description": "Wandelt Sprachnotizen im Tagebuch mit einem selbst gehosteten, OpenAI-kompatiblen Whisper-Dienst in Text um (speaches, faster-whisper-server).",
+      "urlLabel": "URL des Dienstes",
+      "urlPlaceholder": "http://localhost:8000",
+      "modelLabel": "Modell (optional)",
+      "modelPlaceholder": "Systran/faster-whisper-small",
+      "languageLabel": "Sprache beim Diktieren (optional)",
+      "languagePlaceholder": "Automatisch: die Sprache der App",
+      "languageHint": "Leer lassen, um die App-Sprache der jeweiligen Person zu verwenden (die Tablet-Ansicht nutzt ihre Bildschirmsprache). Geben Sie einen Code wie de oder en ein, um für alle eine Sprache festzulegen.",
+      "keyLabel": "API-Schlüssel (optional)",
+      "keyPlaceholder": "Bearer-Schlüssel, falls Ihr Dienst einen verlangt"
+    }
+  }
+}

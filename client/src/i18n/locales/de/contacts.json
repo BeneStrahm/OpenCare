@@ -1,0 +1,51 @@
+{
+  "title": "Kontakte",
+  "subtitle": "Das Adressbuch des Kreises",
+  "loading": "Kontakte werden geladen…",
+  "newContact": "Neuer Kontakt",
+  "filters": {
+    "all": "Alle"
+  },
+  "categories": {
+    "doctor": "Arzt",
+    "nurse": "Pflegedienst",
+    "aide": "Haushaltshilfe",
+    "physio": "Physiotherapie",
+    "pharmacy": "Apotheke",
+    "family": "Familie",
+    "neighbor": "Nachbar",
+    "other": "Sonstige"
+  },
+  "hasKey": "Hat einen Schlüssel",
+  "empty": {
+    "none": "Noch keine Kontakte.",
+    "noMatch": "Keine Kontakte in dieser Kategorie.",
+    "action": "Ersten Kontakt hinzufügen"
+  },
+  "dialog": {
+    "createTitle": "Neuer Kontakt",
+    "editTitle": "Kontakt bearbeiten"
+  },
+  "form": {
+    "name": "Name",
+    "namePlaceholder": "z. B. Dr. Müller",
+    "category": "Kategorie",
+    "organization": "Einrichtung",
+    "organizationPlaceholder": "z. B. Hausarztpraxis am Markt",
+    "phone": "Telefon",
+    "phone2": "Zweite Telefonnummer",
+    "email": "E-Mail",
+    "address": "Adresse",
+    "hasKey": "Diese Person hat einen Wohnungsschlüssel",
+    "notes": "Notizen",
+    "notesPlaceholder": "z. B. kommt dienstags vormittags"
+  },
+  "confirm": {
+    "delete": "Diesen Kontakt löschen?"
+  },
+  "errors": {
+    "load": "Die Kontakte konnten nicht geladen werden.",
+    "save": "Der Kontakt konnte nicht gespeichert werden.",
+    "delete": "Der Kontakt konnte nicht gelöscht werden."
+  }
+}

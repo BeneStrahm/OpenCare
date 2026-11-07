@@ -1,0 +1,73 @@
+{
+  "loading": "Aufgaben werden geladen…",
+  "title": "Aufgaben",
+  "subtitle_one": "{{count}} offene Aufgabe im Kreis",
+  "subtitle_other": "{{count}} offene Aufgaben im Kreis",
+  "newTask": "Neue Aufgabe",
+  "categories": {
+    "shopping": "Einkauf",
+    "pharmacy": "Apotheke",
+    "laundry": "Wäsche",
+    "admin": "Papierkram",
+    "transport": "Fahrten",
+    "other": "Sonstiges"
+  },
+  "frequencies": {
+    "Une fois": "Einmalig",
+    "Quotidien": "Jeden Tag",
+    "Hebdomadaire": "Jede Woche",
+    "Mensuel": "Jeden Monat",
+    "Annuel": "Jedes Jahr"
+  },
+  "priorities": {
+    "Haute": "Hohe Priorität",
+    "Moyenne": "Mittlere Priorität",
+    "Basse": "Niedrige Priorität"
+  },
+  "filters": {
+    "statusLabel": "Nach Status filtern",
+    "todo": "Offen",
+    "done": "Erledigt",
+    "all": "Alle",
+    "allAssignees": "Alle Mitglieder"
+  },
+  "row": {
+    "markDone": "Als erledigt markieren",
+    "markPending": "Als offen markieren",
+    "due": "Fällig am {{date}}",
+    "overdue": "Überfällig ({{date}})"
+  },
+  "completedSection_one": "Erledigte Aufgaben ({{count}})",
+  "completedSection_other": "Erledigte Aufgaben ({{count}})",
+  "empty": {
+    "title": "Noch keine Aufgaben",
+    "description": "Legen Sie die erste Aufgabe an, um zu regeln, wer im Kreis was übernimmt.",
+    "noMatch": "Keine Aufgabe passt zu den Filtern.",
+    "doneTitle": "Keine erledigten Aufgaben"
+  },
+  "dialog": {
+    "createTitle": "Neue Aufgabe",
+    "editTitle": "Aufgabe bearbeiten",
+    "description": "Eine Aufgabe kann einem oder mehreren Mitgliedern des Kreises zugewiesen werden."
+  },
+  "form": {
+    "title": "Titel",
+    "titlePlaceholder": "z. B. Rezept erneuern lassen",
+    "description": "Beschreibung (optional)",
+    "descriptionPlaceholder": "Hilfreiche Hinweise für die Person, die sich darum kümmert…",
+    "category": "Kategorie",
+    "dueDate": "Fällig am (optional)",
+    "priority": "Priorität",
+    "frequency": "Wiederholung",
+    "assignees": "Zuweisen an (optional)",
+    "noMembers": "Der Kreis hat noch keine Mitglieder."
+  },
+  "confirmDelete": "Diese Aufgabe löschen?",
+  "errors": {
+    "load": "Die Aufgaben konnten nicht geladen werden.",
+    "loadMembers": "Die Mitglieder des Kreises konnten nicht geladen werden.",
+    "toggle": "Diese Aufgabe konnte nicht aktualisiert werden.",
+    "save": "Diese Aufgabe konnte nicht gespeichert werden.",
+    "delete": "Diese Aufgabe konnte nicht gelöscht werden."
+  }
+}

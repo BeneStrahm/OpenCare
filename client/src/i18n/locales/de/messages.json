@@ -1,0 +1,54 @@
+{
+  "loading": "Nachrichten werden geladen…",
+  "title": "Nachrichten",
+  "viewLabel": "Ansicht wählen",
+  "views": {
+    "feed": "Nachrichten im Kreis",
+    "dm": "Direktnachrichten"
+  },
+  "feed": {
+    "empty": "Im Kreis gibt es noch keine Nachrichten."
+  },
+  "dm": {
+    "empty": "Noch keine Direktgespräche.",
+    "emptyHint": "Wählen Sie ein Mitglied des Kreises, um ein Gespräch zu beginnen.",
+    "emptyThread": "In diesem Gespräch gibt es noch keine Nachrichten.",
+    "newConversation": "Neues Gespräch",
+    "pickMember": "Mitglied wählen…",
+    "youPrefix": "Sie: {{message}}"
+  },
+  "unread": {
+    "label_one": "{{count}} ungelesene Nachricht",
+    "label_other": "{{count}} ungelesene Nachrichten"
+  },
+  "composer": {
+    "label": "Nachricht schreiben",
+    "placeholder": "An den Kreis schreiben…",
+    "placeholderDm": "An {{name}} schreiben…",
+    "attach": "Bild oder PDF anhängen"
+  },
+  "attachments": {
+    "viewImage": "Bild {{name}} ansehen",
+    "remove": "Anhang {{name}} entfernen"
+  },
+  "menu": {
+    "label": "Aktionen für die Nachricht"
+  },
+  "edited": "(bearbeitet)",
+  "readOnly": "Sie können Nachrichten lesen, aber mit Ihrer Rolle nicht schreiben.",
+  "confirmDelete": "Diese Nachricht löschen?",
+  "editDialog": {
+    "title": "Nachricht bearbeiten",
+    "description": "Die Nachricht wird für alle als bearbeitet markiert."
+  },
+  "errors": {
+    "load": "Die Nachrichten konnten nicht geladen werden.",
+    "send": "Diese Nachricht konnte nicht gesendet werden.",
+    "edit": "Diese Nachricht konnte nicht bearbeitet werden.",
+    "delete": "Diese Nachricht konnte nicht gelöscht werden.",
+    "tooManyAttachments": "Höchstens {{max}} Anhänge pro Nachricht.",
+    "attachmentTooLarge": "{{name}} ist auch nach dem Verkleinern größer als 1,5 MB.",
+    "unsupportedFile": "{{name}} ist weder ein Bild noch ein PDF.",
+    "attachmentFailed": "Der Anhang {{name}} konnte nicht vorbereitet werden."
+  }
+}

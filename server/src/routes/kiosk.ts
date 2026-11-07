@@ -68,6 +68,13 @@ const STRINGS: Record<Lang, KioskStrings> = {
         helpTitle: (name: string) => `${name} pide ayuda`,
         helpMessage: (name: string) => `${name} ha pulsado el botón de ayuda del modo Kiosco. Pregunte enseguida cómo se encuentra.`,
     },
+    de: {
+        okContent: 'Alles in Ordnung (Meldung von der Tablet-Ansicht)',
+        helpContent: 'Ich brauche Hilfe (Meldung von der Tablet-Ansicht)',
+        hydrationContent: 'Hat Wasser getrunken (gemeldet von der Tablet-Ansicht)',
+        helpTitle: (name: string) => `${name} bittet um Hilfe`,
+        helpMessage: (name: string) => `${name} hat in der Tablet-Ansicht den Hilfe-Knopf gedrückt. Bitte melden Sie sich sofort.`,
+    },
 };
 
 // Journal entry type written for each kiosk button.

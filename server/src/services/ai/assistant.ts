@@ -253,7 +253,7 @@ export interface WeeklyDigestFacts {
     weekStart: string;
     /** Sunday of the summarized week, YYYY-MM-DD. */
     weekEnd: string;
-    /** Target language of the digest texts ('fr' default, 'en' and 'es' supported). */
+    /** Target language of the digest texts ('fr' default, 'en', 'es' and 'de' supported). */
     language: string;
     journalEntries: WeeklyDigestJournalLine[];
     journalEntriesCount: number;
@@ -284,7 +284,7 @@ const digestVitalLine = (v: WeeklyDigestVitalWeek): string => {
  * circle's language (French by default).
  */
 export function buildWeeklyDigestPrompt(facts: WeeklyDigestFacts): { system: string; user: string } {
-    const languageLabel = pick(pickLang(facts.language), { fr: 'français', en: 'anglais', es: 'espagnol' });
+    const languageLabel = pick(pickLang(facts.language), { fr: 'français', en: 'anglais', es: 'espagnol', de: 'allemand (vouvoiement "Sie")' });
 
     const system = [
         `Tu rédiges la synthèse hebdomadaire d'un cercle d'aidants familiaux autour de ${facts.recipientFirstName || 'une personne âgée'}. Les lecteurs sont la famille: ton chaleureux, factuel, rassurant quand c'est justifié, jamais alarmiste.`,

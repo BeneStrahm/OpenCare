@@ -1,0 +1,28 @@
+{
+  "title": "Alarme und Eskalation",
+  "subtitle": "Wer wird benachrichtigt, und nach welcher Zeit, wenn eine Einnahme verspätet ist oder Ihr Angehöriger um Hilfe bittet.",
+  "enabled": "Eskalation einschalten",
+  "enabledHint": "Ausgeschaltet: Eine verspätete Einnahme löst nichts weiter aus, und „Ich brauche Hilfe“ benachrichtigt wie bisher den ganzen Kreis.",
+  "minutes": "Min.",
+  "medication": {
+    "title": "Verspätete Medikamente",
+    "patient": "Ihren Angehörigen in der Tablet-Ansicht erinnern nach",
+    "primary": "Hauptpflegende benachrichtigen nach",
+    "secondary": "Vertretung benachrichtigen nach",
+    "off": "Mit 0 schalten Sie eine Stufe aus. Nach vier Stunden gilt die Einnahme als verpasst, und die Eskalation endet."
+  },
+  "help": {
+    "title": "Knopf „Ich brauche Hilfe“",
+    "immediate": "Die Hauptpflegenden werden sofort benachrichtigt.",
+    "ack": "Wenn sich niemand kümmert („Ich übernehme“ auf der Startseite), Vertretung benachrichtigen nach"
+  },
+  "primary": "Hauptpflegende",
+  "primaryHint": "Keine Auswahl: die Administratoren des Kreises.",
+  "secondary": "Vertretung",
+  "secondaryHint": "Keine Auswahl: die Mitglieder mit der Rolle „Familie“.",
+  "saved": "Regeln gespeichert.",
+  "errors": {
+    "load": "Die Eskalationsregeln konnten nicht geladen werden.",
+    "save": "Die Regeln konnten nicht gespeichert werden."
+  }
+}

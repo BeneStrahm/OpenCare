@@ -19,12 +19,14 @@ const TYPE_LABELS: Record<Lang, Record<VisitorType, string>> = {
     fr: { family: 'famille', friend: 'ami ou voisin', caregiver: 'aide à domicile', nurse: 'infirmier(ère)', doctor: 'médecin', other: 'visiteur' },
     en: { family: 'family', friend: 'friend or neighbor', caregiver: 'home aide', nurse: 'nurse', doctor: 'doctor', other: 'visitor' },
     es: { family: 'familia', friend: 'amigo o vecino', caregiver: 'auxiliar a domicilio', nurse: 'enfermero/a', doctor: 'médico', other: 'visitante' },
+    de: { family: 'Familie', friend: 'Freund oder Nachbar', caregiver: 'Haushaltshilfe', nurse: 'Pflegekraft', doctor: 'Arzt oder Ärztin', other: 'Besuch' },
 };
 
 const fmtTime = (d: Date, lang: Lang): string => pick(lang, {
     fr: `${d.getHours()} h${d.getMinutes() > 0 ? ` ${String(d.getMinutes()).padStart(2, '0')}` : ''}`,
     en: d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
     es: `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`,
+    de: `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')} Uhr`,
 });
 
 /** "a las 10:30", ou "a la 1:30" : l'article espagnol suit l'heure. */
@@ -49,6 +51,10 @@ export interface VisitRow {
 export function journalContent(visit: { visitor_name: string; visitor_type: VisitorType; checked_in_at: Date; checked_out_at?: Date | null }, lang: Lang, recipientName: string): string {
     const type = TYPE_LABELS[lang][visit.visitor_type];
     const arrived = fmtTime(visit.checked_in_at, lang);
+    if (lang === 'de') {
+        const base = `${visit.visitor_name} (${type}) ist um ${arrived} gekommen${recipientName ? `, zu Besuch bei ${recipientName}` : ''}`;
+        return visit.checked_out_at ? `${base}, gegangen um ${fmtTime(visit.checked_out_at, lang)}` : base;
+    }
     if (lang === 'es') {
         const base = `${visit.visitor_name} (${type}) llegó ${esAt(visit.checked_in_at)}${recipientName ? ` a casa de ${recipientName}` : ''}`;
         return visit.checked_out_at ? `${base}, se fue ${esAt(visit.checked_out_at)}` : base;
@@ -112,11 +118,13 @@ export async function checkIn(input: {
                 fr: `${input.visitorName} est arrivé(e)`,
                 en: `${input.visitorName} checked in`,
                 es: `${input.visitorName} ha llegado`,
+                de: `${input.visitorName} ist angekommen`,
             }),
             message: pick(lang, {
                 fr: `${input.visitorName} (${type}) est arrivé(e) à ${fmtTime(now, 'fr')}${recipientName ? ` chez ${recipientName}` : ''}.`,
                 en: `${input.visitorName} (${type}) checked in at ${fmtTime(now, 'en')}${recipientName ? ` to see ${recipientName}` : ''}.`,
                 es: `${input.visitorName} (${type}) ha llegado ${esAt(now)}${recipientName ? ` a casa de ${recipientName}` : ''}.`,
+                de: `${input.visitorName} (${type}) ist um ${fmtTime(now, 'de')} angekommen${recipientName ? `, zu Besuch bei ${recipientName}` : ''}.`,
             }),
             type: 'visitor_checkin',
             relatedId: row.id,

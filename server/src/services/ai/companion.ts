@@ -36,7 +36,7 @@ export interface CompanionFacts {
     recipientFirstName: string;
     /** Sections de la page "Qui je suis" (titre + contenu). */
     story: CompanionStorySection[];
-    /** Langue de reponse : 'fr' par defaut, 'en' et 'es' supportes. */
+    /** Langue de reponse : 'fr' par defaut, 'en', 'es' et 'de' supportes. */
     language: string;
     /** Faits du jour (medicaments dus, visites, rendez-vous...) deja mis en forme, voir lib/companionAnswers. */
     today?: string;
@@ -66,7 +66,7 @@ function buildStoryBlock(story: CompanionStorySection[]): string {
  */
 export function buildCompanionPrompt(facts: CompanionFacts): string {
     const name = facts.recipientFirstName.trim() || 'la personne';
-    const languageLabel = pick(pickLang(facts.language), { fr: 'français', en: 'anglais', es: 'espagnol' });
+    const languageLabel = pick(pickLang(facts.language), { fr: 'français', en: 'anglais', es: 'espagnol', de: 'allemand, en vouvoyant la personne ("Sie")' });
 
     return [
         `Tu es un compagnon de conversation bienveillant pour ${name}, une personne âgée qui vit chez elle. Tu réponds à ses questions pratiques sur sa journée et tu lui tiens compagnie par de petites conversations: souvenirs, vie quotidienne, ce qui lui fait plaisir.`,
@@ -102,8 +102,8 @@ const MAX_MSG_CHARS = 1000;
 /** Transcript compact passe en "user" a aiComplete (les providers ne prennent qu'un seul message user). */
 export function buildCompanionUser(messages: CompanionMessage[], language: string): string {
     const lang = pickLang(language);
-    const youLabel = pick(lang, { fr: 'Toi', en: 'You', es: 'Tú' });
-    const personLabel = pick(lang, { fr: 'Personne', en: 'Person', es: 'Persona' });
+    const youLabel = pick(lang, { fr: 'Toi', en: 'You', es: 'Tú', de: 'Du' });
+    const personLabel = pick(lang, { fr: 'Personne', en: 'Person', es: 'Persona', de: 'Person' });
     const recent = messages.slice(-MAX_TURNS);
 
     const transcript = recent
@@ -114,6 +114,7 @@ export function buildCompanionUser(messages: CompanionMessage[], language: strin
         fr: 'Réponds au dernier message de la personne.',
         en: 'Reply to the last message from the person.',
         es: 'Responde al último mensaje de la persona.',
+        de: 'Antworte auf die letzte Nachricht der Person.',
     });
 
     return `${transcript}\n\n${instruction}`;
@@ -131,6 +132,7 @@ export function companionFallback(language: string): string {
         fr: "Je n'ai pas bien compris. Peux-tu répéter ?",
         en: 'I did not quite catch that. Could you say it again?',
         es: 'No te he entendido bien. ¿Puedes repetirlo?',
+        de: 'Das habe ich nicht ganz verstanden. Können Sie es bitte wiederholen?',
     });
 }
 

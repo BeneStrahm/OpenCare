@@ -1,0 +1,49 @@
+{
+  "loading": "Liste wird geladen…",
+  "title": "Einkaufsliste",
+  "subtitle_one": "{{count}} Artikel zu kaufen",
+  "subtitle_other": "{{count}} Artikel zu kaufen",
+  "categories": {
+    "food": "Lebensmittel",
+    "hygiene": "Hygiene",
+    "household": "Haushalt",
+    "pharmacy": "Apotheke",
+    "other": "Sonstiges"
+  },
+  "add": {
+    "label": "Artikel hinzufügen",
+    "placeholder": "Artikel hinzufügen (z. B. Apfelmus, Taschentücher)…",
+    "noCategory": "Keine Kategorie"
+  },
+  "row": {
+    "check": "{{name}} abhaken",
+    "uncheck": "Haken bei {{name}} entfernen"
+  },
+  "checked": {
+    "title_one": "Abgehakter Artikel ({{count}})",
+    "title_other": "Abgehakte Artikel ({{count}})",
+    "clear": "Abgehakte Artikel entfernen"
+  },
+  "edit": {
+    "description": "Ergänzen Sie Menge, Einheit oder eine Notiz für die Person, die einkauft.",
+    "quantity": "Menge",
+    "unit": "Einheit",
+    "unitPlaceholder": "z. B. kg, Schachtel, Packung",
+    "notes": "Notiz (optional)",
+    "notesPlaceholder": "z. B. die übliche Marke, ohne Zucker…"
+  },
+  "empty": {
+    "title": "Die Liste ist leer",
+    "description": "Tragen Sie ein, was für den nächsten Besuch gekauft werden muss. Der ganze Kreis sieht dieselbe Liste.",
+    "allChecked": "Alles abgehakt. Es ist nichts mehr zu kaufen."
+  },
+  "errors": {
+    "load": "Die Einkaufsliste konnte nicht geladen werden.",
+    "add": "Dieser Artikel konnte nicht hinzugefügt werden.",
+    "toggle": "Dieser Artikel konnte nicht aktualisiert werden.",
+    "update": "Dieser Artikel konnte nicht gespeichert werden.",
+    "delete": "Dieser Artikel konnte nicht gelöscht werden.",
+    "clear": "Die abgehakten Artikel konnten nicht entfernt werden.",
+    "quantityInvalid": "Die Menge muss eine positive Zahl sein."
+  }
+}

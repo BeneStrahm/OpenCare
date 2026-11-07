@@ -1,0 +1,110 @@
+{
+  "title": "Geteilte Ausgaben",
+  "subtitle": "Ausgaben des Kreises festhalten und ausgleichen",
+  "loading": "Ausgaben werden geladen…",
+  "newExpense": "Neue Ausgabe",
+  "restricted": {
+    "title": "Nur für die Familie",
+    "description": "Geteilte Ausgaben sind nur für Familienmitglieder und Administratoren des Kreises sichtbar."
+  },
+  "categories": {
+    "pharmacy": "Apotheke",
+    "aide": "Haushaltshilfe",
+    "equipment": "Hilfsmittel",
+    "works": "Umbauten in der Wohnung",
+    "food": "Lebensmittel",
+    "transport": "Fahrten",
+    "other": "Sonstiges"
+  },
+  "balances": {
+    "title": "Salden",
+    "subtitle": "Wer hat was bezahlt, wer schuldet was",
+    "paid": "Bezahlt",
+    "owed": "Schuldet",
+    "net": "Saldo",
+    "settleTitle": "Zum Ausgleichen",
+    "suggestion": "{{from}} schuldet {{to}} {{amount}}",
+    "allSettled": "Alles ist ausgeglichen.",
+    "markSettled": "Als ausgeglichen markieren",
+    "settledToast": "Ausgleich eingetragen"
+  },
+  "list": {
+    "title": "Ausgaben",
+    "empty": "Noch keine Ausgaben. Tragen Sie die erste ein, um mit dem Festhalten zu beginnen.",
+    "paidBy": "bezahlt von {{name}}",
+    "customSplit": "Individuelle Aufteilung"
+  },
+  "dialog": {
+    "createTitle": "Neue Ausgabe",
+    "editTitle": "Ausgabe bearbeiten",
+    "description": "Die Ausgabe wird unter den Familienmitgliedern des Kreises aufgeteilt."
+  },
+  "form": {
+    "amount": "Betrag ({{currency}})",
+    "category": "Kategorie",
+    "descriptionLabel": "Beschreibung",
+    "descriptionPlaceholder": "z. B. Apotheke am 3. März",
+    "date": "Datum",
+    "paidBy": "Bezahlt von",
+    "split": "Aufteilung",
+    "splitEqual": "Gleichmäßig",
+    "splitCustom": "Individuell",
+    "shareOf": "Anteil von {{name}}",
+    "splitTotal": "Summe der Anteile: {{sum}} von {{total}}"
+  },
+  "aids": {
+    "title": "Hilfen und Leistungen",
+    "subtitle": "Leistungen, Versicherungen und Steuervorteile",
+    "add": "Hilfe hinzufügen",
+    "empty": "Noch keine Hilfe eingetragen.",
+    "yearTotal": "Hilfen gesamt {{year}}",
+    "createTitle": "Neue Hilfe",
+    "editTitle": "Hilfe bearbeiten",
+    "types": {
+      "apa": "APA (Frankreich, Pflegezuschuss)",
+      "cesu": "CESU (Frankreich, Dienstleistungsscheck)",
+      "tax_credit": "Steuergutschrift",
+      "other": "Sonstige"
+    },
+    "form": {
+      "type": "Art",
+      "label": "Bezeichnung",
+      "labelPlaceholder": "z. B. monatliches Pflegegeld",
+      "amount": "Betrag ({{currency}})",
+      "periodStart": "Beginn des Zeitraums",
+      "periodEnd": "Ende des Zeitraums",
+      "notes": "Notizen"
+    },
+    "periodBoth": "Vom {{start}} bis {{end}}",
+    "periodFrom": "Seit {{start}}",
+    "periodTo": "Bis {{end}}"
+  },
+  "summary": {
+    "title": "Übersicht {{year}}",
+    "subtitle": "Jahressumme nach Kategorie",
+    "totalExpenses": "Ausgaben gesamt",
+    "totalAids": "Hilfen gesamt",
+    "empty": "Keine Ausgaben in diesem Jahr."
+  },
+  "settlements": {
+    "title": "Bisherige Ausgleichszahlungen",
+    "show": "Anzeigen",
+    "hide": "Ausblenden",
+    "empty": "Noch keine Ausgleichszahlungen.",
+    "row": "{{from}} hat {{to}} Geld zurückgezahlt"
+  },
+  "confirm": {
+    "deleteExpense": "Diese Ausgabe löschen?",
+    "deleteAid": "Diese Hilfe löschen?",
+    "deleteSettlement": "Diese Ausgleichszahlung löschen?"
+  },
+  "errors": {
+    "load": "Die Ausgaben konnten nicht geladen werden.",
+    "save": "Die Ausgabe konnte nicht gespeichert werden.",
+    "saveAid": "Die Hilfe konnte nicht gespeichert werden.",
+    "saveSettlement": "Die Ausgleichszahlung konnte nicht gespeichert werden.",
+    "delete": "Löschen fehlgeschlagen.",
+    "amountInvalid": "Der Betrag muss größer als null sein.",
+    "splitSum": "Die Summe der Anteile muss dem Betrag entsprechen."
+  }
+}
