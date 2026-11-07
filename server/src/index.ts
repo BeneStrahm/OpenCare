@@ -10,6 +10,7 @@ import { startReminderScheduler } from './lib/reminderScheduler';
 import { startPresenceMonitor } from './lib/presenceMonitor';
 import { startEscalationScheduler } from './lib/escalation';
 import { startDigestScheduler } from './lib/digestScheduler';
+import { startConsultationProcessor } from './modules/consultations/processing';
 import { getJwtSecret } from './config/loadEnv';
 
 export { broadcast };
@@ -112,6 +113,7 @@ const startServer = async () => {
         startPresenceMonitor();
         startEscalationScheduler();
         startDigestScheduler();
+        startConsultationProcessor();
 
         server.listen(PORT, () => {
             logger.info('server.started', {

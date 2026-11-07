@@ -22,7 +22,8 @@ export type WsEntity =
     | 'heatwave'
     | 'visits'
     | 'care_plan'
-    | 'help_requests';
+    | 'help_requests'
+    | 'consultations';
 
 export type WsAction = 'created' | 'updated' | 'deleted' | 'synced';
 

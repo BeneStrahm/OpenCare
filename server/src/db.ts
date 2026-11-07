@@ -4,6 +4,7 @@ import path from 'path';
 import { loadEnv } from './config/loadEnv';
 import logger from './lib/logger';
 import { nodeTimeZone, pgTimeZoneOptions } from './lib/dbTimeZone';
+import { CONSULTATION_MIGRATIONS } from './modules/consultations/schema';
 
 loadEnv();
 
@@ -330,6 +331,8 @@ export const runMigrations = async () => {
         // un des quatre types francais.
         `ALTER TABLE aid_records DROP CONSTRAINT IF EXISTS aid_records_type_check;`,
         `ALTER TABLE aid_records ALTER COLUMN type TYPE VARCHAR(40);`,
+        // Arztgespraech-Modul (Fork), siehe modules/consultations/schema.ts
+        ...CONSULTATION_MIGRATIONS,
     ];
 
     for (const migration of migrations) {

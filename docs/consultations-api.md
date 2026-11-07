@@ -37,6 +37,18 @@ Zeiten sind naive lokale Zeitstempel `YYYY-MM-DDTHH:mm:ss` wie im übrigen OpenC
 | POST | `/:id/summary/regenerate` | | Zusammenfassung aus allen Mitschriften neu erstellen (läuft im Hintergrund) |
 | POST | `/:id/tasks` | `{ steps: { text, due: string \| null }[] }` | legt Aufgaben an, `data: { created: number }` |
 
+## Fachwörter für die Spracherkennung
+
+| Methode | Pfad | Body | Antwort `data` |
+|---|---|---|---|
+| GET | `/vocabulary` | | `{ custom: { id, term, created_at }[], automatic: string[] }` |
+| POST | `/vocabulary` | `{ term }` (höchstens 80 Zeichen) | `{ id, term, created_at }`, Duplikat → 409 `DUPLICATE` |
+| DELETE | `/vocabulary/:id` | | `null` |
+
+`automatic` enthält Medikamentennamen, Ärzte und Fachrichtungen des Kreises. Whisper bekommt daraus
+einen Kontext in dieser Reihenfolge: eigene Wörter, automatische Wörter, eine deutsche Grundliste.
+Die Zusammenfassung bekommt die eigenen und automatischen Wörter als Schreibhilfe.
+
 ## Aufnahmen (Upload in Stücken)
 
 | Methode | Pfad | Body | Antwort |

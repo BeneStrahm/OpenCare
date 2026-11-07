@@ -82,4 +82,14 @@ export const CONSULTATION_MIGRATIONS: string[] = [
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (recording_id, chunk_index)
     );`,
+
+    // Eigene Fachwoerter des Kreises fuer die Spracherkennung (Whisper-Kontext).
+    `CREATE TABLE IF NOT EXISTS consultation_vocabulary (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        circle_id UUID NOT NULL REFERENCES care_circles(id) ON DELETE CASCADE,
+        term VARCHAR(80) NOT NULL,
+        created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_consultation_vocabulary_term ON consultation_vocabulary(circle_id, lower(term));`,
 ];

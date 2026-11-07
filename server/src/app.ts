@@ -39,6 +39,7 @@ import integrationsRoutes from './routes/integrations';
 import notesRoutes from './routes/notes';
 import aiRoutes from './routes/ai';
 import companionRoutes from './routes/companion';
+import { consultationsRouter, recordingsRouter } from './modules/consultations/routes';
 import { loadEnv } from './config/loadEnv';
 import logger from './lib/logger';
 
@@ -221,6 +222,9 @@ app.use('/api/integrations', integrationsRoutes);
 app.use('/api/notes', notesRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/companion', companionRoutes);
+// Arztgespraech-Modul (Fork): Aufnahmen zuerst, sonst faengt /:id den Pfad ab.
+app.use('/api/consultations/recordings', recordingsRouter);
+app.use('/api/consultations', consultationsRouter);
 
 // Static client (native Windows install): serve the built SPA from the same origin
 // as the API, so the app is reachable from any device on the LAN via http://<ip>:3000.

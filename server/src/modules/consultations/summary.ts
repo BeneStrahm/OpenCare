@@ -182,6 +182,8 @@ export interface SummaryContext {
     specialty: string | null;
     reason: string | null;
     questions: string[];
+    /** Richtig geschriebene Fachwoerter des Kreises (Medikamente, Aerzte, eigene Woerter). */
+    vocabulary?: string[];
 }
 
 export function buildSegmentPrompt(segment: string, index: number, total: number, lang: SummaryLang) {
@@ -219,6 +221,12 @@ export function buildSummaryPrompt(material: { transcript?: string; notes?: stri
         ctx.questions.forEach((q, i) => lines.push(`${i}. ${q}`));
     } else {
         lines.push('Vorbereitete Fragen: keine');
+    }
+    if (ctx.vocabulary && ctx.vocabulary.length > 0) {
+        lines.push(
+            'Bekannte Fachwörter in richtiger Schreibweise (nur verwenden, wenn im Text eindeutig dasselbe Wort gemeint ist, sonst unter "unclear" nennen):',
+            ctx.vocabulary.join(', ')
+        );
     }
     if (material.notes) {
         lines.push('', 'Stichpunkte aus der Mitschrift, in Reihenfolge:', ...material.notes.map((n) => `- ${n}`));
