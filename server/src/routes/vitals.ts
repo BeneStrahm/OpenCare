@@ -139,7 +139,7 @@ export const outOfRange = (
 };
 
 /** Previent les admins et la famille quand une mesure sort de la plage fixee. */
-async function notifyOutOfRange(
+export async function notifyOutOfRange(
     circleId: string,
     type: string,
     value: number,
