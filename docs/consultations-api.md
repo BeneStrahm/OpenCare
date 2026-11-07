@@ -5,7 +5,7 @@ Zeiten sind naive lokale Zeitstempel `YYYY-MM-DDTHH:mm:ss` wie im übrigen OpenC
 
 ## Rollen
 
-- Lesen: admin, family, professional, viewer
+- Lesen: admin, family, professional (viewer NICHT: Mitschriften und KI-Entwürfe sind Gesundheitsdaten)
 - Schreiben (Gespräche, Fragen, Zusammenfassung, Freigabe, Aufgaben): admin, family
 - Aufnahme hochladen: admin, family oder gekoppeltes Patienten-Gerät (`X-Kiosk-Token`)
 - neighbor: kein Zugriff
@@ -17,8 +17,8 @@ Zeiten sind naive lokale Zeitstempel `YYYY-MM-DDTHH:mm:ss` wie im übrigen OpenC
 | GET | `/` | | `ConsultationListItem[]` |
 | POST | `/` | `{ doctor_name, specialty, scheduled_at, location, reason, create_event?: boolean }` | `Consultation` |
 | GET | `/:id` | | `ConsultationDetail` |
-| PUT | `/:id` | Teilmenge von `{ doctor_name, specialty, scheduled_at, location, reason, notes }` | `Consultation` |
-| DELETE | `/:id` | | `null` |
+| PUT | `/:id` | Teilmenge von `{ doctor_name, specialty, scheduled_at, location, reason, notes }` | `Consultation`. Ein beim Anlegen erzeugter Kalendertermin (`event_id`) wird mit angepasst. |
+| DELETE | `/:id` | | `null`. Der beim Anlegen erzeugte Kalendertermin wird mit gelöscht. |
 
 ## Fragen (Vorbereitung und Nachbereitung)
 
@@ -34,8 +34,15 @@ Zeiten sind naive lokale Zeitstempel `YYYY-MM-DDTHH:mm:ss` wie im übrigen OpenC
 |---|---|---|---|
 | PUT | `/:id/summary` | `{ summary: ConsultationSummary }` | Entwurf bearbeiten, Status bleibt `draft` |
 | POST | `/:id/summary/approve` | `{ summary?: ConsultationSummary }` | Status `approved`, Antworten zu Fragen werden in leere `answer`-Felder übernommen |
-| POST | `/:id/summary/regenerate` | | Zusammenfassung aus allen Mitschriften neu erstellen (läuft im Hintergrund) |
+| POST | `/:id/summary/regenerate` | | Zusammenfassung aus allen Mitschriften neu erstellen (läuft im Hintergrund). ERSETZT auch eine freigegebene oder von Hand bearbeitete Fassung, der Client muss das vorher deutlich bestätigen lassen. |
 | POST | `/:id/apply` | `{ tasks?: { text, due: string \| null }[], appointments?: { title, date, time, location }[], notes?: { content }[] }` | legt NUR die bestätigten Vorschläge an (je Liste höchstens 20). Termine brauchen Datum (JJJJ-MM-TT) UND Uhrzeit (HH:MM), sonst 400 `APPOINTMENT_DATE_TIME_REQUIRED`. Bereits übernommene werden übersprungen. `data: { tasks, appointments, notes, skipped, applied: string[] }` |
+
+### Schutz von Freigaben
+
+Eine KI-Zusammenfassung ersetzt automatisch nur einen KI-Entwurf. Ist die Zusammenfassung
+freigegeben (`approved`) oder von Hand bearbeitet (`summary_source: 'human'`) und kommt eine weitere
+Aufnahme dazu, bleibt sie unverändert und `summary_outdated` wird `true`. Die Oberfläche zeigt dann
+einen Hinweis mit der Möglichkeit, über `regenerate` neu zu erstellen.
 
 ### Vorschläge und Bestätigung
 
@@ -67,7 +74,7 @@ Die Zusammenfassung bekommt die eigenen und automatischen Wörter als Schreibhil
 
 | Methode | Pfad | Body | Antwort |
 |---|---|---|---|
-| POST | `/recordings` | `{ client_id: uuid, consultation_id: uuid \| null, consent_confirmed: true, mime_type, started_at }` | `{ id, consultation_id, status, received: number[] }`. Ohne `consultation_id` wird ein Gespräch „Arztgespräch“ mit heutigem Datum angelegt (für das Tablet). Wiederholter Aufruf mit gleicher `client_id` liefert denselben Datensatz. Ohne `consent_confirmed: true` → 400 `CONSENT_REQUIRED`. |
+| POST | `/recordings` | `{ client_id: uuid, consultation_id: uuid \| null, consent_confirmed: true, consent_at?, mime_type, started_at }` (`consent_at`: Zeitpunkt der Bestätigung auf dem Gerät, naiver lokaler Zeitstempel; ohne Angabe gilt die Serverzeit) | `{ id, consultation_id, status, received: number[] }`. Ohne `consultation_id` wird ein Gespräch „Arztgespräch“ mit heutigem Datum angelegt (für das Tablet). Wiederholter Aufruf mit gleicher `client_id` liefert denselben Datensatz. Ohne `consent_confirmed: true` → 400 `CONSENT_REQUIRED`. |
 | GET | `/recordings/:clientId` | | `{ id, consultation_id, status, received: number[], error_code }` |
 | PUT | `/recordings/:clientId/chunks/:index` | Rohdaten, `Content-Type: application/octet-stream`, höchstens 2 MB | `{ received: number }`. Gleiches Stück erneut senden ist erlaubt. |
 | POST | `/recordings/:clientId/complete` | `{ total_chunks, duration_seconds }` | `{ status: 'queued' }`, oder 409 `{ error: 'MISSING_CHUNKS', missing: number[] }` |
@@ -76,7 +83,7 @@ Die Zusammenfassung bekommt die eigenen und automatischen Wörter als Schreibhil
 
 Status einer Aufnahme: `uploading` → `queued` → `transcribing` → `summarizing` → `done`, oder `failed`.
 
-`error_code`: `WHISPER_NOT_CONFIGURED`, `WHISPER_UNAVAILABLE`, `EMPTY_TRANSCRIPT`, `AI_NOT_CONFIGURED`
+`error_code`: `LOCAL_SERVICE_REQUIRED` (Whisper- oder KI-Adresse liegt nicht im eigenen Netz, es wurde nichts gesendet), `AUDIO_MISSING` (Audio fehlt, Wiederholen hilft nicht), `CONSULTATION_DELETED`, `WHISPER_NOT_CONFIGURED`, `WHISPER_UNAVAILABLE`, `EMPTY_TRANSCRIPT`, `AI_NOT_CONFIGURED`
 (nur Mitschrift, keine Zusammenfassung, Status bleibt `done`), `LOCAL_AI_REQUIRED` (KI des Kreises ist
 nicht Ollama, Status `done` ohne Zusammenfassung), `AI_FAILED`, `INTERNAL`.
 
@@ -94,6 +101,8 @@ interface Consultation {
   summary_status: 'none' | 'draft' | 'approved';
   approved_by_name: string | null; approved_at: string | null;
   applied: Record<string, string>;  // übernommene Vorschläge, siehe oben
+  summary_source: 'ai' | 'human' | null;
+  summary_outdated: boolean;        // neue Aufnahme nach Freigabe/Bearbeitung
   created_at: string; updated_at: string;
 }
 interface ConsultationListItem extends Omit<Consultation, 'summary' | 'notes'> {
@@ -121,7 +130,8 @@ interface ConsultationSummary {
   medication_changes: { name: string; change: string }[];
   recommendations: string[];
   next_steps: { text: string; due: string | null }[];   // due: YYYY-MM-DD
-  question_answers: { question_index: number; answer: string | null }[]; // Index in questions (nach position sortiert)
+  // question_id ist maßgeblich (seit Fork-Fix). question_index nur noch zur Anzeige älterer Entwürfe.
+  question_answers: { question_id: string | null; question_index: number; answer: string | null }[];
   unclear: string[];
   appointments: { title: string; date: string | null; time: string | null; location: string | null }[]; // Vorschläge
   family_notes: string[]; // Vorschläge für die Pinnwand
