@@ -166,3 +166,31 @@ describe('Fachwoerter', () => {
         expect(vocabularyForSummary({ custom: ['A', 'b'], automatic: ['B', 'c'] })).toEqual(['A', 'b', 'c']);
     });
 });
+
+describe('Vorschlaege fuer Termine und Notizen', () => {
+    it('uebernimmt nur gueltige Datums- und Zeitangaben, erfindet nichts', () => {
+        const s = validateSummary({
+            overview: 'x',
+            appointments: [
+                { title: 'Kontrolle', date: '2026-11-24', time: '09:30', location: 'Praxis' },
+                { title: 'Blutbild', date: 'in zwei Wochen', time: '25:00', location: '' },
+                { title: '', date: '2026-11-24', time: '09:30', location: '' },
+            ],
+            family_notes: ['Ramipril jetzt 2,5 mg.', '', 'Ramipril jetzt 2,5 mg.'],
+        }, 0);
+        expect(s.appointments).toEqual([
+            { title: 'Kontrolle', date: '2026-11-24', time: '09:30', location: 'Praxis' },
+            { title: 'Blutbild', date: null, time: null, location: null },
+        ]);
+        expect(s.family_notes).toEqual(['Ramipril jetzt 2,5 mg.']);
+    });
+
+    it('begrenzt die Anzahl der Notizen auf fuenf', () => {
+        const s = validateSummary({ overview: 'x', family_notes: ['a', 'b', 'c', 'd', 'e', 'f'] }, 0);
+        expect(s.family_notes).toHaveLength(5);
+    });
+
+    it('zaehlt reine Vorschlaege als Inhalt', () => {
+        expect(() => validateSummary({ family_notes: ['Termin vereinbaren'] }, 0)).not.toThrow();
+    });
+});

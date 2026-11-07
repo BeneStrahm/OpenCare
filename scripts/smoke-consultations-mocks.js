@@ -24,6 +24,8 @@ http.createServer((req, res) => {
       next_steps: [{ text: 'Kontrolle beim Hausarzt', due: '2026-11-21' }],
       question_answers: [{ question_index: 0, answer: 'Vermutlich vom Blutdruck.' }],
       unclear: [],
+      appointments: [{ title: 'Kontrolle Kardiologie', date: '2026-11-24', time: '', location: '' }],
+      family_notes: ['Ramipril jetzt 2,5 mg statt 5 mg.'],
     });
     res.setHeader('Content-Type','application/json');
     res.end(JSON.stringify({ message: { content } }));

@@ -56,8 +56,16 @@ n=$(curl -s $A/api/notifications "${H[@]}" | jq '[.data[]? | select(.type=="cons
 # Freigabe
 curl -s -X POST $A/api/consultations/$ID/summary/approve "${H[@]}" -d '{}' | jq -e '.data.summary_status=="approved" and .data.approved_by_name=="Thomas"' >/dev/null && ok "freigegeben" || bad "Freigabe"
 curl -s $A/api/consultations/$ID "${H[@]}" | jq -e '.data.questions[0].answer=="Vermutlich vom Blutdruck." and .data.questions[1].answer==null' >/dev/null && ok "Antwort übernommen" || bad "Antwort"
-curl -s -X POST $A/api/consultations/$ID/tasks "${H[@]}" -d '{"steps":[{"text":"Kontrolle beim Hausarzt","due":"2026-11-21"},{"text":"","due":null}]}' | jq -e '.data.created==1' >/dev/null && ok "Aufgabe angelegt" || bad "Aufgabe"
+echo $D | jq -e '.data.consultation.summary.appointments[0].date=="2026-11-24" and .data.consultation.summary.appointments[0].time==null and .data.consultation.summary.family_notes[0]=="Ramipril jetzt 2,5 mg statt 5 mg."' >/dev/null && ok "Vorschläge Termin/Notiz" || bad "Vorschläge"
+nt=$(curl -s "$A/api/tasks" "${H[@]}" | jq '.data|length'); [ "$nt" = 0 ] && ok "nichts automatisch angelegt" || bad "auto-Aufgaben $nt"
+c=$(curl -s -o /dev/null -w '%{http_code}' -X POST $A/api/consultations/$ID/apply "${H[@]}" -d '{"appointments":[{"title":"Kontrolle Kardiologie","date":"2026-11-24","time":"","location":""}]}'); [ "$c" = 400 ] && ok "Termin ohne Uhrzeit abgelehnt" || bad "ohne Uhrzeit $c"
+ap=$(curl -s -X POST $A/api/consultations/$ID/apply "${H[@]}" -d '{"tasks":[{"text":"Kontrolle beim Hausarzt","due":"2026-11-21"}],"appointments":[{"title":"Kontrolle Kardiologie","date":"2026-11-24","time":"09:30","location":"Praxis Weber"}],"notes":[{"content":"Ramipril jetzt 2,5 mg statt 5 mg."}]}')
+echo $ap | jq -e '.data.tasks==1 and .data.appointments==1 and .data.notes==1 and .data.skipped==0' >/dev/null && ok "Vorschläge übernommen" || bad "apply $ap"
+ap2=$(curl -s -X POST $A/api/consultations/$ID/apply "${H[@]}" -d '{"tasks":[{"text":"  kontrolle   beim Hausarzt ","due":null}]}'); echo $ap2 | jq -e '.data.tasks==0 and .data.skipped==1' >/dev/null && ok "kein Doppel" || bad "doppelt $ap2"
 curl -s $A/api/tasks "${H[@]}" | jq -e '.data | any(.[]; .title=="Kontrolle beim Hausarzt" and (.due_date|startswith("2026-11-21")))' >/dev/null && ok "Aufgabe mit Datum" || bad "Aufgabe Datum"
+curl -s "$A/api/events?from=2026-11-01T00:00:00&to=2026-11-30T23:59:59" "${H[@]}" | jq -e '.data | any(.[]; .title=="Kontrolle Kardiologie" and .start_time=="2026-11-24T09:30:00" and .category=="medical")' >/dev/null && ok "Termin im Kalender" || bad "Termin"
+curl -s $A/api/notes "${H[@]}" | jq -e '.data | any(.[]; .content=="Ramipril jetzt 2,5 mg statt 5 mg.")' >/dev/null && ok "Notiz an Pinnwand" || bad "Notiz $(curl -s $A/api/notes "${H[@]}" | head -c 200)"
+curl -s $A/api/consultations/$ID "${H[@]}" | jq -e '.data.consultation.applied | has("task:kontrolle beim hausarzt")' >/dev/null && ok "applied-Schlüssel" || bad "applied"
 
 # Neu erzeugen, Audio loeschen
 curl -s -X POST $A/api/consultations/$ID/summary/regenerate "${H[@]}" | jq -e '.data.status=="queued"' >/dev/null && ok "neu erzeugen eingereiht" || bad "regenerate"
