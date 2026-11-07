@@ -18,12 +18,12 @@ describe('publicSettings', () => {
             kiosk_pin_hash: '$2b$10$uneEmpreinteQuiNeDoitPasSortir',
             secret_futur: 'jamais',
         });
-        expect(filtered).toEqual({ unit_system: 'imperial', week_start: 'monday', emergency_numbers: null, aid_types: null });
+        expect(filtered).toEqual({ unit_system: 'imperial', week_start: 'monday', emergency_numbers: null, aid_types: null, features: {}, kiosk_elements: {}, vital_types: null });
         expect(JSON.stringify(filtered)).not.toContain('2b$10');
     });
 
     it('donne une valeur par defaut utilisable', () => {
-        const defaults = { unit_system: 'metric', week_start: 'monday', emergency_numbers: null, aid_types: null };
+        const defaults = { unit_system: 'metric', week_start: 'monday', emergency_numbers: null, aid_types: null, features: {}, kiosk_elements: {}, vital_types: null };
         expect(publicSettings({})).toEqual(defaults);
         expect(publicSettings(null)).toEqual(defaults);
         expect(publicSettings('texte')).toEqual(defaults);
@@ -31,7 +31,7 @@ describe('publicSettings', () => {
     });
 
     it('garde le dimanche quand le cercle l a choisi', () => {
-        expect(publicSettings({ week_start: 'sunday' })).toEqual({ unit_system: 'metric', week_start: 'sunday', emergency_numbers: null, aid_types: null });
+        expect(publicSettings({ week_start: 'sunday' })).toEqual({ unit_system: 'metric', week_start: 'sunday', emergency_numbers: null, aid_types: null, features: {}, kiosk_elements: {}, vital_types: null });
     });
 
     it('filtre aussi une ligne de cercle entiere, sans perdre le reste', () => {
@@ -39,7 +39,7 @@ describe('publicSettings', () => {
         const safe = withPublicSettings(row);
         expect(safe.id).toBe('c1');
         expect(safe.name).toBe('Jeanne');
-        expect(safe.settings).toEqual({ unit_system: 'imperial', week_start: 'monday', emergency_numbers: null, aid_types: null });
+        expect(safe.settings).toEqual({ unit_system: 'imperial', week_start: 'monday', emergency_numbers: null, aid_types: null, features: {}, kiosk_elements: {}, vital_types: null });
         expect(JSON.stringify(safe)).not.toContain('secret');
     });
 });
@@ -103,7 +103,7 @@ describe('validateSettingsPatch', () => {
     });
 
     it('ne declare publique que ce qui a ete relu', () => {
-        expect([...PUBLIC_SETTING_KEYS]).toEqual(['unit_system', 'week_start', 'emergency_numbers', 'aid_types']);
+        expect([...PUBLIC_SETTING_KEYS]).toEqual(['unit_system', 'week_start', 'emergency_numbers', 'aid_types', 'features', 'kiosk_elements', 'vital_types']);
     });
 });
 

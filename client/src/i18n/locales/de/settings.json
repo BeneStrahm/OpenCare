@@ -131,5 +131,58 @@
     "duplicate": "Diese Art steht bereits in der Liste.",
     "tooMany": "Höchstens {{max}} Arten.",
     "error": "Die Arten von Hilfen konnten nicht gespeichert werden."
+  },
+  "features": {
+    "title": "Funktionen",
+    "subtitle": "Wählen Sie, was im Pflegekreis zu sehen ist. Ausgeschaltetes verschwindet für alle.",
+    "error": "Die Einstellung konnte nicht gespeichert werden.",
+    "dataKept": "Beim Ausschalten wird nichts gelöscht. Schalten Sie eine Funktion wieder ein, ist alles wie vorher da.",
+    "modules": {
+      "title": "Bereiche der App",
+      "subtitle": "Menü, Übersicht und Tablet zeigen nur eingeschaltete Bereiche.",
+      "fixed": "Immer an: Übersicht, Pflegetagebuch, Einstellungen und Notfall."
+    },
+    "items": {
+      "calendar": "Kalender",
+      "messages": "Nachrichten",
+      "care_plan": "Pflegeplan",
+      "medications": "Medikamente",
+      "health": "Gesundheit (Messwerte)",
+      "consultations": "Arztgespräche",
+      "visitors": "Besuche",
+      "tasks": "Aufgaben",
+      "shopping": "Einkauf",
+      "expenses": "Geteilte Ausgaben",
+      "contacts": "Kontakte",
+      "documents": "Dokumente",
+      "voice_commands": "Sprachsteuerung",
+      "voice_journal": "Sprachnotizen im Tagebuch",
+      "digests": "Wochenzusammenfassung",
+      "heatwave": "Hitzewarnung"
+    },
+    "kiosk": {
+      "title": "Tablet-Ansicht",
+      "subtitle": "Was die betreute Person auf dem Tablet sieht.",
+      "items": {
+        "status_bar": "„Alles in Ordnung“ / „Ich brauche Hilfe“",
+        "voice": "„Sprechen“",
+        "ask": "„Fragen Sie mich“",
+        "consultation": "Taste „Arztgespräch aufnehmen“",
+        "info": "„Meine Informationen“"
+      }
+    },
+    "vitals": {
+      "title": "Messwerte",
+      "subtitle": "Nur diese Messwerte werden erfasst und angezeigt.",
+      "hint": "Mindestens ein Messwert bleibt eingeschaltet.",
+      "items": {
+        "weight": "Gewicht",
+        "bp": "Blutdruck",
+        "pain": "Schmerzen",
+        "mood": "Stimmung",
+        "temperature": "Temperatur",
+        "glucose": "Blutzucker"
+      }
+    }
   }
 }

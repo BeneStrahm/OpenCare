@@ -740,6 +740,8 @@ function kioskToday(c: CircleData): Json {
         visits_today: c.visits.filter((v) => String(v.checked_in_at).slice(0, 10) === isoDate(now)),
         active_visit: c.visits.find((v) => !v.checked_out_at) ?? null,
         photos_enabled: false,
+        features: (c.settings as Json | undefined)?.features ?? {},
+        kiosk_elements: (c.settings as Json | undefined)?.kiosk_elements ?? {},
         heatwave: (() => {
             const h = heatwaveOf(c);
             return h.enabled && h.active ? { active: true, level: h.level } : null;
@@ -923,7 +925,7 @@ async function route(method: string, path: string, q: Record<string, string>, bo
                 if (body.settings && typeof body.settings === 'object') {
                     const patch = body.settings as Record<string, unknown>;
                     for (const key of Object.keys(patch)) {
-                        if (key !== 'unit_system' && key !== 'week_start' && key !== 'emergency_numbers' && key !== 'aid_types') throw new Error('Unknown setting: ' + key);
+                        if (!['unit_system', 'week_start', 'emergency_numbers', 'aid_types', 'features', 'kiosk_elements', 'vital_types'].includes(key)) throw new Error('Unknown setting: ' + key);
                     }
                     if (patch.unit_system !== undefined) {
                         if (patch.unit_system !== 'metric' && patch.unit_system !== 'imperial') throw new Error('unit_system must be metric or imperial');
@@ -943,6 +945,20 @@ async function route(method: string, path: string, q: Record<string, string>, bo
                         }
                         const list = Array.isArray(raw) ? raw.map((v) => String(v).trim()) : [];
                         target.settings = { ...(target.settings as Json), aid_types: list.length > 0 ? list : null };
+                    }
+                    // Fork: Funktionen, Tablet-Elemente, Messwerte (nur false wird gespeichert)
+                    for (const key of ['features', 'kiosk_elements'] as const) {
+                        const raw = patch[key];
+                        if (raw === undefined) continue;
+                        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error(key + ': invalid values');
+                        const off: Record<string, false> = {};
+                        for (const [id, flag] of Object.entries(raw as Record<string, unknown>)) if (flag === false) off[id] = false;
+                        target.settings = { ...(target.settings as Json), [key]: off };
+                    }
+                    if (patch.vital_types !== undefined) {
+                        const raw = patch.vital_types;
+                        if (raw !== null && (!Array.isArray(raw) || raw.length === 0)) throw new Error('vital_types: at least one');
+                        target.settings = { ...(target.settings as Json), vital_types: raw };
                     }
                     if (patch.week_start !== undefined) {
                         if (patch.week_start !== 'monday' && patch.week_start !== 'sunday') throw new Error('week_start must be monday or sunday');

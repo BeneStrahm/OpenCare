@@ -131,5 +131,58 @@
     "duplicate": "Ese tipo ya está en la lista.",
     "tooMany": "{{max}} tipos como máximo.",
     "error": "No se han podido guardar los tipos de ayuda."
+  },
+  "features": {
+    "title": "Funciones",
+    "subtitle": "Elija qué ve el círculo. Lo desactivado desaparece para todos.",
+    "error": "No se pudo guardar el ajuste.",
+    "dataKept": "Desactivar no borra nada. Al volver a activar una función, todo sigue ahí.",
+    "modules": {
+      "title": "Partes de la aplicación",
+      "subtitle": "El menú, el inicio y la tableta solo muestran las partes activadas.",
+      "fixed": "Siempre activos: inicio, diario, ajustes y emergencia."
+    },
+    "items": {
+      "calendar": "Calendario",
+      "messages": "Mensajes",
+      "care_plan": "Plan de cuidados",
+      "medications": "Medicamentos",
+      "health": "Salud (mediciones)",
+      "consultations": "Consultas médicas",
+      "visitors": "Visitas",
+      "tasks": "Tareas",
+      "shopping": "Compras",
+      "expenses": "Gastos compartidos",
+      "contacts": "Contactos",
+      "documents": "Documentos",
+      "voice_commands": "Control por voz",
+      "voice_journal": "Notas de voz en el diario",
+      "digests": "Resumen semanal",
+      "heatwave": "Aviso de calor"
+    },
+    "kiosk": {
+      "title": "Vista de tableta",
+      "subtitle": "Lo que su ser querido ve en la tableta.",
+      "items": {
+        "status_bar": "«Todo va bien» / «Necesito ayuda»",
+        "voice": "«Hablar»",
+        "ask": "«Pregúntame»",
+        "consultation": "Botón «Grabar consulta»",
+        "info": "«Mi información»"
+      }
+    },
+    "vitals": {
+      "title": "Mediciones",
+      "subtitle": "Solo estas mediciones se registran y muestran.",
+      "hint": "Al menos una medición queda activada.",
+      "items": {
+        "weight": "Peso",
+        "bp": "Tensión",
+        "pain": "Dolor",
+        "mood": "Ánimo",
+        "temperature": "Temperatura",
+        "glucose": "Glucosa"
+      }
+    }
   }
 }

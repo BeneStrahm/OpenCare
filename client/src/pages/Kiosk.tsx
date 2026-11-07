@@ -104,6 +104,9 @@ interface KioskToday {
     members?: KioskMember[];
     visits_today?: KioskVisit[];
     active_visit?: KioskVisit | null;
+    /** Fork: ausgeschaltete Funktionen und Tablet-Elemente ({ id: false }) */
+    features?: Record<string, false>;
+    kiosk_elements?: Record<string, false>;
 }
 
 // ── Reglages d'affichage (cote serveur pour un appareil appaire, sinon localStorage) ──
@@ -499,6 +502,10 @@ const Kiosk: React.FC<KioskProps> = ({ device }) => {
     const contacts = today?.contacts_key ?? [];
     const activeVisit = today?.active_visit ?? null;
 
+    // Fork: vom Admin ausgeschaltete Funktionen und Kacheln nicht zeigen.
+    const featureOn = (id: string) => today?.features?.[id] !== false;
+    const elementOn = (id: string) => today?.kiosk_elements?.[id] !== false;
+
     const heatActive = Boolean(today?.heatwave?.active);
     const heatRed = today?.heatwave?.level === 'red';
 
@@ -535,7 +542,7 @@ const Kiosk: React.FC<KioskProps> = ({ device }) => {
                         <img src={`${import.meta.env.BASE_URL}OpenCare.png`} alt="" className="h-10 w-10 rounded-xl" />
                         <span className="font-bold" style={{ ...fs(26), color: C.blueDark }}>OpenCare</span>
                         {/* Visiteur : "quelqu'un est la", en deux gestes */}
-                        <button
+                        {featureOn('visitors') && <button
                             type="button"
                             onClick={() => setVisitorOpen(true)}
                             aria-label={activeVisit ? firstNameOf(activeVisit.visitor_name) : t('kiosk:visitor.button')}
@@ -544,7 +551,7 @@ const Kiosk: React.FC<KioskProps> = ({ device }) => {
                         >
                             <Users className="h-6 w-6" aria-hidden="true" />
                             <span className="hidden sm:inline">{activeVisit ? firstNameOf(activeVisit.visitor_name) : t('kiosk:visitor.button')}</span>
-                        </button>
+                        </button>}
                         {/* Urgences : la fiche vitale en deux secondes quand les secours arrivent */}
                         <button
                             type="button"
@@ -642,6 +649,7 @@ const Kiosk: React.FC<KioskProps> = ({ device }) => {
                 )}
 
                 {/* A. Ce que je dois faire maintenant : uniquement les prises dues */}
+                {featureOn('medications') && (
                 <section className="rounded-3xl p-5 sm:p-6" style={{ backgroundColor: C.greenSoft, border: `1px solid ${C.border}` }}>
                     {meds.due_now.length > 0 ? (
                         <>
@@ -717,8 +725,10 @@ const Kiosk: React.FC<KioskProps> = ({ device }) => {
                         </div>
                     )}
                 </section>
+                )}
 
                 {/* B + C. Qui vient, rendez-vous */}
+                {featureOn('calendar') && (
                 <div className={cn('grid gap-4 sm:gap-5', isPhone ? 'grid-cols-1' : 'lg:grid-cols-2')}>
                     <section className="rounded-3xl p-5 sm:p-6" style={{ backgroundColor: C.blueSoft, border: `1px solid ${C.border}` }}>
                         <h2 className="mb-4 flex items-center gap-3" style={sectionTitle(C.blueDark)}>
@@ -784,13 +794,14 @@ const Kiosk: React.FC<KioskProps> = ({ device }) => {
                         )}
                     </section>
                 </div>
+                )}
 
                 {/* D. Demander : assistant, mes informations, reglages */}
                 {/* Fork: fuenf Kacheln (Sprechen, Fragen, Arztgespraech, Informationen, Einstellungen) */}
                 <div className={cn('grid gap-3', isPhone ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3')}>
                     {/* Sprachsteuerung: Termin, Aufgabe oder Messwert sagen, mit Ja/Nein-Rueckfrage */}
-                    <VoiceCommandButton variant="kiosk" fontScale={settings.fontScale} />
-                    <button
+                    {elementOn('voice') && featureOn('voice_commands') && <VoiceCommandButton variant="kiosk" fontScale={settings.fontScale} />}
+                    {elementOn('ask') && <button
                             type="button"
                             onClick={() => setCompanionOpen(true)}
                             className="flex min-h-[80px] items-center gap-4 rounded-2xl px-5 text-left text-white shadow-md active:shadow-inner"
@@ -801,9 +812,9 @@ const Kiosk: React.FC<KioskProps> = ({ device }) => {
                                 <span className="block font-bold" style={fs(24)}>{t('kiosk:actions.ask')}</span>
                                 <span className="block" style={{ ...fs(15), opacity: 0.9 }}>{t('kiosk:actions.askHint')}</span>
                             </span>
-                        </button>
+                        </button>}
                     {/* Arztgespraech aufnehmen (Modul Arztgespraeche) */}
-                    <button
+                    {elementOn('consultation') && featureOn('consultations') && <button
                         type="button"
                         onClick={() => setConsultationOpen(true)}
                         className="flex min-h-[80px] items-center gap-4 rounded-2xl px-5 text-left shadow-sm active:shadow-inner"
@@ -814,8 +825,8 @@ const Kiosk: React.FC<KioskProps> = ({ device }) => {
                             <span className="block font-bold" style={fs(22)}>{t('consultations:kiosk.button')}</span>
                             <span className="block" style={{ ...fs(15), color: C.muted }}>{t('consultations:kiosk.buttonHint')}</span>
                         </span>
-                    </button>
-                    <button
+                    </button>}
+                    {elementOn('info') && <button
                         type="button"
                         onClick={() => setInfoOpen(true)}
                         className="flex min-h-[80px] items-center gap-4 rounded-2xl px-5 text-left shadow-sm active:shadow-inner"
@@ -826,7 +837,7 @@ const Kiosk: React.FC<KioskProps> = ({ device }) => {
                             <span className="block font-bold" style={fs(22)}>{t('kiosk:actions.info')}</span>
                             <span className="block" style={{ ...fs(15), color: C.muted }}>{t('kiosk:actions.infoHint')}</span>
                         </span>
-                    </button>
+                    </button>}
                     <button
                         type="button"
                         onClick={() => withPin(() => setSettingsOpen(true))}
@@ -842,8 +853,8 @@ const Kiosk: React.FC<KioskProps> = ({ device }) => {
                 </div>
             </div>
 
-            {/* Les deux boutons geants, toujours visibles en bas */}
-            <div
+            {/* Les deux boutons geants, toujours visibles en bas (Fork: abschaltbar) */}
+            {elementOn('status_bar') && <div
                 className="fixed inset-x-0 bottom-0 z-20 px-4 pb-4 pt-6 sm:px-6"
                 style={{ background: `linear-gradient(to top, ${C.bg} 70%, transparent)` }}
             >
@@ -879,7 +890,7 @@ const Kiosk: React.FC<KioskProps> = ({ device }) => {
                         </span>
                     </button>
                 </div>
-            </div>
+            </div>}
 
             {/* Fiche urgence (plein ecran) */}
             {emergencyOpen && (
