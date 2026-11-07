@@ -16,7 +16,8 @@
     "integrations": "Anbindungen",
     "settings": "Einstellungen",
     "visitors": "Besuche",
-    "carePlan": "Pflegeplan"
+    "carePlan": "Pflegeplan",
+    "consultations": "Arztgespräche"
   },
   "sections": {
     "today": "Heute",
