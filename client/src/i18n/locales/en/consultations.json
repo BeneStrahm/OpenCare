@@ -26,7 +26,16 @@
     "uploading": "Uploading: part {{sent}} of {{total}}",
     "error": "Upload problem ({{code}}). It will be tried again later.",
     "discard": "Delete from this device",
-    "confirmDiscard": "Delete this recording from this device? It has not been uploaded and will be lost."
+    "confirmDiscard": "Delete this recording from this device? It has not been uploaded and will be lost.",
+    "code": "Error code: {{code}}",
+    "errorTemporary": "The upload did not work. It will be retried automatically later.",
+    "help": {
+      "CONSULTATION_GONE": "The consultation for this recording was deleted. You can save the recording as a new consultation or delete it from this device.",
+      "generic": "This recording cannot be uploaded. You can try again or delete the recording from this device."
+    },
+    "retry": "Try again",
+    "saveAsNew": "Save as new consultation",
+    "authProblem": "You are no longer signed in. The recordings stay on this device and will be uploaded after you sign in."
   },
   "form": {
     "hint": "All fields are optional. You can complete them later.",
@@ -64,7 +73,9 @@
       "recording": "Recording",
       "result": "Result",
       "followUp": "Follow-up"
-    }
+    },
+    "loadError": "No connection. The consultation cannot be loaded right now. Please check the internet and try again.",
+    "reload": "Try again"
   },
   "prep": {
     "title": "Preparation",
@@ -120,7 +131,10 @@
     "AI_NOT_CONFIGURED": "Only the transcript was created. A summary needs a local AI model (Ollama), set up in the settings.",
     "LOCAL_AI_REQUIRED": "Only the transcript was created. For data protection, summaries are only created with a local AI model (Ollama).",
     "AI_FAILED": "The summary could not be created. You can try again or write it yourself.",
-    "INTERNAL": "Something went wrong during processing. You can try again."
+    "INTERNAL": "Something went wrong during processing. You can try again.",
+    "LOCAL_SERVICE_REQUIRED": "To protect the data, nothing was sent: speech recognition or the AI model is not on your own network. Please contact the administrator.",
+    "AUDIO_MISSING": "The audio is missing on the server. Trying again will not help.",
+    "CONSULTATION_DELETED": "The consultation for this recording was deleted."
   },
   "result": {
     "title": "Result",
@@ -130,7 +144,8 @@
     "processing": "The recording is being processed. This can take a few minutes.",
     "noSummary": "No summary yet. It appears here after a recording has been processed.",
     "transcript": "Show transcript",
-    "transcriptHint": "Created automatically from the recording. It can contain recognition errors."
+    "transcriptHint": "Created automatically from the recording. It can contain recognition errors.",
+    "outdated": "Another recording was added after approval or your edits. This summary does not include it yet."
   },
   "summary": {
     "add": "Add",
@@ -166,7 +181,8 @@
     "appointmentDate": "Date",
     "appointmentTime": "Time",
     "appointmentLocation": "Place",
-    "familyNotes": "Suggested notes for the board"
+    "familyNotes": "Suggested notes for the board",
+    "confirmRegenerateProtected": "Warning: the summary will be created again from scratch. The approved or hand-edited version will be replaced and the approval removed. Continue?"
   },
   "followUp": {
     "title": "Follow-up",
@@ -206,7 +222,10 @@
     "recordingHint": "Press Stop when the conversation is over.",
     "stop": "Stop",
     "savedTitle": "Saved.",
-    "savedHint": "The recording will be uploaded as soon as there is internet."
+    "savedHint": "The recording will be uploaded as soon as there is internet.",
+    "queueUnpaired": "The tablet is no longer connected. The recording is safely stored here. Please tell your family.",
+    "queueNeedsHelp": "A recording cannot be uploaded. Please tell your family.",
+    "unpairPending": "Recordings on this tablet have not been uploaded yet. Unpairing will delete them. Unpair anyway?"
   },
   "proposals": {
     "title_section": "Suggestions from the visit",
@@ -264,5 +283,9 @@
       "NOTHING_TO_APPLY": "Please select at least one suggestion.",
       "generic": "That did not work. Please try again."
     }
+  },
+  "logout": {
+    "pending_one": "{{count}} recording has not been uploaded yet. Signing out deletes it from this device. Sign out anyway?\n\nTip: cancel, connect to the internet and wait a moment.",
+    "pending_other": "{{count}} recordings have not been uploaded yet. Signing out deletes them from this device. Sign out anyway?\n\nTip: cancel, connect to the internet and wait a moment."
   }
 }

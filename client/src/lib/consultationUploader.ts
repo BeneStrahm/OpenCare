@@ -156,10 +156,13 @@ class HttpError extends Error {
 function headersFor(recording: LocalRecording, json: boolean): Record<string, string> {
     const headers: Record<string, string> = { 'Accept-Language': i18n.language || 'de' };
     if (json) headers['Content-Type'] = 'application/json';
-    const kioskToken = getKioskToken();
-    if (recording.from_kiosk && kioskToken) {
+    if (recording.from_kiosk) {
+        // Tablet-Aufnahmen gehen NUR mit dem Geraete-Token raus, nie als angemeldete Person.
+        const kioskToken = getKioskToken();
+        if (!kioskToken) throw new HttpError(401, 'DEVICE_NOT_PAIRED', null);
         headers['X-Kiosk-Token'] = kioskToken;
     } else {
+        // Angehoerige senden immer als Person, auch auf einem gekoppelten Tablet.
         const token = localStorage.getItem('token');
         if (token) headers.Authorization = `Bearer ${token}`;
         if (recording.circle_id) headers['X-Circle-Id'] = recording.circle_id;
@@ -247,10 +250,16 @@ async function uploadOne(recording: LocalRecording): Promise<void> {
     });
     const received: number[] = Array.isArray(init?.data?.received) ? init.data.received : [];
     const consultationId: string | null = init?.data?.consultation_id ?? consultationIdForUpload;
-    if (recording.from_kiosk) {
+    if (recording.from_kiosk && consultationId) {
         const last = getKioskLastRecording();
         if (last && last.client_id === recording.client_id) {
             setKioskLastRecording({ ...last, consultation_id: consultationId });
+        }
+        // Folgeaufnahmen, die auf diese warten, bekommen jetzt das Gespraech.
+        for (const other of await listRecordings()) {
+            if (other.follows_client_id === recording.client_id && !other.consultation_id) {
+                await updateRecording(other.client_id, { consultation_id: consultationId, follows_client_id: null }).catch(() => undefined);
+            }
         }
     }
 
@@ -269,9 +278,6 @@ async function uploadOne(recording: LocalRecording): Promise<void> {
     let toSend = missingChunks(total, received);
     let sent = total - toSend.length;
     setState({ progress: { client_id: recording.client_id, sent, total } });
-
-    toSend = missingChunks(total, received);
-    sent = total - toSend.length;
     for (let round = 0; round < MAX_COMPLETE_ROUNDS; round++) {
         sent = await sendChunks(recording, toSend, total, sent);
         try {
@@ -318,7 +324,8 @@ async function runOnce(): Promise<void> {
             queue.push(rec);
         }
     }
-    setState({ pending: queue.length, needsHelp });
+    // Nichts mehr zu tun: alte Hinweise (offline, Anmeldung) zuruecksetzen.
+    setState({ pending: queue.length, needsHelp, ...(queue.length === 0 ? { offline: false, authProblem: false } : {}) });
 
     for (const rec of queue) {
         try {
@@ -352,6 +359,14 @@ async function runOnce(): Promise<void> {
             const code = error instanceof HttpError ? (error.code || `HTTP_${error.status}`) : 'UNKNOWN';
             if (kind === 'permanent') {
                 const helpCode = error instanceof HttpError && error.status === 404 ? 'CONSULTATION_GONE' : code;
+                if (rec.from_kiosk && helpCode === 'CONSULTATION_GONE') {
+                    // Tablet: Gespraech wurde geloescht. Ohne Rueckfrage als neues Gespraech speichern.
+                    await reassignRecording(rec.client_id, crypto.randomUUID(), {
+                        consultation_id: null, follows_client_id: null, needs_help: null, last_error: null,
+                    }).catch(() => undefined);
+                    rerun = true;
+                    continue;
+                }
                 await updateRecording(rec.client_id, { needs_help: helpCode, last_error: code }).catch(() => undefined);
                 setState({ offline: false, needsHelp: { ...state.needsHelp, [rec.client_id]: helpCode } });
                 continue;
@@ -436,6 +451,23 @@ export async function clearRecordingsForCurrentUser(): Promise<void> {
     const owner = currentOwner();
     for (const r of await listRecordings()) {
         if (!r.from_kiosk && belongsToOwner(r, owner)) await deleteRecording(r.client_id);
+    }
+    setState({ pending: 0, errors: {}, needsHelp: {} });
+}
+
+/** Anzahl lokal wartender Aufnahmen dieses Tablets (fuer die Warnung beim Entkoppeln). */
+export async function pendingRecordingsForDevice(): Promise<number> {
+    if (IS_DEMO || !isLocalStoreAvailable()) return 0;
+    const owner = currentOwner();
+    return (await listRecordings()).filter((r) => r.from_kiosk && belongsToOwner(r, owner)).length;
+}
+
+/** Beim Entkoppeln: lokale Aufnahmen dieses Tablets loeschen (nur nach Bestaetigung). */
+export async function clearRecordingsForDevice(): Promise<void> {
+    if (IS_DEMO || !isLocalStoreAvailable()) return;
+    const owner = currentOwner();
+    for (const r of await listRecordings()) {
+        if (r.from_kiosk && belongsToOwner(r, owner)) await deleteRecording(r.client_id);
     }
     setState({ pending: 0, errors: {}, needsHelp: {} });
 }

@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { api } from '../lib/api';
 import { applyServerLanguage } from '../lib/language';
+import i18n from '../i18n';
+import { clearRecordingsForCurrentUser, kick, pendingRecordingsForCurrentUser } from '../lib/consultationUploader';
 
 interface User {
     id: string;
@@ -115,6 +117,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     const logout = () => {
+        void logoutChecked();
+    };
+
+    // Vor dem Abmelden: wartende Aufnahmen von Arztgespraechen hochladen. Was
+    // dann noch wartet, wird nur nach ausdruecklicher Bestaetigung geloescht.
+    const logoutChecked = async () => {
+        try {
+            if (await pendingRecordingsForCurrentUser() > 0) {
+                await kick();
+                const left = await pendingRecordingsForCurrentUser();
+                if (left > 0) {
+                    if (!window.confirm(i18n.t('consultations:logout.pending', { count: left }))) return;
+                    await clearRecordingsForCurrentUser();
+                }
+            }
+        } catch (error) {
+            console.warn('[auth] pending recordings check failed:', error);
+        }
+        doLogout();
+    };
+
+    const doLogout = () => {
         api.logout();
         setUser(null);
         localStorage.removeItem('user');

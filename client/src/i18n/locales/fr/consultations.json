@@ -26,7 +26,16 @@
     "uploading": "Envoi : partie {{sent}} sur {{total}}",
     "error": "Problème d'envoi ({{code}}). Un nouvel essai aura lieu plus tard.",
     "discard": "Supprimer de cet appareil",
-    "confirmDiscard": "Supprimer cet enregistrement de cet appareil ? Il n'a pas été envoyé et sera perdu."
+    "confirmDiscard": "Supprimer cet enregistrement de cet appareil ? Il n'a pas été envoyé et sera perdu.",
+    "code": "Code d'erreur : {{code}}",
+    "errorTemporary": "L'envoi n'a pas fonctionné. Il sera réessayé automatiquement plus tard.",
+    "help": {
+      "CONSULTATION_GONE": "La consultation de cet enregistrement a été supprimée. Vous pouvez enregistrer l'enregistrement comme nouvelle consultation ou le supprimer de cet appareil.",
+      "generic": "Cet enregistrement ne peut pas être envoyé. Vous pouvez réessayer ou le supprimer de cet appareil."
+    },
+    "retry": "Réessayer",
+    "saveAsNew": "Enregistrer comme nouvelle consultation",
+    "authProblem": "Vous n'êtes plus connecté. Les enregistrements restent sur cet appareil et seront envoyés après la connexion."
   },
   "form": {
     "hint": "Tous les champs sont facultatifs. Vous pourrez les compléter plus tard.",
@@ -64,7 +73,9 @@
       "recording": "Enregistrement",
       "result": "Résultat",
       "followUp": "Suivi"
-    }
+    },
+    "loadError": "Pas de connexion. La consultation ne peut pas être chargée pour le moment. Vérifiez Internet et réessayez.",
+    "reload": "Réessayer"
   },
   "prep": {
     "title": "Préparation",
@@ -120,7 +131,10 @@
     "AI_NOT_CONFIGURED": "Seule la transcription a été créée. Un résumé nécessite un modèle d'IA local (Ollama), à configurer dans les réglages.",
     "LOCAL_AI_REQUIRED": "Seule la transcription a été créée. Pour la protection des données, les résumés sont créés uniquement avec un modèle d'IA local (Ollama).",
     "AI_FAILED": "Le résumé n'a pas pu être créé. Vous pouvez réessayer ou l'écrire vous-même.",
-    "INTERNAL": "Un problème est survenu pendant le traitement. Vous pouvez réessayer."
+    "INTERNAL": "Un problème est survenu pendant le traitement. Vous pouvez réessayer.",
+    "LOCAL_SERVICE_REQUIRED": "Pour protéger les données, rien n'a été envoyé : la reconnaissance vocale ou le modèle d'IA n'est pas sur votre propre réseau. Contactez l'administrateur.",
+    "AUDIO_MISSING": "L'audio manque sur le serveur. Réessayer n'aidera pas.",
+    "CONSULTATION_DELETED": "La consultation de cet enregistrement a été supprimée."
   },
   "result": {
     "title": "Résultat",
@@ -130,7 +144,8 @@
     "processing": "L'enregistrement est en cours de traitement. Cela peut prendre quelques minutes.",
     "noSummary": "Pas encore de résumé. Il apparaîtra ici après le traitement d'un enregistrement.",
     "transcript": "Afficher la transcription",
-    "transcriptHint": "Créée automatiquement à partir de l'enregistrement. Elle peut contenir des erreurs de reconnaissance."
+    "transcriptHint": "Créée automatiquement à partir de l'enregistrement. Elle peut contenir des erreurs de reconnaissance.",
+    "outdated": "Un autre enregistrement a été ajouté après la validation ou vos modifications. Ce résumé ne le contient pas encore."
   },
   "summary": {
     "add": "Ajouter",
@@ -166,7 +181,8 @@
     "appointmentDate": "Date",
     "appointmentTime": "Heure",
     "appointmentLocation": "Lieu",
-    "familyNotes": "Notes proposées pour le tableau"
+    "familyNotes": "Notes proposées pour le tableau",
+    "confirmRegenerateProtected": "Attention : le résumé sera entièrement recréé. La version validée ou modifiée à la main sera remplacée et la validation supprimée. Continuer ?"
   },
   "followUp": {
     "title": "Suivi",
@@ -206,7 +222,10 @@
     "recordingHint": "Appuyez sur Arrêter quand la consultation est terminée.",
     "stop": "Arrêter",
     "savedTitle": "C'est enregistré.",
-    "savedHint": "L'enregistrement sera envoyé dès qu'internet sera disponible."
+    "savedHint": "L'enregistrement sera envoyé dès qu'internet sera disponible.",
+    "queueUnpaired": "La tablette n'est plus connectée. L'enregistrement est conservé ici en sécurité. Prévenez vos proches.",
+    "queueNeedsHelp": "Un enregistrement ne peut pas être envoyé. Prévenez vos proches.",
+    "unpairPending": "Des enregistrements de cette tablette n'ont pas encore été envoyés. Le détachement les supprimera. Détacher quand même ?"
   },
   "proposals": {
     "title_section": "Propositions issues de la consultation",
@@ -264,5 +283,9 @@
       "NOTHING_TO_APPLY": "Merci de choisir au moins une proposition.",
       "generic": "Cela n'a pas fonctionné. Merci de réessayer."
     }
+  },
+  "logout": {
+    "pending_one": "{{count}} enregistrement n'a pas encore été envoyé. La déconnexion le supprime de cet appareil. Se déconnecter quand même ?\n\nConseil : annulez, connectez-vous à Internet et patientez un instant.",
+    "pending_other": "{{count}} enregistrements n'ont pas encore été envoyés. La déconnexion les supprime de cet appareil. Se déconnecter quand même ?\n\nConseil : annulez, connectez-vous à Internet et patientez un instant."
   }
 }

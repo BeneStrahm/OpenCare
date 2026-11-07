@@ -18,6 +18,8 @@ import VoiceCommandButton from '../components/app/VoiceCommandButton';
 import KioskEmergency from '../components/app/KioskEmergency';
 import KioskVisitor, { type Visit as KioskVisit } from '../components/app/KioskVisitor';
 import KioskConsultation from '../components/app/KioskConsultation';
+import KioskQueueStatus from '../components/app/KioskQueueStatus';
+import { clearRecordingsForDevice, kick, pendingRecordingsForDevice } from '../lib/consultationUploader';
 
 // Mode Kiosk OpenCare : la tablette murale chez le proche, et le meme ecran
 // sur son telephone (mode poche). Concu d'apres les maquettes de la revue
@@ -403,6 +405,12 @@ const Kiosk: React.FC<KioskProps> = ({ device }) => {
 
     const leaveScreen = async () => {
         if (device) {
+            // Wartende Aufnahmen zuerst hochladen; was dann noch wartet, geht beim Entkoppeln verloren.
+            await kick();
+            if (await pendingRecordingsForDevice() > 0) {
+                if (!window.confirm(t('consultations:kiosk.unpairPending'))) return;
+                await clearRecordingsForDevice();
+            }
             try { await api.post('/api/kiosk/device/unpair', {}); } catch { /* le token local est efface quoi qu'il arrive */ }
             clearPairedDevice();
             navigate('/kiosk/pair', { replace: true });
@@ -813,6 +821,7 @@ const Kiosk: React.FC<KioskProps> = ({ device }) => {
                         <span>
                             <span className="block font-bold" style={fs(22)}>{t('consultations:kiosk.button')}</span>
                             <span className="block" style={{ ...fs(15), color: C.muted }}>{t('consultations:kiosk.buttonHint')}</span>
+                            <KioskQueueStatus fontScale={settings.fontScale} compact />
                         </span>
                     </button>
                     <button

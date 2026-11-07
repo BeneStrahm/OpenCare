@@ -26,7 +26,16 @@
     "uploading": "Subiendo: parte {{sent}} de {{total}}",
     "error": "Problema al subir ({{code}}). Se volverá a intentar más tarde.",
     "discard": "Borrar de este dispositivo",
-    "confirmDiscard": "¿Borrar esta grabación de este dispositivo? No se ha subido y se perderá."
+    "confirmDiscard": "¿Borrar esta grabación de este dispositivo? No se ha subido y se perderá.",
+    "code": "Código de error: {{code}}",
+    "errorTemporary": "La subida no funcionó. Se volverá a intentar automáticamente más tarde.",
+    "help": {
+      "CONSULTATION_GONE": "La consulta de esta grabación se ha borrado. Puedes guardar la grabación como consulta nueva o borrarla de este dispositivo.",
+      "generic": "Esta grabación no se puede subir. Puedes intentarlo de nuevo o borrarla de este dispositivo."
+    },
+    "retry": "Intentar de nuevo",
+    "saveAsNew": "Guardar como consulta nueva",
+    "authProblem": "Ya no has iniciado sesión. Las grabaciones se quedan en este dispositivo y se subirán al iniciar sesión."
   },
   "form": {
     "hint": "Todos los campos son opcionales. Puedes completarlos más tarde.",
@@ -64,7 +73,9 @@
       "recording": "Grabación",
       "result": "Resultado",
       "followUp": "Seguimiento"
-    }
+    },
+    "loadError": "Sin conexión. La consulta no se puede cargar ahora. Comprueba internet e inténtalo de nuevo.",
+    "reload": "Intentar de nuevo"
   },
   "prep": {
     "title": "Preparación",
@@ -120,7 +131,10 @@
     "AI_NOT_CONFIGURED": "Solo se creó la transcripción. Para un resumen hace falta un modelo de IA local (Ollama), configurado en los ajustes.",
     "LOCAL_AI_REQUIRED": "Solo se creó la transcripción. Por protección de datos, los resúmenes solo se crean con un modelo de IA local (Ollama).",
     "AI_FAILED": "No se pudo crear el resumen. Puedes intentarlo de nuevo o escribirlo tú.",
-    "INTERNAL": "Algo falló durante el procesamiento. Puedes intentarlo de nuevo."
+    "INTERNAL": "Algo falló durante el procesamiento. Puedes intentarlo de nuevo.",
+    "LOCAL_SERVICE_REQUIRED": "Para proteger los datos no se envió nada: el reconocimiento de voz o el modelo de IA no está en tu propia red. Contacta con el administrador.",
+    "AUDIO_MISSING": "Falta el audio en el servidor. Intentarlo de nuevo no ayudará.",
+    "CONSULTATION_DELETED": "La consulta de esta grabación se ha borrado."
   },
   "result": {
     "title": "Resultado",
@@ -130,7 +144,8 @@
     "processing": "La grabación se está procesando. Puede tardar unos minutos.",
     "noSummary": "Todavía no hay resumen. Aparecerá aquí cuando se procese una grabación.",
     "transcript": "Mostrar la transcripción",
-    "transcriptHint": "Creada automáticamente a partir de la grabación. Puede contener errores de reconocimiento."
+    "transcriptHint": "Creada automáticamente a partir de la grabación. Puede contener errores de reconocimiento.",
+    "outdated": "Se añadió otra grabación después de la aprobación o de tus cambios. Este resumen todavía no la incluye."
   },
   "summary": {
     "add": "Añadir",
@@ -166,7 +181,8 @@
     "appointmentDate": "Fecha",
     "appointmentTime": "Hora",
     "appointmentLocation": "Lugar",
-    "familyNotes": "Notas propuestas para el tablón"
+    "familyNotes": "Notas propuestas para el tablón",
+    "confirmRegenerateProtected": "Atención: el resumen se creará de nuevo por completo. La versión aprobada o editada a mano se sustituirá y se quitará la aprobación. ¿Continuar?"
   },
   "followUp": {
     "title": "Seguimiento",
@@ -206,7 +222,10 @@
     "recordingHint": "Pulsa Detener cuando termine la consulta.",
     "stop": "Detener",
     "savedTitle": "Guardado.",
-    "savedHint": "La grabación se subirá en cuanto haya internet."
+    "savedHint": "La grabación se subirá en cuanto haya internet.",
+    "queueUnpaired": "La tableta ya no está conectada. La grabación está guardada aquí de forma segura. Avisa a tu familia.",
+    "queueNeedsHelp": "Una grabación no se puede subir. Avisa a tu familia.",
+    "unpairPending": "Hay grabaciones en esta tableta que aún no se han subido. Al desvincularla se borrarán. ¿Desvincular de todos modos?"
   },
   "proposals": {
     "title_section": "Propuestas de la consulta",
@@ -264,5 +283,9 @@
       "NOTHING_TO_APPLY": "Elige al menos una propuesta.",
       "generic": "No ha funcionado. Inténtalo de nuevo."
     }
+  },
+  "logout": {
+    "pending_one": "{{count}} grabación aún no se ha subido. Al cerrar sesión se borra de este dispositivo. ¿Cerrar sesión de todos modos?\n\nConsejo: cancela, conéctate a internet y espera un momento.",
+    "pending_other": "{{count}} grabaciones aún no se han subido. Al cerrar sesión se borran de este dispositivo. ¿Cerrar sesión de todos modos?\n\nConsejo: cancela, conéctate a internet y espera un momento."
   }
 }

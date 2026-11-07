@@ -8,7 +8,9 @@ import {
     ConsultationRecorderError,
     type ActiveRecording,
 } from '../../lib/consultationRecorder';
-import { formatDuration } from '../../lib/consultationLogic';
+import { formatDuration, kioskFollowUp } from '../../lib/consultationLogic';
+import { getKioskLastRecording, setKioskLastRecording } from '../../lib/consultationUploader';
+import KioskQueueStatus from './KioskQueueStatus';
 
 /**
  * Arztgespraech aufnehmen am Tablet der betreuten Person.
@@ -53,13 +55,22 @@ const KioskConsultation: React.FC<Props> = ({ fontScale, onClose }) => {
         setBusy(true);
         setError(null);
         try {
+            // Zweite Aufnahme kurz danach gehoert zum selben Gespraech.
+            const followUp = kioskFollowUp(getKioskLastRecording(), Date.now());
             const rec = await startConsultationRecording({
                 circleId: getPairedDevice()?.circleId ?? null,
-                consultationId: null,
+                consultationId: followUp.consultation_id,
+                followsClientId: followUp.follows_client_id,
                 fromKiosk: true,
                 consentConfirmed: true,
+                consentAt: new Date(),
             });
-            rec.onStorageError(() => setError(t('consultations:recorder.errors.STORAGE_FULL')));
+            setKioskLastRecording({ client_id: rec.clientId, consultation_id: followUp.consultation_id, at: Date.now() });
+            // Speicher voll: Aufnahme endet von selbst, Gespeichertes bleibt erhalten.
+            rec.onStorageError(() => {
+                setError(t('consultations:recorder.errors.STORAGE_FULL'));
+                void stopRef.current?.();
+            });
             setElapsed(0);
             setActive(rec);
             setStep('recording');
@@ -72,16 +83,22 @@ const KioskConsultation: React.FC<Props> = ({ fontScale, onClose }) => {
     };
 
     const stop = async () => {
-        if (!active) return;
+        const current = activeRef.current;
+        if (!current) return;
         setBusy(true);
         try {
-            await active.stop();
+            const result = await current.stop();
+            // Zeitfenster fuer eine Folgeaufnahme ab dem Ende dieser Aufnahme.
+            const last = getKioskLastRecording();
+            if (last && last.client_id === result.clientId) setKioskLastRecording({ ...last, at: Date.now() });
         } finally {
             setActive(null);
             setBusy(false);
             setStep('saved');
         }
     };
+    const stopRef = useRef<(() => Promise<void>) | null>(null);
+    stopRef.current = stop;
 
     const bigButton = 'flex w-full items-center justify-center gap-4 rounded-3xl px-6 font-bold shadow-md focus:outline-none focus-visible:ring-4 focus-visible:ring-offset-2 active:shadow-inner disabled:opacity-60';
 
@@ -179,6 +196,7 @@ const KioskConsultation: React.FC<Props> = ({ fontScale, onClose }) => {
                         </div>
                         <p id="kiosk-consultation-title" className="font-bold" style={fs(40)} role="status">{t('consultations:kiosk.savedTitle')}</p>
                         <p style={{ ...fs(26), color: C.muted }}>{t('consultations:kiosk.savedHint')}</p>
+                        <KioskQueueStatus fontScale={fontScale} />
                         <button type="button" onClick={onClose} className={`${bigButton} min-h-[96px] text-white`} style={{ ...fs(28), backgroundColor: C.blue }}>
                             {t('consultations:kiosk.ok')}
                         </button>

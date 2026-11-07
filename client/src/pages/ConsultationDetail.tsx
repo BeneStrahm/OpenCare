@@ -30,7 +30,9 @@ import {
     withDefaults,
     type ConsultationSummary,
     type RecordingStatus,
-    type SummaryStatus, isRetryableRecording } from '../lib/consultationLogic';
+    type SummaryStatus,
+    isRetryableRecording,
+} from '../lib/consultationLogic';
 
 interface Consultation {
     id: string;
@@ -454,6 +456,11 @@ const ConsultationDetail: React.FC = () => {
                 {myLocal.length > 0 && (
                     <div className="space-y-2">
                         <h3 className="text-body font-semibold text-foreground">{t('consultations:queue.title')}</h3>
+                        {uploader.authProblem && (
+                            <p className="rounded-input border border-warning/50 bg-warning/10 p-3 text-body text-foreground" role="alert">
+                                {t('consultations:queue.authProblem')}
+                            </p>
+                        )}
                         <ul className="space-y-2">
                             {myLocal.map((r) => {
                                 const progress = uploader.progress?.client_id === r.client_id ? uploader.progress : null;

@@ -26,7 +26,16 @@
     "uploading": "Wird hochgeladen: Teil {{sent}} von {{total}}",
     "error": "Problem beim Hochladen ({{code}}). Es wird später erneut versucht.",
     "discard": "Von diesem Gerät löschen",
-    "confirmDiscard": "Diese Aufnahme von diesem Gerät löschen? Sie wurde noch nicht hochgeladen und geht verloren."
+    "confirmDiscard": "Diese Aufnahme von diesem Gerät löschen? Sie wurde noch nicht hochgeladen und geht verloren.",
+    "code": "Fehlercode: {{code}}",
+    "errorTemporary": "Das Hochladen hat nicht geklappt. Es wird später automatisch erneut versucht.",
+    "help": {
+      "CONSULTATION_GONE": "Das Gespräch zu dieser Aufnahme wurde gelöscht. Sie können die Aufnahme als neues Gespräch speichern oder von diesem Gerät löschen.",
+      "generic": "Diese Aufnahme lässt sich nicht hochladen. Sie können es erneut versuchen oder die Aufnahme von diesem Gerät löschen."
+    },
+    "retry": "Erneut versuchen",
+    "saveAsNew": "Als neues Gespräch speichern",
+    "authProblem": "Sie sind nicht mehr angemeldet. Die Aufnahmen bleiben auf diesem Gerät und werden nach der Anmeldung hochgeladen."
   },
   "form": {
     "hint": "Alle Felder sind freiwillig. Sie können sie später ergänzen.",
@@ -64,7 +73,9 @@
       "recording": "Aufnahme",
       "result": "Ergebnis",
       "followUp": "Nachbereitung"
-    }
+    },
+    "loadError": "Keine Verbindung. Das Gespräch kann gerade nicht geladen werden. Bitte prüfen Sie das Internet und versuchen Sie es erneut.",
+    "reload": "Erneut versuchen"
   },
   "prep": {
     "title": "Vorbereitung",
@@ -120,7 +131,10 @@
     "AI_NOT_CONFIGURED": "Es wurde nur die Mitschrift erstellt. Für eine Zusammenfassung braucht es ein lokales KI-Modell (Ollama). Das richten Sie in den Einstellungen ein.",
     "LOCAL_AI_REQUIRED": "Es wurde nur die Mitschrift erstellt. Zum Schutz der Daten entstehen Zusammenfassungen nur mit einem lokalen KI-Modell (Ollama).",
     "AI_FAILED": "Die Zusammenfassung konnte nicht erstellt werden. Sie können es erneut versuchen oder sie selbst schreiben.",
-    "INTERNAL": "Bei der Verarbeitung ist etwas schiefgegangen. Sie können es erneut versuchen."
+    "INTERNAL": "Bei der Verarbeitung ist etwas schiefgegangen. Sie können es erneut versuchen.",
+    "LOCAL_SERVICE_REQUIRED": "Zum Schutz der Daten wurde nichts gesendet: Spracherkennung oder KI-Modell liegen nicht im eigenen Netz. Bitte wenden Sie sich an den Administrator.",
+    "AUDIO_MISSING": "Die Tonaufnahme fehlt auf dem Server. Erneut versuchen hilft hier nicht.",
+    "CONSULTATION_DELETED": "Das Gespräch zu dieser Aufnahme wurde gelöscht."
   },
   "result": {
     "title": "Ergebnis",
@@ -130,7 +144,8 @@
     "processing": "Die Aufnahme wird verarbeitet. Das kann einige Minuten dauern.",
     "noSummary": "Noch keine Zusammenfassung. Sie erscheint hier, sobald eine Aufnahme verarbeitet ist.",
     "transcript": "Mitschrift anzeigen",
-    "transcriptHint": "Automatisch aus der Aufnahme erstellt. Sie kann Erkennungsfehler enthalten."
+    "transcriptHint": "Automatisch aus der Aufnahme erstellt. Sie kann Erkennungsfehler enthalten.",
+    "outdated": "Nach der Freigabe oder Ihrer Bearbeitung kam eine weitere Aufnahme dazu. Diese Zusammenfassung enthält sie noch nicht."
   },
   "summary": {
     "add": "Hinzufügen",
@@ -166,7 +181,8 @@
     "appointmentDate": "Datum",
     "appointmentTime": "Uhrzeit",
     "appointmentLocation": "Ort",
-    "familyNotes": "Vorgeschlagene Notizen für die Pinnwand"
+    "familyNotes": "Vorgeschlagene Notizen für die Pinnwand",
+    "confirmRegenerateProtected": "Achtung: Die Zusammenfassung wird komplett neu erstellt. Die freigegebene oder von Hand bearbeitete Fassung wird ersetzt, und die Freigabe entfällt. Fortfahren?"
   },
   "followUp": {
     "title": "Nachbereitung",
@@ -206,7 +222,10 @@
     "recordingHint": "Drücken Sie auf Stopp, wenn das Gespräch vorbei ist.",
     "stop": "Stopp",
     "savedTitle": "Gespeichert.",
-    "savedHint": "Wird hochgeladen, sobald Internet da ist."
+    "savedHint": "Wird hochgeladen, sobald Internet da ist.",
+    "queueUnpaired": "Das Tablet ist nicht mehr verbunden. Die Aufnahme ist hier sicher gespeichert. Bitte sagen Sie Ihren Angehörigen Bescheid.",
+    "queueNeedsHelp": "Eine Aufnahme lässt sich nicht hochladen. Bitte sagen Sie Ihren Angehörigen Bescheid.",
+    "unpairPending": "Auf diesem Tablet warten noch Aufnahmen, die nicht hochgeladen sind. Beim Entkoppeln werden sie gelöscht. Trotzdem entkoppeln?"
   },
   "proposals": {
     "title_section": "Vorschläge aus dem Gespräch",
@@ -264,5 +283,9 @@
       "NOTHING_TO_APPLY": "Bitte wählen Sie mindestens einen Vorschlag aus.",
       "generic": "Das hat nicht geklappt. Bitte versuchen Sie es noch einmal."
     }
+  },
+  "logout": {
+    "pending_one": "{{count}} Aufnahme ist noch nicht hochgeladen. Beim Abmelden wird sie von diesem Gerät gelöscht. Trotzdem abmelden?\n\nTipp: Abbrechen, mit dem Internet verbinden und kurz warten.",
+    "pending_other": "{{count}} Aufnahmen sind noch nicht hochgeladen. Beim Abmelden werden sie von diesem Gerät gelöscht. Trotzdem abmelden?\n\nTipp: Abbrechen, mit dem Internet verbinden und kurz warten."
   }
 }
