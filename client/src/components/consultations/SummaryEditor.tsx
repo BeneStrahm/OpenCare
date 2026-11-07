@@ -199,6 +199,68 @@ const SummaryEditor: React.FC<Props> = ({ value, onChange, questions, readOnly }
                 )}
             </fieldset>
 
+            {/* Vorgeschlagene Termine (werden erst in der Nachbereitung nach Bestaetigung angelegt) */}
+            <fieldset className="space-y-2">
+                <legend className="text-body font-semibold text-foreground">{t('consultations:summary.appointments')}</legend>
+                {value.appointments.length === 0 && <p className="text-caption text-muted-foreground">{t('consultations:summary.none')}</p>}
+                {value.appointments.map((a, i) => (
+                    readOnly ? (
+                        <p key={i} className="text-body">
+                            {a.title}
+                            {(a.date || a.time) && <span className="text-muted-foreground">{` (${[a.date, a.time].filter(Boolean).join(', ')})`}</span>}
+                            {a.location && <span className="text-muted-foreground">{`, ${a.location}`}</span>}
+                        </p>
+                    ) : (
+                        <div key={i} className="grid grid-cols-1 gap-2 rounded-input border border-border p-3 sm:grid-cols-[2fr_1fr_1fr_auto]">
+                            <Input
+                                label={t('consultations:summary.appointmentTitle')}
+                                id={`appt-title-${i}`}
+                                value={a.title}
+                                onChange={(e) => set('appointments', value.appointments.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))}
+                            />
+                            <Input
+                                type="date"
+                                label={t('consultations:summary.appointmentDate')}
+                                id={`appt-date-${i}`}
+                                value={a.date ?? ''}
+                                onChange={(e) => set('appointments', value.appointments.map((x, j) => (j === i ? { ...x, date: e.target.value || null } : x)))}
+                            />
+                            <Input
+                                type="time"
+                                label={t('consultations:summary.appointmentTime')}
+                                id={`appt-time-${i}`}
+                                value={a.time ?? ''}
+                                onChange={(e) => set('appointments', value.appointments.map((x, j) => (j === i ? { ...x, time: e.target.value || null } : x)))}
+                            />
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-11 w-11 self-end text-muted-foreground hover:text-danger"
+                                onClick={() => set('appointments', value.appointments.filter((_, j) => j !== i))}
+                                aria-label={`${t('consultations:summary.remove')}: ${a.title || i + 1}`}
+                            >
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                            <div className="sm:col-span-4">
+                                <Input
+                                    label={t('consultations:summary.appointmentLocation')}
+                                    id={`appt-loc-${i}`}
+                                    value={a.location ?? ''}
+                                    onChange={(e) => set('appointments', value.appointments.map((x, j) => (j === i ? { ...x, location: e.target.value || null } : x)))}
+                                />
+                            </div>
+                        </div>
+                    )
+                ))}
+                {!readOnly && (
+                    <Button variant="secondary" size="sm" onClick={() => set('appointments', [...value.appointments, { title: '', date: null, time: null, location: null }])}>
+                        <Plus className="mr-1 h-4 w-4" aria-hidden="true" />{t('consultations:summary.add')}
+                    </Button>
+                )}
+            </fieldset>
+
+            <TextList label={t('consultations:summary.familyNotes')} items={value.family_notes} onChange={(v) => set('family_notes', v)} {...common} />
+
             {/* Antworten auf die vorbereiteten Fragen */}
             {questions.length > 0 && (
                 <fieldset className="space-y-3">
