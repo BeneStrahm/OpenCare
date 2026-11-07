@@ -12,12 +12,13 @@ import { circleMiddleware, requireRole, CircleRequest, CircleRole } from '../../
 import { kioskOrMember, allowDeviceOr, KioskRequest } from '../../middleware/kioskDevice';
 import { broadcastToCircle } from '../../lib/broadcaster';
 import logger from '../../lib/logger';
-import { sanitizeEditedSummary, isValidIsoDate, isValidTime, type ConsultationSummary } from './summary';
+import { sanitizeSummaryForQuestions, isValidIsoDate, isValidTime, type ConsultationSummary } from './summary';
 import { loadVocabulary, normalizeTerm } from './vocabulary';
 import { kickConsultationProcessor } from './processing';
 import { consultationText } from './texts';
 
-export const READER_ROLES: CircleRole[] = ['admin', 'family', 'professional', 'viewer'];
+// viewer (z. B. Bekannte) liest keine Mitschriften und KI-Entwuerfe.
+export const READER_ROLES: CircleRole[] = ['admin', 'family', 'professional'];
 export const WRITER_ROLES: CircleRole[] = ['admin', 'family'];
 
 const requireReader = requireRole(...READER_ROLES);
@@ -56,7 +57,7 @@ const serverError = (res: Response, where: string, error: unknown) => {
 };
 
 const CONSULTATION_COLUMNS = `c.id, c.circle_id, c.doctor_name, c.specialty, c.scheduled_at, c.location, c.reason,
-    c.event_id, c.notes, c.summary, c.summary_status, c.approved_at, u.name AS approved_by_name, c.applied,
+    c.event_id, c.notes, c.summary, c.summary_status, c.approved_at, u.name AS approved_by_name, c.applied, c.summary_source, c.summary_outdated,
     c.created_at, c.updated_at`;
 
 async function loadConsultation(id: string, circleId: string) {
@@ -70,10 +71,6 @@ async function loadConsultation(id: string, circleId: string) {
     return result.rows[0] ?? null;
 }
 
-async function questionCount(consultationId: string): Promise<number> {
-    const r = await query(`SELECT COUNT(*)::int AS n FROM consultation_questions WHERE consultation_id = $1`, [consultationId]);
-    return r.rows[0]?.n ?? 0;
-}
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Aufnahmen
@@ -543,9 +540,11 @@ consultationsRouter.put('/:id/summary', requireWriter, async (req: CircleRequest
     try {
         const c = await loadConsultation(String(req.params.id), req.circleId!);
         if (!c) return fail(res, 404, 'Consultation not found');
-        const summary = sanitizeEditedSummary(req.body?.summary, await questionCount(c.id));
+        const ids = (await query(`SELECT id FROM consultation_questions WHERE consultation_id = $1 ORDER BY position, created_at`, [c.id])).rows.map((r: { id: string }) => r.id);
+        const summary = sanitizeSummaryForQuestions(req.body?.summary, ids);
         await query(
-            `UPDATE consultations SET summary = $1::jsonb, summary_status = 'draft', approved_by = NULL, approved_at = NULL
+            `UPDATE consultations SET summary = $1::jsonb, summary_status = 'draft', summary_source = 'human',
+                approved_by = NULL, approved_at = NULL
              WHERE id = $2`,
             [JSON.stringify(summary), c.id]
         );
@@ -567,7 +566,7 @@ consultationsRouter.post('/:id/summary/approve', requireWriter, async (req: Circ
         )).rows as Array<{ id: string; answer: string | null }>;
         const source = req.body?.summary ?? c.summary;
         if (!source) return fail(res, 409, 'NO_SUMMARY');
-        const summary: ConsultationSummary = sanitizeEditedSummary(source, questions.length);
+        const summary: ConsultationSummary = sanitizeSummaryForQuestions(source, questions.map((q) => q.id));
 
         await client.query('BEGIN');
         await client.query(
@@ -577,7 +576,8 @@ consultationsRouter.post('/:id/summary/approve', requireWriter, async (req: Circ
         );
         // Antworten aus dem Gespraech nur in noch leere Antwortfelder uebernehmen.
         for (const qa of summary.question_answers) {
-            const q = questions[qa.question_index];
+            // Zuordnung ueber die Fragen-ID, nicht ueber den Listenplatz.
+            const q = questions.find((x) => x.id === qa.question_id);
             if (q && qa.answer && !q.answer) {
                 await client.query(`UPDATE consultation_questions SET answer = $1 WHERE id = $2`, [qa.answer, q.id]);
             }
@@ -600,7 +600,8 @@ consultationsRouter.post('/:id/summary/regenerate', requireWriter, async (req: C
         // Die zuletzt fertige Aufnahme mit Mitschrift erneut einreihen: die
         // Verarbeitung ueberspringt die Texterkennung und fasst ALLE Mitschriften zusammen.
         const r = await query(
-            `UPDATE consultation_recordings SET status = 'queued', attempts = 0, next_attempt_at = NULL, error_code = NULL
+            `UPDATE consultation_recordings SET status = 'queued', attempts = 0, next_attempt_at = NULL, error_code = NULL,
+                force_summary = TRUE
              WHERE id = (
                 SELECT id FROM consultation_recordings
                 WHERE consultation_id = $1 AND transcript IS NOT NULL AND status IN ('done', 'failed')

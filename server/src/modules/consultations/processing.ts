@@ -71,6 +71,7 @@ interface RecordingRow {
     attempts: number;
     consent_by_user: string | null;
     transcript: string | null;
+    force_summary: boolean;
 }
 
 // ─── Whisper ─────────────────────────────────────────────────────────────────
@@ -304,7 +305,7 @@ async function claimNext(): Promise<RecordingRow | null> {
             ORDER BY uploaded_at NULLS LAST, created_at
             FOR UPDATE SKIP LOCKED LIMIT 1
          )
-         RETURNING id, consultation_id, circle_id, mime_type, attempts, consent_by_user, transcript`
+         RETURNING id, consultation_id, circle_id, mime_type, attempts, consent_by_user, transcript, force_summary`
     );
     return (result.rows[0] as RecordingRow) ?? null;
 }
@@ -324,17 +325,21 @@ export async function processRecording(rec: RecordingRow): Promise<void> {
 
         let note: string | null;
         try {
-            note = await summarizeConsultation(rec.consultation_id, rec.circle_id);
+            note = await summarizeConsultation(rec.consultation_id, rec.circle_id, rec.force_summary);
         } catch (error) {
             logger.warn('consultations.summary_failed', { error: error instanceof Error ? error.message : String(error) });
             throw new ProcessingError('AI_FAILED', true);
         }
         await query(
-            `UPDATE consultation_recordings SET status = 'done', error_code = $1, processed_at = NOW(), next_attempt_at = NULL
-             WHERE id = $2`,
-            [note, rec.id]
+            `UPDATE consultation_recordings SET status = 'done', error_code = $1, processed_at = NOW(), next_attempt_at = NULL,
+                force_summary = FALSE WHERE id = $2`,
+            [note === 'SUMMARY_KEPT' ? null : note, rec.id]
         );
-        await notifyFamily(rec.circle_id, rec.consultation_id, note ? 'transcript' : 'summary');
+        // Eine fehlgeschlagene Benachrichtigung darf die fertige Aufnahme nicht zuruecksetzen.
+        if (note !== 'CONSULTATION_DELETED') {
+            await notifyFamily(rec.circle_id, rec.consultation_id, note ? 'transcript' : 'summary')
+                .catch((e) => logger.warn('consultations.notify_failed', { error: String(e) }));
+        }
     } catch (error) {
         const code = error instanceof ProcessingError ? error.code : 'INTERNAL';
         const retryable = error instanceof ProcessingError ? error.retryable : true;
@@ -349,7 +354,8 @@ export async function processRecording(rec: RecordingRow): Promise<void> {
             );
         } else {
             await query(`UPDATE consultation_recordings SET status = 'failed', error_code = $1 WHERE id = $2`, [code, rec.id]);
-            await notifyFamily(rec.circle_id, rec.consultation_id, 'failed');
+            await notifyFamily(rec.circle_id, rec.consultation_id, 'failed')
+                .catch((e) => logger.warn('consultations.notify_failed', { error: String(e) }));
         }
     } finally {
         await broadcast();
@@ -377,7 +383,10 @@ export async function processQueueOnce(): Promise<void> {
 /** Startet die Warteschlange. Nach einem Neustart werden haengende Aufnahmen neu eingereiht. */
 export function startConsultationProcessor(): void {
     void query(
-        `UPDATE consultation_recordings SET status = 'queued' WHERE status IN ('transcribing', 'summarizing')`
+        `UPDATE consultation_recordings
+         SET status = CASE WHEN attempts >= ${MAX_ATTEMPTS} THEN 'failed' ELSE 'queued' END,
+             error_code = CASE WHEN attempts >= ${MAX_ATTEMPTS} THEN 'INTERNAL' ELSE error_code END
+         WHERE status IN ('transcribing', 'summarizing')`
     ).catch((error) => logger.error('consultations.requeue_failed', { error: String(error) }))
         .finally(() => {
             void processQueueOnce();
