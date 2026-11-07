@@ -53,10 +53,10 @@ docker exec opencare-ollama ollama pull qwen2.5:7b
 Das Sprachmodell ist ein Beispiel. Welches Modell auf Deutsch gut genug und für Ihre Hardware
 klein genug ist, sollte getestet werden.
 
-Dann in der App unter **Integrationen**:
+Dann in der App einrichten:
 
-- Whisper: Adresse `http://speaches:8000`, Modell `Systran/faster-whisper-small`, Sprache `de`
-- KI-Assistent: Anbieter Ollama, Adresse `http://ollama:11434`, Modell `qwen2.5:7b`
+- Unter **Integrationen**, Whisper: Adresse `http://speaches:8000`, Modell `Systran/faster-whisper-small`, Sprache `de`
+- Unter **Einstellungen**, KI-Assistent: Anbieter Ollama, Adresse `http://ollama:11434`, Modell `qwen2.5:7b`
 
 Hinweis: Je nach Version von speaches muss das Whisper-Modell beim ersten Mal heruntergeladen
 werden. Das passiert automatisch oder über die Dokumentation von speaches.
