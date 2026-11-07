@@ -1,0 +1,119 @@
+{
+  "title": "Profil Ihres Angehörigen",
+  "subtitle": "Die wichtigsten Angaben zu {{name}}, für den Kreis sichtbar.",
+  "subtitleNoName": "Die wichtigsten Angaben zu Ihrem Angehörigen, für den Kreis sichtbar.",
+  "noCircle": "Wählen Sie einen Kreis, um das Profil zu sehen.",
+  "notFound": "Zu diesem Kreis gibt es kein Profil.",
+  "readOnly": "Nur lesen: Nur Administratoren und Familie können dieses Profil bearbeiten.",
+  "notProvided": "Nicht angegeben",
+  "age_one": "{{count}} Jahr alt",
+  "age_other": "{{count}} Jahre alt",
+  "photo": {
+    "alt": "Foto von {{name}}",
+    "change": "Foto ändern",
+    "choose": "Foto hinzufügen",
+    "remove": "Entfernen",
+    "updated": "Foto aktualisiert",
+    "invalid": "Bitte wählen Sie eine Bilddatei.",
+    "error": "Das Foto konnte nicht aktualisiert werden."
+  },
+  "identity": {
+    "title": "Person",
+    "firstName": "Vorname",
+    "lastName": "Nachname",
+    "birthDate": "Geburtsdatum",
+    "phone": "Telefon",
+    "address": "Adresse"
+  },
+  "health": {
+    "title": "Gesundheit",
+    "bloodType": "Blutgruppe",
+    "bloodTypeUnknown": "Unbekannt",
+    "allergies": "Allergien",
+    "history": "Vorerkrankungen",
+    "mobility": "Beweglichkeit",
+    "diet": "Ernährung",
+    "gpName": "Hausarzt",
+    "gpPhone": "Telefon des Hausarztes"
+  },
+  "admin": {
+    "title": "Verwaltung",
+    "ssn": "Sozialversicherungsnummer",
+    "insurance": "Krankenversicherung",
+    "directives": "Patientenverfügung"
+  },
+  "notes": {
+    "title": "Freie Notizen",
+    "label": "Notizen",
+    "placeholder": "Gewohnheiten, Hinweise, was Freude macht..."
+  },
+  "sensitive": {
+    "show": "{{field}} anzeigen",
+    "hide": "{{field}} ausblenden"
+  },
+  "saved": "Profil gespeichert",
+  "errors": {
+    "load": "Das Profil konnte nicht geladen werden.",
+    "save": "Speichern fehlgeschlagen.",
+    "firstNameRequired": "Der Vorname ist erforderlich."
+  },
+  "story": {
+    "title": "Wer ich bin",
+    "description": "Die Lebensgeschichte Ihres Angehörigen: was eine neue Betreuungsperson wissen sollte, um gut für ihn zu sorgen.",
+    "sharedNotice": "Diese Seite wird externen Betreuungspersonen über ihren Link angezeigt.",
+    "inspiration": "Angelehnt an \"This is me\" der Alzheimer's Society.",
+    "empty": "Noch kein Abschnitt.",
+    "emptyHint": "Beginnen Sie mit den vorgeschlagenen Abschnitten und passen Sie sie dann frei an.",
+    "startEditing": "Seite ausfüllen",
+    "addSection": "Abschnitt hinzufügen",
+    "removeSection": "Abschnitt {{title}} entfernen",
+    "sectionTitle": "Titel",
+    "sectionContent": "Inhalt",
+    "sectionPlaceholder": "Ein paar einfache Sätze genügen...",
+    "maxSections": "Höchstens 12 Abschnitte.",
+    "saved": "Seite gespeichert",
+    "defaults": {
+      "work": "Beruf und Arbeitsleben",
+      "pride": "Worauf ich stolz bin",
+      "habits": "Gewohnheiten und Abläufe",
+      "soothing": "Was mich beruhigt",
+      "anxious": "Was mir Sorgen macht",
+      "music": "Musik",
+      "family": "Familie und vertraute Gesichter",
+      "beliefs": "Glaube und Überzeugungen"
+    },
+    "errors": {
+      "load": "Die Seite Wer ich bin konnte nicht geladen werden.",
+      "save": "Speichern fehlgeschlagen.",
+      "titleRequired": "Jeder Abschnitt braucht einen Titel."
+    }
+  },
+  "emergency": {
+    "title": "Notfallblatt (QR-Code für den Kühlschrank)",
+    "description": "Ein QR-Code zum Ausdrucken und an den Kühlschrank Kleben. Der Rettungsdienst scannt ihn und sieht ohne Konto das Notfallblatt (Behandlungen, Allergien, Kontakte).",
+    "selfContainedNote": "Das Blatt steckt im QR-Code selbst. Es funktioniert mit jedem Handy über das Mobilfunknetz, ohne dass OpenCare im Internet erreichbar sein muss und ohne dass Daten online gespeichert werden.",
+    "tooBig": "Das Blatt ist umfangreich, der QR-Code lässt sich vielleicht schwer scannen. Kürzen Sie die Vorerkrankungen oder die Patientenverfügung.",
+    "managedByFamily": "Das Notfallblatt wird von der Familie (Administrator) verwaltet.",
+    "preview": "Vorschau des Blatts",
+    "refresh": "Aktualisieren",
+    "reprintNote": "Drucken Sie das Plakat nach jeder Änderung (Medikamente, Kontakte...) neu aus, damit der QR-Code aktuell bleibt.",
+    "numbersHint": "Auf dem Plakat steht keine Notrufnummer, bis ein Administrator Ihre unter Einstellungen, Sprache und Region einträgt.",
+    "qrAlt": "QR-Code des Notfallblatts von {{name}}",
+    "notesLabel": "Weitere Hinweise",
+    "notesPlaceholder": "Türcode, Haustier, Nachbar mit Schlüssel...",
+    "saveNotes": "Hinweise speichern",
+    "notesSaved": "Hinweise gespeichert",
+    "printPoster": "Plakat drucken",
+    "poster": {
+      "scan": "Im Notfall scannen",
+      "name": "Notfallblatt von {{name}}",
+      "call": "Anrufen: {{numbers}}",
+      "print": "Drucken",
+      "close": "Schließen"
+    },
+    "errors": {
+      "load": "Das Notfallblatt konnte nicht geladen werden.",
+      "save": "Speichern fehlgeschlagen."
+    }
+  }
+}

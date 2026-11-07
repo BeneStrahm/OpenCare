@@ -1,0 +1,14 @@
+{
+  "title": "Einem Pflegekreis beitreten",
+  "loggedInAs": "Angemeldet als",
+  "checking": "Einladung wird geprüft…",
+  "missing": "Unvollständiger Einladungslink: Es wurde kein Token gefunden. Bitte prüfen Sie den Link, den Sie erhalten haben.",
+  "invalid": "Ungültige oder abgelaufene Einladung. Bitten Sie die Person, die Sie eingeladen hat, um einen neuen Link.",
+  "invitedBy": "{{inviter}} lädt Sie in den Kreis von {{recipient}} ein.",
+  "someone": "Ein Mitglied des Kreises",
+  "roleLabel": "Ihre Rolle im Kreis:",
+  "expiresOn": "Einladung gültig bis {{date}}",
+  "join": "Dem Kreis beitreten",
+  "joining": "Beitritt läuft…",
+  "joinError": "Der Beitritt hat nicht geklappt. Bitte versuchen Sie es noch einmal."
+}

@@ -128,3 +128,44 @@ describe('toutes les langues', () => {
         expect(broken).toEqual([]);
     });
 });
+
+describe('allemand', () => {
+    // L'allemand est livre complet : aucune cle ne doit retomber sur l'anglais,
+    // une personne agee ne doit pas voir une phrase anglaise au milieu de l'ecran.
+    const EN_DASH = String.fromCharCode(0x2013);
+
+    it('a tous les espaces de noms de l anglais', () => {
+        const en = fs.readdirSync(path.join(LOCALES, 'en')).filter((f) => f.endsWith('.json')).sort();
+        const de = fs.readdirSync(path.join(LOCALES, 'de')).filter((f) => f.endsWith('.json')).sort();
+        expect(de).toEqual(en);
+    });
+
+    it.each(namespaces)('%s a exactement les memes cles et variables en de et en en', (ns) => {
+        const en = read('en', ns);
+        const de = read('de', ns);
+        const enKeys = flatten(en).sort();
+        const deKeys = flatten(de).sort();
+        expect(deKeys.filter((k) => !enKeys.includes(k)), 'cles en trop').toEqual([]);
+        expect(enKeys.filter((k) => !deKeys.includes(k)), 'cles manquantes').toEqual([]);
+        const broken = enKeys
+            .filter((key) => placeholders(valueAt(en, key)).join(',') !== placeholders(valueAt(de, key)).join(','))
+            .map((key) => `${key}: ${placeholders(valueAt(en, key)).join(',')} / ${placeholders(valueAt(de, key)).join(',')}`);
+        expect(broken).toEqual([]);
+    });
+
+    it.each(namespaces)('%s garde la meme longueur pour les listes', (ns) => {
+        const en = read('en', ns);
+        const de = read('de', ns);
+        for (const key of flatten(en)) {
+            const value = valueAt(en, key);
+            if (Array.isArray(value)) expect((valueAt(de, key) as unknown[]).length, key).toBe(value.length);
+        }
+    });
+
+    it('n utilise pas de tiret moyen non plus', () => {
+        const guilty = fs.readdirSync(path.join(LOCALES, 'de'))
+            .filter((f) => f.endsWith('.json'))
+            .filter((f) => fs.readFileSync(path.join(LOCALES, 'de', f), 'utf8').includes(EN_DASH));
+        expect(guilty).toEqual([]);
+    });
+});

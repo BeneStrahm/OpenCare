@@ -1,0 +1,98 @@
+{
+  "loading": "Budget wird geladen…",
+  "categories": {
+    "Logement": "Wohnen",
+    "Alimentation": "Lebensmittel",
+    "Transport": "Verkehr",
+    "Santé": "Gesundheit",
+    "Loisirs": "Freizeit",
+    "Abonnements": "Abos",
+    "Assurance": "Versicherung",
+    "Enfants": "Kinder",
+    "Maison": "Haushalt",
+    "Autre": "Sonstiges"
+  },
+  "readOnly": "Nur lesen. Nur Administratoren und Familie können das Budget bearbeiten.",
+  "alerts": {
+    "title": "Grenzen erreicht",
+    "over": " · überschritten",
+    "warn": " (≥ 80 %)"
+  },
+  "balance": {
+    "current": "Aktueller Stand",
+    "pointed_one": "{{count}} Abbuchung abgehakt",
+    "pointed_other": "{{count}} Abbuchungen abgehakt",
+    "expenses_one": "{{count}} Ausgabe",
+    "expenses_other": "{{count}} Ausgaben"
+  },
+  "forecast": {
+    "title": "Prognose",
+    "subtitle": "Noch {{amount}} an Abbuchungen abzuhaken"
+  },
+  "analytics": "Auswertung und Grenzen",
+  "charts": {
+    "expensesByCategory": "Ausgaben nach Kategorie",
+    "noExpenses": "Keine Ausgaben in diesem Monat",
+    "yearEvolution": "Verlauf im Jahr",
+    "income": "Einnahmen",
+    "expenses": "Ausgaben"
+  },
+  "limits": {
+    "title": "Monatliche Grenzen",
+    "subtitle": "Ausgaben je Kategorie im Blick",
+    "define": "Festlegen",
+    "none": "Keine Grenze festgelegt"
+  },
+  "sections": {
+    "recurring": "Wiederkehrend",
+    "expenses": "Ausgaben",
+    "income": "Einnahmen"
+  },
+  "recurring": {
+    "empty": "Keine wiederkehrende Abbuchung",
+    "addOne": "+ Abbuchung hinzufügen",
+    "markOn": "Als abgebucht markieren",
+    "markOff": "Markierung entfernen",
+    "dayPrefix": "Tag"
+  },
+  "empty": {
+    "expenses": "Keine Ausgaben in diesem Monat",
+    "income": "Keine Einnahmen in diesem Monat"
+  },
+  "sheets": {
+    "recurringEdit": "Abbuchung bearbeiten",
+    "recurringNew": "Neue Abbuchung",
+    "edit": "Bearbeiten",
+    "newExpense": "Neue Ausgabe",
+    "newIncome": "Neue Einnahme",
+    "limit": "Monatliche Grenze"
+  },
+  "toggle": {
+    "expense": "Ausgabe",
+    "income": "Einnahme"
+  },
+  "fields": {
+    "name": "Name der Abbuchung",
+    "namePlaceholder": "z. B. Miete, Strom, Zeitung…",
+    "amount": "Betrag ({{currency}})",
+    "debitDay": "Tag der Abbuchung im Monat (1 bis 31)",
+    "debitDayPlaceholder": "z. B. 5",
+    "description": "Beschreibung (optional)",
+    "descriptionPlaceholder": "z. B. Einkauf, Rente…",
+    "date": "Datum",
+    "category": "Kategorie",
+    "limit": "Monatliche Grenze ({{currency}})",
+    "limitHint": "Mit 0 entfernen Sie die Überwachung für diese Kategorie."
+  },
+  "errors": {
+    "amountInvalid": "Ungültiger Betrag.",
+    "nameRequired": "Name erforderlich.",
+    "debitDayInvalid": "Ungültiger Abbuchungstag (1 bis 31).",
+    "save": "Fehler beim Speichern.",
+    "limitInvalid": "Ungültige Grenze."
+  },
+  "confirm": {
+    "deleteRecurring": "Diese wiederkehrende Abbuchung löschen?",
+    "deleteEntry": "Diesen Eintrag löschen?"
+  }
+}

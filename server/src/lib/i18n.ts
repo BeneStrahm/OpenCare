@@ -6,13 +6,13 @@ import type { Request } from 'express';
  * messages tels quels dans ses toasts : ils doivent donc suivre la langue de
  * l'utilisateur, et non rester en francais.
  */
-export type Lang = 'fr' | 'en' | 'es';
+export type Lang = 'fr' | 'en' | 'es' | 'de';
 
 /** Les langues de l'interface, dans l'ordre ou le client les propose. */
-export const LANGS: readonly Lang[] = ['fr', 'en', 'es'];
+export const LANGS: readonly Lang[] = ['fr', 'en', 'es', 'de'];
 
 /**
- * 'en' ou 'es' pour toute valeur qui commence ainsi (en-US, ES, es-419...),
+ * 'en', 'es' ou 'de' pour toute valeur qui commence ainsi (en-US, ES, es-419, de-AT...),
  * 'fr' sinon : le francais reste la langue par defaut du projet.
  */
 export function pickLang(value: unknown): Lang {
@@ -20,6 +20,7 @@ export function pickLang(value: unknown): Lang {
     const tag = value.trim().toLowerCase();
     if (tag.startsWith('en')) return 'en';
     if (tag.startsWith('es')) return 'es';
+    if (tag.startsWith('de')) return 'de';
     return 'fr';
 }
 
@@ -35,7 +36,7 @@ export function pick<T>(lang: Lang, variants: Record<Lang, T>): T {
 
 /** Locale Intl d'une langue, pour les nombres et les dates produits par le serveur. */
 export function intlLocale(lang: Lang): string {
-    return pick(lang, { fr: 'fr-FR', en: 'en-US', es: 'es-ES' });
+    return pick(lang, { fr: 'fr-FR', en: 'en-US', es: 'es-ES', de: 'de-DE' });
 }
 
 /**
@@ -434,6 +435,131 @@ export const MESSAGES: Record<Lang, Record<string, string>> = {
         'integrations.immich.connected': 'Conectado a Immich {{version}}',
 
         'voice.whisperTimeout': 'El servicio Whisper no ha respondido en {{seconds}} s',
+    },
+    de: {
+        'events.not_recurring': 'Dieser Termin wiederholt sich nicht. Bitte bearbeiten Sie ihn direkt.',
+        'medications.stockInvalid': 'Ungültige Vorratsmenge.',
+        'medications.stockRequired': 'Bitte geben Sie einen Vorrat oder einen Schwellenwert an.',
+        'vitals.thresholdInvalid': 'Ungültiger Schwellenwert: Das Minimum muss unter dem Maximum liegen.',
+        'vitals.thresholdType': 'Unbekannter Messwert.',
+        'events.no_occurrence': 'An diesem Datum findet kein Termin statt.',
+        'events.move_too_far': 'Ein einzelner Termin kann höchstens um {{days}} Tage verschoben werden.',
+        'url.invalid': 'Ungültige URL',
+        'url.protocol': 'Nur die Protokolle http und https sind erlaubt',
+        'url.ws_invalid': 'Ungültige WebSocket-URL',
+        'url.ws_protocol': 'Nur die Protokolle ws und wss sind erlaubt',
+        'url.cloud_metadata': 'Diese Adresse ist gesperrt (Cloud-Metadatendienst)',
+        'url.blocked': 'Diese Adresse ist gesperrt ({{reason}})',
+        'url.private': 'Diese Adresse ist gesperrt (private Adresse)',
+        'url.dns': 'DNS-Auflösung für diesen Host fehlgeschlagen',
+        'url.no_ip': 'Keine IP-Adresse für diesen Host gefunden',
+        'url.redirect': 'SSRF_REDIRECT_BLOCKED: Weiterleitung zu einem anderen Host abgelehnt',
+        'url.redirect_invalid': 'SSRF_REDIRECT_BLOCKED: ungültige Weiterleitungsadresse (Location)',
+        'url.too_many_redirects': 'SSRF_REDIRECT_BLOCKED: zu viele Weiterleitungen',
+
+        'ai.AI_UNREACHABLE': 'Der KI-Anbieter ist nicht erreichbar',
+        'ai.AI_UNAUTHORIZED': 'Der KI-Anbieter hat den API-Schlüssel abgelehnt',
+        'ai.AI_MODEL_NOT_FOUND': 'Modell beim KI-Anbieter nicht gefunden',
+        'ai.AI_INVALID_RESPONSE': 'Das Modell hat eine ungültige Antwort geliefert',
+        'ai.AI_PROVIDER_ERROR': 'Der KI-Anbieter hat einen Fehler gemeldet',
+        'ai.AI_NOT_CONFIGURED': 'Der KI-Assistent ist nicht eingerichtet',
+        'ai.testNotJson': 'Das Modell hat geantwortet, aber nicht im erwarteten JSON-Format',
+        'ai.modelRequired': 'model ist erforderlich',
+
+        'medications.schedulesArray': 'schedules muss eine Liste sein',
+        'medications.scheduleInvalid': 'Ungültiger Einnahmeplan',
+        'medications.timeInvalid': 'Ungültige Einnahmezeit (Format HH:MM erwartet)',
+        'medications.daysInvalid': 'Ungültige Einnahmetage (ganze Zahlen von 1 bis 7 erwartet)',
+        'medications.photoDataUrl': 'photo_url muss eine Bild-Data-URL sein',
+        'medications.photoTooLarge': 'Foto zu groß (höchstens 1,5 MB)',
+        'medications.dateFormat': '{{field}} muss ein Datum im Format JJJJ-MM-TT sein',
+        'medications.statusInvalid': 'Ungültiger Status',
+        'medications.intakeNotFound': 'Einnahme nicht gefunden',
+        'medications.activeParam': 'Ungültiger Parameter active (true, false oder all)',
+        'medications.nameRequired': 'Der Name des Medikaments ist erforderlich',
+        'medications.activeBoolean': 'active muss ein Wahrheitswert sein',
+        'medications.notFound': 'Medikament nicht gefunden',
+        'medications.datesInvalid': 'Ungültige Daten (Format JJJJ-MM-TT erwartet)',
+        'medications.endBeforeStart': 'Das Enddatum muss nach dem Startdatum liegen',
+        'medications.prescriptionTitleRequired': 'Der Titel des Rezepts ist erforderlich',
+        'medications.reminderDays': 'reminder_days muss eine positive ganze Zahl sein',
+        'medications.prescriptionNotFound': 'Rezept nicht gefunden',
+        'medications.quantityInvalid': 'Ungültige Menge pro Einnahme (zwischen 0,25 und 99)',
+        'medications.unitInvalid': 'Ungültige Einheit',
+        'medications.prnBoolean': 'prn muss ein Wahrheitswert sein',
+        'medications.withFoodInvalid': 'Ungültiger Wert für with_food (with, without oder any)',
+
+        'expenses.splitsRequired': 'splits ist für eine individuelle Aufteilung erforderlich',
+        'expenses.splitsInvalidMember': 'splits enthält ein ungültiges Mitglied',
+        'expenses.splitsDuplicateMember': 'splits enthält ein Mitglied doppelt',
+        'expenses.sharePositive': 'Jeder Anteil muss ein positiver Betrag sein',
+        'expenses.sharesSum': 'Die Summe der Anteile muss dem Betrag entsprechen',
+        'expenses.amountPositive': 'Der Betrag muss größer als null sein',
+        'expenses.categoryInvalid': 'Ungültige Kategorie',
+        'expenses.dateInvalid': 'Ungültiges Datum (Format JJJJ-MM-TT)',
+        'expenses.fieldDateInvalid': 'Ungültiges {{field}} (Format JJJJ-MM-TT)',
+        'expenses.splitModeInvalid': 'Ungültiger split_mode',
+        'expenses.payerInvalid': 'Ungültige zahlende Person',
+        'expenses.receiptInvalid': 'Ungültiger Beleg',
+        'expenses.notFound': 'Ausgabe nicht gefunden',
+        'expenses.onlyAuthorEdit': 'Nur die Person, die die Ausgabe erfasst hat, oder ein Admin kann sie bearbeiten',
+        'expenses.onlyAuthorDelete': 'Nur die Person, die die Ausgabe erfasst hat, oder ein Admin kann sie löschen',
+        'expenses.membersInvalid': 'Ungültige Mitglieder',
+        'expenses.settlementNotFound': 'Ausgleichszahlung nicht gefunden',
+        'expenses.onlySettlementAuthorDelete': 'Nur die Person, die die Ausgleichszahlung erfasst hat, oder ein Admin kann sie löschen',
+        'expenses.aidTypeInvalid': 'Ungültige Art der Unterstützung',
+        'expenses.aidNotFound': 'Unterstützung nicht gefunden',
+
+        'circles.recipientFirstNameRequired': 'Der Vorname der betreuten Person ist erforderlich',
+        'circles.mustAdminLinked': 'Sie müssen Administrator des Kreises sein, den Sie verknüpfen möchten',
+        'circles.targetInvalid': 'Ungültiger Zielkreis',
+        'circles.mustAdminBoth': 'Sie müssen Administrator beider Kreise sein',
+        'circles.alreadyInHousehold': 'Einer der Kreise gehört bereits zu einem anderen Haushalt',
+        'circles.notInHousehold': 'Dieser Kreis gehört zu keinem Haushalt',
+        'circles.keepOneAdmin': 'Der Kreis muss mindestens einen Administrator behalten',
+        'circles.firstNameRequired': 'Der Vorname ist erforderlich',
+
+        'invites.invalidOrExpired': 'Ungültige oder abgelaufene Einladung',
+        'invites.reservedForOtherEmail': 'Diese Einladung ist für eine andere E-Mail-Adresse bestimmt',
+        'invites.alreadyMember': 'Sie sind bereits Mitglied dieses Kreises',
+
+        'auth.imageTooLarge': 'Bild zu groß',
+        'handover.notFound': 'Übergabepaket nicht gefunden',
+        'handover.expired': 'Dieses Übergabepaket ist abgelaufen',
+        'emergency.notFound': 'Notfallblatt nicht gefunden',
+
+        'integrations.typeAndUrlRequired': 'type und base_url sind erforderlich',
+        'integrations.unknownType': 'Unbekannte Art der Anbindung',
+        'integrations.unknownError': 'Unbekannter Fehler',
+        'integrations.notFound': 'Anbindung nicht gefunden',
+        'integrations.unreachable': 'Server nicht erreichbar',
+        'integrations.httpError': 'HTTP-Fehler {{status}}',
+        'integrations.immichNotConfigured': 'Keine Immich-Anbindung eingerichtet',
+        'integrations.immichUnavailable': 'Immich nicht verfügbar',
+        'integrations.whisperKeyInvalid': 'Ungültiger Whisper-API-Schlüssel',
+        'integrations.whisperStatus': 'Der Whisper-Dienst hat mit {{status}} geantwortet',
+        'integrations.whisperOk': 'Verbindung zum Whisper-Dienst hergestellt',
+        'integrations.whisperTimeout': 'Der Whisper-Dienst antwortet nicht (10 s)',
+        'integrations.whisperUnreachable': 'Whisper-Dienst nicht erreichbar',
+        'integrations.ha.tokenInvalid': 'Ungültiger oder abgelaufener Token',
+        'integrations.ha.shoppingList': 'Mit Home Assistant verbunden (Anbindung shopping_list erkannt)',
+        'integrations.ha.todo': 'Mit Home Assistant verbunden (todo-Entität erkannt, Einträge: {{count}})',
+        'integrations.ha.none': 'Mit Home Assistant verbunden. Weder "shopping_list" noch "todo.shopping_list" wurde erkannt. Prüfen Sie, ob eine dieser Anbindungen aktiviert ist, oder geben Sie die ID Ihrer todo-Entität an.',
+        'integrations.ha.wsTimeout': 'Zeitüberschreitung bei der WebSocket-Verbindung zu Home Assistant',
+        'integrations.ha.wsTokenInvalid': 'Ungültiger Home-Assistant-Token',
+        'integrations.ha.entityNotFound': 'Entität "{{entityId}}" in Home Assistant nicht gefunden',
+        'integrations.ha.wsError': 'Keine Verbindung zum Home-Assistant-WebSocket möglich: {{detail}}',
+        'integrations.ha.tokenMissing': 'Token fehlt',
+        'integrations.nextcloud.serverUnreachable': 'Server nicht erreichbar (HTTP {{status}})',
+        'integrations.nextcloud.badCredentials': 'Falsche Zugangsdaten. Wenn die Zwei-Faktor-Anmeldung aktiv ist, verwenden Sie ein App-Passwort.',
+        'integrations.nextcloud.userNotFound': 'Benutzer "{{username}}" auf diesem Server nicht gefunden.',
+        'integrations.nextcloud.davError': 'DAV-Fehler {{status}}',
+        'integrations.nextcloud.connected': 'Mit Nextcloud {{version}} verbunden: Kalender gefunden: {{count}}',
+        'integrations.grocy.connected': 'Mit Grocy {{version}} verbunden',
+        'integrations.immich.keyInvalid': 'Falscher API-Schlüssel',
+        'integrations.immich.connected': 'Mit Immich {{version}} verbunden',
+
+        'voice.whisperTimeout': 'Der Whisper-Dienst hat nicht innerhalb von {{seconds}} s geantwortet',
     },
 };
 

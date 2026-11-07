@@ -1,0 +1,60 @@
+{
+  "title": "Dokumente",
+  "subtitle": "Rezepte, Befunde und Unterlagen des Kreises",
+  "loading": "Dokumente werden geladen…",
+  "upload": "Dokument hochladen",
+  "restricted": {
+    "title": "Eingeschränkter Zugriff",
+    "description": "Mit Ihrer Rolle haben Sie keinen Zugriff auf die Dokumente des Kreises."
+  },
+  "filters": {
+    "all": "Alle"
+  },
+  "categories": {
+    "prescription": "Rezept",
+    "report": "Arztbericht",
+    "insurance": "Versicherung",
+    "legal": "Rechtliches",
+    "other": "Sonstiges"
+  },
+  "empty": {
+    "none": "Noch keine Dokumente.",
+    "noMatch": "Keine Dokumente in dieser Kategorie."
+  },
+  "meta": {
+    "uploadedBy": "Hochgeladen von {{name}}"
+  },
+  "dialog": {
+    "uploadTitle": "Dokument hochladen",
+    "uploadDescription": "Bild oder PDF, höchstens 5 MB. Bilder werden automatisch verkleinert.",
+    "editTitle": "Dokument bearbeiten"
+  },
+  "form": {
+    "titleLabel": "Titel",
+    "titlePlaceholder": "z. B. Rezept von Dr. Müller",
+    "category": "Kategorie",
+    "notes": "Notizen",
+    "file": "Datei (Bild oder PDF)",
+    "processing": "Datei wird vorbereitet…",
+    "ready": "Datei bereit: {{name}}"
+  },
+  "preview": {
+    "open": "Vorschau",
+    "download": "Herunterladen",
+    "loading": "Datei wird geladen…",
+    "pdfHint": "Für PDFs gibt es keine Vorschau. Bitte laden Sie die Datei herunter."
+  },
+  "confirm": {
+    "delete": "Dieses Dokument löschen?"
+  },
+  "errors": {
+    "load": "Die Dokumente konnten nicht geladen werden.",
+    "save": "Das Dokument konnte nicht gespeichert werden.",
+    "delete": "Das Dokument konnte nicht gelöscht werden.",
+    "preview": "Das Dokument konnte nicht geöffnet werden.",
+    "fileRequired": "Bitte wählen Sie eine Datei.",
+    "fileType": "Format nicht unterstützt. Bitte wählen Sie ein Bild oder ein PDF.",
+    "fileTooLarge": "Datei zu groß: höchstens 5 MB.",
+    "compressFailed": "Dieses Bild ließ sich nicht unter 5 MB verkleinern. Versuchen Sie ein kleineres Bild."
+  }
+}

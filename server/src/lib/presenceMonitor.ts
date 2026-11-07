@@ -23,7 +23,7 @@ interface PresenceRuleRow {
 
 interface MemberRow {
     user_id: string;
-    /** Recipient's preferred language ('fr' | 'en' | 'es'), defaults to 'fr' */
+    /** Recipient's preferred language ('fr' | 'en' | 'es' | 'de'), defaults to 'fr' */
     language: string;
 }
 
@@ -35,6 +35,12 @@ interface AlertTexts {
 function buildAlertTexts(rule: PresenceRuleRow, language: string): AlertTexts {
     const name = (rule.first_name ?? '').trim();
     const lang = pickLang(language);
+    if (lang === 'de') {
+        return {
+            title: name ? `Heute Morgen kein Lebenszeichen von ${name}` : 'Heute Morgen kein Lebenszeichen',
+            body: `Heute ist vor ${rule.no_activity_before} Uhr kein Aktivitätssignal eingegangen. Rufen Sie an oder schauen Sie vorbei, ob alles in Ordnung ist.`,
+        };
+    }
     if (lang === 'es') {
         return {
             title: name ? `Ninguna señal de vida en casa de ${name} esta mañana` : 'Ninguna señal de vida esta mañana',

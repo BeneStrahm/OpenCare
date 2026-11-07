@@ -1,0 +1,89 @@
+{
+  "greeting": "Wie geht es {{name}}?",
+  "greetingFallback": "Guten Tag",
+  "seeAll": "Alle ansehen",
+  "household": {
+    "label": "Gleicher Haushalt:",
+    "viewAll": "Der Haushalt",
+    "current": "Gerade angezeigt",
+    "nextEvent": "Um {{time}}: {{title}}",
+    "eventsDone": "Termine heute: {{count}}",
+    "noEvent": "Heute nichts geplant",
+    "meds": "{{taken}}/{{total}} Medikamente genommen",
+    "medsNone": "Heute keine Medikamente",
+    "lastNews": "Letzte Neuigkeit {{when}} ({{author}})",
+    "noNews": "Noch keine Notiz",
+    "open": "Öffnen"
+  },
+  "unreadMessages_one": "{{count}} ungelesene Nachricht",
+  "unreadMessages_other": "{{count}} ungelesene Nachrichten",
+  "today": {
+    "title": "Heute",
+    "empty": "Heute ist nichts geplant. Ein ruhiger Tag."
+  },
+  "categories": {
+    "visit": "Besuch",
+    "medical": "Medizinisch",
+    "nurse": "Pflegedienst",
+    "aide": "Haushaltshilfe",
+    "other": "Sonstiges"
+  },
+  "medications": {
+    "title": "Medikamente heute",
+    "takenCount": "{{taken}}/{{total}} Einnahmen bestätigt",
+    "next": "Nächste Einnahmen",
+    "allDone": "Alle Einnahmen von heute sind erledigt.",
+    "empty": "Heute sind keine Einnahmen geplant."
+  },
+  "journal": {
+    "title": "Neuigkeiten",
+    "empty": "Noch keine Neuigkeiten. Besuche und Notizen aus dem Kreis erscheinen hier."
+  },
+  "tasks": {
+    "title": "Offene Aufgaben",
+    "count_one": "{{count}} offene Aufgabe",
+    "count_other": "{{count}} offene Aufgaben",
+    "empty": "Alles erledigt. Nichts offen."
+  },
+  "vitals": {
+    "title": "Messwerte",
+    "empty": "Noch keine Messungen.",
+    "types": {
+      "weight": "Gewicht",
+      "bp": "Blutdruck",
+      "temperature": "Temperatur",
+      "glucose": "Blutzucker",
+      "pain": "Schmerz",
+      "mood": "Stimmung"
+    }
+  },
+  "errors": {
+    "load": "Die Übersicht konnte nicht geladen werden."
+  },
+  "attention": {
+    "title": "Braucht Aufmerksamkeit",
+    "empty": "Gerade braucht nichts Aufmerksamkeit. Alles in Ordnung.",
+    "help_one": "{{count}} Alarm in den letzten 24 Std.",
+    "help_other": "{{count}} Alarme in den letzten 24 Std.",
+    "presence": "Kein Lebenszeichen vor {{time}}",
+    "presenceDetail": "Rufen Sie an oder schauen Sie vorbei, ob alles in Ordnung ist.",
+    "missed_intakes_one": "{{count}} verpasste Einnahme heute",
+    "missed_intakes_other": "{{count}} verpasste Einnahmen heute",
+    "prescriptions_one": "{{count}} Rezept zu erneuern",
+    "prescriptions_other": "{{count}} Rezepte zu erneuern",
+    "tasks_overdue_one": "{{count}} überfällige Aufgabe",
+    "tasks_overdue_other": "{{count}} überfällige Aufgaben",
+    "visitor_present": "{{name}} ist seit {{time}} da",
+    "appointments": "Bald: {{title}} um {{time}}",
+    "acknowledge": "Ich übernehme",
+    "helpOpen_one": "{{count}} Bitte noch von niemandem übernommen",
+    "helpOpen_other": "{{count}} Bitten noch von niemandem übernommen",
+    "vitals_out_of_range_one": "{{count}} Messung außerhalb des Bereichs",
+    "vitals_out_of_range_other": "{{count}} Messungen außerhalb des Bereichs",
+    "medication_stock_one": "{{count}} Medikament geht zur Neige",
+    "medication_stock_other": "{{count}} Medikamente gehen zur Neige",
+    "stockLeft_one": "{{name}} (noch {{count}})",
+    "stockLeft_other": "{{name}} (noch {{count}})"
+  },
+  "openKiosk": "Tablet-Ansicht"
+}

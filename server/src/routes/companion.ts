@@ -44,7 +44,13 @@ type ReplySource = 'facts' | 'ai' | 'fallback';
 // vient du modele et pourrait etre manipule par la conversation, on ne le pousse
 // donc pas tel quel aux familles; il reste consultable dans l'entree de journal.
 function buildAlertTexts(name: string, language: Lang): { title: string; message: string } {
-    const who = name || pick(language, { fr: 'Votre proche', en: 'Your loved one', es: 'Su familiar' });
+    const who = name || pick(language, { fr: 'Votre proche', en: 'Your loved one', es: 'Su familiar', de: 'Ihr Angehöriger' });
+    if (language === 'de') {
+        return {
+            title: `💬 ${who} braucht vielleicht Aufmerksamkeit`,
+            message: 'Bei einem Gespräch in der Tablet-Ansicht ist etwas aufgefallen. Bitte melden Sie sich.',
+        };
+    }
     if (language === 'es') {
         return {
             title: `💬 ${who} puede necesitar atención`,
@@ -87,11 +93,13 @@ async function escalate(circleId: string, recipientFirstName: string, flagReason
                     fr: `Signal pendant une conversation : ${flagReason}`,
                     en: `Signal during a conversation: ${flagReason}`,
                     es: `Señal durante una conversación: ${flagReason}`,
+                    de: `Hinweis während eines Gesprächs: ${flagReason}`,
                 })
                 : pick(language, {
                     fr: 'Signal pendant une conversation sur le kiosk',
                     en: 'Signal during a conversation on the kiosk',
                     es: 'Señal durante una conversación en el modo Kiosco',
+                    de: 'Hinweis während eines Gesprächs in der Tablet-Ansicht',
                 }),
             JSON.stringify({ source: 'companion', flag_reason: flagReason }),
         ]
@@ -164,7 +172,7 @@ router.post('/message', allowDeviceOr(...JOURNAL_WRITER_ROLES), async (req: Kios
             source = 'facts';
             if (intent === 'help') {
                 flagged = true;
-                flagReason = pick(language, { fr: "demande d'aide", en: 'asked for help', es: 'ha pedido ayuda' });
+                flagReason = pick(language, { fr: "demande d'aide", en: 'asked for help', es: 'ha pedido ayuda', de: 'hat um Hilfe gebeten' });
             } else if (distress) {
                 reply += distressHint(language);
             }

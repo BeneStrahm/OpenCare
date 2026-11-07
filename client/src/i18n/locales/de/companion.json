@@ -1,0 +1,33 @@
+{
+  "title": "Fragen Sie mich",
+  "subtitle": "Tippen Sie auf das Mikrofon und stellen Sie Ihre Frage, oder plaudern Sie ein wenig.",
+  "close": "Schließen",
+  "you": "Sie",
+  "companion": "Begleiter",
+  "mic": {
+    "idle": "Zum Sprechen tippen",
+    "recording": "Ich höre zu. Zum Beenden tippen",
+    "thinking": "Einen Moment...",
+    "denied": "Das Mikrofon ist nicht verfügbar. Sie können unten schreiben.",
+    "unavailable": "Diktieren ist hier nicht möglich. Sie können unten schreiben."
+  },
+  "textPlaceholder": "Hier schreiben, wenn Sie möchten",
+  "send": "Senden",
+  "replay": "Noch einmal anhören",
+  "starters": [
+    "Guten Tag, wie geht es Ihnen heute?",
+    "Erzählen Sie mir eine schöne Erinnerung.",
+    "Erzählen Sie mir von meinem Tag."
+  ],
+  "openingLine": "Guten Tag, {{name}}. Ich höre Ihnen zu. Was möchten Sie wissen?",
+  "openingLineNoName": "Guten Tag. Ich höre Ihnen zu. Was möchten Sie wissen?",
+  "error": "Entschuldigung, ich konnte nicht antworten. Wollen wir es noch einmal versuchen?",
+  "subtitleFacts": "Tippen Sie auf das Mikrofon und stellen Sie Ihre Frage.",
+  "quick": {
+    "meds": "Was muss ich nehmen?",
+    "visitors": "Wer kommt heute?",
+    "appointments": "Meine Termine?",
+    "date": "Welcher Tag ist heute?",
+    "call": "Wen kann ich anrufen?"
+  }
+}

@@ -1,0 +1,98 @@
+{
+    "title": "Tagebuch",
+    "subtitle": "Das Pflegetagebuch des Kreises",
+    "loading": "Tagebuch wird geladen...",
+    "composer": {
+        "placeholder": "gut gegessen, Blutdruck 130/80, gute Laune",
+        "typeLabel": "Art des Eintrags",
+        "dateLabel": "Datum und Uhrzeit des Besuchs",
+        "addPhotos": "Fotos hinzufügen",
+        "photoHint": "{{current}}/{{max}} Fotos",
+        "removePhoto": "Foto entfernen",
+        "publish": "Veröffentlichen",
+        "publishing": "Wird veröffentlicht...",
+        "vitalTypeLabel": "Art des Messwerts",
+        "valueWithUnit": "Wert ({{unit}})",
+        "systolicLabel": "Systolisch",
+        "diastolicLabel": "Diastolisch"
+    },
+    "types": {
+        "visit": "Besuch",
+        "note": "Notiz",
+        "vital": "Messwert",
+        "medication": "Medikament",
+        "incident": "Vorfall",
+        "mood": "Stimmung"
+    },
+    "vitalTypes": {
+        "weight": "Gewicht",
+        "bp": "Blutdruck",
+        "pain": "Schmerz",
+        "mood": "Stimmung",
+        "temperature": "Temperatur",
+        "glucose": "Blutzucker"
+    },
+    "vitalSummary": "{{label}}: {{measure}}",
+    "filters": {
+        "all": "Alle"
+    },
+    "days": {
+        "today": "Heute",
+        "yesterday": "Gestern"
+    },
+    "timeline": {
+        "loadMore": "Mehr anzeigen",
+        "loadingMore": "Wird geladen..."
+    },
+    "photo": {
+        "title": "Foto",
+        "alt": "Foto aus dem Tagebuch",
+        "open": "Foto öffnen"
+    },
+    "edit": {
+        "title": "Eintrag bearbeiten",
+        "contentLabel": "Text",
+        "dateLabel": "Datum und Uhrzeit"
+    },
+    "actions": {
+        "edit": "Eintrag bearbeiten",
+        "delete": "Eintrag löschen"
+    },
+    "empty": {
+        "title": "Noch keine Einträge",
+        "description": "Teilen Sie einen Besuch, eine Beobachtung oder eine Messung. So bleibt der ganze Kreis informiert.",
+        "filtered": "Keine Einträge dieser Art."
+    },
+    "confirmDelete": "Diesen Eintrag löschen?",
+    "voice": {
+        "record": "Diktieren",
+        "stop": "Aufnahme beenden",
+        "transcribing": "Wird in Text umgewandelt…",
+        "autoFile": "Automatisch einsortieren",
+        "autoFiling": "Wird einsortiert…",
+        "filedTitle": "Eintrag \"{{type}}\" erstellt",
+        "filedShopping": "Auf die Einkaufsliste gesetzt: {{items}}",
+        "emptyTranscript": "In der Aufnahme wurde kein Text erkannt.",
+        "tooLong": "Die Aufnahme ist zu lang zum Hochladen. Bitte diktieren Sie kürzere Notizen.",
+        "micDeniedTitle": "Mikrofon nicht verfügbar",
+        "micDeniedBody": "Erlauben Sie den Zugriff auf das Mikrofon, um eine Notiz zu diktieren.",
+        "notConfiguredTitle": "Spracherkennung nicht eingerichtet",
+        "notConfiguredBody": "Verbinden Sie auf der Seite Anbindungen die Anbindung \"Spracherkennung (Whisper)\", um Notizen zu diktieren.",
+        "transcribeError": "Die Aufnahme konnte nicht in Text umgewandelt werden.",
+        "fileError": "Die Notiz konnte nicht automatisch einsortiert werden."
+    },
+    "toasts": {
+        "published": "Eintrag veröffentlicht",
+        "updated": "Eintrag aktualisiert",
+        "deleted": "Eintrag gelöscht"
+    },
+    "errors": {
+        "load": "Das Tagebuch konnte nicht geladen werden.",
+        "publish": "Der Eintrag konnte nicht veröffentlicht werden.",
+        "update": "Der Eintrag konnte nicht aktualisiert werden.",
+        "delete": "Der Eintrag konnte nicht gelöscht werden.",
+        "valueRequired": "Bitte geben Sie einen gültigen Zahlenwert ein.",
+        "photoTooLarge": "Das Foto ist auch nach dem Verkleinern zu groß (höchstens 1,5 MB).",
+        "photoRead": "Dieses Bild konnte nicht gelesen werden."
+    }
+}

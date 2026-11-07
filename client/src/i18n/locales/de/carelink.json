@@ -1,0 +1,50 @@
+{
+  "header": {
+    "title": "Tagebuch von {{name}}",
+    "signedAs": "Angemeldet als {{name}}"
+  },
+  "compose": {
+    "title": "Ins Tagebuch schreiben",
+    "placeholder": "Zum Beispiel: Besuch 20 Minuten, gut gegessen, gute Laune.",
+    "submit": "Ins Tagebuch senden",
+    "sending": "Wird gesendet...",
+    "sent": "Gesendet. Vielen Dank für Ihren Besuch."
+  },
+  "types": {
+    "visit": "Besuch",
+    "note": "Notiz",
+    "mood": "Stimmung",
+    "incident": "Vorfall"
+  },
+  "medications": {
+    "title": "Medikamente heute",
+    "taken": "Genommen",
+    "skipped": "Ausgelassen",
+    "allDone": "Alle Einnahmen von heute sind eingetragen.",
+    "status": {
+      "taken": "genommen",
+      "skipped": "ausgelassen",
+      "missed": "verpasst"
+    },
+    "take": "{{amount}} nehmen"
+  },
+  "today": {
+    "title": "Heute",
+    "empty": "Heute wurde noch kein Besuch eingetragen."
+  },
+  "errors": {
+    "title": "Link nicht verfügbar",
+    "invalid": "Dieser Link ist nicht mehr gültig. Bitten Sie die Familie um einen neuen Link.",
+    "network": "Keine Verbindung. Bitte prüfen Sie das Netz und versuchen Sie es erneut.",
+    "sendFailed": "Senden fehlgeschlagen. Bitte versuchen Sie es erneut."
+  },
+  "story": {
+    "show": "Wer ist {{name}}?",
+    "showNoName": "Wer ist die betreute Person?",
+    "hide": "Ausblenden",
+    "loading": "Wird geladen...",
+    "empty": "Die Familie hat diese Seite noch nicht ausgefüllt.",
+    "error": "Diese Seite kann gerade nicht geladen werden."
+  },
+  "footer": "Dieser Link gilt nur für Sie. Die Familie sieht Ihre Nachrichten sofort."
+}

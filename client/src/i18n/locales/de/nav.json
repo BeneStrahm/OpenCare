@@ -1,0 +1,76 @@
+{
+  "items": {
+    "today": "Übersicht",
+    "journal": "Pflegetagebuch",
+    "calendar": "Kalender",
+    "medications": "Medikamente",
+    "health": "Gesundheit",
+    "tasks": "Aufgaben",
+    "shopping": "Einkauf",
+    "messages": "Nachrichten",
+    "expenses": "Geteilte Ausgaben",
+    "documents": "Dokumente",
+    "contacts": "Kontakte",
+    "recipient": "Angehöriger",
+    "circle": "Pflegekreis",
+    "integrations": "Anbindungen",
+    "settings": "Einstellungen",
+    "visitors": "Besuche",
+    "carePlan": "Pflegeplan"
+  },
+  "sections": {
+    "today": "Heute",
+    "care": "Pflege",
+    "organise": "Organisieren",
+    "information": "Informationen",
+    "team": "Team",
+    "more": "Mehr"
+  },
+  "mobile": {
+    "home": "Start",
+    "journal": "Tagebuch",
+    "calendar": "Kalender",
+    "medications": "Medis",
+    "messages": "Nachrichten"
+  },
+  "quickActions": {
+    "title": "Schnellaktionen",
+    "addJournalEntry": "Ins Tagebuch schreiben",
+    "addEvent": "Termin hinzufügen",
+    "addTask": "Aufgabe hinzufügen",
+    "addShopping": "Etwas auf die Einkaufsliste",
+    "addExpense": "Ausgabe hinzufügen"
+  },
+  "circle": {
+    "create": "Eine weitere Person betreuen",
+    "householdWith": "Haushalt mit {{names}}"
+  },
+  "roles": {
+    "admin": "Administrator",
+    "family": "Familie",
+    "professional": "Fachkraft",
+    "neighbor": "Nachbarschaft / Freunde",
+    "viewer": "Nur lesen"
+  },
+  "user": {
+    "profile": "Profil",
+    "toggleTheme": "Hell/Dunkel umschalten",
+    "logout": "Abmelden",
+    "openMenu": "Menü öffnen"
+  },
+  "offline": "Offline. Die angezeigten Daten stammen aus dem Zwischenspeicher. Änderungen sind wieder möglich, sobald die Verbindung zurück ist.",
+  "offlineQueue": {
+    "pending_one": "{{count}} Änderung wird gesendet, sobald das Netz wieder da ist.",
+    "pending_other": "{{count}} Änderungen werden gesendet, sobald das Netz wieder da ist.",
+    "syncing": "Ausstehende Änderungen werden übertragen...",
+    "errors": {
+      "authNotQueueable": "Anmelden ist offline nicht möglich. Versuchen Sie es erneut, sobald die Verbindung zurück ist.",
+      "queueFull": "Zu viele Änderungen warten offline. Versuchen Sie es erneut, sobald die Verbindung zurück ist.",
+      "photoTooLarge": "Das Foto ist zu groß, um offline gespeichert zu werden. Versuchen Sie es erneut, sobald die Verbindung zurück ist."
+    }
+  },
+  "pageTitleFallback": "Übersicht",
+  "skipToContent": "Zum Inhalt springen",
+  "primaryNav": "Hauptnavigation",
+  "mobileNav": "Schnellnavigation"
+}

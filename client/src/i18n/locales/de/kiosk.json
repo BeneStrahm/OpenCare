@@ -1,0 +1,268 @@
+{
+  "greeting": "Guten Morgen, {{name}}!",
+  "greetingEvening": "Guten Abend, {{name}}!",
+  "greetingNoName": "Guten Tag!",
+  "exit": "Verlassen",
+  "fullscreen": "Vollbild",
+  "exitFullscreen": "Vollbild beenden",
+  "and": "und",
+  "hero": {
+    "tagline": "Machen wir uns einen schönen Tag",
+    "cheer": "Das machen Sie sehr gut!"
+  },
+  "today": {
+    "title": "Heute",
+    "empty": "Heute ist kein Besuch geplant."
+  },
+  "visit": {
+    "one": "{{name}} besucht Sie um {{time}}",
+    "many": "{{names}} besuchen Sie um {{time}}",
+    "nurse": "Der Pflegedienst kommt um {{time}}",
+    "aide": "Die Haushaltshilfe kommt um {{time}}",
+    "medical": "Termin um {{time}}: {{title}}",
+    "other": "{{title}} um {{time}}"
+  },
+  "visitors": {
+    "title": "Wer heute kommt",
+    "empty": "Heute hat sich niemand angekündigt.",
+    "nurse": "Pflegedienst",
+    "aide": "Haushaltshilfe",
+    "someone": "Jemand kommt",
+    "roles": {
+      "admin": "Familie",
+      "family": "Familie",
+      "professional": "Fachkraft",
+      "neighbor": "Nachbar",
+      "viewer": "Angehöriger"
+    }
+  },
+  "appointments": {
+    "title": "Termine heute",
+    "empty": "Heute kein Termin."
+  },
+  "meds": {
+    "title": "Ihre Medikamente",
+    "timeTitle": "Es ist Zeit für Ihre Medikamente",
+    "empty": "Heute keine Medikamente.",
+    "at": "um {{time}}",
+    "taken": "Genommen, sehr gut",
+    "take": "{{amount}} nehmen",
+    "takeAll": "Ich habe alle genommen",
+    "takeAllHint": "Sehr gut! Das wird eingetragen.",
+    "confirmed": "Eingetragen, sehr gut!",
+    "nothingTitle": "Im Moment ist nichts zu tun",
+    "nextAt": "Nächste Medikamente um {{time}}",
+    "allDone": "Alle Medikamente für heute sind genommen",
+    "someDone": "Heute {{taken}} von {{total}} Einnahmen genommen"
+  },
+  "actions": {
+    "ask": "Fragen Sie mich",
+    "askHint": "Medikamente, Besuche, Termine",
+    "info": "Meine Informationen",
+    "infoHint": "Adresse, Arzt, Kontakte",
+    "settings": "Einstellungen",
+    "settingsHint": "Schrift, Wetter, Fotos"
+  },
+  "status": {
+    "ok": "Alles in Ordnung",
+    "okHint": "Mir geht es heute gut",
+    "help": "Ich brauche Hilfe",
+    "helpHint": "Meine Familie sofort benachrichtigen",
+    "sentTitle": "Gesendet.",
+    "sentDetail": "Ihre Familie weiß Bescheid.",
+    "errorTitle": "Das hat nicht geklappt.",
+    "errorDetail": "Bitte drücken Sie den Knopf noch einmal."
+  },
+  "heat": {
+    "banner": "Heute ist es heiß. Denken Sie daran, regelmäßig Wasser zu trinken.",
+    "drink": "Ich habe Wasser getrunken",
+    "thanks": "Sehr gut, eingetragen"
+  },
+  "companion": {
+    "open": "Ein wenig plaudern"
+  },
+  "info": {
+    "title": "Meine Informationen",
+    "name": "Mein Name ist",
+    "address": "Meine Adresse",
+    "phone": "Meine Telefonnummer",
+    "contacts": "Wen ich anrufen kann",
+    "empty": "Noch keine Informationen eingetragen.",
+    "close": "Schließen",
+    "categories": {
+      "doctor": "Arzt",
+      "nurse": "Pflegedienst",
+      "pharmacy": "Apotheke",
+      "aide": "Haushaltshilfe",
+      "physio": "Physiotherapie"
+    }
+  },
+  "pin": {
+    "title": "Code für Pflegende",
+    "hint": "Diese Einstellung ist für Pflegende. Bitte geben Sie den Code ein.",
+    "placeholder": "Code",
+    "submit": "Bestätigen",
+    "wrong": "Falscher Code",
+    "cancel": "Abbrechen"
+  },
+  "leave": {
+    "title": "Tablet-Ansicht verlassen",
+    "unpairHint": "Dieses Gerät wird vom Kreis getrennt. Eine Pflegeperson kann es in den Einstellungen wieder koppeln.",
+    "unpair": "Dieses Gerät trennen",
+    "back": "Zurück zur App für Pflegende"
+  },
+  "pair": {
+    "title": "Dieses Gerät koppeln",
+    "subtitle": "Geben Sie den Code ein, der in OpenCare angezeigt wird (Einstellungen, Tablet-Ansicht).",
+    "codeLabel": "Kopplungscode",
+    "submit": "Koppeln",
+    "error": "Ungültiger oder abgelaufener Code. Bitten Sie eine Pflegeperson um einen neuen.",
+    "caregiver": "Ich bin Pflegeperson: anmelden",
+    "success": "Fertig! Dieses Gerät ist für {{name}} bereit."
+  },
+  "weather": {
+    "clear": "Die Sonne scheint",
+    "partlyCloudy": "Ein paar Wolken",
+    "cloudy": "Der Himmel ist bedeckt",
+    "fog": "Es ist neblig",
+    "drizzle": "Leichter Regen",
+    "rain": "Es regnet",
+    "snow": "Es schneit",
+    "storm": "Es gibt ein Gewitter"
+  },
+  "displaySettings": {
+    "open": "Anzeige-Einstellungen",
+    "title": "Anzeige-Einstellungen",
+    "close": "Schließen",
+    "location": "Ort für das Wetter",
+    "searchPlaceholder": "Stadt suchen…",
+    "noResults": "Keine Ergebnisse",
+    "noLocation": "Wählen Sie einen Ort, um auf diesem Bildschirm das Wetter zu zeigen.",
+    "change": "Ändern",
+    "photoBackground": "Familienfotos",
+    "photoBackgroundHint": "Zeigt Familienfotos im Begrüßungsbereich. Dafür ist eine verbundene Immich-Anbindung nötig.",
+    "fontSize": "Schriftgröße",
+    "fontNormal": "Normal",
+    "fontLarge": "Groß",
+    "fontXL": "Sehr groß",
+    "language": "Sprache des Bildschirms",
+    "deviceName": "Dieses Gerät: {{name}}",
+    "browserSpeech": "Diktieren über den Browser",
+    "browserSpeechHint": "Ohne Whisper-Server erkennt der Browser die Stimme bei „Fragen Sie mich“ (je nach Gerät Google, Apple oder Microsoft). Sie verlässt dann Ihren Server. Ausgeschaltet wird nur das lokale Diktieren verwendet."
+  },
+  "settings": {
+    "title": "Tablet-Ansicht (Tablet und Handy)",
+    "subtitle": "Der Bildschirm für das Tablet an der Wand und das Handy Ihres Angehörigen: was jetzt zu nehmen ist, wer kommt, Termine, der Assistent und die Knöpfe \"Alles in Ordnung\" und \"Ich brauche Hilfe\".",
+    "open": "Tablet-Ansicht öffnen",
+    "devices": "Gekoppelte Geräte",
+    "noDevices": "Kein gekoppeltes Gerät. Koppeln Sie das Wand-Tablet oder das Handy Ihres Angehörigen. Dafür ist kein Konto nötig.",
+    "pairKiosk": "Tablet koppeln",
+    "pairPhone": "Handy koppeln",
+    "deviceName": "Name des Geräts",
+    "deviceNamePlaceholder": "z. B. Tablet im Wohnzimmer",
+    "kinds": {
+      "kiosk": "Wand-Tablet",
+      "phone": "Handy des Angehörigen"
+    },
+    "lastSeen": "Zuletzt gesehen {{when}}",
+    "neverSeen": "Noch nie verbunden",
+    "revoke": "Trennen",
+    "revoked": "Gerät getrennt",
+    "pairingTitle": "Kopplungscode",
+    "pairingHint": "Öffnen Sie auf dem Gerät {{url}} und geben Sie diesen Code ein, oder scannen Sie den QR-Code. 15 Minuten gültig, nur einmal verwendbar.",
+    "pairingDone": "Schließen",
+    "pin": "Code für Pflegende (PIN)",
+    "pinHint": "Schützt die Einstellungen und das Verlassen der Tablet-Ansicht, besonders wenn Besuch das Tablet berührt. 4 bis 8 Ziffern.",
+    "pinSet": "Ein Code ist festgelegt.",
+    "pinNotSet": "Kein Code: Die Einstellungen der Tablet-Ansicht sind für alle offen.",
+    "pinPlaceholder": "z. B. 2468",
+    "setPin": "Code festlegen",
+    "changePin": "Code ändern",
+    "removePin": "Code entfernen",
+    "pinSaved": "Code gespeichert",
+    "pinRemoved": "Code entfernt",
+    "pinInvalid": "Der Code muss 4 bis 8 Ziffern haben."
+  },
+  "visitor": {
+    "button": "Besuch",
+    "title": "Wer ist heute zu Besuch?",
+    "subtitle": "Bitte wählen Sie, wer zu Besuch ist.",
+    "nameTitle": "Wie heißen Sie?",
+    "namePlaceholder": "Ihr Vorname",
+    "namePick": "Oder wählen Sie Ihren Namen",
+    "back": "Zurück",
+    "continue": "Weiter",
+    "checkIn": "Anmelden",
+    "welcome": "Hallo {{name}}!",
+    "thanks": "Danke, dass Sie {{recipient}} heute besuchen.",
+    "thanksNoName": "Danke für Ihren Besuch heute.",
+    "recorded": "Ihr Besuch ist eingetragen, und die Familie weiß Bescheid.",
+    "present": "{{name}} ist seit {{time}} da",
+    "checkOut": "Abmelden",
+    "checkedOut": "Einen schönen Tag, {{name}}, bis bald!",
+    "done": "Verstanden",
+    "proTitle": "Während Ihres Besuchs",
+    "writeNote": "Notiz zum Besuch schreiben",
+    "notePlaceholder": "Was Sie gemacht haben, was Ihnen aufgefallen ist...",
+    "sendNote": "Notiz senden",
+    "noteSent": "Notiz an die Familie gesendet.",
+    "confirmMeds": "Gegebene Medikamente bestätigen",
+    "confirmMedsHint": "Jetzt zu bestätigen: {{count}}",
+    "medsConfirmed": "Medikamente bestätigt, danke.",
+    "nothingToConfirm": "Im Moment ist kein Medikament zu bestätigen.",
+    "types": {
+      "family": "Familie",
+      "friend": "Freund / Nachbar",
+      "caregiver": "Betreuungskraft",
+      "nurse": "Pflegedienst",
+      "doctor": "Arzt / Termin",
+      "other": "Sonstige"
+    },
+    "error": "Das hat nicht geklappt. Bitte versuchen Sie es noch einmal.",
+    "instructions": "Hinweise für den Besuch",
+    "instructionsEmpty": "Keine besonderen Hinweise.",
+    "instructionSections": {
+      "morning": "Morgens",
+      "meals": "Mahlzeiten",
+      "mobility": "Bewegung",
+      "personal_care": "Körperpflege",
+      "communication": "Verständigung",
+      "triggers": "Auslöser für Unruhe",
+      "calming": "Was beruhigt",
+      "emergency": "Im Notfall"
+    }
+  },
+  "reminder": {
+    "title": "Es ist Zeit für Ihre Medikamente",
+    "spoken": "Schauen Sie, was Sie nehmen müssen, und tippen Sie auf den grünen Knopf, wenn Sie fertig sind.",
+    "subtitle_one": "Jetzt {{count}} Einnahme",
+    "subtitle_other": "Jetzt {{count}} Einnahmen",
+    "taken": "Ich habe alles genommen",
+    "later": "Gut, gleich"
+  },
+  "emergency": {
+    "button": "Notfall",
+    "title": "Notfallblatt",
+    "subtitle": "Zeigen Sie das den Rettungskräften. Mit dem Code können sie es mitnehmen.",
+    "close": "Schließen",
+    "loading": "Einen Moment...",
+    "unavailable": "Das Blatt ist nicht verfügbar. Bitte fragen Sie die Familie.",
+    "birth": "Geboren am",
+    "age_one": "{{count}} Jahr alt",
+    "age_other": "{{count}} Jahre alt",
+    "bloodType": "Blutgruppe",
+    "allergies": "Allergien",
+    "noAllergies": "Keine bekannte Allergie",
+    "medications": "Aktuelle Medikamente",
+    "noMedications": "Kein Medikament eingetragen",
+    "history": "Vorerkrankungen",
+    "directives": "Patientenverfügung",
+    "extra": "Weitere Informationen",
+    "contacts": "Wen man anrufen kann",
+    "gp": "Hausarzt",
+    "scanTitle": "Blatt mitnehmen",
+    "scanHint": "Mit einem Handy scannen. Das Blatt öffnet sich ohne Internet, es wird nichts gesendet.",
+    "qrAlt": "QR-Code des Notfallblatts",
+    "tooBig": "Langes Blatt: Der Code lässt sich vielleicht schwer scannen. Kürzen Sie die Vorerkrankungen in der App."
+  }
+}

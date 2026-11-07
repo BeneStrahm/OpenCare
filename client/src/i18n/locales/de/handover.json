@@ -1,0 +1,81 @@
+{
+  "card": {
+    "title": "Vertretung",
+    "description": "Sie sind eine Weile weg? Erstellen Sie ein Übergabepaket: Hinweise, Medikamente, Termine im Zeitraum, Kontakte und die Seite \"Wer ich bin\". Die Vertretung erhält es über einen einfachen Link.",
+    "empty": "Noch kein Übergabepaket.",
+    "period": "Vom {{start}} bis {{end}}",
+    "copyLink": "Link kopieren",
+    "copied": "Link kopiert",
+    "deleteConfirm": "Dieses Paket löschen? Der Link funktioniert dann nicht mehr.",
+    "deleted": "Paket gelöscht",
+    "new": "Übergabepaket erstellen",
+    "startsOn": "Vertretung beginnt",
+    "endsOn": "Vertretung endet",
+    "instructions": "Hinweise für die Vertretung",
+    "instructionsPlaceholder": "Der Schlüssel liegt beim Nachbarn, die Physiotherapie kommt dienstags, im Zweifel Sophie anrufen...",
+    "create": "Paket erstellen",
+    "creating": "Wird erstellt...",
+    "created": "Paket erstellt. Schicken Sie den Link unten an die Vertretung.",
+    "linkLabel": "Link zum Teilen",
+    "expiryNote": "Der Inhalt wird beim Erstellen festgehalten. Der Link bleibt bis 7 Tage nach Ende der Vertretung lesbar.",
+    "datesRequired": "Bitte geben Sie Beginn und Ende an.",
+    "datesOrder": "Das Ende muss nach dem Beginn liegen.",
+    "errors": {
+      "load": "Die Übergabepakete konnten nicht geladen werden.",
+      "create": "Das Paket konnte nicht erstellt werden.",
+      "delete": "Löschen fehlgeschlagen."
+    }
+  },
+  "page": {
+    "title": "Vertretung vom {{start}} bis {{end}}",
+    "forName": "für {{name}}",
+    "generatedAt": "Paket erstellt am {{date}}",
+    "print": "Drucken",
+    "sections": {
+      "recipient": "Die betreute Person",
+      "instructions": "Hinweise",
+      "medications": "Aktuelle Medikamente",
+      "schedule": "Termine im Zeitraum",
+      "contacts": "Kontakte",
+      "story": "Wer ich bin"
+    },
+    "recipient": {
+      "birthDate": "Geburtsdatum",
+      "phone": "Telefon",
+      "address": "Adresse",
+      "allergies": "Allergien",
+      "gp": "Hausarzt"
+    },
+    "noMedications": "Kein aktives Medikament.",
+    "noEvents": "Im Zeitraum ist nichts geplant.",
+    "noContacts": "Kein Kontakt eingetragen.",
+    "hasKey": "hat den Schlüssel",
+    "eventCategories": {
+      "visit": "Besuch",
+      "medical": "Medizinisch",
+      "nurse": "Pflegedienst",
+      "aide": "Haushaltshilfe",
+      "other": "Sonstiges"
+    },
+    "contactCategories": {
+      "doctor": "Arzt",
+      "nurse": "Pflegedienst",
+      "aide": "Haushaltshilfe",
+      "physio": "Physiotherapie",
+      "pharmacy": "Apotheke",
+      "family": "Familie",
+      "neighbor": "Nachbar",
+      "other": "Sonstige"
+    },
+    "expired": {
+      "title": "Link abgelaufen",
+      "text": "Dieses Übergabepaket ist nicht mehr verfügbar. Bitten Sie die Familie um einen neuen Link."
+    },
+    "errors": {
+      "title": "Paket nicht verfügbar",
+      "notFound": "Dieser Link ist nicht gültig. Bitte prüfen Sie ihn oder bitten Sie die Familie um einen neuen.",
+      "network": "Keine Verbindung. Bitte prüfen Sie das Netz und versuchen Sie es erneut."
+    },
+    "footer": "Dieser Link ist für die Person bestimmt, die im angegebenen Zeitraum übernimmt."
+  }
+}

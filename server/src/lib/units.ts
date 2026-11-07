@@ -77,5 +77,5 @@ export const formatVital = (
 export const roundedDisplayValue = (type: VitalType, metric: number, system: UnitSystem): number =>
     Number(toDisplayValue(type, metric, system).toFixed(decimalsFor(type, system)));
 
-/** Locale d'affichage des nombres pour une langue de compte ('fr' -> 68,2 ; 'en' -> 68.2 ; 'es' -> 68,2). */
+/** Locale d'affichage des nombres pour une langue de compte ('fr' -> 68,2 ; 'en' -> 68.2 ; 'es' -> 68,2 ; 'de' -> 68,2). */
 export const numberLocale = (language: string | null | undefined): string => intlLocale(pickLang(language));

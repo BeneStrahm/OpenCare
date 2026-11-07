@@ -1,0 +1,135 @@
+{
+  "title": "Einstellungen",
+  "subtitle": "Ihr Konto, Ihre Vorlieben und die Daten des Kreises.",
+  "profile": {
+    "title": "Kontoprofil",
+    "subtitle": "Ihr Name und Ihr Foto, sichtbar für die Mitglieder Ihrer Kreise.",
+    "name": "Angezeigter Name",
+    "namePlaceholder": "z. B. Erika Mustermann",
+    "save": "Speichern",
+    "saved": "Profil gespeichert.",
+    "change": "Foto ändern",
+    "choose": "Foto auswählen",
+    "remove": "Entfernen"
+  },
+  "language": {
+    "title": "Sprache",
+    "subtitle": "Wählen Sie die Sprache der App."
+  },
+  "region": {
+    "title": "Sprache und Region",
+    "subtitle": "Wie OpenCare liest, misst und die Woche zählt.",
+    "forYou": "Nur für Sie",
+    "forCircle": "Für alle in diesem Kreis"
+  },
+  "theme": {
+    "title": "Darstellung",
+    "subtitle": "Hell, dunkel oder automatisch passend zu Ihrem Gerät.",
+    "light": "Hell",
+    "dark": "Dunkel",
+    "system": "System"
+  },
+  "notif": {
+    "title": "Push-Benachrichtigungen",
+    "subtitle": "Erhalten Sie Erinnerungen und Alarme des Kreises direkt auf diesem Gerät, auch wenn die App geschlossen ist.",
+    "unsupported": "Benachrichtigungen werden von diesem Browser nicht unterstützt.",
+    "denied": "Berechtigung verweigert. Erlauben Sie Benachrichtigungen in den Einstellungen Ihres Browsers.",
+    "enable": "Benachrichtigungen einschalten",
+    "disable": "Benachrichtigungen ausschalten",
+    "inProgress": "Wird bearbeitet…",
+    "active": "Benachrichtigungen sind auf diesem Gerät eingeschaltet."
+  },
+  "export": {
+    "title": "Daten des Kreises exportieren",
+    "subtitle": "Laden Sie alle Daten des aktiven Kreises (Tagebuch, Gesundheit, Medikamente, Kalender, Aufgaben, Ausgaben, Dokumente…) als JSON-Datei herunter. Ihre Daten bleiben bei Ihnen.",
+    "button": "Exportieren",
+    "inProgress": "Wird exportiert…"
+  },
+  "import": {
+    "title": "Daten importieren",
+    "subtitle": "Stellen Sie Daten aus einer OpenCare-Exportdatei im aktiven Kreis wieder her. Importierte Einträge kommen zu den vorhandenen Daten hinzu.",
+    "success": "Import erfolgreich",
+    "itemsImported_one": "Eintrag importiert",
+    "itemsImported_other": "Einträge importiert",
+    "chooseFile": "Datei auswählen…",
+    "button": "Importieren",
+    "inProgress": "Wird importiert…",
+    "invalidJson": "Ungültige JSON-Datei."
+  },
+  "entities": {
+    "care_recipients": "Profil der betreuten Person",
+    "recipient_stories": "Seite \"Wer ich bin\"",
+    "journal_entries": "Tagebucheinträge",
+    "journal_photos": "Tagebuchfotos",
+    "vitals": "Messwerte",
+    "medications": "Medikamente",
+    "medication_schedules": "Einnahmepläne",
+    "medication_intakes": "Einnahmen",
+    "prescriptions": "Rezepte",
+    "events": "Termine",
+    "tasks": "Aufgaben",
+    "shopping_items": "Einkaufsartikel",
+    "circle_notes": "Notizen",
+    "messages": "Nachrichten",
+    "documents": "Dokumente",
+    "contacts": "Kontakte",
+    "expenses": "Ausgaben",
+    "expense_settlements": "Ausgleichszahlungen",
+    "aid_records": "Hilfen"
+  },
+  "errors": {
+    "notif": "Fehler beim Einrichten der Benachrichtigungen.",
+    "profile": "Fehler beim Aktualisieren des Profils.",
+    "avatarImage": "Bitte wählen Sie ein Bild.",
+    "avatarRead": "Die Datei konnte nicht gelesen werden.",
+    "avatarInvalid": "Ungültiges Bild.",
+    "avatarCanvas": "Canvas nicht verfügbar.",
+    "avatarUpdate": "Fehler beim Aktualisieren des Fotos.",
+    "avatarRemove": "Fehler beim Entfernen des Fotos.",
+    "export": "Fehler beim Export.",
+    "import": "Fehler beim Import."
+  },
+  "units": {
+    "title": "Einheiten",
+    "subtitle": "Wie Messwerte in diesem Kreis eingegeben und angezeigt werden.",
+    "metric": "Metrisch",
+    "imperial": "Angloamerikanisch",
+    "weight": "Gewicht in",
+    "temperature": "Temperatur in",
+    "glucose": "Blutzucker in",
+    "hint": "Messwerte bleiben metrisch gespeichert. Beim Umschalten wird der gesamte Verlauf auf dem Bildschirm umgerechnet, nichts geht verloren. Der Blutdruck bleibt immer in mmHg.",
+    "error": "Die Einheiten konnten nicht gespeichert werden."
+  },
+  "weekStart": {
+    "title": "Die Woche beginnt am",
+    "subtitle": "Erste Spalte im Kalender und erster Tag bei der Auswahl von Wochentagen.",
+    "monday": "Montag",
+    "sunday": "Sonntag",
+    "error": "Der erste Wochentag konnte nicht gespeichert werden."
+  },
+  "emergencyNumbers": {
+    "title": "Notrufnummern",
+    "subtitle": "Werden auf das Plakat des Notfallblatts gedruckt. Tragen Sie die Nummern ein, die am Wohnort Ihres Angehörigen gelten.",
+    "placeholder": "z. B. 112",
+    "save": "Speichern",
+    "saving": "Wird gespeichert",
+    "saved": "Gespeichert. Drucken Sie das Plakat neu, damit es aktuell ist.",
+    "error": "Die Notrufnummern konnten nicht gespeichert werden."
+  },
+  "aidTypes": {
+    "title": "Arten von Hilfen",
+    "subtitle": "Zur Auswahl unter Ausgaben, Hilfen und Leistungen. Passen Sie die Liste an die Leistungen am Wohnort Ihres Angehörigen an.",
+    "placeholder": "z. B. Pflegegeld, Entlastungsbetrag",
+    "newLabel": "Neue Art von Hilfe",
+    "add": "Hinzufügen",
+    "remove": "{{type}} entfernen",
+    "save": "Speichern",
+    "saving": "Wird gespeichert",
+    "saved": "Gespeichert. Bereits eingetragene Hilfen behalten ihre Art.",
+    "reset": "Zurück zur Standardliste",
+    "empty": "Fügen Sie vor dem Speichern mindestens eine Art hinzu.",
+    "duplicate": "Diese Art steht bereits in der Liste.",
+    "tooMany": "Höchstens {{max}} Arten.",
+    "error": "Die Arten von Hilfen konnten nicht gespeichert werden."
+  }
+}

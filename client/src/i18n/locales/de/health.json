@@ -1,0 +1,88 @@
+{
+  "title": "Gesundheit",
+  "subtitle": "Messwerte und ihr Verlauf",
+  "loading": "Gesundheitsdaten werden geladen...",
+  "addMeasure": "Neue Messung",
+  "latest": {
+    "title": "Letzte Werte",
+    "emptyTitle": "Noch keine Messungen",
+    "emptyDescription": "Tragen Sie eine erste Messung ein, um den Verlauf zu verfolgen.",
+    "addFirst": "Messung eintragen"
+  },
+  "chart": {
+    "title": "Verlauf",
+    "subtitle": "Kurve über den gewählten Zeitraum",
+    "empty": "Keine Messungen in diesem Zeitraum.",
+    "systolic": "Systolisch",
+    "diastolic": "Diastolisch",
+    "periods": {
+      "30": "30 Tage",
+      "90": "90 Tage",
+      "365": "1 Jahr"
+    }
+  },
+  "recent": {
+    "title": "Neueste Messungen",
+    "empty": "Keine neuen Messungen."
+  },
+  "thresholds": {
+    "title": "Normalbereiche",
+    "description": "Legen Sie für jeden Messwert den üblichen Bereich fest. Eine Messung außerhalb davon benachrichtigt die Pflegenden.",
+    "readOnly": "Normalbereiche werden von Administratoren und Familie festgelegt.",
+    "none": "Kein Bereich festgelegt",
+    "between": "Von {{min}} bis {{max}} {{unit}}",
+    "minOnly": "Ab {{min}} {{unit}}",
+    "maxOnly": "Bis {{max}} {{unit}}",
+    "systolicPrefix": "Systolisch:",
+    "diastolicPrefix": "Diastolisch:",
+    "minLabel": "Minimum",
+    "maxLabel": "Maximum",
+    "minSystolicLabel": "Systolisch Minimum",
+    "maxSystolicLabel": "Systolisch Maximum",
+    "minDiastolicLabel": "Diastolisch Minimum",
+    "maxDiastolicLabel": "Diastolisch Maximum",
+    "unitHint": "Grenzen in {{unit}}.",
+    "clearHint": "Leeren Sie die Felder, um den Bereich zu entfernen.",
+    "outOfRange": "Außerhalb des Bereichs",
+    "outOfRangeLabel": "Messung außerhalb des Normalbereichs"
+  },
+  "vitalTypes": {
+    "weight": "Gewicht",
+    "bp": "Blutdruck",
+    "pain": "Schmerz",
+    "mood": "Stimmung",
+    "temperature": "Temperatur",
+    "glucose": "Blutzucker"
+  },
+  "form": {
+    "title": "Neue Messung",
+    "description": "Die Messung ist für den ganzen Kreis sichtbar.",
+    "typeLabel": "Art des Messwerts",
+    "valueLabel": "Wert",
+    "systolicLabel": "Systolisch",
+    "diastolicLabel": "Diastolisch",
+    "dateLabel": "Datum und Uhrzeit",
+    "notesLabel": "Notizen (optional)"
+  },
+  "actions": {
+    "delete": "Messung löschen"
+  },
+  "confirmDelete": "Diese Messung löschen?",
+  "toasts": {
+    "saved": "Messung gespeichert",
+    "deleted": "Messung gelöscht",
+    "thresholdSaved": "Normalbereich gespeichert"
+  },
+  "errors": {
+    "load": "Die Messungen konnten nicht geladen werden.",
+    "save": "Die Messung konnte nicht gespeichert werden.",
+    "delete": "Die Messung konnte nicht gelöscht werden.",
+    "valueRequired": "Bitte geben Sie einen gültigen Zahlenwert ein.",
+    "threshold": "Der Normalbereich konnte nicht gespeichert werden.",
+    "thresholdInvalid": "Bitte geben Sie gültige Zahlen als Grenzen ein."
+  },
+  "restricted": {
+    "title": "Eingeschränkter Zugriff",
+    "description": "Die Gesundheitswerte sind für Familie und Fachkräfte des Kreises sichtbar."
+  }
+}

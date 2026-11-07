@@ -23,7 +23,7 @@ interface EventRow {
 
 interface MemberRow {
     user_id: string;
-    /** Recipient's preferred language ('fr' | 'en' | 'es'), defaults to 'fr' */
+    /** Recipient's preferred language ('fr' | 'en' | 'es' | 'de'), defaults to 'fr' */
     language: string;
 }
 
@@ -43,6 +43,12 @@ function buildEventTexts(event: EventRow, kind: '30min' | '1hour', language: str
     const suffix = `${timeStr}${event.location ? ` · ${event.location}` : ''}`;
     const lang = pickLang(language);
 
+    if (lang === 'de') {
+        return {
+            title: `⏰ Erinnerung: ${event.title}`,
+            body: `${kind === '30min' ? 'In 30 Minuten' : 'In 1 Stunde'} · ${timeStr} Uhr${event.location ? ` · ${event.location}` : ''}`,
+        };
+    }
     if (lang === 'es') {
         return {
             title: `⏰ Recordatorio: ${event.title}`,
@@ -169,6 +175,12 @@ interface PrescriptionRow {
 function buildPrescriptionTexts(prescription: PrescriptionRow, language: string): ReminderTexts {
     const [y, m, d] = prescription.renewal_date.split('-');
     const lang = pickLang(language);
+    if (lang === 'de') {
+        return {
+            title: '💊 Rezept erneuern',
+            body: `„${prescription.title}“ muss bis zum ${d}.${m}.${y} erneuert werden`,
+        };
+    }
     if (lang === 'es') {
         return {
             title: '💊 Renovación de receta',
@@ -248,6 +260,14 @@ async function checkPrescriptionRenewals(): Promise<void> {
 
 function buildHydrationTexts(firstName: string, language: string): ReminderTexts {
     const lang = pickLang(language);
+    if (lang === 'de') {
+        return {
+            title: '🌡️ Hitze: Zeit zum Trinken',
+            body: firstName
+                ? `Heute ist es sehr heiß. Bieten Sie ${firstName} ein Glas Wasser an und halten Sie die Wohnung kühl.`
+                : 'Heute ist es sehr heiß. Bieten Sie ein Glas Wasser an und halten Sie die Wohnung kühl.',
+        };
+    }
     if (lang === 'es') {
         return {
             title: '🌡️ Calor: hora de hidratarse',

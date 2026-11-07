@@ -46,6 +46,13 @@ const currentDelivery = (): Delivery => (isMailConfigured() ? 'email' : 'admin')
 function buildEmail(language: string, name: string, url: string): { subject: string; text: string; html: string } {
     const minutes = TOKEN_TTL_MINUTES;
     const lang = pickLang(language);
+    if (lang === 'de') {
+        return {
+            subject: 'OpenCare: Passwort zurücksetzen',
+            text: `Hallo ${name},\n\nfür Ihr OpenCare-Konto wurde das Zurücksetzen des Passworts angefordert. Öffnen Sie diesen Link, um ein neues Passwort zu wählen (gültig für ${minutes} Minuten):\n\n${url}\n\nWenn Sie das nicht waren, ignorieren Sie diese Nachricht. Ihr Passwort bleibt unverändert.`,
+            html: `<p>Hallo ${escapeHtml(name)},</p><p>für Ihr OpenCare-Konto wurde das Zurücksetzen des Passworts angefordert. Öffnen Sie diesen Link, um ein neues Passwort zu wählen (gültig für ${minutes} Minuten):</p><p><a href="${url}">${url}</a></p><p>Wenn Sie das nicht waren, ignorieren Sie diese Nachricht. Ihr Passwort bleibt unverändert.</p>`,
+        };
+    }
     if (lang === 'es') {
         return {
             subject: 'OpenCare: restablecer su contraseña',
@@ -73,6 +80,12 @@ function escapeHtml(value: string): string {
 
 function adminNotificationTexts(language: string, requesterName: string): { title: string; message: string } {
     const lang = pickLang(language);
+    if (lang === 'de') {
+        return {
+            title: 'Passwort-Zurücksetzung angefordert',
+            message: `${requesterName} hat das Passwort vergessen. Öffnen Sie die Seite Kreis, um einen Link zum Zurücksetzen weiterzugeben.`,
+        };
+    }
     if (lang === 'es') {
         return {
             title: 'Solicitud de restablecimiento de contraseña',
@@ -93,6 +106,14 @@ function adminNotificationTexts(language: string, requesterName: string): { titl
 
 function ownerNotificationTexts(language: string, delivery: Delivery): { title: string; message: string } {
     const lang = pickLang(language);
+    if (lang === 'de') {
+        return {
+            title: 'Ihr Passwort wurde geändert',
+            message: delivery === 'admin'
+                ? 'Ihr OpenCare-Passwort wurde mit einem Link zurückgesetzt, den ein Administrator des Kreises weitergegeben hat. Wenn Sie das nicht waren, informieren Sie sofort die Administratoren des Kreises.'
+                : 'Ihr OpenCare-Passwort wurde über den Link aus Ihrer E-Mail zurückgesetzt. Wenn Sie das nicht waren, informieren Sie sofort die Administratoren des Kreises.',
+        };
+    }
     if (lang === 'es') {
         return {
             title: 'Su contraseña ha cambiado',

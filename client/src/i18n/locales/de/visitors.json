@@ -1,0 +1,29 @@
+{
+  "title": "Besuche",
+  "subtitle": "Wer Ihren Angehörigen besucht hat, so wie es in der Tablet-Ansicht eingetragen wurde.",
+  "empty": "In diesem Zeitraum wurde kein Besuch eingetragen.",
+  "emptyHint": "In der Tablet-Ansicht kann sich jeder Besuch mit dem Knopf \"Besuch\" in zwei Schritten anmelden.",
+  "range": {
+    "week": "Letzte 7 Tage",
+    "month": "Letzte 30 Tage",
+    "quarter": "Letzte 3 Monate"
+  },
+  "present": "Gerade da",
+  "arrived": "Gekommen um {{time}}",
+  "left": "Gegangen um {{time}}",
+  "duration": "{{minutes}} Min.",
+  "note": "Notiz zum Besuch",
+  "delete": "Diesen Besuch löschen",
+  "deleted": "Besuch gelöscht",
+  "types": {
+    "family": "Familie",
+    "friend": "Freund oder Nachbar",
+    "caregiver": "Haushaltshilfe",
+    "nurse": "Pflegekraft",
+    "doctor": "Arzt oder Ärztin",
+    "other": "Sonstige"
+  },
+  "errors": {
+    "load": "Die Besuche konnten nicht geladen werden."
+  }
+}

@@ -50,7 +50,7 @@ const idList = (value: unknown): string[] =>
 
 /** Validation stricte d'une mise a jour partielle. */
 export function validateRules(input: unknown, lang: Lang): { patch?: Partial<EscalationRules>; error?: string } {
-    if (!input || typeof input !== 'object') return { error: pick(lang, { fr: 'Les règles doivent être un objet', en: 'rules must be an object', es: 'Las reglas deben ser un objeto' }) };
+    if (!input || typeof input !== 'object') return { error: pick(lang, { fr: 'Les règles doivent être un objet', en: 'rules must be an object', es: 'Las reglas deben ser un objeto', de: 'Die Regeln müssen ein Objekt sein' }) };
     const body = input as Record<string, unknown>;
     const patch: Partial<EscalationRules> = {};
     if (body.enabled !== undefined) patch.enabled = body.enabled === true;
@@ -66,6 +66,7 @@ export function validateRules(input: unknown, lang: Lang): { patch?: Partial<Esc
                 fr: `${key} doit être un nombre entier de minutes entre 0 et ${MAX_MINUTES}`,
                 en: `${key} must be a whole number of minutes between 0 and ${MAX_MINUTES}`,
                 es: `${key} debe ser un número entero de minutos entre 0 y ${MAX_MINUTES}`,
+                de: `${key} muss eine ganze Zahl von Minuten zwischen 0 und ${MAX_MINUTES} sein`,
             }) };
         }
         patch[key] = n;
@@ -191,9 +192,9 @@ const fmtTime = (iso: string, lang: Lang): string => {
     if (Number.isNaN(d.getTime())) return '';
     const h = d.getHours();
     const m = String(d.getMinutes()).padStart(2, '0');
-    // "17 h 30" en francais, "5:30 PM" en anglais (US), "17:30" en espagnol.
+    // "17 h 30" en francais, "5:30 PM" en anglais (US), "17:30" en espagnol et en allemand.
     if (lang === 'en') return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-    if (lang === 'es') return `${h}:${m}`;
+    if (lang === 'es' || lang === 'de') return `${h}:${m}`;
     return d.getMinutes() === 0 ? `${h} h` : `${h} h ${m}`;
 };
 
@@ -201,6 +202,12 @@ function lateTexts(rule: RuleRow, intakes: LateIntake[], level: 'primary' | 'sec
     const lang = pickLang(language);
     const name = (rule.first_name ?? '').trim();
     const list = intakes.map((i) => `${i.name} (${fmtTime(i.due_at, lang)})`).join(', ');
+    if (lang === 'de') {
+        return {
+            title: level === 'primary' ? `⏰ Einnahme verspätet${name ? ` bei ${name}` : ''}` : `⏰ Immer noch nicht bestätigt${name ? ` bei ${name}` : ''}`,
+            message: `${list}: noch nicht bestätigt. ${level === 'primary' ? 'Bitte schauen Sie nach.' : 'Auch die Hauptpflegenden haben noch nicht bestätigt. Bitte schauen Sie nach.'}`,
+        };
+    }
     if (lang === 'es') {
         return {
             title: level === 'primary' ? `⏰ Toma con retraso${name ? ` en casa de ${name}` : ''}` : `⏰ Sigue sin confirmar${name ? ` en casa de ${name}` : ''}`,
@@ -222,6 +229,12 @@ function lateTexts(rule: RuleRow, intakes: LateIntake[], level: 'primary' | 'sec
 function helpTexts(rule: RuleRow, minutes: number, language: string): { title: string; message: string } {
     const lang = pickLang(language);
     const name = (rule.first_name ?? '').trim();
+    if (lang === 'de') {
+        return {
+            title: `🆘 Immer noch keine Antwort${name ? `: ${name} hat um Hilfe gebeten` : ' auf eine Bitte um Hilfe'}`,
+            message: `Seit ${minutes} Min. hat sich niemand um die Bitte um Hilfe gekümmert. Bitte prüfen Sie, ob alles in Ordnung ist.`,
+        };
+    }
     if (lang === 'es') {
         return {
             title: `🆘 Sigue sin respuesta${name ? `: ${name} ha pedido ayuda` : ': petición de ayuda'}`,

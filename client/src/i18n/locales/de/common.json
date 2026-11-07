@@ -1,0 +1,109 @@
+{
+  "appName": "OpenCare",
+  "demo": {
+    "notice": "Demo-Modus: Ihre Änderungen werden nicht gespeichert und beim Neuladen zurückgesetzt.",
+    "reset": "Zurücksetzen",
+    "star": "Auf GitHub mit Stern markieren"
+  },
+  "language": {
+    "syncError": "Ihre Spracheinstellung konnte nicht gespeichert werden.",
+    "label": "Sprache"
+  },
+  "actions": {
+    "add": "Hinzufügen",
+    "edit": "Bearbeiten",
+    "delete": "Löschen",
+    "cancel": "Abbrechen",
+    "save": "Speichern",
+    "saveChanges": "Änderungen speichern",
+    "close": "Schließen",
+    "confirm": "Bestätigen",
+    "create": "Erstellen",
+    "update": "Aktualisieren",
+    "search": "Suchen",
+    "filter": "Filtern",
+    "back": "Zurück",
+    "today": "Heute",
+    "retry": "Erneut versuchen",
+    "apply": "Übernehmen",
+    "reset": "Zurücksetzen",
+    "export": "Exportieren",
+    "import": "Importieren",
+    "clear": "Leeren",
+    "send": "Senden",
+    "loadMore": "Mehr laden"
+  },
+  "states": {
+    "loading": "Wird geladen…",
+    "saving": "Wird gespeichert…",
+    "empty": "Hier ist noch nichts",
+    "error": "Ein Fehler ist aufgetreten",
+    "underConstruction": "Diese Seite ist noch in Arbeit."
+  },
+  "labels": {
+    "name": "Name",
+    "fullName": "Vollständiger Name",
+    "description": "Beschreibung",
+    "date": "Datum",
+    "time": "Uhrzeit",
+    "startTime": "Beginn",
+    "endTime": "Ende",
+    "location": "Ort",
+    "notes": "Notizen",
+    "category": "Kategorie",
+    "quantity": "Menge",
+    "price": "Preis",
+    "amount": "Betrag",
+    "email": "E-Mail",
+    "password": "Passwort",
+    "optional": "optional",
+    "all": "Alle",
+    "none": "Keine"
+  },
+  "days": [
+    "Montag",
+    "Dienstag",
+    "Mittwoch",
+    "Donnerstag",
+    "Freitag",
+    "Samstag",
+    "Sonntag"
+  ],
+  "daysShort": [
+    "Mo",
+    "Di",
+    "Mi",
+    "Do",
+    "Fr",
+    "Sa",
+    "So"
+  ],
+  "months": [
+    "Januar",
+    "Februar",
+    "März",
+    "April",
+    "Mai",
+    "Juni",
+    "Juli",
+    "August",
+    "September",
+    "Oktober",
+    "November",
+    "Dezember"
+  ],
+  "monthsShort": [
+    "Jan.",
+    "Feb.",
+    "März",
+    "Apr.",
+    "Mai",
+    "Juni",
+    "Juli",
+    "Aug.",
+    "Sep.",
+    "Okt.",
+    "Nov.",
+    "Dez."
+  ]
+}

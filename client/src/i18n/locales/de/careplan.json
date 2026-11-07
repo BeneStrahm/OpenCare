@@ -1,0 +1,46 @@
+{
+  "title": "Pflegeplan",
+  "titleFor": "Pflegeplan für {{name}}",
+  "theLovedOne": "Ihren Angehörigen",
+  "subtitle": "Alles, was man für die Betreuung von {{name}} wissen muss, an einem Ort: Abläufe, Medikamente, das Team und die Woche.",
+  "updated": "Hinweise aktualisiert {{when}} von {{name}}",
+  "neverUpdated": "Die Hinweise wurden noch nicht geschrieben.",
+  "readOnly": "Nur Administratoren und Familie können sie bearbeiten.",
+  "print": "Drucken",
+  "complete": "Ausfüllen",
+  "saved": "Hinweise gespeichert.",
+  "sections": {
+    "morning": { "title": "Morgenroutine", "hint": "Aufstehen, Frühstück, was den Tag gut beginnen lässt." },
+    "meals": { "title": "Mahlzeiten", "hint": "Zeiten, Vorlieben, Konsistenz, was zu vermeiden ist, nötige Hilfe." },
+    "mobility": { "title": "Hilfe bei der Bewegung", "hint": "Rollator, Umsetzen, Treppen, Sturzgefahr, was nicht allein getan werden sollte." },
+    "personal_care": { "title": "Körperpflege", "hint": "Waschen, Anziehen, Kontinenz, Pflegeprodukte, Schamgefühl und Gewohnheiten." },
+    "communication": { "title": "Verständigung", "hint": "Hören, Sehen, Sprache, passende Worte, wie man sicher verstanden wird." },
+    "triggers": { "title": "Auslöser für Unruhe", "hint": "Situationen, Themen oder Zeiten, die Unruhe oder Angst auslösen." },
+    "calming": { "title": "Was beruhigt", "hint": "Musik, Erinnerungen, Gegenstände, Gesten, Menschen, die Sicherheit geben." },
+    "emergency": { "title": "Hinweise für den Notfall", "hint": "Wen man zuerst anruft, wo die Unterlagen liegen, Allergien, Anweisungen des Arztes." }
+  },
+  "medications": {
+    "title": "Medikamentenplan",
+    "empty": "Keine laufende Behandlung.",
+    "nothing": "Nichts",
+    "prn": "Bei Bedarf",
+    "slots": { "morning": "Morgens", "midday": "Mittags", "evening": "Abends", "night": "Zur Nacht" },
+    "withFood": { "with": "zum Essen", "without": "nicht zum Essen" },
+    "manage": "Medikamente verwalten"
+  },
+  "professionals": {
+    "title": "Regelmäßige Fachkräfte",
+    "empty": "Keine Fachkraft in den Kontakten (Arzt, Pflegedienst, Haushaltshilfe, Physiotherapie, Apotheke).",
+    "manage": "Kontakte ansehen"
+  },
+  "week": {
+    "title": "Die kommende Woche",
+    "empty": "Nichts geplant.",
+    "recurring": "Wiederkehrend",
+    "manage": "Kalender öffnen"
+  },
+  "errors": {
+    "load": "Der Pflegeplan konnte nicht geladen werden.",
+    "save": "Die Hinweise konnten nicht gespeichert werden."
+  }
+}

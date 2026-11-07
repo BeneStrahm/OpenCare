@@ -211,6 +211,9 @@ interface DigestNotifTexts {
 
 function buildDigestTexts(firstName: string, summary: string, language: string): DigestNotifTexts {
     const lang = pickLang(language);
+    if (lang === 'de') {
+        return { title: `Wochenrückblick für ${firstName}`, message: summary };
+    }
     if (lang === 'es') {
         return { title: `Resumen de la semana de ${firstName}`, message: summary };
     }

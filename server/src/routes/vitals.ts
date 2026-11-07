@@ -109,12 +109,12 @@ interface ThresholdRow {
 
 /** Libelles serveur des constantes, pour le texte des notifications. */
 const VITAL_LABELS: Record<string, Record<Lang, string>> = {
-    weight: { fr: 'Poids', en: 'Weight', es: 'Peso' },
-    bp: { fr: 'Tension', en: 'Blood pressure', es: 'Tensión' },
-    pain: { fr: 'Douleur', en: 'Pain', es: 'Dolor' },
-    mood: { fr: 'Moral', en: 'Mood', es: 'Ánimo' },
-    temperature: { fr: 'Température', en: 'Temperature', es: 'Temperatura' },
-    glucose: { fr: 'Glycémie', en: 'Blood sugar', es: 'Glucemia' },
+    weight: { fr: 'Poids', en: 'Weight', es: 'Peso', de: 'Gewicht' },
+    bp: { fr: 'Tension', en: 'Blood pressure', es: 'Tensión', de: 'Blutdruck' },
+    pain: { fr: 'Douleur', en: 'Pain', es: 'Dolor', de: 'Schmerz' },
+    mood: { fr: 'Moral', en: 'Mood', es: 'Ánimo', de: 'Stimmung' },
+    temperature: { fr: 'Température', en: 'Temperature', es: 'Temperatura', de: 'Temperatur' },
+    glucose: { fr: 'Glycémie', en: 'Blood sugar', es: 'Glucemia', de: 'Blutzucker' },
 };
 
 const num = (raw: unknown): number | null => {
@@ -173,11 +173,13 @@ async function notifyOutOfRange(
             fr: `${label} hors de la plage${who ? ` pour ${who}` : ''}`,
             en: `${label} out of range${who ? ` for ${who}` : ''}`,
             es: `${label} fuera de rango${who ? ` para ${who}` : ''}`,
+            de: `${label} außerhalb des Bereichs${who ? ` bei ${who}` : ''}`,
         });
         const message = pick(lang, {
             fr: `Dernière mesure : ${reading}, ${high ? 'au-dessus' : 'en dessous'} de la plage définie pour ce cercle.`,
             en: `Last measurement: ${reading}, ${high ? 'above' : 'below'} the range set for this circle.`,
             es: `Última medición: ${reading}, ${high ? 'por encima' : 'por debajo'} del rango definido para este círculo.`,
+            de: `Letzte Messung: ${reading}, ${high ? 'über' : 'unter'} dem für diesen Kreis festgelegten Bereich.`,
         });
         return createNotification({
             userId: member.user_id,
