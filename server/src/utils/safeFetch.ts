@@ -71,7 +71,7 @@ type UndiciAgentCtor = new (opts: {
     [k: string]: unknown;
 }) => unknown;
 
-let undiciLoad: Promise<{ Agent: UndiciAgentCtor } | null> | null = null;
+let undiciLoad: Promise<{ Agent: UndiciAgentCtor; fetch: UndiciFetch | null } | null> | null = null;
 
 /**
  * Lazily import undici. The specifier is held in a variable so the TypeScript
@@ -79,15 +79,22 @@ let undiciLoad: Promise<{ Agent: UndiciAgentCtor } | null> | null = null;
  * (only undici-types is installed for typings). Returns null if undici is not
  * available at runtime, so callers can fall back to degraded pinning.
  */
-async function loadUndici(): Promise<{ Agent: UndiciAgentCtor } | null> {
+type UndiciFetch = (input: string, init?: RequestInit) => Promise<Response>;
+
+async function loadUndici(): Promise<{ Agent: UndiciAgentCtor; fetch: UndiciFetch | null } | null> {
     if (undiciLoad) return undiciLoad;
     undiciLoad = (async () => {
         try {
             // Build the specifier at runtime so neither tsc nor a bundler tries to
             // statically resolve the value module (only undici-types is on disk).
             const spec: string = ['un', 'dici'].join('');
-            const mod = (await import(spec)) as { Agent?: UndiciAgentCtor };
-            return typeof mod.Agent === 'function' ? { Agent: mod.Agent } : null;
+            const mod = (await import(spec)) as { Agent?: UndiciAgentCtor; fetch?: UndiciFetch };
+            // Fork-Fix: Ein Agent aus dem npm-Paket undici (8.x) passt nicht zum
+            // eingebauten fetch von Node 20/22 (undici 6.x): "invalid onRequestStart
+            // method". Darum immer das fetch aus DEMSELBEN Paket wie der Agent nutzen.
+            return typeof mod.Agent === 'function'
+                ? { Agent: mod.Agent, fetch: typeof mod.fetch === 'function' ? mod.fetch : null }
+                : null;
         } catch {
             return null;
         }
@@ -137,14 +144,15 @@ function pinnedLookup(validatedIps: string[]): LookupFunction {
  * Build the dispatcher that pins the connection to `validatedIps`, or null when
  * undici is unavailable (degraded mode is handled by the caller).
  */
-async function buildPinnedDispatcher(validatedIps: string[]): Promise<unknown | null> {
+async function buildPinnedDispatcher(validatedIps: string[]): Promise<{ agent: unknown; fetch: UndiciFetch | null } | null> {
     const undici = await loadUndici();
     if (!undici) return null;
-    return new undici.Agent({
+    const agent = new undici.Agent({
         connect: {
             lookup: pinnedLookup(validatedIps),
         },
     });
+    return { agent, fetch: undici.fetch };
 }
 
 /** Strip credential-bearing headers from a Headers/record before a redirect re-fetch. */
@@ -175,7 +183,8 @@ async function doSafeFetch(rawUrl: string, options: RequestInit, state: Internal
     const hostname = url.hostname.replace(/^\[|\]$/g, '').toLowerCase();
     const validatedIps = await resolveAndValidateHost(hostname, state.blockPrivate);
 
-    const dispatcher = await buildPinnedDispatcher(validatedIps);
+    const pinned = await buildPinnedDispatcher(validatedIps);
+    const dispatcher = pinned?.agent ?? null;
 
     // Degraded http pinning when undici is unavailable: rewrite to the pinned IP
     // (no SNI to preserve). https keeps the validated hostname (cert validation
@@ -202,8 +211,20 @@ async function doSafeFetch(rawUrl: string, options: RequestInit, state: Internal
 
     // The Node 20 global RequestInit (undici-typed, no DOM lib) carries an
     // optional `dispatcher`. We cast our dynamically-loaded Agent into that slot.
+    // Fork-Fix: Das fetch aus undici 8 erkennt das globale FormData von Node
+    // nicht und schickt "[object FormData]". Multipart deshalb hier selbst
+    // serialisieren (mit Boundary im Content-Type).
+    let body = options.body;
+    if (pinned?.fetch && typeof FormData !== 'undefined' && body instanceof FormData) {
+        const encoded = new Response(body);
+        const contentType = encoded.headers.get('content-type');
+        if (contentType) headers.set('content-type', contentType);
+        body = Buffer.from(await encoded.arrayBuffer());
+    }
+
     const init: RequestInit = {
         ...options,
+        body,
         headers,
         redirect: 'manual',
         signal: controller.signal,
@@ -212,7 +233,8 @@ async function doSafeFetch(rawUrl: string, options: RequestInit, state: Internal
 
     let response: Response;
     try {
-        response = await fetch(target.toString(), init);
+        const fetchImpl: UndiciFetch = pinned?.fetch ?? fetch;
+        response = await fetchImpl(target.toString(), init);
     } finally {
         clearTimeout(timer);
     }

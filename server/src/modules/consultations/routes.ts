@@ -41,7 +41,7 @@ const text = (value: unknown, max: number): string | null => {
 };
 
 const timestamp = (value: unknown): string | null | undefined => {
-    if (value === null || value === '') return null;
+    if (value === null || value === undefined || value === '') return null;
     if (typeof value !== 'string') return undefined;
     if (!NAIVE_TS_RE.test(value) || !isValidIsoDate(value.slice(0, 10))) return undefined;
     return value.length === 16 ? `${value}:00` : value;
@@ -166,7 +166,14 @@ recordingsRouter.get('/:clientId', allowDeviceOr(...WRITER_ROLES), async (req: K
 recordingsRouter.put(
     '/:clientId/chunks/:index',
     allowDeviceOr(...WRITER_ROLES),
-    express.raw({ type: 'application/octet-stream', limit: MAX_CHUNK_BYTES }),
+    (req: KioskRequest, res: Response, next: express.NextFunction) =>
+        express.raw({ type: 'application/octet-stream', limit: MAX_CHUNK_BYTES })(req, res, (err?: unknown) => {
+            if (err) {
+                const status = (err as { status?: number }).status;
+                return fail(res, status === 413 ? 413 : 400, status === 413 ? 'CHUNK_TOO_LARGE' : 'INVALID_BODY');
+            }
+            next();
+        }),
     async (req: KioskRequest, res: Response) => {
         try {
             const index = Number(req.params.index);
