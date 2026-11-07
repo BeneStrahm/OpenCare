@@ -14,6 +14,17 @@ export interface ConsultationSummary {
     next_steps: { text: string; due: string | null }[];
     question_answers: { question_index: number; answer: string | null }[];
     unclear: string[];
+    /** Vorschlaege fuer Termine (erst nach Bestaetigung angelegt) */
+    appointments: ProposedAppointment[];
+    /** Vorschlaege fuer Notizen an der Familien-Pinnwand */
+    family_notes: string[];
+}
+
+export interface ProposedAppointment {
+    title: string;
+    date: string | null;
+    time: string | null;
+    location: string | null;
 }
 
 /** Indizes 0..total-1, die der Server noch nicht hat, aufsteigend. */
@@ -80,6 +91,29 @@ export function emptySummary(questionCount: number): ConsultationSummary {
         next_steps: [],
         question_answers: Array.from({ length: Math.max(0, questionCount) }, (_, i) => ({ question_index: i, answer: null })),
         unclear: [],
+        appointments: [],
+        family_notes: [],
+    };
+}
+
+/**
+ * Ergaenzt fehlende Felder (aeltere Entwuerfe ohne appointments/family_notes),
+ * damit die Oberflaeche immer mit vollstaendigen Listen arbeitet.
+ */
+export function withDefaults(summary: Partial<ConsultationSummary> | null | undefined, questionCount: number): ConsultationSummary {
+    const base = emptySummary(questionCount);
+    if (!summary) return base;
+    const arr = <T,>(v: T[] | undefined | null): T[] => (Array.isArray(v) ? v : []);
+    return {
+        overview: typeof summary.overview === 'string' ? summary.overview : '',
+        findings: arr(summary.findings),
+        medication_changes: arr(summary.medication_changes),
+        recommendations: arr(summary.recommendations),
+        next_steps: arr(summary.next_steps),
+        question_answers: Array.isArray(summary.question_answers) ? summary.question_answers : base.question_answers,
+        unclear: arr(summary.unclear),
+        appointments: arr(summary.appointments),
+        family_notes: arr(summary.family_notes),
     };
 }
 
@@ -93,7 +127,9 @@ export function isSummaryEmpty(summary: ConsultationSummary | null | undefined):
         && !summary.recommendations.some(hasText)
         && !summary.next_steps.some((s) => hasText(s.text))
         && !summary.question_answers.some((a) => hasText(a.answer))
-        && !summary.unclear.some(hasText);
+        && !summary.unclear.some(hasText)
+        && !(summary.appointments ?? []).some((a) => hasText(a.title))
+        && !(summary.family_notes ?? []).some(hasText);
 }
 
 /**
@@ -124,7 +160,136 @@ export function normalizeSummary(summary: ConsultationSummary, questionCount: nu
             answer: answers.get(i) ?? null,
         })),
         unclear: list(summary.unclear),
+        appointments: (summary.appointments ?? [])
+            .map((a) => ({
+                title: clean(a.title),
+                date: isIsoDate(clean(a.date)) ? clean(a.date) : null,
+                time: isValidTime(clean(a.time)) ? clean(a.time) : null,
+                location: clean(a.location) || null,
+            }))
+            .filter((a) => a.title),
+        family_notes: list(summary.family_notes ?? []),
     };
+}
+
+/** Uhrzeit HH:MM (24 Stunden). */
+export function isValidTime(value: string | null | undefined): boolean {
+    return typeof value === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+}
+
+// ─── Vorschlaege uebernehmen (Vertrag: docs/consultations-api.md) ────────────
+
+export type ProposalKind = 'task' | 'event' | 'note';
+
+/** Grenzen wie auf dem Server (Texte werden dort getrimmt und gekuerzt). */
+export const PROPOSAL_LIMITS = { task: 255, event: 255, note: 500 } as const;
+
+/** Normalisierung exakt wie auf dem Server: Mehrfach-Leerraum, trim, Kleinschreibung. */
+export function normalizeProposalText(value: string): string {
+    return value.replace(/\s+/g, ' ').trim().toLocaleLowerCase();
+}
+
+/** Schluessel eines Vorschlags in consultation.applied. */
+export function appliedKey(kind: ProposalKind, value: string): string {
+    return `${kind}:${normalizeProposalText(value)}`;
+}
+
+const cut = (value: string, max: number) => value.trim().slice(0, max);
+
+export function taskKey(text: string): string {
+    return appliedKey('task', cut(text, PROPOSAL_LIMITS.task));
+}
+
+/** Termin-Schluessel: Titel + Leerzeichen + JJJJ-MM-TTTHH:MM:00; null, solange Datum/Uhrzeit fehlen. */
+export function eventKey(title: string, date: string | null, time: string | null): string | null {
+    if (!isIsoDate(date) || !isValidTime(time)) return null;
+    return appliedKey('event', `${cut(title, PROPOSAL_LIMITS.event)} ${date}T${time}:00`);
+}
+
+export function noteKey(content: string): string {
+    return appliedKey('note', cut(content, PROPOSAL_LIMITS.note));
+}
+
+export function isApplied(applied: Record<string, string> | null | undefined, key: string | null): boolean {
+    return Boolean(key && applied && Object.prototype.hasOwnProperty.call(applied, key));
+}
+
+export interface TaskDraft { text: string; due: string }
+export interface AppointmentDraft { title: string; date: string; time: string; location: string }
+export interface NoteDraft { content: string }
+
+/** Darf eine Aufgabe ausgewaehlt werden? */
+export function canSelectTask(d: TaskDraft): boolean {
+    return d.text.trim().length > 0 && (d.due === '' || isIsoDate(d.due));
+}
+
+/** Ein Termin braucht Titel, Datum UND Uhrzeit: nichts wird erfunden. */
+export function canSelectAppointment(d: AppointmentDraft): boolean {
+    return d.title.trim().length > 0 && isIsoDate(d.date) && isValidTime(d.time);
+}
+
+export function canSelectNote(d: NoteDraft): boolean {
+    const t = d.content.trim();
+    return t.length > 0 && t.length <= PROPOSAL_LIMITS.note;
+}
+
+export function toTaskDraft(s: { text: string; due: string | null }): TaskDraft {
+    return { text: s.text ?? '', due: s.due ?? '' };
+}
+
+export function toAppointmentDraft(a: ProposedAppointment): AppointmentDraft {
+    return { title: a.title ?? '', date: a.date ?? '', time: a.time ?? '', location: a.location ?? '' };
+}
+
+export interface ApplyPayload {
+    tasks: { text: string; due: string | null }[];
+    appointments: { title: string; date: string; time: string; location: string | null }[];
+    notes: { content: string }[];
+}
+
+/** Baut den Body fuer POST /:id/apply nur aus ausgewaehlten, gueltigen Vorschlaegen. */
+export function buildApplyPayload(
+    tasks: { draft: TaskDraft; selected: boolean }[],
+    appointments: { draft: AppointmentDraft; selected: boolean }[],
+    notes: { draft: NoteDraft; selected: boolean }[]
+): ApplyPayload {
+    return {
+        tasks: tasks
+            .filter((x) => x.selected && canSelectTask(x.draft))
+            .map(({ draft }) => ({ text: draft.text.trim(), due: draft.due || null })),
+        appointments: appointments
+            .filter((x) => x.selected && canSelectAppointment(x.draft))
+            .map(({ draft }) => ({
+                title: draft.title.trim(),
+                date: draft.date,
+                time: draft.time,
+                location: draft.location.trim() || null,
+            })),
+        notes: notes
+            .filter((x) => x.selected && canSelectNote(x.draft))
+            .map(({ draft }) => ({ content: draft.content.trim() })),
+    };
+}
+
+export function payloadSize(p: ApplyPayload): number {
+    return p.tasks.length + p.appointments.length + p.notes.length;
+}
+
+/** Fehlercodes von POST /:id/apply mit eigenem Erklaertext. */
+export const APPLY_ERROR_CODES = [
+    'APPOINTMENT_DATE_TIME_REQUIRED',
+    'APPOINTMENT_TITLE_REQUIRED',
+    'TASK_TEXT_REQUIRED',
+    'INVALID_TASK_DUE',
+    'NOTE_TEXT_REQUIRED',
+    'NOTHING_TO_APPLY',
+] as const;
+
+export function applyErrorKey(message: string | null | undefined): string {
+    const code = (message ?? '').trim();
+    return (APPLY_ERROR_CODES as readonly string[]).includes(code)
+        ? `consultations:proposals.errors.${code}`
+        : 'consultations:proposals.errors.generic';
 }
 
 export function isIsoDate(value: string | null | undefined): boolean {

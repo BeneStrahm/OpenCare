@@ -150,3 +150,111 @@ describe('Hilfsfunktionen', () => {
         expect(backoffDelay(10)).toBe(15 * 60_000);
     });
 });
+
+import {
+    appliedKey,
+    taskKey,
+    eventKey,
+    noteKey,
+    isApplied,
+    canSelectAppointment,
+    canSelectTask,
+    canSelectNote,
+    buildApplyPayload,
+    payloadSize,
+    applyErrorKey,
+    withDefaults,
+    isValidTime,
+    normalizeProposalText,
+    toAppointmentDraft,
+} from '../../client/src/lib/consultationLogic';
+
+describe('Vorschlaege: Schluessel wie auf dem Server', () => {
+    it('normalisiert Leerraum und Gross/Klein', () => {
+        expect(normalizeProposalText('  Kontrolle   beim\nHausarzt ')).toBe('kontrolle beim hausarzt');
+        expect(appliedKey('task', 'Rezept  ABHOLEN')).toBe('task:rezept abholen');
+    });
+
+    it('baut Termin-Schluessel mit Datum und Uhrzeit, sonst null', () => {
+        expect(eventKey('Kontrolle Kardiologie', '2026-11-24', '09:30')).toBe('event:kontrolle kardiologie 2026-11-24t09:30:00');
+        expect(eventKey('Kontrolle', null, '09:30')).toBeNull();
+        expect(eventKey('Kontrolle', '2026-11-24', '')).toBeNull();
+    });
+
+    it('kuerzt wie der Server', () => {
+        expect(taskKey('x'.repeat(300))).toBe(`task:${'x'.repeat(255)}`);
+        expect(noteKey(` ${'a'.repeat(600)} `)).toBe(`note:${'a'.repeat(500)}`);
+    });
+
+    it('erkennt uebernommene Vorschlaege, auch nach Bearbeitung des Texts', () => {
+        const applied = { 'task:rezept abholen': 'id1' };
+        expect(isApplied(applied, taskKey('Rezept abholen'))).toBe(true);
+        expect(isApplied(applied, taskKey('Rezept abholen beim Hausarzt'))).toBe(false);
+        expect(isApplied(applied, null)).toBe(false);
+        expect(isApplied(null, 'task:x')).toBe(false);
+    });
+});
+
+describe('Vorschlaege: Auswahl und Body', () => {
+    it('erlaubt Termine nur mit Titel, Datum und Uhrzeit', () => {
+        expect(canSelectAppointment({ title: 'Kontrolle', date: '2026-11-24', time: '09:30', location: '' })).toBe(true);
+        expect(canSelectAppointment({ title: 'Kontrolle', date: '', time: '09:30', location: '' })).toBe(false);
+        expect(canSelectAppointment({ title: 'Kontrolle', date: '2026-11-24', time: '', location: '' })).toBe(false);
+        expect(canSelectAppointment({ title: ' ', date: '2026-11-24', time: '09:30', location: '' })).toBe(false);
+        expect(canSelectAppointment({ title: 'K', date: '2026-02-30', time: '09:30', location: '' })).toBe(false);
+    });
+
+    it('prueft Aufgaben und Notizen', () => {
+        expect(canSelectTask({ text: 'Blutbild', due: '' })).toBe(true);
+        expect(canSelectTask({ text: 'Blutbild', due: 'morgen' })).toBe(false);
+        expect(canSelectTask({ text: '', due: '' })).toBe(false);
+        expect(canSelectNote({ content: 'Ramipril jetzt 2,5 mg' })).toBe(true);
+        expect(canSelectNote({ content: 'x'.repeat(501) })).toBe(false);
+    });
+
+    it('nimmt nur ausgewaehlte und gueltige Vorschlaege in den Body', () => {
+        const p = buildApplyPayload(
+            [{ draft: { text: ' Blutbild ', due: '' }, selected: true }, { draft: { text: 'Nein', due: '' }, selected: false }],
+            [
+                { draft: { title: 'Kontrolle', date: '2026-11-24', time: '09:30', location: ' ' }, selected: true },
+                { draft: { title: 'Ohne Zeit', date: '2026-11-24', time: '', location: '' }, selected: true },
+            ],
+            [{ draft: { content: 'Notiz' }, selected: true }]
+        );
+        expect(p).toEqual({
+            tasks: [{ text: 'Blutbild', due: null }],
+            appointments: [{ title: 'Kontrolle', date: '2026-11-24', time: '09:30', location: null }],
+            notes: [{ content: 'Notiz' }],
+        });
+        expect(payloadSize(p)).toBe(3);
+    });
+
+    it('legt keine Werte an, die nicht im Vorschlag stehen', () => {
+        expect(toAppointmentDraft({ title: 'Kontrolle', date: null, time: null, location: null }))
+            .toEqual({ title: 'Kontrolle', date: '', time: '', location: '' });
+    });
+});
+
+describe('Vorschlaege: Sonstiges', () => {
+    it('ordnet Fehlercodes zu', () => {
+        expect(applyErrorKey('APPOINTMENT_DATE_TIME_REQUIRED')).toBe('consultations:proposals.errors.APPOINTMENT_DATE_TIME_REQUIRED');
+        expect(applyErrorKey('HTTP 500')).toBe('consultations:proposals.errors.generic');
+        expect(applyErrorKey(undefined)).toBe('consultations:proposals.errors.generic');
+    });
+
+    it('ergaenzt aeltere Entwuerfe ohne neue Felder', () => {
+        const s = withDefaults({ overview: 'x', findings: ['a'] } as never, 2);
+        expect(s.appointments).toEqual([]);
+        expect(s.family_notes).toEqual([]);
+        expect(s.question_answers).toHaveLength(2);
+        expect(withDefaults(null, 0).overview).toBe('');
+    });
+
+    it('prueft Uhrzeiten', () => {
+        expect(isValidTime('09:30')).toBe(true);
+        expect(isValidTime('23:59')).toBe(true);
+        expect(isValidTime('24:00')).toBe(false);
+        expect(isValidTime('9:30')).toBe(false);
+        expect(isValidTime(null)).toBe(false);
+    });
+});

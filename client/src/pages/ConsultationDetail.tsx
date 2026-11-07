@@ -11,6 +11,7 @@ import { useWebSocketUpdates } from '../hooks/useWebSocketUpdates';
 import { Card, CardContent, Button, Badge, Input, Textarea, useToast } from '../components/ui';
 import RecorderPanel from '../components/consultations/RecorderPanel';
 import SummaryEditor from '../components/consultations/SummaryEditor';
+import ProposalsPanel from '../components/consultations/ProposalsPanel';
 import { useLocalRecordings } from '../components/consultations/useLocalRecordings';
 import { discardLocalRecording, kick } from '../lib/consultationUploader';
 import { consultationTitle, formatConsultationDate } from './Consultations';
@@ -26,6 +27,7 @@ import {
     recordingBadgeVariant,
     summaryBadgeVariant,
     toDateTimeInput,
+    withDefaults,
     type ConsultationSummary,
     type RecordingStatus,
     type SummaryStatus,
@@ -44,6 +46,8 @@ interface Consultation {
     summary_status: SummaryStatus;
     approved_by_name: string | null;
     approved_at: string | null;
+    /** Uebernommene Vorschlaege: { [schluessel]: angelegte id } */
+    applied?: Record<string, string> | null;
     created_at: string;
     updated_at: string;
 }
@@ -107,7 +111,6 @@ const ConsultationDetail: React.FC = () => {
     const [answers, setAnswers] = useState<Record<string, string>>({});
     const [notes, setNotes] = useState('');
     const [notesDirty, setNotesDirty] = useState(false);
-    const [selectedSteps, setSelectedSteps] = useState<Set<number>>(new Set());
     const [busy, setBusy] = useState(false);
 
     const questions = useMemo(
@@ -135,7 +138,7 @@ const ConsultationDetail: React.FC = () => {
                     setPrepDirty(false);
                 }
                 if (!opts.keepEdits || !summaryDirty) {
-                    setSummary(c.summary ?? null);
+                    setSummary(c.summary ? withDefaults(c.summary, d.questions.length) : null);
                     setSummaryDirty(false);
                 }
                 if (!opts.keepEdits || !notesDirty) {
@@ -292,17 +295,6 @@ const ConsultationDetail: React.FC = () => {
 
     const saveAnswer = (q: Question) => run(() => api.put(`/api/consultations/${id}/questions/${q.id}`, { answer: (answers[q.id] ?? '').trim() || null }), t('consultations:detail.saved'));
     const saveNotes = () => run(() => api.put(`/api/consultations/${id}`, { notes: notes.trim() || null }).then(() => setNotesDirty(false)), t('consultations:detail.saved'));
-
-    const steps = c.summary?.next_steps ?? [];
-    const createTasks = () => {
-        const chosen = steps.filter((_, i) => selectedSteps.has(i));
-        if (chosen.length === 0) return;
-        void run(async () => {
-            const res = await api.post<{ success: boolean; data: { created: number } }>(`/api/consultations/${id}/tasks`, { steps: chosen });
-            setSelectedSteps(new Set());
-            showToast({ title: t('consultations:followUp.tasksCreated', { count: res.data?.created ?? chosen.length }) });
-        });
-    };
 
     const latestError = [...detail.recordings].reverse().find((r) => r.error_code)?.error_code ?? null;
 
@@ -629,35 +621,17 @@ const ConsultationDetail: React.FC = () => {
                     )}
                 </div>
 
-                {!readOnly && steps.length > 0 && (
-                    <fieldset className="space-y-2 border-t border-border pt-4">
-                        <legend className="text-body font-semibold text-foreground">{t('consultations:followUp.steps')}</legend>
-                        <p className="text-caption text-muted-foreground">{t('consultations:followUp.stepsHint')}</p>
-                        {steps.map((s, i) => (
-                            <label key={i} className="flex cursor-pointer items-start gap-3 rounded-input border border-border bg-card p-3">
-                                <input
-                                    type="checkbox"
-                                    className="mt-1 h-5 w-5 shrink-0 accent-primary"
-                                    checked={selectedSteps.has(i)}
-                                    onChange={(e) => {
-                                        const next = new Set(selectedSteps);
-                                        if (e.target.checked) next.add(i); else next.delete(i);
-                                        setSelectedSteps(next);
-                                    }}
-                                />
-                                <span className="text-body">
-                                    {s.text}
-                                    {s.due && <span className="block text-caption text-muted-foreground">{t('consultations:summary.dueOn', { date: s.due })}</span>}
-                                </span>
-                            </label>
-                        ))}
-                        <div className="flex justify-end">
-                            <Button onClick={createTasks} disabled={busy || selectedSteps.size === 0}>
-                                <ListChecks className="mr-2 h-4 w-4" aria-hidden="true" />
-                                {t('consultations:followUp.createTasks', { count: selectedSteps.size })}
-                            </Button>
-                        </div>
-                    </fieldset>
+                {c.summary && (
+                    <div className="space-y-3 border-t border-border pt-4">
+                        <h3 className="text-h2 font-semibold text-foreground">{t('consultations:proposals.title_section')}</h3>
+                        <ProposalsPanel
+                            consultationId={c.id}
+                            summary={withDefaults(c.summary, questions.length)}
+                            applied={c.applied ?? {}}
+                            readOnly={readOnly}
+                            onApplied={() => void load({ keepEdits: true })}
+                        />
+                    </div>
                 )}
             </Section>
 
