@@ -25,8 +25,12 @@
   "subtitleFacts": "Tap the microphone and ask your question.",
   "quick": {
     "meds": "What should I take?",
+    "stock": "Which medications are running low?",
     "visitors": "Who is coming today?",
     "appointments": "My appointments?",
+    "week": "What is planned this week?",
+    "tasks": "What needs doing today?",
+    "vitals": "What were the latest readings?",
     "date": "What day is it?",
     "call": "Who can I call?"
   }
