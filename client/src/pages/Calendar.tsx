@@ -19,7 +19,7 @@ import { circleWeekStart, weekStartsOn, orderedIsoDays, inWeekOrder } from '../l
 import { useAuth } from '../contexts/AuthContext';
 import { useWebSocketUpdates } from '../hooks/useWebSocketUpdates';
 import { dateLocale, formatClock } from '../i18n/format';
-import { NEW_EVENT_DEFAULTS, hasExtraDetails } from '../lib/calendarForm';
+import { NEW_EVENT_DEFAULTS, hasExtraDetails, longDatePattern } from '../lib/calendarForm';
 
 // ─── Domain types ─────────────────────────────────────────────────────────────
 
@@ -201,7 +201,8 @@ const emptyForm = (): EventForm => ({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 const Calendar: React.FC = () => {
-    const { t } = useTranslation(['calendar', 'common']);
+    const { t, i18n } = useTranslation(['calendar', 'common']);
+    const longDate = (withYear: boolean) => longDatePattern(i18n.language, withYear);
     const { activeCircle, myRole, canWriteContent } = useCircle();
     const { user } = useAuth();
 
@@ -742,7 +743,7 @@ const Calendar: React.FC = () => {
                                                     isToday(day) ? 'text-primary' : 'text-muted-foreground'
                                                 )}
                                             >
-                                                {format(day, 'EEEE d MMMM', { locale: dateLocale() })}
+                                                {format(day, longDate(false), { locale: dateLocale() })}
                                                 {isToday(day) ? ` (${t('common:actions.today').toLowerCase()})` : ''}
                                             </h3>
                                             <div className="divide-y divide-border overflow-hidden rounded-card border border-border bg-card">
@@ -861,7 +862,7 @@ const Calendar: React.FC = () => {
                         <div className="flex items-center gap-2 text-caption text-foreground">
                             <CategoryDot category={selected.category} />
                             <span className="capitalize">
-                                {format(parseISO(selected.start_time), 'EEEE d MMMM yyyy', { locale: dateLocale() })}
+                                {format(parseISO(selected.start_time), longDate(true), { locale: dateLocale() })}
                             </span>
                         </div>
                         <div className="flex items-center gap-2 text-caption text-muted-foreground">
@@ -877,7 +878,7 @@ const Calendar: React.FC = () => {
                         {isMovedOccurrence(selected) && (
                             <p className="rounded-input bg-info/10 px-3 py-2 text-micro text-foreground">
                                 {t('calendar:occurrence.movedFrom', {
-                                    date: format(parseISO(selected.occurrence_date), 'EEEE d MMMM', { locale: dateLocale() }),
+                                    date: format(parseISO(selected.occurrence_date), longDate(false), { locale: dateLocale() }),
                                 })}
                             </p>
                         )}
