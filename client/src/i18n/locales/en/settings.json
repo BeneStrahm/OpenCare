@@ -131,5 +131,58 @@
     "duplicate": "That type is already in the list.",
     "tooMany": "At most {{max}} types.",
     "error": "Could not save the aid types."
+  },
+  "features": {
+    "title": "Features",
+    "subtitle": "Choose what the care circle can see. Switched-off features disappear for everyone.",
+    "error": "The setting could not be saved.",
+    "dataKept": "Switching off deletes nothing. Switch a feature back on and everything is still there.",
+    "modules": {
+      "title": "Parts of the app",
+      "subtitle": "Menu, dashboard and tablet only show switched-on parts.",
+      "fixed": "Always on: dashboard, care journal, settings and emergency."
+    },
+    "items": {
+      "calendar": "Calendar",
+      "messages": "Messages",
+      "care_plan": "Care plan",
+      "medications": "Medications",
+      "health": "Health (measurements)",
+      "consultations": "Doctor visits",
+      "visitors": "Visitors",
+      "tasks": "Tasks",
+      "shopping": "Shopping",
+      "expenses": "Shared expenses",
+      "contacts": "Contacts",
+      "documents": "Documents",
+      "voice_commands": "Voice commands",
+      "voice_journal": "Voice notes in the journal",
+      "digests": "Weekly summary",
+      "heatwave": "Heat warning"
+    },
+    "kiosk": {
+      "title": "Tablet view",
+      "subtitle": "What your loved one sees on the tablet.",
+      "items": {
+        "status_bar": "“All is well” / “I need help”",
+        "voice": "“Speak”",
+        "ask": "“Ask Me”",
+        "consultation": "“Record doctor visit” button",
+        "info": "“My information”"
+      }
+    },
+    "vitals": {
+      "title": "Measurements",
+      "subtitle": "Only these measurements are recorded and shown.",
+      "hint": "At least one measurement stays switched on.",
+      "items": {
+        "weight": "Weight",
+        "bp": "Blood pressure",
+        "pain": "Pain",
+        "mood": "Mood",
+        "temperature": "Temperature",
+        "glucose": "Blood sugar"
+      }
+    }
   }
 }

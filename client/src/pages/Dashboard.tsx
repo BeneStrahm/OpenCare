@@ -8,6 +8,7 @@ import { formatDistanceToNow, parseISO } from 'date-fns';
 import { api } from '../lib/api';
 import { cn } from '../lib/utils';
 import { formatAmount } from '../lib/medications';
+import { useFeatures } from '../lib/features';
 import { useCircle } from '../contexts/CircleContext';
 import { useWebSocketUpdates } from '../hooks/useWebSocketUpdates';
 import { dateLocale, formatClock, intlLocale } from '../i18n/format';
@@ -178,6 +179,7 @@ const Dashboard: React.FC = () => {
     const { t } = useTranslation(['dashboard', 'common', 'medications']);
     const navigate = useNavigate();
     const { activeCircle, circles, myRole } = useCircle();
+    const { isOn, vitalTypes } = useFeatures();
 
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -245,7 +247,7 @@ const Dashboard: React.FC = () => {
     const nextIntakes = intakes ? intakes.filter((intake) => intake.status === 'pending').slice(0, 3) : [];
 
     const vitals = data?.latest_vitals
-        ? [...data.latest_vitals].sort((a, b) => VITAL_ORDER.indexOf(a.type) - VITAL_ORDER.indexOf(b.type))
+        ? [...data.latest_vitals].filter((v) => (vitalTypes as string[]).includes(v.type)).sort((a, b) => VITAL_ORDER.indexOf(a.type) - VITAL_ORDER.indexOf(b.type))
         : null;
     const unitSystem = circleUnitSystem(activeCircle);
 
@@ -257,7 +259,7 @@ const Dashboard: React.FC = () => {
                 </div>
             ) : null}
 
-            <HeatwaveBanner />
+            {isOn('heatwave') && <HeatwaveBanner />}
 
             <PresenceBanner />
 
@@ -342,7 +344,7 @@ const Dashboard: React.FC = () => {
             {/* Ce qui demande l'attention d'un aidant, avant tout le reste */}
             {view === 'single' && <AttentionCard items={data?.attention ?? []} onChanged={() => void load()} />}
 
-            {(data?.unread_messages_count ?? 0) > 0 && (
+            {isOn('messages') && (data?.unread_messages_count ?? 0) > 0 && (
                 <button
                     type="button"
                     onClick={() => navigate('/messages')}
@@ -356,6 +358,7 @@ const Dashboard: React.FC = () => {
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {/* Today's events */}
+                {isOn('calendar') && (
                 <DashCard
                     icon={CalendarDays}
                     title={t('dashboard:today.title')}
@@ -387,9 +390,10 @@ const Dashboard: React.FC = () => {
                         </ul>
                     )}
                 </DashCard>
+                )}
 
                 {/* Medications of the day (hidden for neighbors: payload is null) */}
-                {intakes !== null && (
+                {isOn('medications') && intakes !== null && (
                     <DashCard
                         icon={Pill}
                         title={t('dashboard:medications.title')}
@@ -458,6 +462,7 @@ const Dashboard: React.FC = () => {
                 </DashCard>
 
                 {/* Pending tasks */}
+                {isOn('tasks') && (
                 <DashCard
                     icon={CheckSquare}
                     title={t('dashboard:tasks.title')}
@@ -487,9 +492,10 @@ const Dashboard: React.FC = () => {
                         </div>
                     )}
                 </DashCard>
+                )}
 
                 {/* Latest vitals (hidden for neighbors: payload is null) */}
-                {vitals !== null && (
+                {isOn('health') && vitals !== null && (
                     <DashCard
                         icon={Activity}
                         title={t('dashboard:vitals.title')}
@@ -520,7 +526,7 @@ const Dashboard: React.FC = () => {
             </div>
 
             {/* Weekly AI digest: full width, below the grid. Built from health data, so never for a neighbor. */}
-            {myRole !== 'neighbor' && <WeeklyDigestCard />}
+            {myRole !== 'neighbor' && isOn('digests') && <WeeklyDigestCard />}
             </>
             )}
 

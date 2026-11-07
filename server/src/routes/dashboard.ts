@@ -6,6 +6,16 @@ import { toLocalISO } from './events';
 import { ensureTodayIntakes } from '../lib/intakes';
 import { loadAttention } from '../lib/attention';
 import { unreadCounts } from './messages';
+import { isFeatureEnabled, isVitalTypeEnabled, loadCircleSettings, type FeatureId } from '../lib/features';
+
+// Fork: Hinweise der Uebersicht und ihre Funktion (Seite des Hinweises).
+const ATTENTION_FEATURES: Record<string, FeatureId> = {
+    '/medications': 'medications',
+    '/health': 'health',
+    '/tasks': 'tasks',
+    '/visitors': 'visitors',
+    '/calendar': 'calendar',
+};
 
 const router = Router();
 router.use(authMiddleware);
@@ -175,21 +185,30 @@ router.get('/', async (req: CircleRequest, res: Response) => {
         const todayEvents = [...simpleEventsResult.rows, ...recurringToday]
             .sort((a: any, b: any) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
 
+        // Fork: ausgeschaltete Funktionen liefert der Server gar nicht erst aus.
+        const settings = await loadCircleSettings(circleId);
+        const on = (id: FeatureId) => isFeatureEnabled(settings, id);
+        const visibleAttention = (attention as Array<{ href: string }>).filter((item) => {
+            const feature = ATTENTION_FEATURES[item.href];
+            return !feature || on(feature);
+        });
+
         res.json({
             success: true,
             data: {
                 recipient: recipientResult.rows[0] ?? null,
-                today_events: todayEvents,
+                today_events: on('calendar') ? todayEvents : [],
                 last_journal_entries: journalResult.rows,
-                pending_tasks: {
-                    count: pendingCountResult.rows[0]?.count ?? 0,
-                    next: pendingTasksResult.rows,
-                },
-                medication_intakes_today: includeHealth ? intakesResult!.rows : null,
-                latest_vitals: includeHealth ? vitalsResult!.rows : null,
-                unread_messages_count: unread.total,
+                pending_tasks: on('tasks')
+                    ? { count: pendingCountResult.rows[0]?.count ?? 0, next: pendingTasksResult.rows }
+                    : { count: 0, next: [] },
+                medication_intakes_today: includeHealth && on('medications') ? intakesResult!.rows : null,
+                latest_vitals: includeHealth && on('health')
+                    ? (vitalsResult!.rows as Array<{ type: string }>).filter((v) => isVitalTypeEnabled(settings, v.type))
+                    : null,
+                unread_messages_count: on('messages') ? unread.total : 0,
                 // "Needs attention": what a caregiver should look at first.
-                attention,
+                attention: visibleAttention,
             },
         });
     } catch (error) {
@@ -223,7 +242,9 @@ router.get('/household', async (req: CircleRequest, res: Response) => {
         const nowMs = today.getTime();
 
         const summaries = await Promise.all((circlesResult.rows as any[]).map(async (circle) => {
-            const includeHealth = circle.role !== 'neighbor';
+            const settings = await loadCircleSettings(circle.id);
+            const calendarOn = isFeatureEnabled(settings, 'calendar');
+            const includeHealth = circle.role !== 'neighbor' && isFeatureEnabled(settings, 'medications');
             const [simpleEv, recurEv, medsRes, journalRes] = await Promise.all([
                 query(
                     `SELECT id, title, category, start_time, end_time, location FROM events
@@ -253,8 +274,10 @@ router.get('/household', async (req: CircleRequest, res: Response) => {
             const recurringToday = (recurEv.rows as any[])
                 .filter((e) => occursToday(String(e.rrule), new Date(e.start_time), today))
                 .map((e) => projectToToday(e, today));
-            const todayEvents = [...simpleEv.rows, ...recurringToday]
-                .sort((a: any, b: any) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+            const todayEvents = calendarOn
+                ? [...simpleEv.rows, ...recurringToday]
+                    .sort((a: any, b: any) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+                : [];
             const upcoming = todayEvents.filter((e: any) => new Date(e.start_time).getTime() >= nowMs);
             const nextRaw = upcoming[0] ?? null;
             const nextEvent = nextRaw

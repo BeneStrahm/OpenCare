@@ -105,5 +105,8 @@
     "Okt.",
     "Nov.",
     "Dez."
-  ]
+  ],
+  "errors": {
+    "featureDisabled": "Diese Funktion ist ausgeschaltet. Ein Admin kann sie unter Einstellungen, Funktionen wieder einschalten."
+  }
 }

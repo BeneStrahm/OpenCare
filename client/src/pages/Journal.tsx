@@ -21,6 +21,7 @@ import {
 import { api } from '../lib/api';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
+import { useFeatures } from '../lib/features';
 import { useCircle } from '../contexts/CircleContext';
 import { useWebSocketUpdates } from '../hooks/useWebSocketUpdates';
 import { Badge, Button, Card, CardContent, Dialog, Input, Select, Textarea, useToast } from '../components/ui';
@@ -171,6 +172,7 @@ const Journal: React.FC = () => {
     const { t } = useTranslation(['journal', 'common']);
     const { user } = useAuth();
     const { activeCircle, canWriteJournal, isAdmin, myRole } = useCircle();
+    const voiceJournalOn = useFeatures().isOn('voice_journal');
     // Le rôle voisin écrit des notes simples: pas de constantes de santé (règle serveur).
     const composerTypes = myRole === 'neighbor'
         ? COMPOSER_TYPES.filter((type) => type !== 'vital')
@@ -741,7 +743,7 @@ const Journal: React.FC = () => {
                                             {t('journal:composer.photoHint', { current: photos.length, max: MAX_PHOTOS })}
                                         </span>
                                     </Button>
-                                    {recording ? (
+                                    {!voiceJournalOn ? null : recording ? (
                                         <div className="flex h-11 items-center gap-2 rounded-input border border-border bg-surface-2/40 px-3 md:h-10">
                                             <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-danger animate-pulse" aria-hidden="true" />
                                             <span className="text-caption font-medium tabular-nums text-foreground">

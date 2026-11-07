@@ -23,6 +23,7 @@
 // an welchem Geraet er entstand. Abhaken, Aendern oder Loeschen bleibt den
 // Angehoerigen vorbehalten, damit am Tablet nichts versehentlich verschwindet.
 
+import { isFeatureEnabled, isVitalTypeEnabled, loadCircleSettings, type FeatureId } from '../../lib/features';
 import { Router, Response } from 'express';
 import { query } from '../../db';
 import { CircleRole } from '../../middleware/circle';
@@ -212,6 +213,15 @@ router.post('/execute', async (req: KioskRequest, res: Response) => {
         const checked = validateCommand(intent, req.body?.params);
         if ('error' in checked) return res.status(400).json({ success: false, error: checked.error });
         if (!allowed(req, checked.intent)) return res.status(403).json({ success: false, error: 'NOT_ALLOWED' });
+
+        // Fork: ausgeschaltete Funktionen auch per Sprache nicht nutzbar.
+        const circleSettings = await loadCircleSettings(req.circleId!);
+        const needed: FeatureId = checked.intent === 'list_events' || checked.intent === 'create_event'
+            ? 'calendar'
+            : checked.intent === 'create_task' || checked.intent === 'complete_task' ? 'tasks' : 'health';
+        if (!isFeatureEnabled(circleSettings, needed)) return res.status(403).json({ success: false, error: 'FEATURE_DISABLED' });
+        if (checked.intent === 'record_weight' && !isVitalTypeEnabled(circleSettings, 'weight')) return res.status(403).json({ success: false, error: 'FEATURE_DISABLED' });
+        if (checked.intent === 'record_glucose' && !isVitalTypeEnabled(circleSettings, 'glucose')) return res.status(403).json({ success: false, error: 'FEATURE_DISABLED' });
 
         const prepared = await prepare(req, checked.intent, req.body?.params);
         if ('error' in prepared) {

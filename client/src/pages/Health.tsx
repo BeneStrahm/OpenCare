@@ -27,6 +27,7 @@ import {
 import { api } from '../lib/api';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
+import { useFeatures } from '../lib/features';
 import { useCircle } from '../contexts/CircleContext';
 import { useWebSocketUpdates } from '../hooks/useWebSocketUpdates';
 import { Button, Dialog, Input, Select, Textarea, useToast } from '../components/ui';
@@ -145,6 +146,11 @@ const Health: React.FC = () => {
     const { t } = useTranslation(['health', 'common']);
     const { user } = useAuth();
     const { activeCircle, canWriteContent, canWriteJournal, isAdmin, myRole } = useCircle();
+    // Fork: nur die vom Admin gewaehlten Messwerte.
+    const { vitalTypes: enabledTypes } = useFeatures();
+    const typesKey = enabledTypes.join(',');
+    const shownTypes = useMemo(() => VITAL_TYPES.filter((type) => typesKey.split(',').includes(type)), [typesKey]);
+    const firstType: VitalType = shownTypes.includes('bp') ? 'bp' : shownTypes[0] ?? 'bp';
     const { showToast } = useToast();
 
     // Le cercle decide du systeme d'unites: la base reste metrique, seuls la
@@ -160,12 +166,12 @@ const Health: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
-    const [chartType, setChartType] = useState<VitalType>('bp');
+    const [chartType, setChartType] = useState<VitalType>(firstType);
     const [period, setPeriod] = useState<PeriodKey>('90');
 
     // Saisie rapide
     const [dialogOpen, setDialogOpen] = useState(false);
-    const [formType, setFormType] = useState<VitalType>('bp');
+    const [formType, setFormType] = useState<VitalType>(firstType);
     const [formValue, setFormValue] = useState('');
     const [formValue2, setFormValue2] = useState('');
     const [formMeasuredAt, setFormMeasuredAt] = useState(() => toLocalInputValue(new Date()));
@@ -440,8 +446,8 @@ const Health: React.FC = () => {
     const latestByType = useMemo(() => {
         const map = new Map<VitalType, Vital>();
         for (const vital of latest) map.set(vital.type, vital);
-        return VITAL_TYPES.filter((type) => map.has(type)).map((type) => map.get(type)!);
-    }, [latest]);
+        return shownTypes.filter((type) => map.has(type)).map((type) => map.get(type)!);
+    }, [latest, shownTypes]);
 
     // La serie est tracee dans l'unite affichee: l'echelle de l'axe suit donc
     // le systeme du cercle, sans conversion au moment du rendu.
@@ -577,7 +583,7 @@ const Health: React.FC = () => {
                         <Select
                             value={chartType}
                             onValueChange={(value) => setChartType(value as VitalType)}
-                            options={VITAL_TYPES.map((type) => ({
+                            options={shownTypes.map((type) => ({
                                 value: type,
                                 label: t(`health:vitalTypes.${type}`),
                             }))}
@@ -739,7 +745,7 @@ const Health: React.FC = () => {
                     {canWriteContent ? t('health:thresholds.description') : t('health:thresholds.readOnly')}
                 </p>
                 <div className="space-y-2">
-                    {VITAL_TYPES.map((type) => {
+                    {shownTypes.map((type) => {
                         const Icon = VITAL_ICONS[type];
                         const range = rangeByType.get(type) ?? null;
                         const unit = displayUnit(type, unitSystem);
@@ -860,7 +866,7 @@ const Health: React.FC = () => {
                         <Select
                             value={formType}
                             onValueChange={(value) => setFormType(value as VitalType)}
-                            options={VITAL_TYPES.map((type) => ({
+                            options={shownTypes.map((type) => ({
                                 value: type,
                                 label: t(`health:vitalTypes.${type}`),
                             }))}

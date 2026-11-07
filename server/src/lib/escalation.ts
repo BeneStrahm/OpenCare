@@ -1,3 +1,4 @@
+import { featureEnabledForCircle } from './features';
 import cron from 'node-cron';
 import { query } from '../db';
 import { createNotification } from './notifications';
@@ -256,6 +257,7 @@ function helpTexts(rule: RuleRow, minutes: number, language: string): { title: s
 async function escalateIntakes(rule: RuleRow, level: 'primary' | 'secondary'): Promise<void> {
     const minutes = level === 'primary' ? rule.med_primary_min : rule.med_secondary_min;
     if (minutes <= 0) return;
+    if (!(await featureEnabledForCircle(rule.circle_id, 'medications'))) return;
     const column = level === 'primary' ? 'escalated_primary_at' : 'escalated_secondary_at';
     const { rows } = await query(
         `UPDATE medication_intakes i SET ${column} = CURRENT_TIMESTAMP
@@ -288,6 +290,7 @@ async function escalateIntakes(rule: RuleRow, level: 'primary' | 'secondary'): P
 
 async function remindPatient(rule: RuleRow): Promise<void> {
     if (rule.med_patient_min <= 0) return;
+    if (!(await featureEnabledForCircle(rule.circle_id, 'medications'))) return;
     const { rows } = await query(
         `UPDATE medication_intakes SET reminded_patient_at = CURRENT_TIMESTAMP
          WHERE circle_id = $1 AND status = 'pending' AND reminded_patient_at IS NULL

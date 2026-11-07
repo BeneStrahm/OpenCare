@@ -105,5 +105,8 @@
     "Oct",
     "Nov",
     "Dec"
-  ]
+  ],
+  "errors": {
+    "featureDisabled": "This feature is switched off. An admin can switch it back on under Settings, Features."
+  }
 }

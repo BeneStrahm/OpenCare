@@ -27,6 +27,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import KioskDevicesCard from '../components/app/KioskDevicesCard';
 import EscalationCard from '../components/app/EscalationCard';
 import RegionSettingsCard from '../components/app/RegionSettingsCard';
+import FeaturesCard from '../components/app/FeaturesCard';
 import { refreshAiStatus } from '../lib/aiStatus';
 import { aiErrorKey } from '../components/app/MagicInput';
 
@@ -743,6 +744,9 @@ const Settings: React.FC = () => {
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Fork: Funktionen ein- und ausschalten (Admins) */}
+            {isAdmin && <FeaturesCard />}
 
             {/* AI assistant: per-circle settings, circle admins only */}
             {isAdmin && <AiAssistantCard />}

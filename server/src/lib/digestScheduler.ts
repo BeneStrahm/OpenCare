@@ -1,3 +1,4 @@
+import { featureEnabledForCircle } from './features';
 import cron from 'node-cron';
 import { query } from '../db';
 import { publicSettings } from './circleSettings';
@@ -273,6 +274,7 @@ async function notifyCircleMembers(circleId: string, digest: WeeklyDigestRow, fi
  * the on-demand route maps it to a 502.
  */
 export async function generateDigestForCircle(circleId: string, weekStart: string): Promise<WeeklyDigestRow | null> {
+    if (!(await featureEnabledForCircle(circleId, 'digests'))) return null;
     const settings = await getAiSettings(circleId);
     if (!settings) return null;
 

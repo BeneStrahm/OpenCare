@@ -1,3 +1,4 @@
+import { featureEnabledForCircle } from './features';
 import cron from 'node-cron';
 import { format } from 'date-fns';
 import { query } from '../db';
@@ -117,6 +118,8 @@ async function processEventWindow(
     );
 
     for (const event of rows as EventRow[]) {
+        // Fork: Kalender ausgeschaltet -> keine Termin-Erinnerungen.
+        if (!(await featureEnabledForCircle(event.circle_id, 'calendar'))) continue;
         // Every circle member gets the event reminder; the NOT EXISTS dedup is
         // per user, so a member added between two ticks still gets notified.
         const members = await membersToNotify(event.circle_id, event.id, type);
@@ -225,6 +228,7 @@ async function checkPrescriptionRenewals(): Promise<void> {
         );
 
         for (const prescription of rows as PrescriptionRow[]) {
+            if (!(await featureEnabledForCircle(prescription.circle_id, 'medications'))) continue;
             const { rows: memberRows } = await query(
                 `SELECT cm.user_id, COALESCE(u.language, 'fr') AS language
                  FROM circle_members cm
@@ -326,6 +330,7 @@ async function checkHeatwaveHydration(): Promise<void> {
         );
 
         for (const { circle_id: circleId } of rows as Array<{ circle_id: string }>) {
+            if (!(await featureEnabledForCircle(circleId, 'heatwave'))) continue;
             const recipientResult = await query(
                 'SELECT first_name FROM care_recipients WHERE circle_id = $1',
                 [circleId]
