@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { query } from '../db';
 import { authMiddleware } from '../middleware/auth';
-import { circleMiddleware, requireRole, CircleRequest } from '../middleware/circle';
+import { circleMiddleware, requireRole, CircleRequest, HEALTH_READER_ROLES } from '../middleware/circle';
 import { broadcastToCircle } from '../lib/broadcaster';
 import { createNotification } from '../lib/notifications';
 import { langFromRequest, t, pick, pickLang, type Lang } from '../lib/i18n';
@@ -12,8 +12,8 @@ import { isVitalTypeEnabled, loadCircleSettings } from '../lib/features';
 const router = Router();
 
 // Donnees de sante: la matrice de docs/SPEC.md exclut le role neighbor
-// (lecture pour viewer, ecriture pour admin/family/professional).
-router.use(authMiddleware, circleMiddleware, requireRole('admin', 'family', 'professional', 'viewer'));
+// (lecture pour recipient, ecriture pour admin/family/professional).
+router.use(authMiddleware, circleMiddleware, requireRole(...HEALTH_READER_ROLES));
 
 const requireHealthWriter = requireRole('admin', 'family', 'professional');
 
@@ -95,7 +95,7 @@ router.get('/latest', async (req: CircleRequest, res: Response) => {
     }
 });
 
-// Record a measurement (every role except viewer)
+// Record a measurement (every role except recipient)
 // ============================================================
 // Seuils d'alerte
 // ============================================================

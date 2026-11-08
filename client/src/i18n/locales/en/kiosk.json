@@ -33,7 +33,7 @@
       "family": "Family",
       "professional": "Professional",
       "neighbor": "Neighbor",
-      "viewer": "Loved one"
+      "recipient": "Care recipient"
     }
   },
   "appointments": {

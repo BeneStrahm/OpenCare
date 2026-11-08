@@ -56,7 +56,7 @@ router.get('/', async (req: CircleRequest, res: Response) => {
     }
 });
 
-// Stick a note on the board (any role except viewer)
+// Stick a note on the board (any role except recipient)
 router.post('/', requireJournalWriter, async (req: CircleRequest, res: Response) => {
     try {
         const { content, color, expires_at } = req.body;

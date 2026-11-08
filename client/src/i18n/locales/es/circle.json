@@ -44,15 +44,15 @@
     "admin": "Administrador",
     "family": "Familia",
     "professional": "Profesional",
-    "neighbor": "Vecino/allegado",
-    "viewer": "Solo lectura"
+    "neighbor": "Amigos",
+    "recipient": "Persona cuidada"
   },
   "roleHints": {
     "admin": "Gestiona el círculo, los miembros y las invitaciones. Acceso completo.",
     "family": "Escribe en todo: diario, perfil del familiar, calendario, gastos.",
     "professional": "Escribe en el diario, las constantes y los medicamentos.",
     "neighbor": "Escribe notas sencillas en el diario y consulta el calendario.",
-    "viewer": "Consulta sin modificar nada."
+    "recipient": "Consulta todo salvo las consultas médicas, sin modificar nada."
   },
   "members": {
     "title": "Miembros",

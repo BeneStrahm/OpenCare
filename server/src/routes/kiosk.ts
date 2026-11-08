@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import { query, getClient } from '../db';
 import { authMiddleware } from '../middleware/auth';
-import { circleMiddleware, requireContentWriter, JOURNAL_WRITER_ROLES, CircleRequest } from '../middleware/circle';
+import { circleMiddleware, requireContentWriter, JOURNAL_WRITER_ROLES, HEALTH_READER_ROLES, CircleRequest } from '../middleware/circle';
 import { kioskOrMember, allowDeviceOr, requireDevice, KioskRequest, KioskDeviceKind } from '../middleware/kioskDevice';
 import { broadcastToCircle } from '../lib/broadcaster';
 import { createNotification } from '../lib/notifications';
@@ -31,7 +31,6 @@ const router = Router();
 // Le mode Kiosk montre des medicaments, des rendez-vous medicaux et la fiche
 // urgence : la matrice de docs/SPEC.md en exclut le role neighbor. Un appareil
 // appaire passe toujours, c'est l'ecran du proche lui-meme.
-const HEALTH_READER_ROLES = ['admin', 'family', 'professional', 'viewer'] as const;
 const HEALTH_WRITER_ROLES = ['admin', 'family', 'professional'] as const;
 
 type KioskStatusKind = 'ok' | 'help' | 'hydration';

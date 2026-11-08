@@ -50,8 +50,8 @@
     "admin": "Administrator",
     "family": "Family",
     "professional": "Professional",
-    "neighbor": "Neighbour / friend",
-    "viewer": "Read only"
+    "neighbor": "Friends",
+    "recipient": "Care recipient"
   },
   "user": {
     "profile": "Profile",

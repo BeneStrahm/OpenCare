@@ -318,8 +318,8 @@ const Dashboard: React.FC = () => {
                 {/* Le mode Kiosk s'ouvre d'ici : c'est l'ecran qu'on lance en
                     arrivant chez le proche, pas un reglage qu'on va chercher.
                     Masque au role voisin, qui ne voit aucune donnee de sante. */}
-                {/* Fork: Assistent, nicht fuer Bekannte (viewer), die der Server ablehnt. */}
-                {myRole !== 'viewer' && (
+                {/* Fork: Assistent, nicht fuer die Betreute Person (recipient), die der Server ablehnt. */}
+                {myRole !== 'recipient' && (
                     <button
                         type="button"
                         onClick={() => setAskOpen(true)}
@@ -333,7 +333,7 @@ const Dashboard: React.FC = () => {
                     <button
                         type="button"
                         onClick={() => navigate('/kiosk')}
-                        className={cn(myRole === 'viewer' && 'ml-auto', 'flex min-h-[44px] shrink-0 items-center gap-2 rounded-card border border-border bg-card px-4 text-caption font-medium text-foreground transition-colors duration-fast hover:bg-surface-2')}
+                        className={cn(myRole === 'recipient' && 'ml-auto', 'flex min-h-[44px] shrink-0 items-center gap-2 rounded-card border border-border bg-card px-4 text-caption font-medium text-foreground transition-colors duration-fast hover:bg-surface-2')}
                     >
                         <MonitorPlay className="h-4 w-4 text-primary" aria-hidden="true" />
                         {t('dashboard:openKiosk')}

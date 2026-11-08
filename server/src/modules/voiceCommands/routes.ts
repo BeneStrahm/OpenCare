@@ -12,7 +12,7 @@
 //  - Aufgabe anlegen: admin, family (wie POST /api/tasks).
 //  - Aufgabe erledigt: admin, family, professional. In /api/tasks darf auch
 //    neighbor abhaken; fuer die Sprachsteuerung gilt bewusst: neighbor und
-//    viewer schreiben nichts.
+//    recipient schreiben nichts.
 //  - Gewicht und Blutzucker: admin, family, professional (wie POST /api/vitals).
 //
 // Patienten-Geraete (Tablet, Kiosk): Heute schreibt der Kiosk schon selbst
@@ -52,7 +52,7 @@ const router = Router();
 router.use(kioskOrMember());
 
 const WRITE_RULES: Record<VoiceIntent, { roles: CircleRole[]; device: boolean }> = {
-    list_events: { roles: ['admin', 'family', 'professional', 'neighbor', 'viewer'], device: true },
+    list_events: { roles: ['admin', 'family', 'professional', 'neighbor', 'recipient'], device: true },
     create_event: { roles: ['admin', 'family'], device: true },
     create_task: { roles: ['admin', 'family'], device: true },
     complete_task: { roles: ['admin', 'family', 'professional'], device: false },

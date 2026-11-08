@@ -5,7 +5,7 @@ Zeiten sind naive lokale Zeitstempel `YYYY-MM-DDTHH:mm:ss` wie im übrigen OpenC
 
 ## Rollen
 
-- Lesen: admin, family, professional (viewer NICHT: Mitschriften und KI-Entwürfe sind Gesundheitsdaten)
+- Lesen: admin, family, professional (neighbor und recipient NICHT: Mitschriften und KI-Entwürfe sind Gesundheitsdaten)
 - Schreiben (Gespräche, Fragen, Zusammenfassung, Freigabe, Aufgaben): admin, family
 - Aufnahme hochladen: admin, family oder gekoppeltes Patienten-Gerät (`X-Kiosk-Token`)
 - neighbor: kein Zugriff

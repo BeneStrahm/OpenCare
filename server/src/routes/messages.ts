@@ -241,7 +241,7 @@ router.get('/dm/:userId', async (req: CircleRequest, res: Response) => {
     }
 });
 
-// Post a message to the circle feed or as a DM (every role except viewer).
+// Post a message to the circle feed or as a DM (every role except recipient).
 // Attachments are small images or PDFs sent as base64 data URLs.
 router.post('/', requireJournalWriter, async (req: CircleRequest, res: Response) => {
     try {

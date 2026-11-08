@@ -2,14 +2,14 @@ import { Router, Response } from 'express';
 import crypto from 'crypto';
 import { query } from '../db';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
-import { circleMiddleware, requireAdmin, CircleRequest } from '../middleware/circle';
+import { circleMiddleware, requireAdmin, CircleRequest, CIRCLE_ROLES } from '../middleware/circle';
 import { broadcastToCircle } from '../lib/broadcaster';
 import { normalizeEmail } from '../lib/normalize';
 import { langFromRequest, t } from '../lib/i18n';
 
 const router = Router();
 
-const VALID_ROLES = ['admin', 'family', 'professional', 'neighbor', 'viewer'];
+const VALID_ROLES: string[] = CIRCLE_ROLES;
 
 // Public preview of an invite (shown before signup). No auth.
 router.get('/info/:token', async (req, res) => {

@@ -44,15 +44,15 @@
     "admin": "Administrator",
     "family": "Familie",
     "professional": "Fachkraft",
-    "neighbor": "Nachbarschaft/Freunde",
-    "viewer": "Nur lesen"
+    "neighbor": "Freunde",
+    "recipient": "Betreute Person"
   },
   "roleHints": {
     "admin": "Verwaltet Kreis, Mitglieder und Einladungen. Voller Zugriff.",
     "family": "Schreibt überall: Tagebuch, Profil, Kalender, Ausgaben.",
     "professional": "Schreibt ins Tagebuch, in Messwerte und Medikamente.",
     "neighbor": "Schreibt einfache Notizen ins Tagebuch und sieht den Kalender.",
-    "viewer": "Sieht alles, ohne etwas zu ändern."
+    "recipient": "Sieht alles außer Arztgesprächen und ändert nichts."
   },
   "members": {
     "title": "Mitglieder",

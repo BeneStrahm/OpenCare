@@ -8,7 +8,7 @@
 import express, { Router, Response } from 'express';
 import { query, getClient } from '../../db';
 import { authMiddleware } from '../../middleware/auth';
-import { circleMiddleware, requireRole, CircleRequest, CircleRole } from '../../middleware/circle';
+import { circleMiddleware, requireRole, CircleRequest, CircleRole, CONSULTATION_READER_ROLES } from '../../middleware/circle';
 import { kioskOrMember, allowDeviceOr, KioskRequest } from '../../middleware/kioskDevice';
 import { broadcastToCircle } from '../../lib/broadcaster';
 import logger from '../../lib/logger';
@@ -17,8 +17,8 @@ import { loadVocabulary, normalizeTerm } from './vocabulary';
 import { kickConsultationProcessor } from './processing';
 import { consultationText } from './texts';
 
-// viewer (z. B. Bekannte) liest keine Mitschriften und KI-Entwuerfe.
-export const READER_ROLES: CircleRole[] = ['admin', 'family', 'professional'];
+// neighbor und recipient lesen keine Mitschriften und KI-Entwuerfe (zentral in middleware/circle.ts).
+export const READER_ROLES: CircleRole[] = CONSULTATION_READER_ROLES;
 export const WRITER_ROLES: CircleRole[] = ['admin', 'family'];
 
 const requireReader = requireRole(...READER_ROLES);

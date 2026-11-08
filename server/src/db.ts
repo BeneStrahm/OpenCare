@@ -335,6 +335,26 @@ export const runMigrations = async () => {
         `ALTER TABLE medications ADD COLUMN IF NOT EXISTS stock_alert_sent_at TIMESTAMP;`,
         // Arztgespraech-Modul (Fork), siehe modules/consultations/schema.ts
         ...CONSULTATION_MIGRATIONS,
+        // Fork, Rollen E10: viewer entfaellt, neu recipient ("Betreute Person").
+        // Bestehende viewer-Mitglieder und -Einladungen werden entfernt
+        // (Entscheidung vom 8. November). Laeuft nur, solange die CHECK-Bedingung
+        // recipient noch nicht kennt.
+        `DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'circle_members_role_check'
+                           AND pg_get_constraintdef(oid) LIKE '%recipient%') THEN
+                DELETE FROM circle_members WHERE role = 'viewer';
+                ALTER TABLE circle_members DROP CONSTRAINT IF EXISTS circle_members_role_check;
+                ALTER TABLE circle_members ADD CONSTRAINT circle_members_role_check
+                    CHECK (role IN ('admin', 'family', 'professional', 'neighbor', 'recipient'));
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'circle_invites_role_check'
+                           AND pg_get_constraintdef(oid) LIKE '%recipient%') THEN
+                DELETE FROM circle_invites WHERE role = 'viewer';
+                ALTER TABLE circle_invites DROP CONSTRAINT IF EXISTS circle_invites_role_check;
+                ALTER TABLE circle_invites ADD CONSTRAINT circle_invites_role_check
+                    CHECK (role IN ('admin', 'family', 'professional', 'neighbor', 'recipient'));
+            END IF;
+        END $$;`,
     ];
 
     for (const migration of migrations) {

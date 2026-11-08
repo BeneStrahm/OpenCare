@@ -27,7 +27,7 @@ interface PendingReset {
     url: string | null;
 }
 
-const ROLES: CircleRole[] = ['admin', 'family', 'professional', 'neighbor', 'viewer'];
+const ROLES: CircleRole[] = ['admin', 'family', 'professional', 'neighbor', 'recipient'];
 const CURRENCIES = ['EUR', 'CHF', 'CAD', 'USD', 'GBP'];
 
 interface Member {
@@ -73,7 +73,7 @@ interface CaregiverLink {
 
 const roleBadgeVariant = (role: CircleRole): 'primary' | 'default' | 'secondary' => {
     if (role === 'admin') return 'primary';
-    if (role === 'viewer') return 'secondary';
+    if (role === 'recipient') return 'secondary';
     return 'default';
 };
 

@@ -203,7 +203,7 @@ router.get('/', async (req: CircleRequest, res: Response) => {
     }
 });
 
-// Create an entry (every role except viewer). Optional photos as image data URLs
+// Create an entry (every role except recipient). Optional photos as image data URLs
 // (the client compresses before upload). A 'vital' entry whose data carries a
 // measurement also feeds the vitals table, linked by journal_entry_id.
 router.post('/', requireJournalWriter, async (req: CircleRequest, res: Response) => {

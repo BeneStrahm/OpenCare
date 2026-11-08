@@ -1,5 +1,5 @@
 // Roles d'un membre dans un cercle de soin
-export const CIRCLE_ROLES = ['admin', 'family', 'professional', 'neighbor', 'viewer'] as const;
+export const CIRCLE_ROLES = ['admin', 'family', 'professional', 'neighbor', 'recipient'] as const;
 export type CircleRole = typeof CIRCLE_ROLES[number];
 
 // Types d'entree du journal de liaison

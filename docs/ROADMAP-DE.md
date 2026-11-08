@@ -47,7 +47,7 @@ Fertig und getestet (Durchlauftest `scripts/smoke-consultations.sh`, 46 Prüfung
       `LOCAL_AI_ALLOWED_HOSTS` für eigene Server mit öffentlicher Adresse
 - [x] Freigegebene oder von Hand bearbeitete Zusammenfassungen werden nicht automatisch ersetzt
 - [x] Antworten werden den Fragen über deren ID zugeordnet (Verschieben/Löschen sicher)
-- [x] Rollen: Familie liest und schreibt, Fachkräfte lesen, Bekannte (viewer) und Nachbarn sehen nichts
+- [x] Rollen: Familie liest und schreibt, Fachkräfte lesen, Freunde (neighbor) und Betreute Person (recipient) sehen nichts
 - [x] Benachrichtigung der Familie, wenn eine Auswertung fertig oder fehlgeschlagen ist
 - [x] Fehler im Original behoben: undici 8 passte nicht zu Node 20/22, Whisper und Ollama waren
       dadurch nicht erreichbar (`server/src/utils/safeFetch.ts`). Als Beitrag ans Original melden
@@ -64,7 +64,7 @@ Offen, aus der unabhängigen Prüfung (Oberfläche; angefangen im Branch `de-fix
 - [ ] Ohne Netz „Keine Verbindung“ statt „Gespräch nicht gefunden“ anzeigen
 - [ ] Tablet: zweite Aufnahme innerhalb kurzer Zeit zum selben Gespräch
 - [ ] Editor: Antworten über `question_id` anzeigen, Hinweis bei `summary_outdated`,
-      klarer Warntext beim Neu-Erstellen (ersetzt auch die Freigabe), Menüpunkt für viewer ausblenden
+      klarer Warntext beim Neu-Erstellen (ersetzt auch die Freigabe), Menüpunkt für recipient ausblenden
 - [ ] Neue Fehlercodes verständlich anzeigen (AUDIO_MISSING, LOCAL_SERVICE_REQUIRED, CONSULTATION_DELETED)
 
 Offen, Server:

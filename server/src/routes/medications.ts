@@ -7,6 +7,7 @@ import {
     requireContentWriter,
     requireJournalWriter,
     requireRole,
+    HEALTH_READER_ROLES,
     caregiverLinkMiddleware,
     CircleRequest,
     CaregiverLinkRequest,
@@ -237,7 +238,7 @@ router.put('/link/:linkToken/intakes/:id', caregiverLinkMiddleware, async (req: 
 // All routes below require a logged-in member of the active circle.
 // Donnees medicales: la matrice de docs/SPEC.md exclut le role neighbor
 // (les intervenants de confiance sans compte passent par le lien magique ci-dessus).
-router.use(authMiddleware, circleMiddleware, requireRole('admin', 'family', 'professional', 'viewer'));
+router.use(authMiddleware, circleMiddleware, requireRole(...HEALTH_READER_ROLES));
 
 // ============================================================
 // Medications
@@ -599,7 +600,7 @@ router.get('/intakes', async (req: CircleRequest, res: Response) => {
     }
 });
 
-// Confirm, skip or reset an intake (everyone except viewers)
+// Confirm, skip or reset an intake (everyone except recipient)
 router.put('/intakes/:id', requireJournalWriter, async (req: CircleRequest, res: Response) => {
     const lang = langFromRequest(req);
     const client = await getClient();

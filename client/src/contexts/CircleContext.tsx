@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { api } from '../lib/api';
 import { useAuth } from './AuthContext';
 
-export type CircleRole = 'admin' | 'family' | 'professional' | 'neighbor' | 'viewer';
+export type CircleRole = 'admin' | 'family' | 'professional' | 'neighbor' | 'recipient';
 
 /** Un cercle tel que listé par GET /api/circles (avec le rôle du user et le proche). */
 export interface CircleSummary {
@@ -112,7 +112,7 @@ export const CircleProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 refreshCircles,
                 needsOnboarding: !loading && isAuthenticated && circles.length === 0,
                 canWriteContent: myRole === 'admin' || myRole === 'family',
-                canWriteJournal: myRole !== null && myRole !== 'viewer',
+                canWriteJournal: myRole !== null && myRole !== 'recipient',
                 isAdmin: myRole === 'admin',
             }}
         >

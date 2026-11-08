@@ -11,7 +11,7 @@ const router = Router();
 router.use(authMiddleware);
 router.use(circleMiddleware);
 
-// List the circle's shopping items (every member, viewer included)
+// List the circle's shopping items (every member, recipient included)
 router.get('/', async (req: CircleRequest, res: Response) => {
     try {
         const result = await query(
@@ -25,7 +25,7 @@ router.get('/', async (req: CircleRequest, res: Response) => {
     }
 });
 
-// Add an item (any role except viewer: the home aide adds paracetamol too).
+// Add an item (any role except recipient: the home aide adds paracetamol too).
 // Categories are free-form strings, the server does not enforce a list.
 router.post('/', requireJournalWriter, async (req: CircleRequest, res: Response) => {
     try {
@@ -64,7 +64,7 @@ router.post('/', requireJournalWriter, async (req: CircleRequest, res: Response)
     }
 });
 
-// Update an item, including checking it off (any role except viewer)
+// Update an item, including checking it off (any role except recipient)
 router.put('/:id', requireJournalWriter, async (req: CircleRequest, res: Response) => {
     try {
         const { id } = req.params;
@@ -111,7 +111,7 @@ router.put('/:id', requireJournalWriter, async (req: CircleRequest, res: Respons
     }
 });
 
-// Delete an item (any role except viewer)
+// Delete an item (any role except recipient)
 router.delete('/:id', requireJournalWriter, async (req: CircleRequest, res: Response) => {
     try {
         const { id } = req.params;
@@ -133,7 +133,7 @@ router.delete('/:id', requireJournalWriter, async (req: CircleRequest, res: Resp
     }
 });
 
-// Clear checked items (any role except viewer)
+// Clear checked items (any role except recipient)
 router.delete('/checked/clear', requireJournalWriter, async (req: CircleRequest, res: Response) => {
     try {
         await query(

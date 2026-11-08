@@ -26,7 +26,7 @@ describe('relayAdminIds', () => {
     it('autorise un admin present dans tous les cercles de la personne', () => {
         const rows = [
             m('vicky', 'grandpa', 'family'), m('mallory', 'grandpa', 'admin'), m('paul', 'grandpa', 'admin'),
-            m('vicky', 'mom', 'viewer'), m('paul', 'mom', 'admin'),
+            m('vicky', 'mom', 'recipient'), m('paul', 'mom', 'admin'),
         ];
         expect(relayAdminIds(rows, 'vicky')).toEqual(['paul']);
     });

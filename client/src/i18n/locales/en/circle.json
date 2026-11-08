@@ -44,15 +44,15 @@
     "admin": "Administrator",
     "family": "Family",
     "professional": "Professional",
-    "neighbor": "Neighbour/friend",
-    "viewer": "Read only"
+    "neighbor": "Friends",
+    "recipient": "Care recipient"
   },
   "roleHints": {
     "admin": "Manages the circle, members and invitations. Full access.",
     "family": "Writes everywhere: journal, profile, calendar, expenses.",
     "professional": "Writes in the journal, vitals and medications.",
     "neighbor": "Writes simple journal notes and views the calendar.",
-    "viewer": "Views everything without changing anything."
+    "recipient": "Views everything except doctor visits and changes nothing."
   },
   "members": {
     "title": "Members",

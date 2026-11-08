@@ -132,7 +132,7 @@ async function escalate(circleId: string, recipientFirstName: string, flagReason
 // POST /api/companion/message : { messages: [{role, content}] }
 //   -> { reply, flagged, source: 'facts' | 'ai' | 'fallback', intent }
 // allowDeviceOr(journal writers): l'escalade ecrit une entree de journal
-// (incident), donc meme classe d'action que /api/voice/transcribe; les viewer
+// (incident), donc meme classe d'action que /api/voice/transcribe; les recipient
 // (lecture seule) sont exclus, conformement a la matrice de permissions.
 router.post('/message', allowDeviceOr(...JOURNAL_WRITER_ROLES), async (req: KioskRequest, res: Response) => {
     try {

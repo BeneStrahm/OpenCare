@@ -33,7 +33,7 @@
       "family": "Famille",
       "professional": "Professionnel(le)",
       "neighbor": "Voisin(e)",
-      "viewer": "Proche"
+      "recipient": "Personne aidée"
     }
   },
   "appointments": {

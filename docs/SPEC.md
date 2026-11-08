@@ -24,7 +24,7 @@ Principe : tout est rattaché à un cercle de soin. Un cercle correspond à un p
 ### Cercle et membres
 - `care_circles` : id, name, created_by, settings JSONB.
 - `care_recipients` : 1 par cercle. Identité, date de naissance, photo, adresse, médecin traitant, groupe sanguin, allergies, antécédents, directives anticipées, numéro de sécurité sociale, notes médicales.
-- `circle_members` : circle_id, user_id, role, display_name, color. Rôles : `admin` (gère le cercle), `family` (fratrie, écrit partout), `professional` (écrit journal/constantes/médicaments), `neighbor` (écrit journal simple, lit calendrier), `viewer` (lecture seule).
+- `circle_members` : circle_id, user_id, role, display_name, color. Rôles : `admin` (gère le cercle), `family` (fratrie, écrit partout), `professional` (écrit journal/constantes/médicaments), `neighbor` (écrit journal simple, lit calendrier ; UI « Freunde »), `recipient` (personne aidée, lecture seule provisoire, sans consultations médicales ; droits définitifs à fixer, cf. `server/src/middleware/circle.ts`).
 - `circle_invites` : token, rôle pré-assigné, email optionnel, expiration.
 - `caregiver_links` : liens magiques pour intervenants SANS compte (auxiliaire, infirmière). Token long, nom affiché, rôle, portée limitée (journal + lecture du jour), expiration optionnelle, accessible par URL/QR/SMS.
 
@@ -66,7 +66,7 @@ Pas de table dédiée : statistiques calculées depuis `journal_entries` (visite
 
 ## 3. Permissions par rôle
 
-| Action | admin | family | professional | neighbor | viewer | lien magique |
+| Action | admin | family | professional | neighbor | recipient | lien magique |
 |---|---|---|---|---|---|---|
 | Gérer cercle, membres, invitations | x | | | | | |
 | Profil du proche, médicaments, documents | x | x | lecture + ajout doc | | lecture | |

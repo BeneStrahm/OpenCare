@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { query } from '../db';
 import { authMiddleware } from '../middleware/auth';
-import { circleMiddleware, requireRole, CircleRequest } from '../middleware/circle';
+import { circleMiddleware, requireRole, CircleRequest, HEALTH_READER_ROLES } from '../middleware/circle';
 import { broadcastToCircle } from '../lib/broadcaster';
 import { FILE_DATA_URL_REGEX } from '../lib/dataUrls';
 
@@ -19,7 +19,7 @@ const base64ByteSize = (base64: string): number => {
 };
 
 // Documents are sensitive (insurance, legal rulings): neighbors cannot read them.
-const requireDocumentReader = requireRole('admin', 'family', 'professional', 'viewer');
+const requireDocumentReader = requireRole(...HEALTH_READER_ROLES);
 // A professional can upload too (e.g. a physiotherapist dropping a report).
 const requireDocumentUploader = requireRole('admin', 'family', 'professional');
 

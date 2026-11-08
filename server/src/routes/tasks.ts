@@ -68,7 +68,7 @@ const enrichTasksWithMembers = async (tasks: any[], circleId: string) => {
     });
 };
 
-// List the circle's tasks (every member, viewer included)
+// List the circle's tasks (every member, recipient included)
 router.get('/', async (req: CircleRequest, res: Response) => {
     try {
         const result = await query(
@@ -167,7 +167,7 @@ router.post('/', requireContentWriter, async (req: CircleRequest, res: Response)
     }
 });
 
-// Toggle completion (any role except viewer: a professional may check
+// Toggle completion (any role except recipient: a professional may check
 // "groceries done" even though task editing is family-only).
 // Body: optional { is_completed: boolean }; without it the status is toggled.
 router.put('/:id/complete', requireJournalWriter, async (req: CircleRequest, res: Response) => {

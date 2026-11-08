@@ -68,8 +68,8 @@ const NAV_GROUPS: Array<{ key: string; items: NavItem[] }> = [
         { labelKey: 'items.carePlan', href: '/care-plan', icon: ClipboardList },
         { labelKey: 'items.medications', href: '/medications', icon: Pill, hideFor: HEALTH_HIDDEN },
         { labelKey: 'items.health', href: '/health', icon: Activity, hideFor: HEALTH_HIDDEN },
-        // Bekannte (viewer) sehen keine Arztgespraeche (Mitschriften sind Gesundheitsdaten).
-        { labelKey: 'items.consultations', href: '/consultations', icon: Stethoscope, hideFor: ['neighbor', 'viewer'] },
+        // Freunde (neighbor) und Betreute Person (recipient) sehen keine Arztgespraeche (Mitschriften sind Gesundheitsdaten).
+        { labelKey: 'items.consultations', href: '/consultations', icon: Stethoscope, hideFor: ['neighbor', 'recipient'] },
         { labelKey: 'items.visitors', href: '/visitors', icon: DoorOpen },
     ] },
     { key: 'organise', items: [
@@ -311,7 +311,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
                         <div className="flex items-center gap-2">
                             {/* Sprachsteuerung: auf dem Handy immer in Reichweite */}
-                            {myRole && myRole !== 'viewer' && isOn('voice_commands') && <VoiceCommandButton variant="header" />}
+                            {myRole && myRole !== 'recipient' && isOn('voice_commands') && <VoiceCommandButton variant="header" />}
                             <NotificationBell />
                             <div className="hidden items-center gap-2 lg:flex">
                                 <Button

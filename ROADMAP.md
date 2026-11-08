@@ -11,7 +11,7 @@ The product specification lives in [docs/SPEC.md](docs/SPEC.md).
 Everything described in docs/SPEC.md is implemented and released:
 
 - **Care circles**: one circle per cared-for person, multi-circle accounts, fine-grained
-  roles (admin, family, professional, neighbor, viewer), invitations by link, care
+  roles (admin, family, professional, neighbor, recipient), invitations by link, care
   recipient profile (medical history, allergies, directives).
 - **Care journal**: the heart of the app. Typed entries (visit, note, vital, medication,
   incident, mood) with photos, real time over WebSocket.

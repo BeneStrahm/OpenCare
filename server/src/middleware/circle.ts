@@ -2,7 +2,25 @@ import { Response, NextFunction } from 'express';
 import { query } from '../db';
 import { AuthRequest } from './auth';
 
-export type CircleRole = 'admin' | 'family' | 'professional' | 'neighbor' | 'viewer';
+export type CircleRole = 'admin' | 'family' | 'professional' | 'neighbor' | 'recipient';
+
+/** Alle gueltigen Rollen (Pruefung bei Einladung und Rollenwechsel). */
+export const CIRCLE_ROLES: CircleRole[] = ['admin', 'family', 'professional', 'neighbor', 'recipient'];
+
+/*
+ * Rolle recipient ("Betreute Person"), Entscheidung E10.
+ * Rechte VORLAEUFIG minimal und nur hier festgelegt (Roadmap Phase 3e, Schritt 2):
+ * - liest wie die anderen, Gesundheitsdaten eingeschlossen (HEALTH_READER_ROLES)
+ * - schreibt nichts: fehlt in JOURNAL_WRITER_ROLES und CONTENT_WRITER_ROLES
+ * - verwaltet nichts, laedt nicht ein, entfernt niemanden (nur admin)
+ * - kein Zugriff auf Arztgespraeche (CONSULTATION_READER_ROLES)
+ */
+
+/** Roles allowed to read health data (vitals, medications, documents, digests). */
+export const HEALTH_READER_ROLES: CircleRole[] = ['admin', 'family', 'professional', 'recipient'];
+
+/** Roles allowed to read consultations (transcripts and AI drafts are health data). */
+export const CONSULTATION_READER_ROLES: CircleRole[] = ['admin', 'family', 'professional'];
 
 export interface CircleRequest extends AuthRequest {
     /** Active care circle, resolved from the X-Circle-Id header or :circleId param */
@@ -60,7 +78,7 @@ export const requireRole = (...roles: CircleRole[]) => {
     };
 };
 
-/** Roles allowed to write journal entries (everyone except read-only viewers). */
+/** Roles allowed to write journal entries (everyone except recipient, see above). */
 export const JOURNAL_WRITER_ROLES: CircleRole[] = ['admin', 'family', 'professional', 'neighbor'];
 
 /** Roles allowed to manage circle content (calendar, tasks, documents...). */

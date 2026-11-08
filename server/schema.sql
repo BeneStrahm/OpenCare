@@ -50,13 +50,13 @@ CREATE TABLE households (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Roles: admin, family, professional, neighbor, viewer
+-- Roles: admin, family, professional, neighbor (UI "Freunde"), recipient (UI "Betreute Person")
 CREATE TABLE circle_members (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     circle_id UUID NOT NULL REFERENCES care_circles(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     role VARCHAR(20) NOT NULL DEFAULT 'family'
-        CHECK (role IN ('admin', 'family', 'professional', 'neighbor', 'viewer')),
+        CHECK (role IN ('admin', 'family', 'professional', 'neighbor', 'recipient')),
     color VARCHAR(7) NOT NULL DEFAULT '#5B7C99',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(circle_id, user_id)
@@ -107,7 +107,7 @@ CREATE TABLE circle_invites (
     token VARCHAR(64) UNIQUE NOT NULL,
     invitee_email TEXT,
     role VARCHAR(20) NOT NULL DEFAULT 'family'
-        CHECK (role IN ('admin', 'family', 'professional', 'neighbor', 'viewer')),
+        CHECK (role IN ('admin', 'family', 'professional', 'neighbor', 'recipient')),
     status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'revoked')),
     expires_at TIMESTAMP NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

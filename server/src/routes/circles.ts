@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import crypto from 'crypto';
 import { query, getClient } from '../db';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
-import { circleMiddleware, requireAdmin, CircleRequest } from '../middleware/circle';
+import { circleMiddleware, requireAdmin, CircleRequest, CIRCLE_ROLES } from '../middleware/circle';
 import { broadcastToCircle } from '../lib/broadcaster';
 import { langFromRequest, t } from '../lib/i18n';
 import { withPublicSettings, validateSettingsPatch, mergeCircleSettings, inheritedSettings } from '../lib/circleSettings';
@@ -384,7 +384,7 @@ router.put('/:circleId/members/:memberId', circleMiddleware, requireAdmin, async
     const lang = langFromRequest(req);
     try {
         const { role, color } = req.body;
-        const validRoles = ['admin', 'family', 'professional', 'neighbor', 'viewer'];
+        const validRoles: string[] = CIRCLE_ROLES;
 
         const memberResult = await query(
             'SELECT id, role FROM circle_members WHERE id = $1 AND circle_id = $2',

@@ -76,7 +76,7 @@ Le serveur maintient les connexions WebSocket par utilisateur (`server/src/lib/b
 
 ### Rôles et cercles
 
-Tout est rattaché à un `care_circle` (un cercle = un proche aidé). Un utilisateur peut appartenir à plusieurs cercles avec un rôle distinct dans chacun : `admin`, `family`, `professional`, `neighbor`, `viewer`. Les requêtes API portent l'en-tête `X-Circle-Id` et passent par un middleware qui vérifie l'appartenance et le rôle. Les intervenants **sans compte** écrivent au journal via des liens magiques (`caregiver_links`).
+Tout est rattaché à un `care_circle` (un cercle = un proche aidé). Un utilisateur peut appartenir à plusieurs cercles avec un rôle distinct dans chacun : `admin`, `family`, `professional`, `neighbor`, `recipient` (personne aidée). Les requêtes API portent l'en-tête `X-Circle-Id` et passent par un middleware qui vérifie l'appartenance et le rôle. Les intervenants **sans compte** écrivent au journal via des liens magiques (`caregiver_links`).
 
 ### Tâches planifiées
 
@@ -324,7 +324,7 @@ L'affiche imprimable de la fiche urgence porte une ligne de numéros d'urgence, 
 
 Chaque requête vérifie le rôle du membre dans le cercle visé. La matrice de référence (docs/SPEC.md) :
 
-| Action | admin | family | professional | neighbor | viewer | lien magique |
+| Action | admin | family | professional | neighbor | recipient | lien magique |
 |---|---|---|---|---|---|---|
 | Gérer cercle, membres, invitations | x | | | | | |
 | Profil du proche, médicaments, documents | x | x | lecture + ajout doc | | lecture | |
