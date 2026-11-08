@@ -69,3 +69,55 @@ logo nexaflow.png
 
 # Sauvegardes locales de la base (scripts/backup.sh)
 /backups/
+
+# --- Server-Betrieb: liegt nur auf dem Server, nie ins Repo ---
+.env.*
+!.env.example
+!.env.production.example
+!.env.demo
+Caddyfile
+docker-compose.ionos.yml
+docker-compose.*.local.yml
+/opencare-backup/
+
+# Voreinrichtung mit echten Namen und Daten (nur auf dem Server)
+voreinrichtung*.json
+voreinrichtung*.yml
+voreinrichtung*.yaml
+!voreinrichtung*.example.*
+
+# Schlüssel und Zertifikate
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.keystore
+*.jks
+id_rsa*
+id_ed25519*
+*.ppk
+
+# Datenbank-Sicherungen und Exporte (enthalten Gesundheitsdaten)
+*.dump
+*.sql.gz
+*.sql.zst
+*.backup
+*.tar.gz
+
+# Aufnahmen aus dem Arztgespräch
+*.wav
+*.mp3
+*.m4a
+*.ogg
+*.webm
+*.opus
+uploads/
+recordings/
+
+# Lokale Werkzeuge
+_wt/
+coverage/
+.claude/settings.local.json
+Thumbs.db
+desktop.ini
