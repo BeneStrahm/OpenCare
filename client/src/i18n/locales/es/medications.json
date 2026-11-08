@@ -5,7 +5,8 @@
   "tabs": {
     "today": "Hoy",
     "treatments": "Tratamientos",
-    "prescriptions": "Recetas"
+    "prescriptions": "Recetas",
+    "stock": "Existencias"
   },
   "moments": {
     "morning": "Mañana",
@@ -29,16 +30,16 @@
       "pending": "Por tomar",
       "taken": "Tomada",
       "takenAt": "Tomada a las {{time}}",
-      "skipped": "Omitida",
+      "skipped": "No tomado",
       "missed": "No realizada"
     },
     "markTaken": "Tomada",
-    "markSkipped": "Omitida",
+    "markSkipped": "No tomado",
     "undo": "Deshacer",
     "take": "Tomar {{amount}}",
     "prnTitle": "Si hace falta",
     "prnHint": "Estos medicamentos no tienen horario fijo: anote la toma cuando ocurra.",
-    "logPrn": "Anotar una toma",
+    "logPrn": "Tomado ahora",
     "prnToday_one": "{{count}} toma hoy",
     "prnToday_other": "{{count}} tomas hoy",
     "source": {
@@ -46,7 +47,10 @@
       "kiosk": "confirmada en el modo Kiosco",
       "phone": "confirmada en el teléfono",
       "link": "confirmada mediante un enlace de cuidador"
-    }
+    },
+    "lowStockTitle": "Quedan pocas existencias",
+    "lowStockHint": "Introduzca las nuevas existencias en la pestaña «Existencias».",
+    "takeAt": "{{amount}} a las {{time}}"
   },
   "treatments": {
     "add": "Añadir un tratamiento",
@@ -66,7 +70,21 @@
     "prn": "Si hace falta",
     "prnHint": "Sin horario fijo: las tomas se anotan cuando ocurren, desde la pestaña Hoy.",
     "reason": "Por qué: {{reason}}",
-    "appearance": "Aspecto: {{appearance}}"
+    "appearance": "Aspecto: {{appearance}}",
+    "table": {
+      "activeIngredient": "Principio activo",
+      "name": "Nombre del medicamento",
+      "strength": "Concentración",
+      "form": "Forma",
+      "morning": "Mañana",
+      "noon": "Mediodía",
+      "evening": "Tarde",
+      "night": "Al acostarse",
+      "unit": "Unidad",
+      "withFood": "Comidas",
+      "instructions": "Nota",
+      "actions": "Editar"
+    }
   },
   "stock": {
     "remaining": "Stock: {{amount}}",
@@ -85,7 +103,16 @@
     "hint": "Deje un campo vacío para no controlar ese valor. El stock baja solo con cada toma confirmada.",
     "stopTracking": "Dejar de controlar el stock",
     "invalid": "Indique un número entre 0 y 100000, o deje el campo vacío.",
-    "thresholdHint": "Cuando la reserva baje a esta cantidad, la familia y los administradores reciben un aviso."
+    "thresholdHint": "Cuando la reserva baje a esta cantidad, la familia y los administradores reciben un aviso.",
+    "table": {
+      "medication": "Medicamento",
+      "strength": "Concentración",
+      "stock": "Existencias",
+      "coverage": "Duración",
+      "actions": "Editar"
+    },
+    "notTracked": "Sin seguimiento",
+    "emptyList": "Aún no hay medicamentos."
   },
   "forms": {
     "tablet": "Comprimido",
@@ -105,6 +132,8 @@
     "description": "Indique el medicamento y sus horarios de toma.",
     "name": "Nombre del medicamento",
     "namePlaceholder": "Ej.: Paracetamol",
+    "activeIngredient": "Principio activo",
+    "activeIngredientPlaceholder": "p. ej. Metformina",
     "dosage": "Dosis",
     "dosagePlaceholder": "Ej.: 500 mg",
     "form": "Forma",
@@ -142,7 +171,14 @@
     "reason": "Por qué este tratamiento",
     "reasonPlaceholder": "Ej.: para la tensión",
     "appearance": "Aspecto del medicamento",
-    "appearancePlaceholder": "Ej.: comprimido pequeño, blanco y redondo"
+    "appearancePlaceholder": "Ej.: comprimido pequeño, blanco y redondo",
+    "requiredMark": "(obligatorio)",
+    "choosePlaceholder": "Elija una opción",
+    "intakeType": "Toma",
+    "fixedTimes": "Horarios fijos",
+    "fixedTimesHint": "Con hora, cantidad y días.",
+    "requiredError": "Complete por favor: {{fields}}.",
+    "schedulesRequiredError": "Añada al menos un horario o elija «Si hace falta»."
   },
   "prescriptions": {
     "add": "Añadir una receta",

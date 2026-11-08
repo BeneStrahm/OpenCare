@@ -164,6 +164,7 @@ export const runMigrations = async () => {
         `ALTER TABLE medications ADD COLUMN IF NOT EXISTS with_food VARCHAR(10);`,
         `ALTER TABLE medications ADD COLUMN IF NOT EXISTS reason TEXT;`,
         `ALTER TABLE medications ADD COLUMN IF NOT EXISTS appearance TEXT;`,
+        `ALTER TABLE medications ADD COLUMN IF NOT EXISTS active_ingredient VARCHAR(255);`,
         `DO $$ BEGIN
             IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'medications_with_food_check') THEN
                 ALTER TABLE medications ADD CONSTRAINT medications_with_food_check

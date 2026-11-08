@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { cn } from '../lib/utils';
-import { MEDICATION_FORMS, MEDICATION_UNITS, formatAmount, safeQuantity } from '../lib/medications';
+import { MEDICATION_FORMS, MEDICATION_UNITS, formatAmount, safeQuantity, unitFor } from '../lib/medications';
 import { useCircle } from '../contexts/CircleContext';
 import { circleWeekStart, orderedIsoDays, sortIsoDays } from '../lib/weekStart';
 import { useWebSocketUpdates } from '../hooks/useWebSocketUpdates';
@@ -70,6 +70,8 @@ interface Medication {
     with_food: WithFood | null;
     reason: string | null;
     appearance: string | null;
+    /** Wirkstoff */
+    active_ingredient: string | null;
     /** Stock restant, dans l'unite d'une prise ; null = stock non suivi */
     stock_quantity: number | null;
     /** Sous ce seuil le stock est signale comme bas ; null = pas d'alerte */
@@ -94,6 +96,9 @@ interface Intake {
     photo_url: string | null;
     prn: boolean;
     schedule_label: string | null;
+    instructions: string | null;
+    with_food: WithFood | null;
+    appearance: string | null;
 }
 
 interface Prescription {
@@ -104,6 +109,12 @@ interface Prescription {
     renewal_date: string | null;
     reminder_days: number;
     notes: string | null;
+}
+
+interface ContactOption {
+    id: string;
+    name: string;
+    organization: string | null;
 }
 
 interface ScheduleRow {
@@ -117,6 +128,9 @@ interface ScheduleRow {
 }
 
 // ─── Constants and helpers ────────────────────────────────────────────────────
+
+/** Reiter "Rezepte" ausgeblendet; auf true setzen, um ihn wieder zu zeigen. */
+const SHOW_PRESCRIPTIONS: boolean = false;
 
 const MOMENTS: Moment[] = ['morning', 'noon', 'evening', 'night'];
 const ISO_DAYS = [1, 2, 3, 4, 5, 6, 7];
@@ -242,6 +256,7 @@ const emptyMedForm = () => ({
     with_food: '' as '' | WithFood,
     reason: '',
     appearance: '',
+    active_ingredient: '',
     schedules: [emptyScheduleRow()],
 });
 
@@ -288,6 +303,9 @@ const Medications: React.FC = () => {
     const [rxForm, setRxForm] = useState(emptyRxForm());
     const [rxFormError, setRxFormError] = useState('');
     const [savingRx, setSavingRx] = useState(false);
+
+    // Kontakte als Vorschläge für "Verordnet von" (freie Eingabe bleibt möglich)
+    const [contacts, setContacts] = useState<ContactOption[]>([]);
 
     const dayLetters = t('medications:dayLetters', { returnObjects: true }) as unknown as string[];
     const dayNames = t('common:days', { returnObjects: true }) as unknown as string[];
@@ -372,6 +390,17 @@ const Medications: React.FC = () => {
 
     useEffect(() => {
         if (!activeCircle) return;
+        // Nur Vorschläge: Fehler hier stören die Seite nicht.
+        api.get<{ success: boolean; data: ContactOption[] }>('/api/contacts')
+            .then((response) => {
+                if (response.success) setContacts(response.data);
+            })
+            .catch((err) => console.error('Failed to load contacts:', err));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeCircle?.id]);
+
+    useEffect(() => {
+        if (!activeCircle) return;
         void loadMedications();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeCircle?.id, showArchived]);
@@ -425,76 +454,101 @@ const Medications: React.FC = () => {
     const prnIntakesToday = (medId: string) =>
         intakes.filter((i) => i.medication_id === medId && i.status === 'taken').length;
 
-    const renderIntakeStatus = (intake: Intake) => {
+    const isDone = (intake: Intake) => intake.status === 'taken' || intake.status === 'skipped';
+
+    // Offene Einnahmen zuerst, erledigte blass darunter; jeweils nach Uhrzeit.
+    const sortForToday = (group: Intake[]) =>
+        [...group].sort((x, y) => {
+            const doneDiff = Number(isDone(x)) - Number(isDone(y));
+            return doneDiff !== 0 ? doneDiff : x.due_at.localeCompare(y.due_at);
+        });
+
+    /** Hinweise in einfachen Worten: Mahlzeiten, Aussehen, Hinweis. */
+    const intakeDetails = (intake: Intake) =>
+        [
+            intake.with_food && intake.with_food !== 'any' ? t(`medications:withFood.${intake.with_food}`) : null,
+            intake.appearance,
+            intake.instructions,
+        ].filter(Boolean) as string[];
+
+    const renderIntakeState = (intake: Intake) => {
         if (intake.status === 'taken') {
             return (
-                <Badge variant="success">
-                    <Check className="mr-1 h-3 w-3" />
+                <p className="flex items-center gap-2 text-body font-semibold text-success">
+                    <Check className="h-6 w-6 flex-shrink-0" aria-hidden="true" />
                     {intake.confirmed_at
-                        ? t('medications:today.status.takenAt', {
-                              time: formatClock(intake.confirmed_at),
-                          })
+                        ? t('medications:today.status.takenAt', { time: formatClock(intake.confirmed_at) })
                         : t('medications:today.status.taken')}
-                </Badge>
+                </p>
             );
         }
         if (intake.status === 'skipped') {
-            return <Badge variant="secondary">{t('medications:today.status.skipped')}</Badge>;
+            return <p className="text-body font-semibold text-foreground">{t('medications:today.status.skipped')}</p>;
         }
         if (intake.status === 'missed') {
-            return <Badge variant="danger">{t('medications:today.status.missed')}</Badge>;
+            return <p className="text-body font-semibold text-danger">{t('medications:today.status.missed')}</p>;
         }
-        return <Badge variant="default">{t('medications:today.status.pending')}</Badge>;
+        return null;
     };
 
     const renderIntakeActions = (intake: Intake) => {
         if (!canWriteJournal) return null;
-        if (intake.status === 'taken' || intake.status === 'skipped') {
+        if (isDone(intake)) {
             return (
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => void setIntakeStatus(intake, 'pending')}
-                >
-                    <RotateCcw className="mr-1.5 h-4 w-4" />
+                <Button variant="ghost" size="lg" onClick={() => void setIntakeStatus(intake, 'pending')}>
+                    <RotateCcw className="mr-2 h-5 w-5" aria-hidden="true" />
                     {t('medications:today.undo')}
                 </Button>
             );
         }
         return (
-            <div className="flex items-center gap-2">
-                <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => void setIntakeStatus(intake, 'taken')}
-                >
-                    <Check className="mr-1.5 h-4 w-4" />
+            <div className="flex flex-col gap-3 sm:flex-row">
+                <Button size="lg" className="sm:min-w-[12rem]" onClick={() => void setIntakeStatus(intake, 'taken')}>
+                    <Check className="mr-2 h-5 w-5" aria-hidden="true" />
                     {t('medications:today.markTaken')}
                 </Button>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => void setIntakeStatus(intake, 'skipped')}
-                >
+                <Button variant="secondary" size="lg" onClick={() => void setIntakeStatus(intake, 'skipped')}>
                     {t('medications:today.markSkipped')}
                 </Button>
             </div>
         );
     };
 
+    const lowStockMeds = medications.filter((med) => med.active && isStockLow(med));
+
     const todaySection = (
-        <div className="space-y-6">
-            <p className="text-caption text-muted-foreground first-letter:uppercase">
+        <div className="space-y-8">
+            <p className="text-h2 text-foreground first-letter:uppercase">
                 {new Date().toLocaleDateString(intlLocale(), { weekday: 'long', day: 'numeric', month: 'long' })}
             </p>
+            {lowStockMeds.length > 0 && (
+                <div role="status" className="rounded-input border border-warning/40 bg-warning/10 px-4 py-3">
+                    <p className="flex items-center gap-2 text-body font-semibold text-foreground">
+                        <Package className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                        {t('medications:today.lowStockTitle')}
+                    </p>
+                    <ul className="mt-1 space-y-0.5 text-body text-foreground">
+                        {lowStockMeds.map((med) => {
+                            const remaining = stockNumber(med.stock_quantity) ?? 0;
+                            return (
+                                <li key={med.id}>
+                                    {med.name}:{' '}
+                                    {remaining <= 0
+                                        ? t('medications:stock.empty')
+                                        : amountLabel(remaining, stockUnitOf(med), med.form)}
+                                </li>
+                            );
+                        })}
+                    </ul>
+                    <p className="mt-1 text-body text-foreground">{t('medications:today.lowStockHint')}</p>
+                </div>
+            )}
             {intakes.length === 0 ? (
                 <Card>
                     <CardContent className="p-8 text-center">
-                        <Pill className="mx-auto mb-3 h-12 w-12 text-muted-foreground opacity-50" />
+                        <Pill className="mx-auto mb-3 h-12 w-12 text-muted-foreground opacity-50" aria-hidden="true" />
                         <p className="text-body text-foreground">{t('medications:today.empty')}</p>
-                        <p className="mt-1 text-caption text-muted-foreground">
-                            {t('medications:today.emptyHint')}
-                        </p>
+                        <p className="mt-1 text-body text-muted-foreground">{t('medications:today.emptyHint')}</p>
                     </CardContent>
                 </Card>
             ) : (
@@ -502,103 +556,127 @@ const Medications: React.FC = () => {
                     const group = intakesByMoment[moment];
                     if (group.length === 0) return null;
                     return (
-                        <section key={moment}>
-                            <h2 className="mb-2 text-label font-medium uppercase tracking-wide text-muted-foreground">
+                        <section key={moment} aria-labelledby={`moment-${moment}`}>
+                            <h2 id={`moment-${moment}`} className="mb-3 text-h1 text-foreground">
                                 {t(`medications:moments.${moment}`)}
                             </h2>
-                            <Card>
-                                <CardContent className="divide-y divide-border p-0">
-                                    {group.map((intake) => (
-                                        <div
-                                            key={intake.id}
-                                            className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center"
-                                        >
-                                            {intake.photo_url ? (
-                                                <img
-                                                    src={intake.photo_url}
-                                                    alt=""
-                                                    className="h-12 w-12 flex-shrink-0 rounded-input border border-border object-cover"
-                                                />
-                                            ) : null}
-                                            <div className="min-w-0 flex-1">
-                                                <p className="text-body font-medium text-foreground">
-                                                    {intake.medication_name}
-                                                    {intake.medication_dosage ? (
-                                                        <span className="ml-2 font-normal text-muted-foreground">
-                                                            {intake.medication_dosage}
-                                                        </span>
-                                                    ) : null}
-                                                </p>
-                                                <p className="text-caption text-foreground">
-                                                    {t('medications:today.take', {
-                                                        amount: amountLabel(intake.quantity, intake.unit, intake.form),
-                                                    })}
-                                                </p>
-                                                <p className="text-caption text-muted-foreground">
-                                                    {formatClock(intake.due_at)}
-                                                    {intake.schedule_label
-                                                        ? ` · ${intake.schedule_label}`
-                                                        : intake.prn
-                                                          ? ` · ${t('medications:today.prnTitle')}`
-                                                          : ''}
-                                                    {intake.status === 'taken' && intake.confirmed_source
-                                                        ? ` · ${sourceLabel(intake.confirmed_source)}`
-                                                        : ''}
-                                                </p>
-                                            </div>
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                {/* The pending badge is redundant next to the action buttons. */}
-                                                {!(intake.status === 'pending' && canWriteJournal) &&
-                                                    renderIntakeStatus(intake)}
-                                                {renderIntakeActions(intake)}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </CardContent>
-                            </Card>
+                            <ul className="space-y-3">
+                                {sortForToday(group).map((intake) => {
+                                    const details = intakeDetails(intake);
+                                    return (
+                                        <li key={intake.id}>
+                                            <Card className={cn(isDone(intake) && 'opacity-70')}>
+                                                <CardContent className="space-y-4 p-4 sm:p-5">
+                                                    <div className="flex items-start gap-4">
+                                                        {intake.photo_url ? (
+                                                            <img
+                                                                src={intake.photo_url}
+                                                                alt={t('medications:treatments.photoAlt', { name: intake.medication_name })}
+                                                                className="h-20 w-20 flex-shrink-0 rounded-input border border-border object-cover"
+                                                            />
+                                                        ) : (
+                                                            <Pill className="mt-1 h-8 w-8 flex-shrink-0 text-primary" aria-hidden="true" />
+                                                        )}
+                                                        <div className="min-w-0 flex-1 space-y-1">
+                                                            <h3 className="text-h1 text-foreground">
+                                                                {intake.medication_name}
+                                                                {intake.medication_dosage ? (
+                                                                    <span className="ml-2 text-body font-normal text-muted-foreground">
+                                                                        {intake.medication_dosage}
+                                                                    </span>
+                                                                ) : null}
+                                                            </h3>
+                                                            <p className="text-h2 text-foreground">
+                                                                {t('medications:today.takeAt', {
+                                                                    amount: amountLabel(intake.quantity, intake.unit, intake.form),
+                                                                    time: formatClock(intake.due_at),
+                                                                })}
+                                                            </p>
+                                                            {details.map((line, index) => (
+                                                                <p key={index} className="text-body text-foreground">
+                                                                    {line}
+                                                                </p>
+                                                            ))}
+                                                            {intake.status === 'taken' && intake.confirmed_source ? (
+                                                                <p className="text-caption text-muted-foreground">
+                                                                    {sourceLabel(intake.confirmed_source)}
+                                                                </p>
+                                                            ) : null}
+                                                        </div>
+                                                    </div>
+                                                    {renderIntakeState(intake)}
+                                                    {renderIntakeActions(intake)}
+                                                </CardContent>
+                                            </Card>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
                         </section>
                     );
                 })
             )}
 
             {prnMedications.length > 0 && (
-                <section>
-                    <h2 className="mb-2 text-label font-medium uppercase tracking-wide text-muted-foreground">
+                <section aria-labelledby="moment-prn">
+                    <h2 id="moment-prn" className="mb-1 text-h1 text-foreground">
                         {t('medications:today.prnTitle')}
                     </h2>
-                    <Card>
-                        <CardContent className="divide-y divide-border p-0">
-                            <p className="px-4 pt-3 text-micro text-muted-foreground">{t('medications:today.prnHint')}</p>
-                            {prnMedications.map((med) => {
-                                const count = prnIntakesToday(med.id);
-                                return (
-                                    <div key={med.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center">
-                                        {med.photo_url ? (
-                                            <img src={med.photo_url} alt="" className="h-12 w-12 flex-shrink-0 rounded-input border border-border object-cover" />
-                                        ) : (
-                                            <Clock className="h-6 w-6 flex-shrink-0 text-muted-foreground" aria-hidden="true" />
-                                        )}
-                                        <div className="min-w-0 flex-1">
-                                            <p className="text-body font-medium text-foreground">
-                                                {med.name}
-                                                {med.dosage ? <span className="ml-2 font-normal text-muted-foreground">{med.dosage}</span> : null}
-                                            </p>
-                                            <p className="text-caption text-muted-foreground">
-                                                {med.instructions || med.reason || ''}
-                                                {count > 0 ? `${med.instructions || med.reason ? ' · ' : ''}${t('medications:today.prnToday', { count })}` : ''}
-                                            </p>
-                                        </div>
-                                        {canWriteJournal && (
-                                            <Button variant="secondary" size="sm" disabled={prnBusy === med.id} onClick={() => void logPrnIntake(med)}>
-                                                <PlusCircle className="mr-1.5 h-4 w-4" />
-                                                {t('medications:today.logPrn')}
-                                            </Button>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </CardContent>
-                    </Card>
+                    <p className="mb-3 text-body text-muted-foreground">{t('medications:today.prnHint')}</p>
+                    <ul className="space-y-3">
+                        {prnMedications.map((med) => {
+                            const count = prnIntakesToday(med.id);
+                            return (
+                                <li key={med.id}>
+                                    <Card>
+                                        <CardContent className="space-y-4 p-4 sm:p-5">
+                                            <div className="flex items-start gap-4">
+                                                {med.photo_url ? (
+                                                    <img
+                                                        src={med.photo_url}
+                                                        alt={t('medications:treatments.photoAlt', { name: med.name })}
+                                                        className="h-20 w-20 flex-shrink-0 rounded-input border border-border object-cover"
+                                                    />
+                                                ) : (
+                                                    <Clock className="mt-1 h-8 w-8 flex-shrink-0 text-primary" aria-hidden="true" />
+                                                )}
+                                                <div className="min-w-0 flex-1 space-y-1">
+                                                    <h3 className="text-h1 text-foreground">
+                                                        {med.name}
+                                                        {med.dosage ? (
+                                                            <span className="ml-2 text-body font-normal text-muted-foreground">{med.dosage}</span>
+                                                        ) : null}
+                                                    </h3>
+                                                    {[med.reason, med.instructions].filter(Boolean).map((line, index) => (
+                                                        <p key={index} className="text-body text-foreground">
+                                                            {line}
+                                                        </p>
+                                                    ))}
+                                                    {count > 0 && (
+                                                        <p className="flex items-center gap-2 text-body font-semibold text-success">
+                                                            <Check className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                                                            {t('medications:today.prnToday', { count })}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            {canWriteJournal && (
+                                                <Button
+                                                    size="lg"
+                                                    className="sm:min-w-[12rem]"
+                                                    disabled={prnBusy === med.id}
+                                                    onClick={() => void logPrnIntake(med)}
+                                                >
+                                                    <PlusCircle className="mr-2 h-5 w-5" aria-hidden="true" />
+                                                    {t('medications:today.logPrn')}
+                                                </Button>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                </li>
+                            );
+                        })}
+                    </ul>
                 </section>
             )}
         </div>
@@ -628,6 +706,7 @@ const Medications: React.FC = () => {
             with_food: med.with_food || '',
             reason: med.reason || '',
             appearance: med.appearance || '',
+            active_ingredient: med.active_ingredient || '',
             schedules: med.schedules.map((s) => ({
                 time_of_day: s.time_of_day,
                 days_of_week: [...s.days_of_week],
@@ -687,7 +766,21 @@ const Medications: React.FC = () => {
         event.preventDefault();
         setMedFormError('');
 
+        const missing = [
+            !medForm.name.trim() ? t('medications:form.name') : null,
+            !medForm.dosage.trim() ? t('medications:form.dosage') : null,
+            !medForm.form ? t('medications:form.form') : null,
+        ].filter(Boolean);
+        if (missing.length > 0) {
+            setMedFormError(t('medications:form.requiredError', { fields: missing.join(', ') }));
+            return;
+        }
+
         const rows = medForm.prn ? [] : medForm.schedules;
+        if (!medForm.prn && rows.length === 0) {
+            setMedFormError(t('medications:form.schedulesRequiredError'));
+            return;
+        }
         for (const row of rows) {
             if (!TIME_RE.test(row.time_of_day)) {
                 setMedFormError(t('medications:form.scheduleTimeError'));
@@ -716,6 +809,7 @@ const Medications: React.FC = () => {
             with_food: medForm.with_food || null,
             reason: medForm.reason.trim() || null,
             appearance: medForm.appearance.trim() || null,
+            active_ingredient: medForm.active_ingredient.trim() || null,
             schedules: rows.map((row) => ({
                 time_of_day: row.time_of_day,
                 days_of_week: row.days_of_week,
@@ -801,40 +895,35 @@ const Medications: React.FC = () => {
             : t('medications:stock.manage');
 
     /** Bloc stock d'un traitement : rien du tout tant que le stock n'est pas suivi. */
-    const stockLines = (med: Medication) => {
-        const remaining = stockNumber(med.stock_quantity);
-        if (remaining === null) return null;
-        const daysLeft = stockDaysLeft(med);
-        const low = isStockLow(med);
-        return (
-            <div className="mt-1.5">
-                <div className="flex flex-wrap items-center gap-2">
-                    <p className={cn('text-caption', low ? 'text-warning' : 'text-foreground')}>
-                        {remaining <= 0
-                            ? t('medications:stock.empty')
-                            : t('medications:stock.remaining', {
-                                  amount: amountLabel(remaining, stockUnitOf(med), med.form),
-                              })}
-                    </p>
-                    {low && <Badge variant="warning">{t('medications:stock.low')}</Badge>}
-                </div>
-                {daysLeft !== null && (
-                    <p className="mt-0.5 text-micro text-muted-foreground">
-                        {t('medications:stock.coverage', { count: daysLeft })}
-                    </p>
-                )}
-            </div>
-        );
+    /** Zelle einer Tageszeit: "1 – 08:00", bei einzelnen Tagen mit Wochentagen. */
+    const momentCell = (med: Medication, moment: Moment) => {
+        if (med.prn) return null;
+        const rows = med.schedules
+            .filter((s) => momentOf(parseInt(s.time_of_day.slice(0, 2), 10)) === moment)
+            .sort((a, b) => a.time_of_day.localeCompare(b.time_of_day));
+        return rows.map((schedule, index) => {
+            const amount = safeQuantity(schedule.quantity).toLocaleString(intlLocale(), {
+                maximumFractionDigits: 2,
+            });
+            const days =
+                schedule.days_of_week.length === 7
+                    ? ''
+                    : ` (${sortIsoDays(schedule.days_of_week, weekStart).map((d) => daysShort[d - 1]).join(', ')})`;
+            return (
+                <span key={schedule.id || index} className="block">
+                    {`${amount} – ${formatClock(schedule.time_of_day)}${days}`}
+                </span>
+            );
+        });
     };
 
-    const scheduleLine = (schedule: MedicationSchedule, form: string | null) => {
-        const hour = parseInt(schedule.time_of_day.slice(0, 2), 10);
-        const name = schedule.label || t(`medications:moments.${momentOf(hour)}`);
-        const days =
-            schedule.days_of_week.length === 7
-                ? t('medications:treatments.everyDay')
-                : sortIsoDays(schedule.days_of_week, weekStart).map((d) => daysShort[d - 1]).join(', ');
-        return `${name} ${formatClock(schedule.time_of_day)}, ${days} : ${amountLabel(schedule.quantity, schedule.unit, form)}`;
+    /** Einheit(en) der Einnahmen, z. B. "Tabletten". */
+    const unitCell = (med: Medication) => {
+        const units = Array.from(new Set(med.schedules.map((s) => unitFor(s.unit, med.form))));
+        if (units.length === 0 && med.form) units.push(unitFor(null, med.form));
+        return units
+            .map((unit) => t(`medications:units.${unit}`, { count: 2, defaultValue: unit }))
+            .join(', ');
     };
 
     const treatmentsSection = (
@@ -868,110 +957,75 @@ const Medications: React.FC = () => {
                     </CardContent>
                 </Card>
             ) : (
-                <div className="space-y-3">
-                    {medications.map((med) => (
-                        <Card key={med.id} className={med.active ? '' : 'opacity-70'}>
-                            <CardContent className="p-4">
-                                <div className="flex items-start gap-4">
-                                    {med.photo_url ? (
-                                        <img
-                                            src={med.photo_url}
-                                            alt={t('medications:treatments.photoAlt', { name: med.name })}
-                                            className="h-14 w-14 flex-shrink-0 rounded-input border border-border object-cover"
-                                        />
-                                    ) : null}
-                                    <div className="min-w-0 flex-1">
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <h3 className="text-body font-semibold text-foreground">
-                                                {med.name}
-                                            </h3>
-                                            {med.dosage && (
-                                                <span className="text-caption text-muted-foreground">
-                                                    {med.dosage}
+                <Card>
+                    <CardContent className="overflow-x-auto p-0">
+                        <table className="w-full min-w-[60rem] border-collapse text-left text-caption">
+                            <caption className="sr-only">{t('medications:tabs.treatments')}</caption>
+                            <thead>
+                                <tr className="border-b border-border bg-muted/50">
+                                    {[
+                                        'activeIngredient',
+                                        'name',
+                                        'strength',
+                                        'form',
+                                        'morning',
+                                        'noon',
+                                        'evening',
+                                        'night',
+                                        'unit',
+                                        'withFood',
+                                        'instructions',
+                                    ].map((key) => (
+                                        <th
+                                            key={key}
+                                            scope="col"
+                                            className="px-3 py-3 align-bottom font-semibold text-foreground"
+                                        >
+                                            {t(`medications:treatments.table.${key}`)}
+                                        </th>
+                                    ))}
+                                    {canWriteContent && (
+                                        <th scope="col" className="px-3 py-3 align-bottom font-semibold text-foreground">
+                                            {t('medications:treatments.table.actions')}
+                                        </th>
+                                    )}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {medications.map((med) => (
+                                    <tr
+                                        key={med.id}
+                                        className={cn('border-b border-border align-top last:border-b-0', !med.active && 'opacity-70')}
+                                    >
+                                        <td className="px-3 py-3 text-foreground">{med.active_ingredient || ''}</td>
+                                        <th scope="row" className="px-3 py-3 text-left font-normal">
+                                            <span className="block text-body font-semibold text-foreground">{med.name}</span>
+                                            {(med.prn || !med.active) && (
+                                                <span className="mt-1 flex flex-wrap gap-1">
+                                                    {med.prn && (
+                                                        <Badge variant="default">{t('medications:treatments.prn')}</Badge>
+                                                    )}
+                                                    {!med.active && (
+                                                        <Badge variant="default">{t('medications:treatments.archived')}</Badge>
+                                                    )}
                                                 </span>
                                             )}
-                                            {med.form && (
-                                                <Badge variant="secondary">{formLabel(med.form)}</Badge>
-                                            )}
-                                            {med.prn && (
-                                                <Badge variant="default">{t('medications:treatments.prn')}</Badge>
-                                            )}
-                                            {!med.active && (
-                                                <Badge variant="default">
-                                                    {t('medications:treatments.archived')}
-                                                </Badge>
-                                            )}
-                                        </div>
-                                        <div className="mt-1.5 space-y-0.5">
-                                            {med.prn ? (
-                                                <p className="text-caption text-muted-foreground">
-                                                    {t('medications:treatments.prnHint')}
-                                                </p>
-                                            ) : med.schedules.length === 0 ? (
-                                                <p className="text-caption text-muted-foreground">
-                                                    {t('medications:treatments.noSchedule')}
-                                                </p>
-                                            ) : (
-                                                med.schedules.map((schedule, index) => (
-                                                    <p
-                                                        key={schedule.id || index}
-                                                        className="text-caption text-foreground"
-                                                    >
-                                                        {scheduleLine(schedule, med.form)}
-                                                    </p>
-                                                ))
-                                            )}
-                                        </div>
-                                        {stockLines(med)}
-                                        {(med.with_food || med.reason || med.appearance) && (
-                                            <p className="mt-1.5 text-caption text-muted-foreground">
-                                                {[
-                                                    med.with_food ? t(`medications:withFood.${med.with_food}`) : null,
-                                                    med.reason ? t('medications:treatments.reason', { reason: med.reason }) : null,
-                                                    med.appearance ? t('medications:treatments.appearance', { appearance: med.appearance }) : null,
-                                                ]
-                                                    .filter(Boolean)
-                                                    .join(' · ')}
-                                            </p>
-                                        )}
-                                        {med.instructions && (
-                                            <p className="mt-1.5 text-caption text-muted-foreground">
-                                                {med.instructions}
-                                            </p>
-                                        )}
-                                        <p className="mt-1.5 text-micro text-muted-foreground">
-                                            {[
-                                                med.prescriber
-                                                    ? t('medications:treatments.prescribedBy', {
-                                                          name: med.prescriber,
-                                                      })
-                                                    : null,
-                                                med.start_date
-                                                    ? t('medications:treatments.fromDate', {
-                                                          date: fmtDate(med.start_date),
-                                                      })
-                                                    : null,
-                                                med.end_date
-                                                    ? t('medications:treatments.untilDate', {
-                                                          date: fmtDate(med.end_date),
-                                                      })
-                                                    : null,
-                                            ]
-                                                .filter(Boolean)
-                                                .join(' · ')}
-                                        </p>
-                                    </div>
-                                    {canWriteContent && (
+                                        </th>
+                                        <td className="px-3 py-3 text-foreground">{med.dosage || ''}</td>
+                                        <td className="px-3 py-3 text-foreground">{med.form ? formLabel(med.form) : ''}</td>
+                                        {MOMENTS.map((moment) => (
+                                            <td key={moment} className="whitespace-nowrap px-3 py-3 text-foreground">
+                                                {momentCell(med, moment)}
+                                            </td>
+                                        ))}
+                                        <td className="px-3 py-3 text-foreground">{unitCell(med)}</td>
+                                        <td className="px-3 py-3 text-foreground">
+                                            {med.with_food ? t(`medications:withFood.${med.with_food}`) : ''}
+                                        </td>
+                                        <td className="min-w-[10rem] px-3 py-3 text-foreground">{med.instructions || ''}</td>
+                                        {canWriteContent && (
+                                            <td className="px-3 py-3">
                                         <div className="flex flex-shrink-0 items-center gap-1">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => openStockDialog(med)}
-                                                aria-label={stockActionLabel(med)}
-                                                title={stockActionLabel(med)}
-                                            >
-                                                <Package className="h-4 w-4" />
-                                            </Button>
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
@@ -1003,12 +1057,99 @@ const Medications: React.FC = () => {
                                                 )}
                                             </Button>
                                         </div>
+                                            </td>
+                                        )}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </CardContent>
+                </Card>
+            )}
+        </div>
+    );
+
+    // ─── Vorrat ───────────────────────────────────────────────────────────────
+
+    const stockMeds = medications.filter((med) => med.active);
+
+    const stockSection = (
+        <div className="space-y-4">
+            {stockMeds.length === 0 ? (
+                <Card>
+                    <CardContent className="p-8 text-center">
+                        <Package className="mx-auto mb-3 h-12 w-12 text-muted-foreground opacity-50" />
+                        <p className="text-body text-foreground">{t('medications:stock.emptyList')}</p>
+                    </CardContent>
+                </Card>
+            ) : (
+                <Card>
+                    <CardContent className="overflow-x-auto p-0">
+                        <table className="w-full min-w-[36rem] border-collapse text-left text-caption">
+                            <caption className="sr-only">{t('medications:tabs.stock')}</caption>
+                            <thead>
+                                <tr className="border-b border-border bg-muted/50">
+                                    {['medication', 'strength', 'stock', 'coverage'].map((key) => (
+                                        <th
+                                            key={key}
+                                            scope="col"
+                                            className="px-3 py-3 align-bottom font-semibold text-foreground"
+                                        >
+                                            {t(`medications:stock.table.${key}`)}
+                                        </th>
+                                    ))}
+                                    {canWriteContent && (
+                                        <th scope="col" className="px-3 py-3 align-bottom font-semibold text-foreground">
+                                            {t('medications:stock.table.actions')}
+                                        </th>
                                     )}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ))}
-                </div>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {stockMeds.map((med) => {
+                                    const remaining = stockNumber(med.stock_quantity);
+                                    const daysLeft = stockDaysLeft(med);
+                                    const low = isStockLow(med);
+                                    return (
+                                        <tr key={med.id} className="border-b border-border align-top last:border-b-0">
+                                            <th scope="row" className="px-3 py-3 text-left text-body font-semibold text-foreground">
+                                                {med.name}
+                                            </th>
+                                            <td className="px-3 py-3 text-foreground">{med.dosage || ''}</td>
+                                            <td className="px-3 py-3">
+                                                {remaining === null ? (
+                                                    <span className="text-muted-foreground">
+                                                        {t('medications:stock.notTracked')}
+                                                    </span>
+                                                ) : (
+                                                    <span className="flex flex-wrap items-center gap-2">
+                                                        <span className={low ? 'text-warning' : 'text-foreground'}>
+                                                            {remaining <= 0
+                                                                ? t('medications:stock.empty')
+                                                                : amountLabel(remaining, stockUnitOf(med), med.form)}
+                                                        </span>
+                                                        {low && <Badge variant="warning">{t('medications:stock.low')}</Badge>}
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="px-3 py-3 text-foreground">
+                                                {daysLeft !== null ? t('medications:stock.coverage', { count: daysLeft }) : ''}
+                                            </td>
+                                            {canWriteContent && (
+                                                <td className="px-3 py-3">
+                                                    <Button variant="secondary" onClick={() => openStockDialog(med)}>
+                                                        <Package className="mr-2 h-4 w-4" />
+                                                        {stockActionLabel(med)}
+                                                    </Button>
+                                                </td>
+                                            )}
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </CardContent>
+                </Card>
             )}
         </div>
     );
@@ -1243,13 +1384,27 @@ const Medications: React.FC = () => {
                         label: t('medications:tabs.treatments'),
                         content: treatmentsSection,
                     },
-                    {
-                        value: 'prescriptions',
-                        label: t('medications:tabs.prescriptions'),
-                        content: prescriptionsSection,
-                    },
+                    { value: 'stock', label: t('medications:tabs.stock'), content: stockSection },
+                    // Reiter Rezepte vorerst ausgeblendet (Code und Daten bleiben)
+                    ...(SHOW_PRESCRIPTIONS
+                        ? [
+                              {
+                                  value: 'prescriptions',
+                                  label: t('medications:tabs.prescriptions'),
+                                  content: prescriptionsSection,
+                              },
+                          ]
+                        : []),
                 ]}
             />
+
+            <datalist id="prescriber-contacts">
+                {contacts.map((contact) => (
+                    <option key={contact.id} value={contact.name}>
+                        {contact.organization || ''}
+                    </option>
+                ))}
+            </datalist>
 
             {/* Medication dialog */}
             <Dialog
@@ -1267,31 +1422,35 @@ const Medications: React.FC = () => {
                     ) : null}
 
                     <Input
-                        label={t('medications:form.name')}
+                        label={`${t('medications:form.name')} ${t('medications:form.requiredMark')}`}
                         value={medForm.name}
                         onChange={(e) => setMedForm({ ...medForm, name: e.target.value })}
                         required
                         placeholder={t('medications:form.namePlaceholder')}
                     />
+                    <Input
+                        label={t('medications:form.activeIngredient')}
+                        value={medForm.active_ingredient}
+                        onChange={(e) => setMedForm({ ...medForm, active_ingredient: e.target.value })}
+                        placeholder={t('medications:form.activeIngredientPlaceholder')}
+                    />
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <Input
-                            label={t('medications:form.dosage')}
+                            label={`${t('medications:form.dosage')} ${t('medications:form.requiredMark')}`}
                             value={medForm.dosage}
+                            aria-required="true"
                             onChange={(e) => setMedForm({ ...medForm, dosage: e.target.value })}
                             placeholder={t('medications:form.dosagePlaceholder')}
                         />
                         <div>
                             <label className="mb-1.5 block text-caption font-medium text-foreground">
-                                {t('medications:form.form')}
+                                {`${t('medications:form.form')} ${t('medications:form.requiredMark')}`}
                             </label>
                             <Select
                                 value={medForm.form}
                                 onValueChange={(value) => setMedForm({ ...medForm, form: value })}
                                 placeholder={t('medications:form.formPlaceholder')}
-                                options={[
-                                    { value: '', label: t('medications:form.formPlaceholder') },
-                                    ...formOptions,
-                                ]}
+                                options={formOptions}
                             />
                         </div>
                     </div>
@@ -1324,18 +1483,6 @@ const Medications: React.FC = () => {
                                 ]}
                             />
                         </div>
-                        <label className="flex min-h-[44px] cursor-pointer items-start gap-2.5 sm:pt-7">
-                            <input
-                                type="checkbox"
-                                checked={medForm.prn}
-                                onChange={(e) => setMedForm({ ...medForm, prn: e.target.checked })}
-                                className="mt-0.5 h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                            />
-                            <span>
-                                <span className="block text-caption font-medium text-foreground">{t('medications:form.prn')}</span>
-                                <span className="block text-micro text-muted-foreground">{t('medications:form.prnHint')}</span>
-                            </span>
-                        </label>
                     </div>
                     <Textarea
                         label={t('medications:form.instructions')}
@@ -1350,6 +1497,8 @@ const Medications: React.FC = () => {
                             value={medForm.prescriber}
                             onChange={(e) => setMedForm({ ...medForm, prescriber: e.target.value })}
                             placeholder={t('medications:form.prescriberPlaceholder')}
+                            list="prescriber-contacts"
+                            autoComplete="off"
                         />
                         <DatePicker
                             label={t('medications:form.startDate')}
@@ -1408,6 +1557,40 @@ const Medications: React.FC = () => {
                             )}
                         </div>
                     </div>
+
+                    {/* Einnahme: feste Zeiten oder bei Bedarf */}
+                    <fieldset>
+                        <legend className="mb-1.5 block text-caption font-medium text-foreground">
+                            {`${t('medications:form.intakeType')} ${t('medications:form.requiredMark')}`}
+                        </legend>
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                            {([false, true] as const).map((prn) => (
+                                <label
+                                    key={String(prn)}
+                                    className={cn(
+                                        'flex min-h-[48px] cursor-pointer items-start gap-3 rounded-input border px-3 py-3',
+                                        medForm.prn === prn ? 'border-primary bg-primary/10' : 'border-border'
+                                    )}
+                                >
+                                    <input
+                                        type="radio"
+                                        name="intake-type"
+                                        checked={medForm.prn === prn}
+                                        onChange={() => setMedForm({ ...medForm, prn })}
+                                        className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary focus:ring-primary"
+                                    />
+                                    <span>
+                                        <span className="block text-body font-medium text-foreground">
+                                            {prn ? t('medications:form.prn') : t('medications:form.fixedTimes')}
+                                        </span>
+                                        <span className="block text-caption text-muted-foreground">
+                                            {prn ? t('medications:form.prnHint') : t('medications:form.fixedTimesHint')}
+                                        </span>
+                                    </span>
+                                </label>
+                            ))}
+                        </div>
+                    </fieldset>
 
                     {/* Schedule editor (hidden for "as needed" medications) */}
                     {medForm.prn ? (
@@ -1470,16 +1653,6 @@ const Medications: React.FC = () => {
                                                         { value: '', label: t('medications:form.unitAuto') },
                                                         ...unitOptions,
                                                     ]}
-                                                />
-                                            </div>
-                                            <div className="min-w-[10rem] flex-1">
-                                                <Input
-                                                    label={t('medications:form.label')}
-                                                    value={row.label}
-                                                    onChange={(e) =>
-                                                        updateScheduleRow(index, { label: e.target.value })
-                                                    }
-                                                    placeholder={t('medications:form.labelPlaceholder')}
                                                 />
                                             </div>
                                             <Button
@@ -1664,6 +1837,8 @@ const Medications: React.FC = () => {
                         value={rxForm.prescribed_by}
                         onChange={(e) => setRxForm({ ...rxForm, prescribed_by: e.target.value })}
                         placeholder={t('medications:prescriptions.form.prescriberPlaceholder')}
+                        list="prescriber-contacts"
+                        autoComplete="off"
                     />
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <DatePicker

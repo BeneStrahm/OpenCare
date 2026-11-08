@@ -5,13 +5,14 @@
   "tabs": {
     "today": "Heute",
     "treatments": "Medikamentenplan",
-    "prescriptions": "Rezepte"
+    "prescriptions": "Rezepte",
+    "stock": "Vorrat"
   },
   "moments": {
     "morning": "Morgens",
     "noon": "Mittags",
     "evening": "Abends",
-    "night": "Nachts"
+    "night": "Zur Nacht"
   },
   "dayLetters": [
     "M",
@@ -29,16 +30,16 @@
       "pending": "Zu nehmen",
       "taken": "Genommen",
       "takenAt": "Genommen um {{time}}",
-      "skipped": "Ausgelassen",
+      "skipped": "Nicht genommen",
       "missed": "Verpasst"
     },
     "markTaken": "Genommen",
-    "markSkipped": "Auslassen",
+    "markSkipped": "Nicht genommen",
     "undo": "Rückgängig",
     "take": "{{amount}} nehmen",
     "prnTitle": "Bei Bedarf",
     "prnHint": "Diese Medikamente haben keine feste Uhrzeit. Tragen Sie eine Einnahme ein, wenn sie stattfindet.",
-    "logPrn": "Einnahme eintragen",
+    "logPrn": "Jetzt genommen",
     "prnToday_one": "{{count}} Einnahme heute",
     "prnToday_other": "{{count}} Einnahmen heute",
     "source": {
@@ -46,7 +47,10 @@
       "kiosk": "bestätigt in der Tablet-Ansicht",
       "phone": "bestätigt am Telefon",
       "link": "bestätigt über einen Link für Betreuungspersonen"
-    }
+    },
+    "lowStockTitle": "Vorrat geht zur Neige",
+    "lowStockHint": "Neuen Vorrat tragen Sie im Reiter „Vorrat“ ein.",
+    "takeAt": "{{amount}} um {{time}}"
   },
   "treatments": {
     "add": "Medikament hinzufügen",
@@ -66,7 +70,21 @@
     "prn": "Bei Bedarf",
     "prnHint": "Keine feste Uhrzeit. Einnahmen werden bei Bedarf im Bereich Heute eingetragen.",
     "reason": "Wofür: {{reason}}",
-    "appearance": "Sieht aus wie: {{appearance}}"
+    "appearance": "Sieht aus wie: {{appearance}}",
+    "table": {
+      "activeIngredient": "Wirkstoff",
+      "name": "Name des Medikaments",
+      "strength": "Stärke",
+      "form": "Form",
+      "morning": "Morgens",
+      "noon": "Mittags",
+      "evening": "Abends",
+      "night": "Zur Nacht",
+      "unit": "Einheit",
+      "withFood": "Mahlzeiten",
+      "instructions": "Hinweis",
+      "actions": "Ändern"
+    }
   },
   "stock": {
     "remaining": "Vorrat: {{amount}}",
@@ -85,7 +103,16 @@
     "hint": "Lassen Sie ein Feld leer, um diesen Wert nicht mehr zu verfolgen. Der Vorrat sinkt mit jeder bestätigten Einnahme von selbst.",
     "stopTracking": "Vorrat nicht mehr verfolgen",
     "invalid": "Geben Sie eine Zahl zwischen 0 und 100000 ein oder lassen Sie das Feld leer.",
-    "thresholdHint": "Fällt der Vorrat auf diesen Wert, bekommen Familie und Admins einmal eine Erinnerung."
+    "thresholdHint": "Fällt der Vorrat auf diesen Wert, bekommen Familie und Admins einmal eine Erinnerung.",
+    "table": {
+      "medication": "Medikament",
+      "strength": "Stärke",
+      "stock": "Vorrat",
+      "coverage": "Reicht noch",
+      "actions": "Ändern"
+    },
+    "notTracked": "Wird nicht verfolgt",
+    "emptyList": "Noch kein Medikament eingetragen."
   },
   "forms": {
     "tablet": "Tablette",
@@ -105,6 +132,8 @@
     "description": "Tragen Sie das Medikament und die Einnahmezeiten ein.",
     "name": "Name des Medikaments",
     "namePlaceholder": "z. B. Paracetamol",
+    "activeIngredient": "Wirkstoff",
+    "activeIngredientPlaceholder": "z. B. Metformin",
     "dosage": "Dosierung",
     "dosagePlaceholder": "z. B. 500 mg",
     "form": "Darreichungsform",
@@ -134,7 +163,7 @@
     "unit": "Einheit",
     "unitAuto": "Nach Darreichungsform",
     "quantityError": "Geben Sie für jede Einnahmezeit eine gültige Menge ein (zwischen 0,25 und 99).",
-    "prn": "Bei Bedarf (keine feste Uhrzeit)",
+    "prn": "Bei Bedarf",
     "prnHint": "Schmerzmittel, Abführmittel... Die Einnahme wird eingetragen, wenn sie stattfindet.",
     "prnNoSchedule": "Medikament bei Bedarf: Es gibt keine Einnahmezeiten festzulegen. Einnahmen werden im Bereich Heute eingetragen.",
     "withFood": "In Bezug auf Mahlzeiten",
@@ -142,7 +171,14 @@
     "reason": "Wofür dieses Medikament ist",
     "reasonPlaceholder": "z. B. für den Blutdruck",
     "appearance": "Wie es aussieht",
-    "appearancePlaceholder": "z. B. kleine runde weiße Tablette"
+    "appearancePlaceholder": "z. B. kleine runde weiße Tablette",
+    "requiredMark": "(Pflicht)",
+    "choosePlaceholder": "Bitte wählen",
+    "intakeType": "Einnahme",
+    "fixedTimes": "Feste Einnahmezeiten",
+    "fixedTimesHint": "Mit Uhrzeit, Menge und Tagen.",
+    "requiredError": "Bitte füllen Sie noch aus: {{fields}}.",
+    "schedulesRequiredError": "Fügen Sie mindestens eine Einnahmezeit hinzu oder wählen Sie „Bei Bedarf“."
   },
   "prescriptions": {
     "add": "Rezept hinzufügen",
@@ -211,7 +247,7 @@
   },
   "withFood": {
     "with": "Zum Essen",
-    "without": "Nicht zum Essen",
+    "without": "Nüchtern",
     "any": "Mit oder ohne Essen"
   }
 }

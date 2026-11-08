@@ -336,12 +336,12 @@ router.post('/import', async (req: CircleRequest, res: Response) => {
             }
             const newId = await insert('medications',
                 ['circle_id', 'name', 'dosage', 'form', 'instructions', 'photo_url', 'prescriber', 'start_date', 'end_date', 'active',
-                    'prn', 'with_food', 'reason', 'appearance', 'created_at', 'updated_at'],
+                    'prn', 'with_food', 'reason', 'appearance', 'active_ingredient', 'created_at', 'updated_at'],
                 [circleId, row.name, textOrNull(row.dosage), textOrNull(row.form), textOrNull(row.instructions),
                     textOrNull(row.photo_url), textOrNull(row.prescriber), row.start_date ?? null, row.end_date ?? null,
                     boolOr(row.active, true),
                     boolOr(row.prn, false), oneOfOrNull(row.with_food, ['with', 'without', 'any']),
-                    textOrNull(row.reason), textOrNull(row.appearance),
+                    textOrNull(row.reason), textOrNull(row.appearance), textOrNull(row.active_ingredient),
                     tsOrNow(row.created_at), tsOrNow(row.updated_at)]
             );
             if (typeof row.id === 'string') medicationMap.set(row.id, newId);

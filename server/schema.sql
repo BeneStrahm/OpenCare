@@ -204,6 +204,8 @@ CREATE TABLE medications (
     reason TEXT,
     -- Aspect (couleur, forme) pour reconnaitre le medicament sans photo
     appearance TEXT,
+    -- Wirkstoff (z. B. Metformin)
+    active_ingredient VARCHAR(255),
     -- Stock restant (dans l'unite des prises) et seuil d'alerte de renouvellement
     stock_quantity NUMERIC(8, 2),
     stock_alert_threshold NUMERIC(8, 2),

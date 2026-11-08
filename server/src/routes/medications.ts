@@ -139,10 +139,10 @@ const parseDateField = (raw: unknown, field: string, lang: Lang): { value?: stri
 
 /** Champs optionnels du medicament : { valeur } ou { error }. */
 const parseMedicationExtras = (body: Record<string, unknown>, lang: Lang): {
-    values?: { prn?: boolean; with_food?: string | null; reason?: string | null; appearance?: string | null };
+    values?: { prn?: boolean; with_food?: string | null; reason?: string | null; appearance?: string | null; active_ingredient?: string | null };
     error?: string;
 } => {
-    const values: { prn?: boolean; with_food?: string | null; reason?: string | null; appearance?: string | null } = {};
+    const values: { prn?: boolean; with_food?: string | null; reason?: string | null; appearance?: string | null; active_ingredient?: string | null } = {};
     if ('prn' in body) {
         if (typeof body.prn !== 'boolean') return { error: t(lang, 'medications.prnBoolean') };
         values.prn = body.prn;
@@ -158,6 +158,10 @@ const parseMedicationExtras = (body: Record<string, unknown>, lang: Lang): {
             const raw = body[field];
             values[field] = typeof raw === 'string' && raw.trim() ? raw.trim().slice(0, 500) : null;
         }
+    }
+    if ('active_ingredient' in body) {
+        const raw = body.active_ingredient;
+        values.active_ingredient = typeof raw === 'string' && raw.trim() ? raw.trim().slice(0, 255) : null;
     }
     return { values };
 };
@@ -317,8 +321,8 @@ router.post('/', requireContentWriter, async (req: CircleRequest, res: Response)
 
         const medResult = await client.query(
             `INSERT INTO medications (circle_id, name, dosage, form, instructions, photo_url, prescriber, start_date, end_date,
-                                      prn, with_food, reason, appearance)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                                      prn, with_food, reason, appearance, active_ingredient)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
              RETURNING id`,
             [
                 req.circleId,
@@ -334,6 +338,7 @@ router.post('/', requireContentWriter, async (req: CircleRequest, res: Response)
                 extras.values?.with_food ?? null,
                 extras.values?.reason ?? null,
                 extras.values?.appearance ?? null,
+                extras.values?.active_ingredient ?? null,
             ]
         );
         const medicationId = medResult.rows[0].id;

@@ -5,7 +5,8 @@
   "tabs": {
     "today": "Today",
     "treatments": "Treatments",
-    "prescriptions": "Prescriptions"
+    "prescriptions": "Prescriptions",
+    "stock": "Stock"
   },
   "moments": {
     "morning": "Morning",
@@ -29,16 +30,16 @@
       "pending": "To take",
       "taken": "Taken",
       "takenAt": "Taken at {{time}}",
-      "skipped": "Skipped",
+      "skipped": "Not taken",
       "missed": "Missed"
     },
     "markTaken": "Taken",
-    "markSkipped": "Skip",
+    "markSkipped": "Not taken",
     "undo": "Undo",
     "take": "Take {{amount}}",
     "prnTitle": "As needed",
     "prnHint": "These medications have no fixed time: log a dose when it happens.",
-    "logPrn": "Log a dose",
+    "logPrn": "Taken now",
     "prnToday_one": "{{count}} dose today",
     "prnToday_other": "{{count}} doses today",
     "source": {
@@ -46,7 +47,10 @@
       "kiosk": "confirmed on the kiosk",
       "phone": "confirmed on the phone",
       "link": "confirmed through a caregiver link"
-    }
+    },
+    "lowStockTitle": "Running low",
+    "lowStockHint": "Enter new stock in the “Stock” tab.",
+    "takeAt": "{{amount}} at {{time}}"
   },
   "treatments": {
     "add": "Add a treatment",
@@ -66,7 +70,21 @@
     "prn": "As needed",
     "prnHint": "No fixed time: doses are logged on demand from the Today tab.",
     "reason": "Why: {{reason}}",
-    "appearance": "Looks like: {{appearance}}"
+    "appearance": "Looks like: {{appearance}}",
+    "table": {
+      "activeIngredient": "Active ingredient",
+      "name": "Medication name",
+      "strength": "Strength",
+      "form": "Form",
+      "morning": "Morning",
+      "noon": "Noon",
+      "evening": "Evening",
+      "night": "Bedtime",
+      "unit": "Unit",
+      "withFood": "Meals",
+      "instructions": "Note",
+      "actions": "Edit"
+    }
   },
   "stock": {
     "remaining": "Stock: {{amount}}",
@@ -85,7 +103,16 @@
     "hint": "Leave a field empty to stop tracking that value. The stock goes down on its own with every confirmed dose.",
     "stopTracking": "Stop tracking the stock",
     "invalid": "Enter a number between 0 and 100000, or leave the field empty.",
-    "thresholdHint": "When the stock drops to this amount, family and admins get one reminder."
+    "thresholdHint": "When the stock drops to this amount, family and admins get one reminder.",
+    "table": {
+      "medication": "Medication",
+      "strength": "Strength",
+      "stock": "Stock",
+      "coverage": "Lasts",
+      "actions": "Edit"
+    },
+    "notTracked": "Not tracked",
+    "emptyList": "No medication yet."
   },
   "forms": {
     "tablet": "Tablet",
@@ -105,6 +132,8 @@
     "description": "Fill in the medication and its intake schedule.",
     "name": "Medication name",
     "namePlaceholder": "E.g. Paracetamol",
+    "activeIngredient": "Active ingredient",
+    "activeIngredientPlaceholder": "e.g. Metformin",
     "dosage": "Dosage",
     "dosagePlaceholder": "E.g. 500 mg",
     "form": "Form",
@@ -142,7 +171,14 @@
     "reason": "Why this treatment",
     "reasonPlaceholder": "e.g. for blood pressure",
     "appearance": "What it looks like",
-    "appearancePlaceholder": "e.g. small round white tablet"
+    "appearancePlaceholder": "e.g. small round white tablet",
+    "requiredMark": "(required)",
+    "choosePlaceholder": "Please choose",
+    "intakeType": "Intake",
+    "fixedTimes": "Fixed times",
+    "fixedTimesHint": "With time, amount and days.",
+    "requiredError": "Please fill in: {{fields}}.",
+    "schedulesRequiredError": "Add at least one intake time or choose “As needed”."
   },
   "prescriptions": {
     "add": "Add a prescription",
