@@ -46,6 +46,9 @@ services:
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
       VAPID_SUBJECT: ${VAPID_SUBJECT}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      # Fork: Meldung an die Admins bei fehlgeschlagener Sicherung (leer = aus)
+      BACKUP_STATUS_FILE: ${BACKUP_STATUS_FILE:-}
+      BACKUP_STATUS_MAX_AGE_HOURS: ${BACKUP_STATUS_MAX_AGE_HOURS:-26}
     ports:
       - "3001:3001"
     depends_on:

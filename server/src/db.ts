@@ -336,6 +336,13 @@ export const runMigrations = async () => {
         `ALTER TABLE aid_records ALTER COLUMN type TYPE VARCHAR(40);`,
         // Fork: einmalige Erinnerung bei niedrigem Vorrat (lib/stockAlerts.ts)
         `ALTER TABLE medications ADD COLUMN IF NOT EXISTS stock_alert_sent_at TIMESTAMP;`,
+        // Fork: Meldung bei fehlgeschlagener Sicherung (lib/backupAlerts.ts), eine Zeile
+        `CREATE TABLE IF NOT EXISTS backup_alert_state (
+            id SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+            problem VARCHAR(20),
+            alerted_at TIMESTAMP
+        );`,
+        `INSERT INTO backup_alert_state (id) VALUES (1) ON CONFLICT (id) DO NOTHING;`,
         // Arztgespraech-Modul (Fork), siehe modules/consultations/schema.ts
         ...CONSULTATION_MIGRATIONS,
         // Fork, Rollen E10: viewer entfaellt, neu recipient ("Betreute Person").

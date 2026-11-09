@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { query } from '../db';
 import { createNotification } from './notifications';
 import { checkLowStock } from './stockAlerts';
+import { backupCheckEnabled, checkBackupStatus } from './backupAlerts';
 import logger from './logger';
 import { pickLang } from './i18n';
 
@@ -387,6 +388,14 @@ export function startReminderScheduler(): void {
     cron.schedule('* * * * *', () => {
         void checkLowStock();
     }, { timezone: tz });
+
+    // Fork: Sicherungsstatus alle 15 Minuten, nur mit BACKUP_STATUS_FILE
+    if (backupCheckEnabled()) {
+        cron.schedule('*/15 * * * *', () => {
+            void checkBackupStatus();
+        }, { timezone: tz });
+        void checkBackupStatus();
+    }
 
     // Prescription renewals: every day at 9:00 (the daily dedup makes it idempotent)
     cron.schedule('0 9 * * *', () => {
