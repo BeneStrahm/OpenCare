@@ -85,7 +85,8 @@
       "instructions": "Hinweis",
       "actions": "Ändern"
     },
-    "none": "keine Einnahme"
+    "none": "keine Einnahme",
+    "notes": "Hinweise:"
   },
   "stock": {
     "remaining": "Vorrat: {{amount}}",

@@ -85,7 +85,8 @@
       "instructions": "Note",
       "actions": "Edit"
     },
-    "none": "none"
+    "none": "none",
+    "notes": "Notes:"
   },
   "stock": {
     "remaining": "Stock: {{amount}}",

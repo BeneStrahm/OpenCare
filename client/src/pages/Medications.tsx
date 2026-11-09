@@ -1070,7 +1070,10 @@ const Medications: React.FC = () => {
                                             </dl>
                                         )}
                                         {details.length > 0 && (
-                                            <p className="text-body text-foreground">{details.join(' · ')}</p>
+                                            <p className="text-body text-foreground">
+                                                <span className="font-semibold">{t('medications:treatments.notes')}</span>{' '}
+                                                {details.join(' · ')}
+                                            </p>
                                         )}
                                     </CardContent>
                                 </Card>

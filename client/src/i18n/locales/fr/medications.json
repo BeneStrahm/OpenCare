@@ -85,7 +85,8 @@
       "instructions": "Remarque",
       "actions": "Modifier"
     },
-    "none": "aucune prise"
+    "none": "aucune prise",
+    "notes": "Remarques :"
   },
   "stock": {
     "remaining": "Stock : {{amount}}",
