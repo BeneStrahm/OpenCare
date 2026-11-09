@@ -173,6 +173,8 @@ export const runMigrations = async () => {
         END $$;`,
         `ALTER TABLE medication_schedules ADD COLUMN IF NOT EXISTS quantity NUMERIC(6,2) NOT NULL DEFAULT 1;`,
         `ALTER TABLE medication_schedules ADD COLUMN IF NOT EXISTS unit VARCHAR(20);`,
+        // false = nur Tageszeit (Morgens, Mittags ...), Uhrzeit ist dann ein Standardwert für Erinnerungen
+        `ALTER TABLE medication_schedules ADD COLUMN IF NOT EXISTS time_fixed BOOLEAN NOT NULL DEFAULT TRUE;`,
         `ALTER TABLE medication_intakes ADD COLUMN IF NOT EXISTS confirmed_source VARCHAR(20);`,
         `ALTER TABLE medication_intakes ADD COLUMN IF NOT EXISTS quantity NUMERIC(6,2);`,
         `ALTER TABLE medication_intakes ADD COLUMN IF NOT EXISTS unit VARCHAR(20);`,

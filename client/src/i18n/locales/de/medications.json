@@ -84,7 +84,8 @@
       "withFood": "Mahlzeiten",
       "instructions": "Hinweis",
       "actions": "Ändern"
-    }
+    },
+    "none": "keine Einnahme"
   },
   "stock": {
     "remaining": "Vorrat: {{amount}}",
@@ -180,7 +181,8 @@
     "requiredError": "Bitte füllen Sie noch aus: {{fields}}.",
     "schedulesRequiredError": "Fügen Sie mindestens eine Einnahmezeit hinzu oder wählen Sie „Bei Bedarf“.",
     "moment": "Tageszeit",
-    "momentHint": "Die Uhrzeit wird vorgeschlagen und kann unten angepasst werden."
+    "timeKind": "Wann",
+    "fixedTime": "Feste Uhrzeit"
   },
   "prescriptions": {
     "add": "Rezept hinzufügen",

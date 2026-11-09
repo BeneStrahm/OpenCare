@@ -84,7 +84,8 @@
       "withFood": "Meals",
       "instructions": "Note",
       "actions": "Edit"
-    }
+    },
+    "none": "none"
   },
   "stock": {
     "remaining": "Stock: {{amount}}",
@@ -180,7 +181,8 @@
     "requiredError": "Please fill in: {{fields}}.",
     "schedulesRequiredError": "Add at least one intake time or choose “As needed”.",
     "moment": "Time of day",
-    "momentHint": "The time is suggested and can be adjusted below."
+    "timeKind": "When",
+    "fixedTime": "Fixed time"
   },
   "prescriptions": {
     "add": "Add a prescription",

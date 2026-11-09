@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { cn } from '../lib/utils';
-import { MEDICATION_FORMS, MEDICATION_UNITS, formatAmount, safeQuantity, unitFor } from '../lib/medications';
+import { DEFAULT_UNIT_BY_FORM, MEDICATION_FORMS, MEDICATION_UNITS, formatAmount, safeQuantity, unitFor } from '../lib/medications';
 import { useCircle } from '../contexts/CircleContext';
 import { circleWeekStart, orderedIsoDays, sortIsoDays } from '../lib/weekStart';
 import { useWebSocketUpdates } from '../hooks/useWebSocketUpdates';
@@ -52,6 +52,8 @@ interface MedicationSchedule {
     quantity: number;
     /** Unite ; null = deduite de la forme */
     unit: string | null;
+    /** false = nur Tageszeit, Uhrzeit ist ein Standardwert für Erinnerungen */
+    time_fixed?: boolean;
 }
 
 interface Medication {
@@ -96,6 +98,7 @@ interface Intake {
     photo_url: string | null;
     prn: boolean;
     schedule_label: string | null;
+    time_fixed?: boolean;
     instructions: string | null;
     with_food: WithFood | null;
     appearance: string | null;
@@ -125,6 +128,8 @@ interface ScheduleRow {
     quantity: string;
     /** '' = unite deduite de la forme */
     unit: string;
+    /** false = nur Tageszeit (Morgens, Mittags ...) */
+    time_fixed: boolean;
 }
 
 // ─── Constants and helpers ────────────────────────────────────────────────────
@@ -249,6 +254,7 @@ const emptyScheduleRow = (): ScheduleRow => ({
     label: '',
     quantity: '1',
     unit: '',
+    time_fixed: false,
 });
 
 const emptyMedForm = () => ({
@@ -595,10 +601,12 @@ const Medications: React.FC = () => {
                                                                 ) : null}
                                                             </h3>
                                                             <p className="text-h2 text-foreground">
-                                                                {t('medications:today.takeAt', {
-                                                                    amount: amountLabel(intake.quantity, intake.unit, intake.form),
-                                                                    time: formatClock(intake.due_at),
-                                                                })}
+                                                                {intake.time_fixed === false
+                                                                    ? amountLabel(intake.quantity, intake.unit, intake.form)
+                                                                    : t('medications:today.takeAt', {
+                                                                          amount: amountLabel(intake.quantity, intake.unit, intake.form),
+                                                                          time: formatClock(intake.due_at),
+                                                                      })}
                                                             </p>
                                                             {details.map((line, index) => (
                                                                 <p key={index} className="text-body text-foreground">
@@ -721,6 +729,7 @@ const Medications: React.FC = () => {
                 label: s.label || '',
                 quantity: String(Number(s.quantity) || 1),
                 unit: s.unit || '',
+                time_fixed: s.time_fixed !== false,
             })),
         });
         setMedFormError('');
@@ -824,6 +833,7 @@ const Medications: React.FC = () => {
                 label: row.label.trim() || null,
                 quantity: parseQuantity(row.quantity) ?? 1,
                 unit: row.unit || null,
+                time_fixed: row.time_fixed,
             })),
         };
 
@@ -916,19 +926,25 @@ const Medications: React.FC = () => {
             const days =
                 schedule.days_of_week.length === 7
                     ? ''
-                    : ` (${sortIsoDays(schedule.days_of_week, weekStart).map((d) => daysShort[d - 1]).join(', ')})`;
+                    : sortIsoDays(schedule.days_of_week, weekStart).map((d) => daysShort[d - 1]).join(', ');
             return (
                 <span key={schedule.id || index} className="block">
-                    {`${amount} – ${formatClock(schedule.time_of_day)}${days}`}
+                    <span className="block text-h2 text-foreground">{amount}</span>
+                    {schedule.time_fixed !== false && (
+                        <span className="block text-caption text-muted-foreground">{formatClock(schedule.time_of_day)}</span>
+                    )}
+                    {days && <span className="block text-caption text-muted-foreground">{days}</span>}
                 </span>
             );
         });
     };
 
-    /** Einheit(en) der Einnahmen, z. B. "Tabletten". */
+    /** Einheit nur, wenn sie nicht schon aus der Form folgt (z. B. Saft in ml). */
     const unitCell = (med: Medication) => {
-        const units = Array.from(new Set(med.schedules.map((s) => unitFor(s.unit, med.form))));
-        if (units.length === 0 && med.form) units.push(unitFor(null, med.form));
+        const formUnit = DEFAULT_UNIT_BY_FORM[med.form ?? ''];
+        const units = Array.from(new Set(med.schedules.map((s) => unitFor(s.unit, med.form)))).filter(
+            (unit) => unit !== formUnit
+        );
         return units
             .map((unit) => t(`medications:units.${unit}`, { count: 2, defaultValue: unit }))
             .join(', ');
@@ -965,90 +981,54 @@ const Medications: React.FC = () => {
                     </CardContent>
                 </Card>
             ) : (
-                <Card>
-                    <CardContent className="overflow-x-auto p-0">
-                        <table className="w-full min-w-[44rem] border-collapse text-left text-body [overflow-wrap:normal] [word-break:normal]">
-                            <caption className="sr-only">{t('medications:tabs.treatments')}</caption>
-                            <thead>
-                                <tr className="border-b border-border bg-muted/50">
-                                    {[
-                                        'name',
-                                        'morning',
-                                        'noon',
-                                        'evening',
-                                        'night',
-                                        'withFood',
-                                        'instructions',
-                                    ].map((key) => (
-                                        <th
-                                            key={key}
-                                            scope="col"
-                                            className="whitespace-nowrap px-3 py-3 align-bottom font-semibold text-foreground"
-                                        >
-                                            {t(`medications:treatments.table.${key}`)}
-                                        </th>
-                                    ))}
-                                    {canWriteContent && (
-                                        <th scope="col" className="whitespace-nowrap px-3 py-3 align-bottom font-semibold text-foreground">
-                                            {t('medications:treatments.table.actions')}
-                                        </th>
-                                    )}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {medications.map((med) => (
-                                    <tr
-                                        key={med.id}
-                                        className={cn('border-b border-border align-top last:border-b-0', !med.active && 'opacity-70')}
-                                    >
-                                        <th scope="row" className="min-w-[12rem] px-3 py-3 text-left font-normal">
-                                            <span className="block text-body font-semibold text-foreground">{med.name}</span>
-                                            {(med.active_ingredient || med.dosage) && (
-                                                <span className="block text-caption text-muted-foreground">
-                                                    {[med.active_ingredient, med.dosage].filter(Boolean).join(' ')}
-                                                </span>
-                                            )}
-                                            {med.form && (
-                                                <span className="block text-caption text-muted-foreground">{formLabel(med.form)}</span>
-                                            )}
-                                            {unitCell(med) && (
-                                                <span className="block text-caption text-muted-foreground">{unitCell(med)}</span>
-                                            )}
-                                            {(med.prn || !med.active) && (
-                                                <span className="mt-1 flex flex-wrap gap-1">
-                                                    {med.prn && (
-                                                        <Badge variant="default">{t('medications:treatments.prn')}</Badge>
-                                                    )}
-                                                    {!med.active && (
-                                                        <Badge variant="default">{t('medications:treatments.archived')}</Badge>
-                                                    )}
-                                                </span>
-                                            )}
-                                        </th>
-                                        {MOMENTS.map((moment) => (
-                                            <td key={moment} className="whitespace-nowrap px-3 py-3 text-foreground">
-                                                {momentCell(med, moment)}
-                                            </td>
-                                        ))}
-                                        <td className="px-3 py-3 text-foreground">
-                                            {med.with_food ? t(`medications:withFood.${med.with_food}`) : ''}
-                                        </td>
-                                        <td className="min-w-[10rem] px-3 py-3 text-foreground">{med.instructions || ''}</td>
-                                        {canWriteContent && (
-                                            <td className="px-3 py-3">
-                                        <div className="flex flex-shrink-0 items-center gap-1">
+                <ul className="space-y-3">
+                    {medications.map((med) => {
+                        const details = [
+                            med.with_food ? t(`medications:withFood.${med.with_food}`) : null,
+                            med.instructions,
+                        ].filter(Boolean) as string[];
+                        const subline = [
+                            [med.active_ingredient, med.dosage].filter(Boolean).join(' '),
+                            med.form ? formLabel(med.form) : '',
+                            unitCell(med),
+                        ].filter(Boolean);
+                        return (
+                            <li key={med.id}>
+                                <Card className={cn(!med.active && 'opacity-70')}>
+                                    <CardContent className="space-y-4 p-4 sm:p-5">
+                                        <div className="flex items-start gap-3">
+                                            <div className="min-w-0 flex-1">
+                                                <h3 className="text-h1 text-foreground">{med.name}</h3>
+                                                {subline.length > 0 && (
+                                                    <p className="text-body text-muted-foreground">{subline.join(' · ')}</p>
+                                                )}
+                                                {(med.prn || !med.active) && (
+                                                    <p className="mt-1 flex flex-wrap gap-1">
+                                                        {med.prn && (
+                                                            <Badge variant="default">{t('medications:treatments.prn')}</Badge>
+                                                        )}
+                                                        {!med.active && (
+                                                            <Badge variant="default">{t('medications:treatments.archived')}</Badge>
+                                                        )}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            {canWriteContent && (
+                                                <div className="flex flex-shrink-0 items-center gap-1">
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
+                                                className="h-12 w-12"
                                                 onClick={() => openEditMed(med)}
                                                 aria-label={t('medications:treatments.edit')}
                                                 title={t('medications:treatments.edit')}
                                             >
-                                                <Edit2 className="h-4 w-4" />
+                                                <Edit2 className="h-5 w-5" />
                                             </Button>
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
+                                                className="h-12 w-12"
                                                 onClick={() => void toggleMedActive(med)}
                                                 aria-label={
                                                     med.active
@@ -1062,20 +1042,42 @@ const Medications: React.FC = () => {
                                                 }
                                             >
                                                 {med.active ? (
-                                                    <Archive className="h-4 w-4" />
+                                                    <Archive className="h-5 w-5" />
                                                 ) : (
-                                                    <ArchiveRestore className="h-4 w-4" />
+                                                    <ArchiveRestore className="h-5 w-5" />
                                                 )}
                                             </Button>
                                         </div>
-                                            </td>
+                                            )}
+                                        </div>
+                                        {med.prn ? (
+                                            <p className="text-body text-foreground">{t('medications:treatments.prnHint')}</p>
+                                        ) : (
+                                            <dl className="grid grid-cols-4 gap-px overflow-hidden rounded-input border border-border bg-border text-center">
+                                                {MOMENTS.map((moment) => {
+                                                    const cell = momentCell(med, moment);
+                                                    return (
+                                                        <div key={moment} className="bg-surface px-1 py-2">
+                                                            <dt className="text-caption font-medium text-muted-foreground">
+                                                                {t(`medications:moments.${moment}`)}
+                                                            </dt>
+                                                            <dd className="mt-1 text-body text-foreground">
+                                                                {cell && cell.length > 0 ? cell : <span aria-label={t('medications:treatments.none')}>–</span>}
+                                                            </dd>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </dl>
                                         )}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </CardContent>
-                </Card>
+                                        {details.length > 0 && (
+                                            <p className="text-body text-foreground">{details.join(' · ')}</p>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            </li>
+                        );
+                    })}
+                </ul>
             )}
         </div>
     );
@@ -1629,9 +1631,48 @@ const Medications: React.FC = () => {
                                     >
                                         <fieldset>
                                             <legend className="mb-1.5 block text-caption font-medium text-foreground">
-                                                {t('medications:form.moment')}
+                                                {t('medications:form.timeKind')}
                                             </legend>
                                             <div className="flex flex-wrap gap-2">
+                                                {([false, true] as const).map((fixed) => (
+                                                    <label
+                                                        key={String(fixed)}
+                                                        className={cn(
+                                                            'flex min-h-[48px] cursor-pointer items-center gap-2 rounded-input border px-4',
+                                                            row.time_fixed === fixed ? 'border-primary bg-primary/10' : 'border-border'
+                                                        )}
+                                                    >
+                                                        <input
+                                                            type="radio"
+                                                            name={`time-kind-${index}`}
+                                                            checked={row.time_fixed === fixed}
+                                                            onChange={() =>
+                                                                updateScheduleRow(index, {
+                                                                    time_fixed: fixed,
+                                                                    // Beim Wechsel zur Tageszeit die Standarduhrzeit setzen
+                                                                    ...(fixed
+                                                                        ? {}
+                                                                        : {
+                                                                              time_of_day:
+                                                                                  MOMENT_TIMES[
+                                                                                      TIME_RE.test(row.time_of_day)
+                                                                                          ? momentOf(parseInt(row.time_of_day.slice(0, 2), 10))
+                                                                                          : 'morning'
+                                                                                  ],
+                                                                          }),
+                                                                })
+                                                            }
+                                                            className="h-5 w-5 text-primary focus:ring-primary"
+                                                        />
+                                                        <span className="text-body text-foreground">
+                                                            {fixed ? t('medications:form.fixedTime') : t('medications:form.moment')}
+                                                        </span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </fieldset>
+                                        {!row.time_fixed && (
+                                            <div role="group" aria-label={t('medications:form.moment')} className="flex flex-wrap gap-2">
                                                 {MOMENTS.map((moment) => {
                                                     const selected =
                                                         TIME_RE.test(row.time_of_day) &&
@@ -1656,21 +1697,20 @@ const Medications: React.FC = () => {
                                                     );
                                                 })}
                                             </div>
-                                            <p className="mt-1.5 text-caption text-muted-foreground">
-                                                {t('medications:form.momentHint')}
-                                            </p>
-                                        </fieldset>
+                                        )}
                                         <div className="flex flex-wrap items-end gap-3">
-                                            <div className="w-32 flex-shrink-0">
-                                                <DatePicker
-                                                    type="time"
-                                                    label={t('medications:form.time')}
-                                                    value={row.time_of_day}
-                                                    onChange={(value) =>
-                                                        updateScheduleRow(index, { time_of_day: value })
-                                                    }
-                                                />
-                                            </div>
+                                            {row.time_fixed && (
+                                                <div className="w-32 flex-shrink-0">
+                                                    <DatePicker
+                                                        type="time"
+                                                        label={t('medications:form.time')}
+                                                        value={row.time_of_day}
+                                                        onChange={(value) =>
+                                                            updateScheduleRow(index, { time_of_day: value })
+                                                        }
+                                                    />
+                                                </div>
+                                            )}
                                             <div className="w-24 flex-shrink-0">
                                                 <Input
                                                     label={t('medications:form.quantity')}

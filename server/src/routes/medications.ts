@@ -55,6 +55,8 @@ interface ScheduleInput {
     quantity: number;
     /** Unite de la quantite, ou null (deduite de la forme a l'affichage) */
     unit: string | null;
+    /** false = nur Tageszeit, Uhrzeit ist ein Standardwert */
+    time_fixed: boolean;
 }
 
 /** Quantite par prise : nombre strictement positif, 2 decimales max, 99 max. */
@@ -80,7 +82,7 @@ const parseSchedules = (raw: unknown, lang: Lang): { schedules?: ScheduleInput[]
         if (!item || typeof item !== 'object') {
             return { error: t(lang, 'medications.scheduleInvalid') };
         }
-        const { time_of_day, days_of_week, label, quantity, unit } = item as Record<string, unknown>;
+        const { time_of_day, days_of_week, label, quantity, unit, time_fixed } = item as Record<string, unknown>;
         if (typeof time_of_day !== 'string' || !TIME_RE.test(time_of_day)) {
             return { error: t(lang, 'medications.timeInvalid') };
         }
@@ -106,6 +108,7 @@ const parseSchedules = (raw: unknown, lang: Lang): { schedules?: ScheduleInput[]
             label: typeof label === 'string' && label.trim() ? label.trim().slice(0, 50) : null,
             quantity: parsedQuantity,
             unit: parsedUnit,
+            time_fixed: time_fixed !== false,
         });
     }
     return { schedules };
@@ -176,6 +179,7 @@ const MEDICATION_WITH_SCHEDULES = `
                        'time_of_day', to_char(s.time_of_day, 'HH24:MI'),
                        'days_of_week', s.days_of_week,
                        'label', s.label,
+                       'time_fixed', s.time_fixed,
                        'quantity', s.quantity,
                        'unit', s.unit
                    ) ORDER BY s.time_of_day
@@ -345,9 +349,9 @@ router.post('/', requireContentWriter, async (req: CircleRequest, res: Response)
 
         for (const schedule of parsedSchedules) {
             await client.query(
-                `INSERT INTO medication_schedules (medication_id, time_of_day, days_of_week, label, quantity, unit)
-                 VALUES ($1, $2, $3, $4, $5, $6)`,
-                [medicationId, schedule.time_of_day, JSON.stringify(schedule.days_of_week), schedule.label, schedule.quantity, schedule.unit]
+                `INSERT INTO medication_schedules (medication_id, time_of_day, days_of_week, label, quantity, unit, time_fixed)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                [medicationId, schedule.time_of_day, JSON.stringify(schedule.days_of_week), schedule.label, schedule.quantity, schedule.unit, schedule.time_fixed]
             );
         }
 
@@ -505,9 +509,9 @@ router.put('/:id', requireContentWriter, async (req: CircleRequest, res: Respons
             await client.query('DELETE FROM medication_schedules WHERE medication_id = $1', [req.params.id]);
             for (const schedule of parsedSchedules) {
                 await client.query(
-                    `INSERT INTO medication_schedules (medication_id, time_of_day, days_of_week, label, quantity, unit)
-                     VALUES ($1, $2, $3, $4, $5, $6)`,
-                    [req.params.id, schedule.time_of_day, JSON.stringify(schedule.days_of_week), schedule.label, schedule.quantity, schedule.unit]
+                    `INSERT INTO medication_schedules (medication_id, time_of_day, days_of_week, label, quantity, unit, time_fixed)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                    [req.params.id, schedule.time_of_day, JSON.stringify(schedule.days_of_week), schedule.label, schedule.quantity, schedule.unit, schedule.time_fixed]
                 );
             }
             // Pending occurrences of today and later no longer match the new

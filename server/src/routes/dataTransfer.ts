@@ -357,11 +357,12 @@ router.post('/import', async (req: CircleRequest, res: Response) => {
             }
             const quantity = Number(row.quantity);
             const newId = await insert('medication_schedules',
-                ['medication_id', 'time_of_day', 'days_of_week', 'label', 'quantity', 'unit', 'created_at'],
+                ['medication_id', 'time_of_day', 'days_of_week', 'label', 'quantity', 'unit', 'time_fixed', 'created_at'],
                 [medicationId, row.time_of_day,
                     JSON.stringify(Array.isArray(row.days_of_week) ? row.days_of_week : [1, 2, 3, 4, 5, 6, 7]),
                     textOrNull(row.label),
                     Number.isFinite(quantity) && quantity > 0 ? quantity : 1, textOrNull(row.unit),
+                    row.time_fixed !== false,
                     tsOrNow(row.created_at)]
             );
             if (typeof row.id === 'string') scheduleMap.set(row.id, newId);

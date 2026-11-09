@@ -225,6 +225,8 @@ CREATE TABLE medication_schedules (
     label VARCHAR(50),
     quantity NUMERIC(6,2) NOT NULL DEFAULT 1,
     unit VARCHAR(20),
+    -- false = nur Tageszeit (Morgens, Mittags ...), Uhrzeit ist ein Standardwert
+    time_fixed BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX idx_medication_schedules_med ON medication_schedules(medication_id);

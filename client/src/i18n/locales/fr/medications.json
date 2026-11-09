@@ -84,7 +84,8 @@
       "withFood": "Repas",
       "instructions": "Remarque",
       "actions": "Modifier"
-    }
+    },
+    "none": "aucune prise"
   },
   "stock": {
     "remaining": "Stock : {{amount}}",
@@ -180,7 +181,8 @@
     "requiredError": "Veuillez remplir : {{fields}}.",
     "schedulesRequiredError": "Ajoutez au moins un horaire ou choisissez « Si besoin ».",
     "moment": "Moment de la journée",
-    "momentHint": "L'heure est proposée et peut être ajustée ci-dessous."
+    "timeKind": "Quand",
+    "fixedTime": "Heure fixe"
   },
   "prescriptions": {
     "add": "Ajouter une ordonnance",

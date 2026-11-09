@@ -84,7 +84,8 @@
       "withFood": "Comidas",
       "instructions": "Nota",
       "actions": "Editar"
-    }
+    },
+    "none": "ninguna toma"
   },
   "stock": {
     "remaining": "Stock: {{amount}}",
@@ -180,7 +181,8 @@
     "requiredError": "Complete por favor: {{fields}}.",
     "schedulesRequiredError": "Añada al menos un horario o elija «Si hace falta».",
     "moment": "Momento del día",
-    "momentHint": "La hora se propone y se puede ajustar abajo."
+    "timeKind": "Cuándo",
+    "fixedTime": "Hora fija"
   },
   "prescriptions": {
     "add": "Añadir una receta",
