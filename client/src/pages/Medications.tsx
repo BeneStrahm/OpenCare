@@ -99,6 +99,7 @@ interface Intake {
     prn: boolean;
     schedule_label: string | null;
     time_fixed?: boolean;
+    active_ingredient?: string | null;
     instructions: string | null;
     with_food: WithFood | null;
     appearance: string | null;
@@ -594,6 +595,7 @@ const Medications: React.FC = () => {
                                                         <div className="min-w-0 flex-1 space-y-1">
                                                             <h3 className="text-h1 text-foreground">
                                                                 {intake.medication_name}
+                                                                {intake.active_ingredient ? ` – ${intake.active_ingredient}` : ''}
                                                                 {intake.medication_dosage ? (
                                                                     <span className="ml-2 text-body font-normal text-muted-foreground">
                                                                         {intake.medication_dosage}
@@ -659,6 +661,7 @@ const Medications: React.FC = () => {
                                                 <div className="min-w-0 flex-1 space-y-1">
                                                     <h3 className="text-h1 text-foreground">
                                                         {med.name}
+                                                        {med.active_ingredient ? ` – ${med.active_ingredient}` : ''}
                                                         {med.dosage ? (
                                                             <span className="ml-2 text-body font-normal text-muted-foreground">{med.dosage}</span>
                                                         ) : null}
@@ -929,10 +932,11 @@ const Medications: React.FC = () => {
                     : sortIsoDays(schedule.days_of_week, weekStart).map((d) => daysShort[d - 1]).join(', ');
             return (
                 <span key={schedule.id || index} className="block">
-                    <span className="block text-h2 text-foreground">{amount}</span>
-                    {schedule.time_fixed !== false && (
-                        <span className="block text-caption text-muted-foreground">{formatClock(schedule.time_of_day)}</span>
-                    )}
+                    <span className="block text-h2 text-foreground">
+                        {schedule.time_fixed === false
+                            ? amount
+                            : t('medications:treatments.amountAt', { amount, time: formatClock(schedule.time_of_day) })}
+                    </span>
                     {days && <span className="block text-caption text-muted-foreground">{days}</span>}
                 </span>
             );

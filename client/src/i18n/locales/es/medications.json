@@ -86,7 +86,8 @@
       "actions": "Editar"
     },
     "none": "ninguna toma",
-    "notes": "Notas:"
+    "notes": "Notas:",
+    "amountAt": "{{amount}} a las {{time}}"
   },
   "stock": {
     "remaining": "Stock: {{amount}}",

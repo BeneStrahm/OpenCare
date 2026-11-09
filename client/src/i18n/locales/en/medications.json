@@ -86,7 +86,8 @@
       "actions": "Edit"
     },
     "none": "none",
-    "notes": "Notes:"
+    "notes": "Notes:",
+    "amountAt": "{{amount}} at {{time}}"
   },
   "stock": {
     "remaining": "Stock: {{amount}}",
