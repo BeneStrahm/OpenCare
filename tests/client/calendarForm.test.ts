@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { NEW_EVENT_DEFAULTS, hasExtraDetails, longDatePattern } from '../../client/src/lib/calendarForm';
+import { NEW_EVENT_DEFAULTS, addParticipant, hasExtraDetails, longDatePattern, shiftClock, stepTravel } from '../../client/src/lib/calendarForm';
 import { format } from 'date-fns';
 import { de, enUS } from 'date-fns/locale';
 
@@ -38,5 +38,28 @@ describe('Datumsformat', () => {
     });
     it('Franzoesisch bleibt wie bisher', () => {
         expect(longDatePattern('fr', true)).toBe('EEEE d MMMM yyyy');
+    });
+});
+
+describe('Fahrt und Teilnehmende', () => {
+    it('Fahrzeit in 15-Minuten-Schritten zwischen 15 und 240 Minuten', () => {
+        expect(stepTravel(30, 1)).toBe(45);
+        expect(stepTravel(30, -1)).toBe(15);
+        expect(stepTravel(15, -1)).toBe(15);
+        expect(stepTravel(240, 1)).toBe(240);
+    });
+    it('verschiebt Uhrzeiten, auch über Mitternacht', () => {
+        expect(shiftClock('10:00', -30)).toBe('09:30');
+        expect(shiftClock('23:45', 30)).toBe('00:15');
+        expect(shiftClock('00:10', -15)).toBe('23:55');
+    });
+    it('wählt Mitglieder über den Namen, sonst freier Name, ohne Doppelte', () => {
+        const members = [{ id: 'm1', name: 'Sabine' }];
+        const empty = { member_ids: [] as string[], guests: [] as string[] };
+        expect(addParticipant(empty, ' sabine ', members)).toEqual({ member_ids: ['m1'], guests: [] });
+        const withGuest = addParticipant(empty, 'Herr  Meier', members);
+        expect(withGuest).toEqual({ member_ids: [], guests: ['Herr Meier'] });
+        expect(addParticipant(withGuest, 'herr meier', members)).toBe(withGuest);
+        expect(addParticipant(empty, '   ', members)).toBe(empty);
     });
 });

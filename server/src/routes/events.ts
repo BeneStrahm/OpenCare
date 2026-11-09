@@ -3,6 +3,7 @@ import { query } from '../db';
 import { authMiddleware } from '../middleware/auth';
 import { circleMiddleware, CircleRequest, CircleRole } from '../middleware/circle';
 import { toNullIfEmpty } from '../lib/normalize';
+import { cleanGuests, cleanPersonName, cleanTravelMinutes, isInvalidTravelMinutes } from '../lib/eventExtras';
 import { broadcastToCircle } from '../lib/broadcaster';
 import { langFromRequest, t } from '../lib/i18n';
 
@@ -368,6 +369,7 @@ const expandAndSerialize = (events: any[], windowStart: Date, windowEnd: Date) =
             occurrences.push({
                 ...event,
                 member_ids: Array.isArray(event.member_ids) ? event.member_ids : [],
+                guests: Array.isArray(event.guests) ? event.guests : [],
                 start_time: toLocalISO(occ.start),
                 end_time: occ.end ? toLocalISO(occ.end) : null,
                 occurrence_date: occ.occurrenceDate,
@@ -473,11 +475,15 @@ router.post('/', async (req: CircleRequest, res: Response) => {
         const {
             title, description, category, start_time, end_time,
             location, rrule, member_ids, reminder_30min, reminder_1hour, notes,
+            guests, travel_to_minutes, travel_back_minutes, driver_to, driver_back,
         } = req.body;
 
         const cleanedTitle = typeof title === 'string' ? title.trim() : '';
         if (!cleanedTitle) {
             return res.status(400).json({ success: false, error: 'Title is required' });
+        }
+        if (isInvalidTravelMinutes(travel_to_minutes) || isInvalidTravelMinutes(travel_back_minutes)) {
+            return res.status(400).json({ success: false, error: 'Invalid travel time' });
         }
 
         if (!EVENT_CATEGORIES.includes(category)) {
@@ -514,8 +520,10 @@ router.post('/', async (req: CircleRequest, res: Response) => {
 
         const result = await query(
             `INSERT INTO events (circle_id, title, description, category, start_time, end_time,
-                                 location, rrule, member_ids, reminder_30min, reminder_1hour, notes, created_by)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13)
+                                 location, rrule, member_ids, reminder_30min, reminder_1hour, notes, created_by,
+                                 guests, travel_to_minutes, travel_back_minutes, driver_to, driver_back)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13,
+                     $14::jsonb, $15, $16, $17, $18)
              RETURNING *`,
             [
                 req.circleId,
@@ -532,6 +540,12 @@ router.post('/', async (req: CircleRequest, res: Response) => {
                 reminder_1hour === undefined ? true : Boolean(reminder_1hour),
                 toNullIfEmpty(notes),
                 req.userId,
+                JSON.stringify(cleanGuests(guests)),
+                cleanTravelMinutes(travel_to_minutes),
+                cleanTravelMinutes(travel_back_minutes),
+                // Fahrer nur, wenn es die Fahrt auch gibt.
+                cleanTravelMinutes(travel_to_minutes) === null ? null : cleanPersonName(driver_to),
+                cleanTravelMinutes(travel_back_minutes) === null ? null : cleanPersonName(driver_back),
             ]
         );
 
@@ -561,7 +575,12 @@ router.put('/:id', async (req: CircleRequest, res: Response) => {
         const {
             title, description, category, start_time, end_time,
             location, rrule, member_ids, reminder_30min, reminder_1hour, notes,
+            guests, travel_to_minutes, travel_back_minutes, driver_to, driver_back,
         } = req.body;
+
+        if (isInvalidTravelMinutes(travel_to_minutes) || isInvalidTravelMinutes(travel_back_minutes)) {
+            return res.status(400).json({ success: false, error: 'Invalid travel time' });
+        }
 
         const updates: string[] = [];
         const values: unknown[] = [];
@@ -633,6 +652,25 @@ router.put('/:id', async (req: CircleRequest, res: Response) => {
 
         if (reminder_30min !== undefined) pushUpdate('reminder_30min', Boolean(reminder_30min));
         if (reminder_1hour !== undefined) pushUpdate('reminder_1hour', Boolean(reminder_1hour));
+
+        if (guests !== undefined) pushUpdate('guests', JSON.stringify(cleanGuests(guests)), '::jsonb');
+        // Fahrt und Fahrer gehören zusammen: ohne Fahrt wird auch der Fahrer gelöscht.
+        if (travel_to_minutes !== undefined) {
+            const minutes = cleanTravelMinutes(travel_to_minutes);
+            pushUpdate('travel_to_minutes', minutes);
+            if (minutes === null) pushUpdate('driver_to', null);
+            else if (driver_to !== undefined) pushUpdate('driver_to', cleanPersonName(driver_to));
+        } else if (driver_to !== undefined) {
+            pushUpdate('driver_to', existing.travel_to_minutes === null ? null : cleanPersonName(driver_to));
+        }
+        if (travel_back_minutes !== undefined) {
+            const minutes = cleanTravelMinutes(travel_back_minutes);
+            pushUpdate('travel_back_minutes', minutes);
+            if (minutes === null) pushUpdate('driver_back', null);
+            else if (driver_back !== undefined) pushUpdate('driver_back', cleanPersonName(driver_back));
+        } else if (driver_back !== undefined) {
+            pushUpdate('driver_back', existing.travel_back_minutes === null ? null : cleanPersonName(driver_back));
+        }
 
         if (updates.length === 0) {
             return res.status(400).json({ success: false, error: 'No fields to update' });

@@ -294,6 +294,13 @@ CREATE TABLE events (
     -- ou [{date, action:'move', start_time, end_time}] (cf. routes/events.ts)
     exceptions JSONB NOT NULL DEFAULT '[]'::jsonb,
     member_ids JSONB DEFAULT '[]'::jsonb,
+    -- Fork: Teilnehmende ohne Konto in der App (nur Namen, stehen nur am Termin).
+    guests JSONB NOT NULL DEFAULT '[]'::jsonb,
+    -- Fork: Fahrt in Minuten vor Beginn bzw. nach Ende (NULL = keine Fahrt), Fahrer als Name.
+    travel_to_minutes SMALLINT,
+    travel_back_minutes SMALLINT,
+    driver_to TEXT,
+    driver_back TEXT,
     reminder_30min BOOLEAN DEFAULT FALSE,
     reminder_1hour BOOLEAN DEFAULT FALSE,
     notes TEXT,

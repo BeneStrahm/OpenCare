@@ -5,6 +5,7 @@ import { circleMiddleware, requireAdmin, CircleRequest } from '../middleware/cir
 import { broadcastToCircle } from '../lib/broadcaster';
 import { FILE_DATA_URL_REGEX, IMAGE_DATA_URL_REGEX, cleanImportedAttachments } from '../lib/dataUrls';
 import { cleanAidType } from '../lib/circleSettings';
+import { cleanGuests, cleanPersonName, cleanTravelMinutes } from '../lib/eventExtras';
 
 /**
  * Per-circle export/import (admin only).
@@ -419,10 +420,14 @@ router.post('/import', async (req: CircleRequest, res: Response) => {
             }
             await insert('events',
                 ['circle_id', 'title', 'description', 'category', 'start_time', 'end_time', 'location', 'rrule',
-                    'member_ids', 'reminder_30min', 'reminder_1hour', 'notes', 'created_by', 'created_at', 'updated_at'],
+                    'member_ids', 'guests', 'travel_to_minutes', 'travel_back_minutes', 'driver_to', 'driver_back',
+                    'reminder_30min', 'reminder_1hour', 'notes', 'created_by', 'created_at', 'updated_at'],
                 [circleId, row.title, textOrNull(row.description), oneOf(row.category, EVENT_CATEGORIES, 'other'),
                     row.start_time, row.end_time ?? null, textOrNull(row.location), textOrNull(row.rrule),
                     JSON.stringify(filterMemberIds(row.member_ids)),
+                    JSON.stringify(cleanGuests(row.guests)),
+                    cleanTravelMinutes(row.travel_to_minutes), cleanTravelMinutes(row.travel_back_minutes),
+                    cleanPersonName(row.driver_to), cleanPersonName(row.driver_back),
                     boolOr(row.reminder_30min, false), boolOr(row.reminder_1hour, false),
                     textOrNull(row.notes), await userOrNull(row.created_by),
                     tsOrNow(row.created_at), tsOrNow(row.updated_at)]

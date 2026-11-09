@@ -9,7 +9,9 @@
   "view": {
     "label": "Vista",
     "month": "Mes",
-    "list": "Lista"
+    "list": "Lista",
+    "day": "Día",
+    "week": "Semana"
   },
   "moreCount_one": "+{{count}} más",
   "moreCount_other": "+{{count}} más",
@@ -38,7 +40,7 @@
     "endTime": "Hora de fin (opcional)",
     "location": "Lugar (opcional)",
     "locationPlaceholder": "Ej.: consulta del Dr. Martín, domicilio…",
-    "participants": "Participantes (miembros del círculo)",
+    "participants": "Participantes",
     "noMembers": "Todavía no hay miembros en el círculo.",
     "repeat": "Repetición",
     "repeatNone": "Ninguna",
@@ -64,8 +66,29 @@
     "start": "Inicio",
     "reminderDefaultOn": "Recordatorio 60 minutos antes. Cámbialo en «Más detalles».",
     "reminderDefaultOff": "Sin recordatorio 60 minutos antes.",
-    "moreDetails": "Más detalles (fin, lugar, repetición, recordatorios …)",
-    "lessDetails": "Ocultar detalles"
+    "moreDetails": "Más detalles (fin, repetición, recordatorios, notas …)",
+    "lessDetails": "Ocultar detalles",
+    "participantsHint": "Elija del círculo o de los contactos, o escriba un nombre.",
+    "personPlaceholder": "Escribir un nombre",
+    "addPerson": "Añadir",
+    "removePerson": "Quitar a {{name}}",
+    "travel": "Trayecto",
+    "travelTo": "Ida",
+    "travelBack": "Vuelta",
+    "travelMinutes": "{{count}} minutos",
+    "travelLess": "15 minutos menos",
+    "travelMore": "15 minutos más",
+    "travelToTime": "Salida a las {{time}}",
+    "travelBackTime": "Vuelta hacia las {{time}}",
+    "travelBackNoEnd": "Sin hora de fin, la vuelta se cuenta desde el inicio. Añada un fin en «Más detalles».",
+    "removeTravelTo": "Quitar la ida",
+    "removeTravelBack": "Quitar la vuelta",
+    "addTravelTo": "Añadir la ida",
+    "addTravelBack": "Añadir la vuelta",
+    "driver": "¿Quién conduce?",
+    "reminderDepartureOn": "Recordatorio 60 minutos antes de la salida. Cambiar en «Más detalles».",
+    "reminder30Departure": "30 minutos antes de la salida",
+    "reminder1hDeparture": "1 hora antes de la salida"
   },
   "confirmDelete": "¿Eliminar este evento?",
   "deleteRecurringHint": "Se eliminarán todas las fechas de la serie.",
@@ -107,5 +130,23 @@
     "moveOccurrence": "No se puede mover esta cita.",
     "restoreOccurrence": "No se puede devolver esta cita a su fecha.",
     "feed": "No se puede generar el enlace iCal."
+  },
+  "card": {
+    "travelTo": "Ida {{from}} a {{to}}",
+    "travelBack": "Vuelta {{from}} a {{to}}",
+    "driver": "Conduce: {{name}}"
+  },
+  "prevWeek": "Semana anterior",
+  "nextWeek": "Semana siguiente",
+  "prevDay": "Día anterior",
+  "nextDay": "Día siguiente",
+  "week": {
+    "noEvents": "Ningún evento",
+    "openDay": "Abrir vista del día",
+    "withTravel": "Con trayecto"
+  },
+  "day": {
+    "empty": "Ningún evento este día.",
+    "backToWeek": "Volver a la semana"
   }
 }

@@ -3,12 +3,12 @@ import { useTranslation } from 'react-i18next';
 import {
     Plus, ChevronLeft, ChevronRight, MapPin, Clock, Users, Repeat,
     Trash2, Edit2, Copy, Check, CalendarPlus, RefreshCw, CalendarDays, List, Bell,
-    CalendarClock, CalendarOff, Undo2,
+    CalendarClock, CalendarOff, Undo2, Car, Minus, X, CalendarRange, CalendarCheck,
 } from 'lucide-react';
 import {
     format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
     eachDayOfInterval, isSameMonth, isToday, addMonths, subMonths, parseISO,
-    addDays, subDays, addMinutes, differenceInMinutes,
+    addDays, subDays, addMinutes, differenceInMinutes, addWeeks,
 } from 'date-fns';
 import { Card, CardContent, Button, Dialog, Input, Textarea, Select, DatePicker } from '../components/ui';
 import { api, API_BASE_URL } from '../lib/api';
@@ -19,7 +19,10 @@ import { circleWeekStart, weekStartsOn, orderedIsoDays, inWeekOrder } from '../l
 import { useAuth } from '../contexts/AuthContext';
 import { useWebSocketUpdates } from '../hooks/useWebSocketUpdates';
 import { dateLocale, formatClock } from '../i18n/format';
-import { NEW_EVENT_DEFAULTS, hasExtraDetails, longDatePattern } from '../lib/calendarForm';
+import {
+    NEW_EVENT_DEFAULTS, NEW_EVENT_TRAVEL_MINUTES, TRAVEL_MAX_MINUTES, TRAVEL_MIN_MINUTES,
+    addParticipant, hasExtraDetails, longDatePattern, shiftClock, stepTravel,
+} from '../lib/calendarForm';
 
 // ─── Domain types ─────────────────────────────────────────────────────────────
 
@@ -64,6 +67,13 @@ interface EventOccurrence {
     rrule?: string | null;
     member_ids: string[];
     members_data?: MemberData[];
+    /** Fork: Teilnehmende ohne Konto (nur Namen). */
+    guests?: string[];
+    /** Fork: Fahrt in Minuten vor Beginn / nach Ende, null = keine Fahrt. */
+    travel_to_minutes?: number | null;
+    travel_back_minutes?: number | null;
+    driver_to?: string | null;
+    driver_back?: string | null;
     reminder_30min: boolean;
     reminder_1hour: boolean;
     notes?: string | null;
@@ -71,6 +81,12 @@ interface EventOccurrence {
     occurrence_date: string; // local "YYYY-MM-DD"
     is_recurring: boolean;
     moved?: boolean;
+}
+
+interface ContactOption {
+    id: string;
+    name: string;
+    organization: string | null;
 }
 
 interface CircleMember {
@@ -180,6 +196,13 @@ interface EventForm {
     endTime: string;    // HH:mm or ''
     location: string;
     member_ids: string[];
+    guests: string[];
+    travelTo: number | null;    // Minuten vor Beginn, null = keine Hinfahrt
+    travelBack: number | null;  // Minuten nach Ende, null = keine Rückfahrt
+    driverTo: string;
+    driverBack: string;
+    /** true, sobald der Fahrer der Rückfahrt von Hand geändert wurde. */
+    driverBackEdited: boolean;
     notes: string;
     reminder_30min: boolean;
     reminder_1hour: boolean;
@@ -193,12 +216,106 @@ const emptyForm = (): EventForm => ({
     startTime: '09:00',
     location: '',
     member_ids: [],
+    guests: [],
+    travelTo: NEW_EVENT_TRAVEL_MINUTES,
+    travelBack: NEW_EVENT_TRAVEL_MINUTES,
+    driverTo: '',
+    driverBack: '',
+    driverBackEdited: false,
     notes: '',
     ...NEW_EVENT_DEFAULTS,
     recurrence: { freq: '', byDays: [], until: '' },
 });
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
+
+
+// ─── Tages- und Wochenansicht (Fork) ──────────────────────────────────────────
+
+type CalendarView = 'day' | 'week' | 'month' | 'list';
+
+/** Höhe einer Stunde in der Tagesansicht. 15 Minuten Fahrt = 24 px, genug für eine Textzeile. */
+const DAY_HOUR_PX = 96;
+/** Sichtbarer Bereich mindestens 8 bis 18 Uhr, er wächst mit frühen oder späten Terminen. */
+const DAY_FIRST_HOUR = 8;
+const DAY_LAST_HOUR = 18;
+/** Termin ohne Ende oder sehr kurzer Termin: mindestens 30 Minuten hoch (48 px, gut antippbar). */
+const DAY_MIN_EVENT_MINUTES = 30;
+
+/** "YYYY-MM-DDTHH:mm:ss" -> Minuten seit Mitternacht. */
+const minutesOf = (value: string): number => Number(value.slice(11, 13)) * 60 + Number(value.slice(14, 16));
+
+interface DayBlock {
+    occ: EventOccurrence;
+    /** Minuten seit Mitternacht: Beginn der Hinfahrt bzw. Ende der Rückfahrt. */
+    from: number;
+    to: number;
+    travelTo: number;
+    eventMinutes: number;
+    travelBack: number;
+    lane: number;
+    lanes: number;
+}
+
+/** Termine eines Tages mit Fahrzeit untereinander legen; Überschneidungen kommen nebeneinander. */
+const layoutDay = (list: EventOccurrence[]): DayBlock[] => {
+    const blocks: DayBlock[] = [...list]
+        .sort((a, b) => a.start_time.localeCompare(b.start_time))
+        .map((occ) => {
+            const start = minutesOf(occ.start_time);
+            let end = start;
+            if (occ.end_time) {
+                end = occ.end_time.slice(0, 10) === occ.start_time.slice(0, 10) ? minutesOf(occ.end_time) : 24 * 60;
+            }
+            const travelTo = Math.min(occ.travel_to_minutes ?? 0, start);
+            const eventMinutes = Math.min(Math.max(end - start, DAY_MIN_EVENT_MINUTES), 24 * 60 - start);
+            const travelBack = Math.min(occ.travel_back_minutes ?? 0, 24 * 60 - start - eventMinutes);
+            return {
+                occ,
+                from: start - travelTo,
+                to: start + eventMinutes + travelBack,
+                travelTo,
+                eventMinutes,
+                travelBack,
+                lane: 0,
+                lanes: 1,
+            };
+        })
+        .sort((a, b) => a.from - b.from || a.to - b.to);
+
+    let cluster: DayBlock[] = [];
+    let laneEnds: number[] = [];
+    let clusterEnd = -1;
+    const closeCluster = () => {
+        for (const block of cluster) block.lanes = laneEnds.length;
+        cluster = [];
+        laneEnds = [];
+    };
+    for (const block of blocks) {
+        if (cluster.length > 0 && block.from >= clusterEnd) closeCluster();
+        let lane = laneEnds.findIndex((laneEnd) => laneEnd <= block.from);
+        if (lane === -1) {
+            lane = laneEnds.length;
+            laneEnds.push(block.to);
+        } else {
+            laneEnds[lane] = block.to;
+        }
+        block.lane = lane;
+        cluster.push(block);
+        clusterEnd = Math.max(clusterEnd, block.to);
+    }
+    closeCluster();
+    return blocks;
+};
+
+/** Überschrift der Wochenansicht, z. B. "9. – 15. Nov. 2026". */
+const weekRangeLabel = (start: Date, end: Date, lang: string): string => {
+    const l = (lang || '').slice(0, 2).toLowerCase();
+    const [short, long] = l === 'de'
+        ? ['d. MMM', 'd. MMM yyyy']
+        : l === 'en' ? ['MMM d', 'MMM d, yyyy'] : ['d MMM', 'd MMM yyyy'];
+    return `${format(start, short, { locale: dateLocale() })} – ${format(end, long, { locale: dateLocale() })}`;
+};
 
 const Calendar: React.FC = () => {
     const { t, i18n } = useTranslation(['calendar', 'common']);
@@ -207,11 +324,13 @@ const Calendar: React.FC = () => {
     const { user } = useAuth();
 
     const [currentDate, setCurrentDate] = useState(new Date());
-    const [view, setView] = useState<'month' | 'list'>(() =>
-        typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches ? 'list' : 'month'
-    );
+    // Fork: Der Kalender öffnet immer in der Wochenansicht.
+    const [view, setView] = useState<CalendarView>('week');
     const [occurrences, setOccurrences] = useState<EventOccurrence[]>([]);
     const [members, setMembers] = useState<CircleMember[]>([]);
+    const [contacts, setContacts] = useState<ContactOption[]>([]);
+    // Eingabefeld für eine neue teilnehmende Person (noch nicht hinzugefügt).
+    const [personInput, setPersonInput] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
@@ -307,6 +426,36 @@ const Calendar: React.FC = () => {
 
     useEffect(() => { void loadFeedToken(); }, []);
 
+    // Kontakte nur als Vorschläge für Teilnehmende und Fahrer: Fehler stören die Seite nicht.
+    useEffect(() => {
+        if (!activeCircle) return;
+        api.get<{ success: boolean; data: ContactOption[] }>('/api/contacts')
+            .then((response) => {
+                if (response.success) setContacts(response.data);
+            })
+            .catch((err) => console.error('Failed to load contacts:', err));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeCircle?.id]);
+
+    // Vorschlagsliste: Mitglieder des Kreises, dann Kontakte, ohne doppelte Namen.
+    const personSuggestions = useMemo(() => {
+        const seen = new Set<string>();
+        const list: { key: string; name: string; hint: string }[] = [];
+        for (const member of members) {
+            const k = member.name.trim().toLocaleLowerCase('de');
+            if (!k || seen.has(k)) continue;
+            seen.add(k);
+            list.push({ key: `m-${member.id}`, name: member.name, hint: '' });
+        }
+        for (const contact of contacts) {
+            const k = contact.name.trim().toLocaleLowerCase('de');
+            if (!k || seen.has(k)) continue;
+            seen.add(k);
+            list.push({ key: `c-${contact.id}`, name: contact.name, hint: contact.organization || '' });
+        }
+        return list;
+    }, [members, contacts]);
+
     useWebSocketUpdates('events', () => { void loadEvents(); });
 
     // ── Derived ───────────────────────────────────────────────────────────────
@@ -327,6 +476,10 @@ const Calendar: React.FC = () => {
     );
 
     const calendarDays = eachDayOfInterval({ start: gridStart, end: gridEnd });
+    // Die Woche des gewählten Tages liegt immer im geladenen Monatsraster.
+    const weekStartDate = startOfWeek(currentDate, { weekStartsOn: weekStartsOn(weekStart) });
+    const weekEndDate = endOfWeek(currentDate, { weekStartsOn: weekStartsOn(weekStart) });
+    const weekDates = eachDayOfInterval({ start: weekStartDate, end: weekEndDate });
     // Les traductions restent rangees du lundi au dimanche ; seul l'affichage tourne.
     const weekDays = inWeekOrder(t('common:daysShort', { returnObjects: true }) as string[], weekStart);
     const dayLetters = t('calendar:form.dayLetters', { returnObjects: true }) as string[];
@@ -336,6 +489,7 @@ const Calendar: React.FC = () => {
         setEditingId(null);
         setEditingRecurring(false);
         setFormData({ ...emptyForm(), date: format(date ?? new Date(), 'yyyy-MM-dd') });
+        setPersonInput('');
         setShowMore(false);
         setError('');
         setDialogOpen(true);
@@ -353,13 +507,21 @@ const Calendar: React.FC = () => {
             endTime: timeOf(occ.end_time),
             location: occ.location || '',
             member_ids: occ.member_ids || [],
+            guests: occ.guests || [],
+            travelTo: occ.travel_to_minutes ?? null,
+            travelBack: occ.travel_back_minutes ?? null,
+            driverTo: occ.driver_to || '',
+            driverBack: occ.driver_back || '',
+            driverBackEdited: (occ.driver_back || '') !== (occ.driver_to || ''),
             notes: occ.notes || '',
             reminder_30min: occ.reminder_30min,
             reminder_1hour: occ.reminder_1hour,
             recurrence: parseRRuleToForm(occ.rrule),
         };
         setFormData(form);
-        setShowMore(hasExtraDetails(form));
+        setPersonInput('');
+        // Ort und Teilnehmende stehen jetzt außerhalb von „Weitere Angaben“.
+        setShowMore(hasExtraDetails({ ...form, location: '', member_ids: [] }));
         setError('');
         setDialogOpen(true);
     };
@@ -381,6 +543,9 @@ const Calendar: React.FC = () => {
             return;
         }
 
+        // Ein eingetippter, aber nicht hinzugefügter Name geht nicht verloren.
+        const people = addParticipant(formData, personInput, members);
+
         const payload = {
             title: formData.title.trim(),
             category: formData.category,
@@ -388,7 +553,12 @@ const Calendar: React.FC = () => {
             end_time: formData.endTime ? `${formData.date}T${formData.endTime}:00` : null,
             location: formData.location,
             notes: formData.notes,
-            member_ids: formData.member_ids,
+            member_ids: people.member_ids,
+            guests: people.guests,
+            travel_to_minutes: formData.travelTo,
+            travel_back_minutes: formData.travelBack,
+            driver_to: formData.travelTo === null ? null : formData.driverTo,
+            driver_back: formData.travelBack === null ? null : formData.driverBack,
             reminder_30min: formData.reminder_30min,
             reminder_1hour: formData.reminder_1hour,
             rrule: buildRRule(formData.recurrence),
@@ -402,6 +572,7 @@ const Calendar: React.FC = () => {
                 await api.post('/api/events', payload);
             }
             setDialogOpen(false);
+            setPersonInput('');
             void loadEvents();
         } catch (err) {
             console.error('Failed to save event:', err);
@@ -502,12 +673,25 @@ const Calendar: React.FC = () => {
         }
     };
 
-    const toggleMember = (memberId: string) => {
+    const addPerson = () => {
+        setFormData((prev) => ({ ...prev, ...addParticipant(prev, personInput, members) }));
+        setPersonInput('');
+    };
+
+    const removeMember = (memberId: string) => {
+        setFormData((prev) => ({ ...prev, member_ids: prev.member_ids.filter((id) => id !== memberId) }));
+    };
+
+    const removeGuest = (name: string) => {
+        setFormData((prev) => ({ ...prev, guests: prev.guests.filter((g) => g !== name) }));
+    };
+
+    // Der Fahrer der Hinfahrt gilt auch für die Rückfahrt, bis diese von Hand geändert wird.
+    const setDriverTo = (value: string) => {
         setFormData((prev) => ({
             ...prev,
-            member_ids: prev.member_ids.includes(memberId)
-                ? prev.member_ids.filter((id) => id !== memberId)
-                : [...prev.member_ids, memberId],
+            driverTo: value,
+            driverBack: prev.driverBackEdited ? prev.driverBack : value,
         }));
     };
 
@@ -559,6 +743,375 @@ const Calendar: React.FC = () => {
     const occurrenceTimeRange = (occ: EventOccurrence) =>
         occ.end_time ? `${formatClock(occ.start_time)} - ${formatClock(occ.end_time)}` : formatClock(occ.start_time);
 
+    // Fork: Uhrzeit "HH:mm" eines Tages in der Schreibweise der Sprache.
+    const clockAt = (day: string, clock: string) => formatClock(`${day}T${clock}:00`);
+
+    /** Hin- und Rückfahrt eines Termins als lesbare Zeilen (leer, wenn keine Fahrt). */
+    const travelLines = (occ: EventOccurrence): { key: string; text: string; driver: string }[] => {
+        const lines: { key: string; text: string; driver: string }[] = [];
+        const day = occ.start_time.slice(0, 10);
+        if (occ.travel_to_minutes) {
+            lines.push({
+                key: 'to',
+                text: t('calendar:card.travelTo', {
+                    from: clockAt(day, shiftClock(timeOf(occ.start_time), -occ.travel_to_minutes)),
+                    to: formatClock(occ.start_time),
+                }),
+                driver: occ.driver_to || '',
+            });
+        }
+        if (occ.travel_back_minutes) {
+            const base = occ.end_time || occ.start_time;
+            lines.push({
+                key: 'back',
+                text: t('calendar:card.travelBack', {
+                    from: formatClock(base),
+                    to: clockAt(base.slice(0, 10), shiftClock(timeOf(base), occ.travel_back_minutes)),
+                }),
+                driver: occ.driver_back || '',
+            });
+        }
+        return lines;
+    };
+
+    /** Namen aller Teilnehmenden: Mitglieder des Kreises und frei eingetragene. */
+    const participantNames = (occ: EventOccurrence): string[] => [
+        ...(occ.members_data ?? []).map((m) => m.name),
+        ...(occ.guests ?? []),
+    ];
+
+    /** Fahrzeit heller hinterlegt, mit Auto-Symbol und Fahrer. */
+    const renderTravel = (occ: EventOccurrence) => {
+        const lines = travelLines(occ);
+        if (lines.length === 0) return null;
+        return (
+            <span className="mt-1.5 block space-y-1">
+                {lines.map((line) => (
+                    <span
+                        key={line.key}
+                        className="flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-input bg-surface-2 px-2.5 py-1.5 text-caption text-muted-foreground"
+                    >
+                        <Car className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        <span>{line.text}</span>
+                        {line.driver && <span>· {t('calendar:card.driver', { name: line.driver })}</span>}
+                    </span>
+                ))}
+            </span>
+        );
+    };
+
+    /** Eine Fahrt im Formular: Dauer in 15-Minuten-Schritten, Fahrer, Entfernen. */
+    const renderTravelRow = (kind: 'to' | 'back') => {
+        const minutes = kind === 'to' ? formData.travelTo : formData.travelBack;
+        const field = kind === 'to' ? 'travelTo' : 'travelBack';
+        const label = kind === 'to' ? t('calendar:form.travelTo') : t('calendar:form.travelBack');
+
+        if (minutes === null) {
+            return (
+                <Button
+                    type="button"
+                    variant="secondary"
+                    size="lg"
+                    className="w-full justify-start"
+                    onClick={() => setFormData((prev) => ({ ...prev, [field]: NEW_EVENT_TRAVEL_MINUTES }))}
+                >
+                    <Plus className="mr-2 h-5 w-5" aria-hidden="true" />
+                    {kind === 'to' ? t('calendar:form.addTravelTo') : t('calendar:form.addTravelBack')}
+                </Button>
+            );
+        }
+
+        const startClock = formData.startTime || '00:00';
+        const endClock = formData.endTime || startClock;
+        const timeText = kind === 'to'
+            ? t('calendar:form.travelToTime', { time: clockAt(formData.date, shiftClock(startClock, -minutes)) })
+            : t('calendar:form.travelBackTime', { time: clockAt(formData.date, shiftClock(endClock, minutes)) });
+        const driverId = `event-driver-${kind}`;
+
+        return (
+            <div className="space-y-3 rounded-input border border-border bg-surface-2/60 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-body font-medium text-foreground">
+                        {label}
+                        <span className="block text-caption font-normal text-muted-foreground">{timeText}</span>
+                    </p>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="lg"
+                        onClick={() => setFormData((prev) => ({ ...prev, [field]: null }))}
+                    >
+                        <X className="mr-2 h-5 w-5" aria-hidden="true" />
+                        {kind === 'to' ? t('calendar:form.removeTravelTo') : t('calendar:form.removeTravelBack')}
+                    </Button>
+                </div>
+                <div className="flex items-center gap-3" role="group" aria-label={label}>
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        size="lg"
+                        className="w-12 px-0"
+                        aria-label={t('calendar:form.travelLess')}
+                        disabled={minutes <= TRAVEL_MIN_MINUTES}
+                        onClick={() => setFormData((prev) => ({ ...prev, [field]: stepTravel(minutes, -1) }))}
+                    >
+                        <Minus className="h-5 w-5" aria-hidden="true" />
+                    </Button>
+                    <span className="min-w-[8rem] text-center text-body font-semibold tabular-nums text-foreground" aria-live="polite">
+                        {t('calendar:form.travelMinutes', { count: minutes })}
+                    </span>
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        size="lg"
+                        className="w-12 px-0"
+                        aria-label={t('calendar:form.travelMore')}
+                        disabled={minutes >= TRAVEL_MAX_MINUTES}
+                        onClick={() => setFormData((prev) => ({ ...prev, [field]: stepTravel(minutes, 1) }))}
+                    >
+                        <Plus className="h-5 w-5" aria-hidden="true" />
+                    </Button>
+                </div>
+                <Input
+                    id={driverId}
+                    label={t('calendar:form.driver')}
+                    value={kind === 'to' ? formData.driverTo : formData.driverBack}
+                    onChange={(e) => {
+                        const value = e.target.value;
+                        if (kind === 'to') setDriverTo(value);
+                        else setFormData((prev) => ({ ...prev, driverBack: value, driverBackEdited: true }));
+                    }}
+                    placeholder={t('calendar:form.personPlaceholder')}
+                    list="event-person-suggestions"
+                    autoComplete="off"
+                />
+                {kind === 'back' && !formData.endTime && (
+                    <p className="text-caption text-muted-foreground">{t('calendar:form.travelBackNoEnd')}</p>
+                )}
+            </div>
+        );
+    };
+
+    // ── Fork: Ansichten Tag und Woche ─────────────────────────────────────────
+    const viewChoices: { key: CalendarView; label: string; icon: typeof CalendarDays }[] = [
+        { key: 'day', label: t('calendar:view.day'), icon: CalendarCheck },
+        { key: 'week', label: t('calendar:view.week'), icon: CalendarRange },
+        { key: 'month', label: t('calendar:view.month'), icon: CalendarDays },
+        { key: 'list', label: t('calendar:view.list'), icon: List },
+    ];
+
+    const stepPeriod = (direction: 1 | -1) => {
+        setCurrentDate((prev) => {
+            if (view === 'day') return addDays(prev, direction);
+            if (view === 'week') return addWeeks(prev, direction);
+            return direction === 1 ? addMonths(prev, 1) : subMonths(prev, 1);
+        });
+    };
+
+    const navLabels = view === 'day'
+        ? { prev: t('calendar:prevDay'), next: t('calendar:nextDay') }
+        : view === 'week'
+            ? { prev: t('calendar:prevWeek'), next: t('calendar:nextWeek') }
+            : { prev: t('calendar:prevMonth'), next: t('calendar:nextMonth') };
+
+    const periodTitle = view === 'day'
+        ? format(currentDate, longDate(true), { locale: dateLocale() })
+        : view === 'week'
+            ? weekRangeLabel(weekStartDate, weekEndDate, i18n.language)
+            : format(currentDate, 'MMMM yyyy', { locale: dateLocale() });
+
+    const openDay = (day: Date) => {
+        setCurrentDate(day);
+        setView('day');
+    };
+
+    /** Woche: ein Feld pro Tag (Handy untereinander, ab Tablet nebeneinander). Tipp auf den Tag öffnet die Tagesansicht. */
+    const renderWeekView = () => (
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-7 md:gap-2">
+            {weekDates.map((day, index) => {
+                const key = format(day, 'yyyy-MM-dd');
+                const dayOccurrences = [...(occurrencesByDay.get(key) ?? [])]
+                    .sort((a, b) => a.start_time.localeCompare(b.start_time));
+                const today = isToday(day);
+                return (
+                    <section
+                        key={key}
+                        className={cn('flex flex-col rounded-input border bg-card', today ? 'border-primary' : 'border-border')}
+                    >
+                        <button
+                            type="button"
+                            onClick={() => openDay(day)}
+                            className="flex min-h-[48px] w-full items-center gap-2 rounded-t-input px-3 py-2 text-left transition-colors duration-fast hover:bg-surface-2/60"
+                        >
+                            <span className={cn('text-body font-semibold', today ? 'text-primary' : 'text-foreground')}>
+                                {weekDays[index]}
+                            </span>
+                            <span
+                                className={cn(
+                                    'flex h-8 min-w-[2rem] items-center justify-center rounded-full px-1 text-body font-semibold tabular-nums',
+                                    today ? 'bg-primary text-primary-foreground' : 'text-foreground'
+                                )}
+                            >
+                                {format(day, 'd')}
+                            </span>
+                            <span className="sr-only">
+                                {format(day, longDate(false), { locale: dateLocale() })}, {t('calendar:week.openDay')}
+                            </span>
+                        </button>
+                        <div className="flex-1 space-y-1.5 px-2 pb-2">
+                            {dayOccurrences.length === 0 ? (
+                                <p className="px-1 py-1 text-caption text-muted-foreground">{t('calendar:week.noEvents')}</p>
+                            ) : (
+                                dayOccurrences.map((occ) => (
+                                    <button
+                                        type="button"
+                                        key={`${occ.id}-${occ.occurrence_date}-${occ.start_time}`}
+                                        onClick={() => setSelected(occ)}
+                                        className={cn(
+                                            'block min-h-[48px] w-full rounded-input px-2 py-1.5 text-left transition-colors duration-fast hover:opacity-80',
+                                            CATEGORY_CHIP[occ.category]
+                                        )}
+                                    >
+                                        <span className="flex items-center gap-1.5 text-caption tabular-nums text-muted-foreground">
+                                            <CategoryDot category={occ.category} />
+                                            {occurrenceTimeRange(occ)}
+                                        </span>
+                                        <span className="block text-caption font-medium text-foreground">{occ.title}</span>
+                                        {(occ.travel_to_minutes || occ.travel_back_minutes) ? (
+                                            <span className="mt-0.5 flex items-center gap-1.5 text-caption text-muted-foreground">
+                                                <Car className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                                {t('calendar:week.withTravel')}
+                                            </span>
+                                        ) : null}
+                                    </button>
+                                ))
+                            )}
+                        </div>
+                    </section>
+                );
+            })}
+        </div>
+    );
+
+    /** Tag: Zeitleiste mit Stunden. Fahrzeit als heller Block vor und nach dem Termin. */
+    const renderDayView = () => {
+        const key = format(currentDate, 'yyyy-MM-dd');
+        const blocks = layoutDay(occurrencesByDay.get(key) ?? []);
+        const firstHour = Math.min(DAY_FIRST_HOUR, ...blocks.map((b) => Math.floor(b.from / 60)));
+        const lastHour = Math.min(24, Math.max(DAY_LAST_HOUR, ...blocks.map((b) => Math.ceil(b.to / 60))));
+        const px = (minutes: number) => (minutes / 60) * DAY_HOUR_PX;
+        const hours = Array.from({ length: lastHour - firstHour + 1 }, (_, i) => firstHour + i);
+
+        return (
+            <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                    <Button variant="secondary" size="lg" onClick={() => setView('week')}>
+                        <CalendarRange className="mr-2 h-5 w-5" aria-hidden="true" />
+                        {t('calendar:day.backToWeek')}
+                    </Button>
+                </div>
+                {blocks.length === 0 && (
+                    <div className="rounded-card border border-dashed border-border-strong px-6 py-6 text-center">
+                        <p className="text-body text-muted-foreground">{t('calendar:day.empty')}</p>
+                        {canCreate && (
+                            <Button variant="secondary" size="lg" className="mt-4" onClick={() => openCreate(currentDate)}>
+                                <Plus className="mr-2 h-5 w-5" aria-hidden="true" />
+                                {t('calendar:newEvent')}
+                            </Button>
+                        )}
+                    </div>
+                )}
+                <div className="flex" style={{ height: px((lastHour - firstHour) * 60) + 12 }}>
+                    <div className="relative w-14 shrink-0" aria-hidden="true">
+                        {hours.map((hour) => (
+                            <span
+                                key={hour}
+                                className="absolute right-2 -translate-y-1/2 text-caption tabular-nums text-muted-foreground"
+                                style={{ top: px((hour - firstHour) * 60) + 6 }}
+                            >
+                                {clockAt(key, `${String(hour % 24).padStart(2, '0')}:00`)}
+                            </span>
+                        ))}
+                    </div>
+                    <div className="relative flex-1 border-l border-border" style={{ marginTop: 6 }}>
+                        {hours.map((hour) => (
+                            <div
+                                key={hour}
+                                className="absolute inset-x-0 border-t border-border"
+                                style={{ top: px((hour - firstHour) * 60) }}
+                                aria-hidden="true"
+                            />
+                        ))}
+                        {blocks.map((block) => {
+                            const { occ } = block;
+                            const travel = travelLines(occ);
+                            const toLine = travel.find((line) => line.key === 'to');
+                            const backLine = travel.find((line) => line.key === 'back');
+                            return (
+                                <button
+                                    type="button"
+                                    key={`${occ.id}-${occ.occurrence_date}-${occ.start_time}`}
+                                    onClick={() => setSelected(occ)}
+                                    className="absolute flex flex-col overflow-hidden rounded-input border border-border bg-card text-left shadow-sm transition-opacity duration-fast hover:opacity-90"
+                                    style={{
+                                        top: px(block.from - firstHour * 60),
+                                        height: px(block.to - block.from),
+                                        left: `calc(${(block.lane / block.lanes) * 100}% + 4px)`,
+                                        width: `calc(${100 / block.lanes}% - 8px)`,
+                                    }}
+                                >
+                                    {block.travelTo > 0 && toLine && (
+                                        <span
+                                            className="flex shrink-0 items-center gap-1.5 overflow-hidden border-b border-dashed border-border-strong bg-surface-2 px-2 text-caption text-muted-foreground"
+                                            style={{ height: px(block.travelTo) }}
+                                        >
+                                            <Car className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                            <span className="truncate">
+                                                {toLine.text}
+                                                {toLine.driver ? ` · ${t('calendar:card.driver', { name: toLine.driver })}` : ''}
+                                            </span>
+                                        </span>
+                                    )}
+                                    <span
+                                        className={cn('block shrink-0 overflow-hidden px-2 py-1', CATEGORY_CHIP[occ.category])}
+                                        style={{ height: px(block.eventMinutes) }}
+                                    >
+                                        <span className="flex items-center gap-1.5 text-caption tabular-nums text-muted-foreground">
+                                            <CategoryDot category={occ.category} />
+                                            {occurrenceTimeRange(occ)}
+                                            {occ.is_recurring && (
+                                                <Repeat className="h-4 w-4 shrink-0" aria-label={t('calendar:recurring')} />
+                                            )}
+                                        </span>
+                                        <span className="block truncate text-body font-medium text-foreground">{occ.title}</span>
+                                        {occ.location && (
+                                            <span className="flex items-center gap-1.5 truncate text-caption text-muted-foreground">
+                                                <MapPin className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                                <span className="truncate">{occ.location}</span>
+                                            </span>
+                                        )}
+                                    </span>
+                                    {block.travelBack > 0 && backLine && (
+                                        <span
+                                            className="flex shrink-0 items-center gap-1.5 overflow-hidden border-t border-dashed border-border-strong bg-surface-2 px-2 text-caption text-muted-foreground"
+                                            style={{ height: px(block.travelBack) }}
+                                        >
+                                            <Car className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                            <span className="truncate">
+                                                {backLine.text}
+                                                {backLine.driver ? ` · ${t('calendar:card.driver', { name: backLine.driver })}` : ''}
+                                            </span>
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     if (loading && occurrences.length === 0) {
         return (
             <div className="flex h-full min-h-[50vh] items-center justify-center">
@@ -588,35 +1141,30 @@ const Calendar: React.FC = () => {
                         {recipientName ? t('calendar:subtitle', { name: recipientName }) : t('calendar:subtitleNoName')}
                     </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <div className="flex overflow-hidden rounded-input border border-border" role="group" aria-label={t('calendar:view.label')}>
-                        <button
-                            type="button"
-                            onClick={() => setView('month')}
-                            aria-pressed={view === 'month'}
-                            className={cn(
-                                'flex min-h-[44px] items-center gap-1.5 px-3 text-caption font-medium transition-colors duration-fast',
-                                view === 'month' ? 'bg-primary-soft text-primary' : 'bg-surface text-muted-foreground hover:text-foreground'
-                            )}
-                        >
-                            <CalendarDays className="h-4 w-4" />
-                            {t('calendar:view.month')}
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setView('list')}
-                            aria-pressed={view === 'list'}
-                            className={cn(
-                                'flex min-h-[44px] items-center gap-1.5 border-l border-border px-3 text-caption font-medium transition-colors duration-fast',
-                                view === 'list' ? 'bg-primary-soft text-primary' : 'bg-surface text-muted-foreground hover:text-foreground'
-                            )}
-                        >
-                            <List className="h-4 w-4" />
-                            {t('calendar:view.list')}
-                        </button>
+                        {viewChoices.map((choice, index) => {
+                            const Icon = choice.icon;
+                            return (
+                                <button
+                                    key={choice.key}
+                                    type="button"
+                                    onClick={() => setView(choice.key)}
+                                    aria-pressed={view === choice.key}
+                                    className={cn(
+                                        'flex min-h-[48px] items-center gap-1.5 px-3 text-caption font-medium transition-colors duration-fast',
+                                        index > 0 && 'border-l border-border',
+                                        view === choice.key ? 'bg-primary-soft text-primary' : 'bg-surface text-muted-foreground hover:text-foreground'
+                                    )}
+                                >
+                                    <Icon className="h-4 w-4" aria-hidden="true" />
+                                    {choice.label}
+                                </button>
+                            );
+                        })}
                     </div>
                     {canCreate && (
-                        <Button onClick={() => openCreate()}>
+                        <Button onClick={() => openCreate(view === 'day' ? currentDate : undefined)}>
                             <Plus className="mr-2 h-4 w-4" />
                             {t('calendar:newEvent')}
                         </Button>
@@ -627,16 +1175,16 @@ const Calendar: React.FC = () => {
             {/* Month navigation */}
             <Card>
                 <CardContent className="p-4 md:p-6">
-                    <div className="mb-4 flex items-center justify-between gap-2">
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                         <h2 className="text-h2 font-semibold capitalize">
-                            {format(currentDate, 'MMMM yyyy', { locale: dateLocale() })}
+                            {periodTitle}
                         </h2>
                         <div className="flex gap-2">
                             <Button
                                 variant="secondary"
                                 size="icon"
-                                aria-label={t('calendar:prevMonth')}
-                                onClick={() => setCurrentDate(subMonths(currentDate, 1))}
+                                aria-label={navLabels.prev}
+                                onClick={() => stepPeriod(-1)}
                             >
                                 <ChevronLeft className="h-4 w-4" />
                             </Button>
@@ -646,15 +1194,15 @@ const Calendar: React.FC = () => {
                             <Button
                                 variant="secondary"
                                 size="icon"
-                                aria-label={t('calendar:nextMonth')}
-                                onClick={() => setCurrentDate(addMonths(currentDate, 1))}
+                                aria-label={navLabels.next}
+                                onClick={() => stepPeriod(1)}
                             >
                                 <ChevronRight className="h-4 w-4" />
                             </Button>
                         </div>
                     </div>
 
-                    {view === 'month' ? (
+                    {view === 'day' ? renderDayView() : view === 'week' ? renderWeekView() : view === 'month' ? (
                         <div className="grid grid-cols-7 gap-1.5">
                             {weekDays.map((day) => (
                                 <div key={day} className="py-2 text-center text-label font-semibold text-muted-foreground">
@@ -752,16 +1300,32 @@ const Calendar: React.FC = () => {
                                                         type="button"
                                                         key={`${occ.id}-${occ.occurrence_date}-${occ.start_time}`}
                                                         onClick={() => setSelected(occ)}
-                                                        className="flex w-full min-h-[56px] items-center gap-3 px-4 py-3 text-left transition-colors duration-fast hover:bg-surface-2/60"
+                                                        className="flex w-full min-h-[56px] items-start gap-3 px-4 py-3 text-left transition-colors duration-fast hover:bg-surface-2/60"
                                                     >
                                                         <CategoryDot category={occ.category} />
-                                                        <span className="w-[88px] shrink-0 text-caption tabular-nums text-muted-foreground">
+                                                        <span className="w-[88px] shrink-0 pt-0.5 text-caption tabular-nums text-muted-foreground">
                                                             {occurrenceTimeRange(occ)}
                                                         </span>
                                                         <span className="min-w-0 flex-1">
-                                                            <span className="block truncate text-body font-medium text-foreground">{occ.title}</span>
+                                                            <span className="block text-body font-medium text-foreground">{occ.title}</span>
+                                                            <span className="block text-caption text-muted-foreground">
+                                                                {t(`calendar:categories.${occ.category}`)}
+                                                            </span>
                                                             {occ.location && (
-                                                                <span className="block truncate text-micro text-muted-foreground">{occ.location}</span>
+                                                                <span className="mt-0.5 flex items-start gap-1.5 text-caption text-muted-foreground">
+                                                                    <MapPin className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                                                                    <span>{occ.location}</span>
+                                                                </span>
+                                                            )}
+                                                            {participantNames(occ).length > 0 && (
+                                                                <span className="mt-0.5 flex items-start gap-1.5 text-caption text-muted-foreground">
+                                                                    <Users className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                                                                    <span>{participantNames(occ).join(', ')}</span>
+                                                                </span>
+                                                            )}
+                                                            {renderTravel(occ)}
+                                                            {occ.notes && (
+                                                                <span className="mt-1 block whitespace-pre-wrap text-caption text-foreground">{occ.notes}</span>
                                                             )}
                                                         </span>
                                                         {isMovedOccurrence(occ) && (
@@ -888,7 +1452,7 @@ const Calendar: React.FC = () => {
                                 {selected.location}
                             </div>
                         )}
-                        {(selected.members_data ?? []).length > 0 && (
+                        {participantNames(selected).length > 0 && (
                             <div className="flex items-start gap-2 text-caption text-muted-foreground">
                                 <Users className="mt-0.5 h-4 w-4 shrink-0" />
                                 <span className="flex flex-wrap gap-1.5">
@@ -901,15 +1465,28 @@ const Calendar: React.FC = () => {
                                             {member.name}
                                         </span>
                                     ))}
+                                    {(selected.guests ?? []).map((name) => (
+                                        <span
+                                            key={`g-${name}`}
+                                            className="inline-flex items-center rounded-pill border border-border bg-surface-2 px-2.5 py-0.5 text-micro text-foreground"
+                                        >
+                                            {name}
+                                        </span>
+                                    ))}
                                 </span>
                             </div>
                         )}
+                        {renderTravel(selected)}
                         {(selected.reminder_30min || selected.reminder_1hour) && (
                             <div className="flex items-center gap-2 text-caption text-muted-foreground">
                                 <Bell className="h-4 w-4" />
                                 {[
-                                    selected.reminder_30min ? t('calendar:form.reminder30') : null,
-                                    selected.reminder_1hour ? t('calendar:form.reminder1h') : null,
+                                    selected.reminder_30min
+                                        ? t(selected.travel_to_minutes ? 'calendar:form.reminder30Departure' : 'calendar:form.reminder30')
+                                        : null,
+                                    selected.reminder_1hour
+                                        ? t(selected.travel_to_minutes ? 'calendar:form.reminder1hDeparture' : 'calendar:form.reminder1h')
+                                        : null,
                                 ].filter(Boolean).join(' · ')}
                             </div>
                         )}
@@ -1076,6 +1653,15 @@ const Calendar: React.FC = () => {
                         placeholder={t('calendar:form.titlePlaceholder')}
                     />
 
+                    {/* Ort direkt unter dem Titel */}
+                    <Input
+                        id="event-location"
+                        label={t('calendar:form.location')}
+                        value={formData.location}
+                        onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                        placeholder={t('calendar:form.locationPlaceholder')}
+                    />
+
                     {/* 2. Beginn: Datum und Uhrzeit */}
                     <fieldset className="rounded-input border border-border bg-surface-2/40 p-3">
                         <legend className="px-1 text-label font-medium text-foreground">{t('calendar:form.start')}</legend>
@@ -1094,7 +1680,11 @@ const Calendar: React.FC = () => {
                         </div>
                         <p className="mt-3 flex items-center gap-2 text-caption text-muted-foreground">
                             <Bell className="h-4 w-4 shrink-0" aria-hidden="true" />
-                            {formData.reminder_1hour ? t('calendar:form.reminderDefaultOn') : t('calendar:form.reminderDefaultOff')}
+                            {!formData.reminder_1hour
+                                ? t('calendar:form.reminderDefaultOff')
+                                : formData.travelTo !== null
+                                    ? t('calendar:form.reminderDepartureOn')
+                                    : t('calendar:form.reminderDefaultOn')}
                         </p>
                     </fieldset>
 
@@ -1130,6 +1720,90 @@ const Calendar: React.FC = () => {
                         </div>
                     </fieldset>
 
+                    {/* 4. Teilnehmende: Vorschläge aus Kreis und Kontakten, freie Namen erlaubt */}
+                    <div>
+                        <label htmlFor="event-person-input" className="mb-1.5 block text-label font-medium text-foreground">
+                            {t('calendar:form.participants')}
+                        </label>
+                        <p id="event-person-hint" className="mb-2 text-caption text-muted-foreground">
+                            {t('calendar:form.participantsHint')}
+                        </p>
+                        {(formData.member_ids.length > 0 || formData.guests.length > 0) && (
+                            <ul className="mb-3 flex flex-wrap gap-2">
+                                {formData.member_ids.map((id) => {
+                                    const member = members.find((m) => m.id === id);
+                                    if (!member) return null;
+                                    return (
+                                        <li key={`m-${id}`} className="inline-flex min-h-[48px] items-center gap-2 rounded-pill border border-border bg-surface-2 pl-3 pr-1 text-body text-foreground">
+                                            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: member.color }} aria-hidden="true" />
+                                            {member.name}
+                                            <button
+                                                type="button"
+                                                onClick={() => removeMember(id)}
+                                                aria-label={t('calendar:form.removePerson', { name: member.name })}
+                                                className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-surface hover:text-foreground"
+                                            >
+                                                <X className="h-5 w-5" aria-hidden="true" />
+                                            </button>
+                                        </li>
+                                    );
+                                })}
+                                {formData.guests.map((name) => (
+                                    <li key={`g-${name}`} className="inline-flex min-h-[48px] items-center gap-2 rounded-pill border border-border bg-surface-2 pl-3 pr-1 text-body text-foreground">
+                                        {name}
+                                        <button
+                                            type="button"
+                                            onClick={() => removeGuest(name)}
+                                            aria-label={t('calendar:form.removePerson', { name })}
+                                            className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-surface hover:text-foreground"
+                                        >
+                                            <X className="h-5 w-5" aria-hidden="true" />
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                        <div className="flex gap-2">
+                            <input
+                                id="event-person-input"
+                                value={personInput}
+                                onChange={(e) => setPersonInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                    // Enter fügt hinzu, statt das Formular abzuschicken.
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        addPerson();
+                                    }
+                                }}
+                                placeholder={t('calendar:form.personPlaceholder')}
+                                list="event-person-suggestions"
+                                autoComplete="off"
+                                aria-describedby="event-person-hint"
+                                className="input-nexus min-w-0 flex-1"
+                            />
+                            <Button type="button" variant="secondary" size="lg" onClick={addPerson} disabled={!personInput.trim()}>
+                                <Plus className="mr-2 h-5 w-5" aria-hidden="true" />
+                                {t('calendar:form.addPerson')}
+                            </Button>
+                        </div>
+                    </div>
+
+                    {/* 5. Fahrt: Hin- und Rückfahrt, je einzeln entfernbar */}
+                    <fieldset className="space-y-3">
+                        <legend className="mb-2 flex items-center gap-2 text-label font-medium text-foreground">
+                            <Car className="h-5 w-5" aria-hidden="true" />
+                            {t('calendar:form.travel')}
+                        </legend>
+                        {renderTravelRow('to')}
+                        {renderTravelRow('back')}
+                    </fieldset>
+
+                    <datalist id="event-person-suggestions">
+                        {personSuggestions.map((person) => (
+                            <option key={person.key} value={person.name}>{person.hint}</option>
+                        ))}
+                    </datalist>
+
                     {/* Alles Weitere aufklappbar */}
                     <div>
                         <Button
@@ -1153,40 +1827,6 @@ const Calendar: React.FC = () => {
                         value={formData.endTime}
                         onChange={(value) => setFormData({ ...formData, endTime: value })}
                     />
-
-                    <Input
-                        label={t('calendar:form.location')}
-                        value={formData.location}
-                        onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                        placeholder={t('calendar:form.locationPlaceholder')}
-                    />
-
-                    <div>
-                        <label className="mb-1.5 block text-label font-medium text-foreground">
-                            {t('calendar:form.participants')}
-                        </label>
-                        {members.length === 0 ? (
-                            <p className="text-caption text-muted-foreground">{t('calendar:form.noMembers')}</p>
-                        ) : (
-                            <div className="space-y-1 rounded-input border border-border bg-surface-2/40 p-2">
-                                {members.map((member) => (
-                                    <label
-                                        key={member.id}
-                                        className="flex min-h-[44px] cursor-pointer items-center gap-2.5 rounded-input px-2 hover:bg-surface-2"
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.member_ids.includes(member.id)}
-                                            onChange={() => toggleMember(member.id)}
-                                            className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                                        />
-                                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: member.color }} />
-                                        <span className="text-caption text-foreground">{member.name}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        )}
-                    </div>
 
                     {/* Simple recurrence */}
                     <div className="rounded-input border border-border bg-surface-2/40 p-3">

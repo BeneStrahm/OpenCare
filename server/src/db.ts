@@ -227,6 +227,12 @@ export const runMigrations = async () => {
         `CREATE INDEX IF NOT EXISTS idx_visits_circle_in ON visits(circle_id, checked_in_at DESC);`,
         // Exceptions d'occurrence des evenements recurrents (cf. schema.sql).
         `ALTER TABLE events ADD COLUMN IF NOT EXISTS exceptions JSONB NOT NULL DEFAULT '[]'::jsonb;`,
+        // Fork: Teilnehmende ohne Konto, Hin- und Rückfahrt mit Fahrer.
+        `ALTER TABLE events ADD COLUMN IF NOT EXISTS guests JSONB NOT NULL DEFAULT '[]'::jsonb;`,
+        `ALTER TABLE events ADD COLUMN IF NOT EXISTS travel_to_minutes SMALLINT;`,
+        `ALTER TABLE events ADD COLUMN IF NOT EXISTS travel_back_minutes SMALLINT;`,
+        `ALTER TABLE events ADD COLUMN IF NOT EXISTS driver_to TEXT;`,
+        `ALTER TABLE events ADD COLUMN IF NOT EXISTS driver_back TEXT;`,
         // Stock de medicaments et seuil de renouvellement.
         `ALTER TABLE medications ADD COLUMN IF NOT EXISTS stock_quantity NUMERIC(8, 2);`,
         `ALTER TABLE medications ADD COLUMN IF NOT EXISTS stock_alert_threshold NUMERIC(8, 2);`,

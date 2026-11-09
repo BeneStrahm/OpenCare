@@ -9,7 +9,9 @@
   "view": {
     "label": "View",
     "month": "Month",
-    "list": "List"
+    "list": "List",
+    "day": "Day",
+    "week": "Week"
   },
   "moreCount_one": "+{{count}} more",
   "moreCount_other": "+{{count}} more",
@@ -38,7 +40,7 @@
     "endTime": "End time (optional)",
     "location": "Location (optional)",
     "locationPlaceholder": "e.g. Dr Martin's office, home…",
-    "participants": "Participants (circle members)",
+    "participants": "Participants",
     "noMembers": "No members in the circle yet.",
     "repeat": "Recurrence",
     "repeatNone": "None",
@@ -64,8 +66,29 @@
     "start": "Start",
     "reminderDefaultOn": "Reminder 60 minutes before. Change it under \"More details\".",
     "reminderDefaultOff": "No reminder 60 minutes before.",
-    "moreDetails": "More details (end, place, repeat, reminders …)",
-    "lessDetails": "Hide more details"
+    "moreDetails": "More details (end, repeat, reminders, notes …)",
+    "lessDetails": "Hide more details",
+    "participantsHint": "Pick someone from the circle or your contacts, or type a name.",
+    "personPlaceholder": "Enter a name",
+    "addPerson": "Add",
+    "removePerson": "Remove {{name}}",
+    "travel": "Travel",
+    "travelTo": "Outbound trip",
+    "travelBack": "Return trip",
+    "travelMinutes": "{{count}} minutes",
+    "travelLess": "15 minutes less",
+    "travelMore": "15 minutes more",
+    "travelToTime": "Leave at {{time}}",
+    "travelBackTime": "Back around {{time}}",
+    "travelBackNoEnd": "Without an end time, the return trip is counted from the start. Add an end under “More details”.",
+    "removeTravelTo": "Remove outbound trip",
+    "removeTravelBack": "Remove return trip",
+    "addTravelTo": "Add outbound trip",
+    "addTravelBack": "Add return trip",
+    "driver": "Who is driving?",
+    "reminderDepartureOn": "Reminder 60 minutes before departure. Change it under “More details”.",
+    "reminder30Departure": "30 minutes before departure",
+    "reminder1hDeparture": "1 hour before departure"
   },
   "confirmDelete": "Delete this event?",
   "deleteRecurringHint": "All of its occurrences will be deleted.",
@@ -107,5 +130,23 @@
     "moveOccurrence": "Unable to move this occurrence.",
     "restoreOccurrence": "Unable to put this occurrence back.",
     "feed": "Unable to generate the iCal link."
+  },
+  "card": {
+    "travelTo": "Outbound {{from}} to {{to}}",
+    "travelBack": "Return {{from}} to {{to}}",
+    "driver": "Driver: {{name}}"
+  },
+  "prevWeek": "Previous week",
+  "nextWeek": "Next week",
+  "prevDay": "Previous day",
+  "nextDay": "Next day",
+  "week": {
+    "noEvents": "No events",
+    "openDay": "Open day view",
+    "withTravel": "With travel"
+  },
+  "day": {
+    "empty": "No events on this day.",
+    "backToWeek": "Back to week"
   }
 }

@@ -22,6 +22,9 @@ interface EventRow {
     /** Naive local timestamp string ('YYYY-MM-DDTHH:mm:ss'), see the pg type parser in db.ts */
     start_time: string;
     location?: string | null;
+    /** Fork: Hinfahrt in Minuten vor Beginn; dann erinnert die App vor der Abfahrt. */
+    travel_to_minutes?: number | null;
+    driver_to?: string | null;
 }
 
 interface MemberRow {
@@ -45,6 +48,35 @@ function buildEventTexts(event: EventRow, kind: '30min' | '1hour', language: str
     const timeStr = event.start_time.slice(11, 16);
     const suffix = `${timeStr}${event.location ? ` · ${event.location}` : ''}`;
     const lang = pickLang(language);
+
+    // Fork: Mit Hinfahrt bezieht sich die Erinnerung auf die Abfahrt.
+    const travel = event.travel_to_minutes ?? 0;
+    if (travel > 0) {
+        const departure = format(new Date(new Date(event.start_time).getTime() - travel * 60 * 1000), 'HH:mm');
+        const driver = event.driver_to ? event.driver_to : '';
+        if (lang === 'de') {
+            return {
+                title: `⏰ Abfahrt: ${event.title}`,
+                body: `${kind === '30min' ? 'In 30 Minuten' : 'In 1 Stunde'} losfahren · Abfahrt ${departure} Uhr · Termin ${timeStr} Uhr${event.location ? ` · ${event.location}` : ''}${driver ? ` · Fährt: ${driver}` : ''}`,
+            };
+        }
+        if (lang === 'es') {
+            return {
+                title: `⏰ Salida: ${event.title}`,
+                body: `${kind === '30min' ? 'Dentro de 30 minutos' : 'Dentro de 1 hora'} · salida ${departure} · cita ${suffix}${driver ? ` · conduce: ${driver}` : ''}`,
+            };
+        }
+        if (lang === 'en') {
+            return {
+                title: `⏰ Departure: ${event.title}`,
+                body: `${kind === '30min' ? 'In 30 minutes' : 'In 1 hour'} · leave at ${departure} · appointment ${suffix}${driver ? ` · driver: ${driver}` : ''}`,
+            };
+        }
+        return {
+            title: `⏰ Départ : ${event.title}`,
+            body: `${kind === '30min' ? 'Dans 30 minutes' : 'Dans 1 heure'} · départ ${departure} · rendez-vous ${suffix}${driver ? ` · conduit : ${driver}` : ''}`,
+        };
+    }
 
     if (lang === 'de') {
         return {
@@ -111,10 +143,11 @@ async function processEventWindow(
 ): Promise<void> {
     const type = flagColumn; // notification type mirrors the flag name
     const { rows } = await query(
-        `SELECT e.id, e.circle_id, e.title, e.start_time, e.location
+        // Fork: Mit Hinfahrt zählt die Abfahrt (Beginn minus Fahrzeit), sonst der Beginn.
+        `SELECT e.id, e.circle_id, e.title, e.start_time, e.location, e.travel_to_minutes, e.driver_to
          FROM events e
          WHERE e.${flagColumn} = true
-           AND e.start_time BETWEEN $1 AND $2`,
+           AND (e.start_time - make_interval(mins => COALESCE(e.travel_to_minutes, 0)::int)) BETWEEN $1 AND $2`,
         [toLocalNaive(windowStart), toLocalNaive(windowEnd)]
     );
 

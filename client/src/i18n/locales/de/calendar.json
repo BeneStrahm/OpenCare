@@ -9,7 +9,9 @@
   "view": {
     "label": "Ansicht",
     "month": "Monat",
-    "list": "Liste"
+    "list": "Liste",
+    "day": "Tag",
+    "week": "Woche"
   },
   "moreCount_one": "+{{count}} weiterer",
   "moreCount_other": "+{{count}} weitere",
@@ -38,7 +40,7 @@
     "endTime": "Ende (optional)",
     "location": "Ort (optional)",
     "locationPlaceholder": "z. B. Praxis Dr. Müller, zu Hause…",
-    "participants": "Teilnehmende (Mitglieder des Kreises)",
+    "participants": "Teilnehmende",
     "noMembers": "Der Kreis hat noch keine Mitglieder.",
     "repeat": "Wiederholung",
     "repeatNone": "Keine",
@@ -64,8 +66,29 @@
     "start": "Beginn",
     "reminderDefaultOn": "Erinnerung 60 Minuten vorher. Ändern unter „Weitere Angaben“.",
     "reminderDefaultOff": "Keine Erinnerung 60 Minuten vorher.",
-    "moreDetails": "Weitere Angaben (Ende, Ort, Wiederholung, Erinnerungen …)",
-    "lessDetails": "Weitere Angaben ausblenden"
+    "moreDetails": "Weitere Angaben (Ende, Wiederholung, Erinnerungen, Notizen …)",
+    "lessDetails": "Weitere Angaben ausblenden",
+    "participantsHint": "Aus dem Kreis oder den Kontakten wählen oder einen Namen eintippen.",
+    "personPlaceholder": "Name eingeben",
+    "addPerson": "Hinzufügen",
+    "removePerson": "{{name}} entfernen",
+    "travel": "Fahrt",
+    "travelTo": "Hinfahrt",
+    "travelBack": "Rückfahrt",
+    "travelMinutes": "{{count}} Minuten",
+    "travelLess": "15 Minuten weniger",
+    "travelMore": "15 Minuten mehr",
+    "travelToTime": "Abfahrt {{time}} Uhr",
+    "travelBackTime": "Zurück ca. {{time}} Uhr",
+    "travelBackNoEnd": "Ohne Ende rechnet die App die Rückfahrt ab Beginn. Ende unter „Weitere Angaben“ eintragen.",
+    "removeTravelTo": "Hinfahrt entfernen",
+    "removeTravelBack": "Rückfahrt entfernen",
+    "addTravelTo": "Hinfahrt hinzufügen",
+    "addTravelBack": "Rückfahrt hinzufügen",
+    "driver": "Wer fährt?",
+    "reminderDepartureOn": "Erinnerung 60 Minuten vor der Abfahrt. Ändern unter „Weitere Angaben“.",
+    "reminder30Departure": "30 Minuten vor der Abfahrt",
+    "reminder1hDeparture": "1 Stunde vor der Abfahrt"
   },
   "confirmDelete": "Diesen Termin löschen?",
   "deleteRecurringHint": "Alle Wiederholungen werden gelöscht.",
@@ -107,5 +130,23 @@
     "moveOccurrence": "Dieser Termin konnte nicht verschoben werden.",
     "restoreOccurrence": "Dieser Termin konnte nicht wiederhergestellt werden.",
     "feed": "Der iCal-Link konnte nicht erstellt werden."
+  },
+  "card": {
+    "travelTo": "Hinfahrt {{from}} bis {{to}} Uhr",
+    "travelBack": "Rückfahrt {{from}} bis {{to}} Uhr",
+    "driver": "Fährt: {{name}}"
+  },
+  "prevWeek": "Vorherige Woche",
+  "nextWeek": "Nächste Woche",
+  "prevDay": "Vorheriger Tag",
+  "nextDay": "Nächster Tag",
+  "week": {
+    "noEvents": "Keine Termine",
+    "openDay": "Tagesansicht öffnen",
+    "withTravel": "Mit Fahrt"
+  },
+  "day": {
+    "empty": "Keine Termine an diesem Tag.",
+    "backToWeek": "Zur Woche"
   }
 }
