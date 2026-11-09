@@ -178,7 +178,9 @@
     "fixedTimes": "Feste Einnahmezeiten",
     "fixedTimesHint": "Mit Uhrzeit, Menge und Tagen.",
     "requiredError": "Bitte füllen Sie noch aus: {{fields}}.",
-    "schedulesRequiredError": "Fügen Sie mindestens eine Einnahmezeit hinzu oder wählen Sie „Bei Bedarf“."
+    "schedulesRequiredError": "Fügen Sie mindestens eine Einnahmezeit hinzu oder wählen Sie „Bei Bedarf“.",
+    "moment": "Tageszeit",
+    "momentHint": "Die Uhrzeit wird vorgeschlagen und kann unten angepasst werden."
   },
   "prescriptions": {
     "add": "Rezept hinzufügen",

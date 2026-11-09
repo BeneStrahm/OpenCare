@@ -178,7 +178,9 @@
     "fixedTimes": "Fixed times",
     "fixedTimesHint": "With time, amount and days.",
     "requiredError": "Please fill in: {{fields}}.",
-    "schedulesRequiredError": "Add at least one intake time or choose “As needed”."
+    "schedulesRequiredError": "Add at least one intake time or choose “As needed”.",
+    "moment": "Time of day",
+    "momentHint": "The time is suggested and can be adjusted below."
   },
   "prescriptions": {
     "add": "Add a prescription",

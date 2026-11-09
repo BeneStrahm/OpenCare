@@ -178,7 +178,9 @@
     "fixedTimes": "Horarios fijos",
     "fixedTimesHint": "Con hora, cantidad y días.",
     "requiredError": "Complete por favor: {{fields}}.",
-    "schedulesRequiredError": "Añada al menos un horario o elija «Si hace falta»."
+    "schedulesRequiredError": "Añada al menos un horario o elija «Si hace falta».",
+    "moment": "Momento del día",
+    "momentHint": "La hora se propone y se puede ajustar abajo."
   },
   "prescriptions": {
     "add": "Añadir una receta",

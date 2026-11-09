@@ -132,6 +132,14 @@ interface ScheduleRow {
 /** Reiter "Rezepte" ausgeblendet; auf true setzen, um ihn wieder zu zeigen. */
 const SHOW_PRESCRIPTIONS: boolean = false;
 
+/** Vorgeschlagene Uhrzeit je Tageszeit (passt zu momentOf); im Formular änderbar. */
+const MOMENT_TIMES: Record<Moment, string> = {
+    morning: '08:00',
+    noon: '12:00',
+    evening: '18:00',
+    night: '22:00',
+};
+
 const MOMENTS: Moment[] = ['morning', 'noon', 'evening', 'night'];
 const ISO_DAYS = [1, 2, 3, 4, 5, 6, 7];
 const FORM_VALUES = [...MEDICATION_FORMS];
@@ -959,33 +967,29 @@ const Medications: React.FC = () => {
             ) : (
                 <Card>
                     <CardContent className="overflow-x-auto p-0">
-                        <table className="w-full min-w-[60rem] border-collapse text-left text-caption">
+                        <table className="w-full min-w-[44rem] border-collapse text-left text-body [overflow-wrap:normal] [word-break:normal]">
                             <caption className="sr-only">{t('medications:tabs.treatments')}</caption>
                             <thead>
                                 <tr className="border-b border-border bg-muted/50">
                                     {[
-                                        'activeIngredient',
                                         'name',
-                                        'strength',
-                                        'form',
                                         'morning',
                                         'noon',
                                         'evening',
                                         'night',
-                                        'unit',
                                         'withFood',
                                         'instructions',
                                     ].map((key) => (
                                         <th
                                             key={key}
                                             scope="col"
-                                            className="px-3 py-3 align-bottom font-semibold text-foreground"
+                                            className="whitespace-nowrap px-3 py-3 align-bottom font-semibold text-foreground"
                                         >
                                             {t(`medications:treatments.table.${key}`)}
                                         </th>
                                     ))}
                                     {canWriteContent && (
-                                        <th scope="col" className="px-3 py-3 align-bottom font-semibold text-foreground">
+                                        <th scope="col" className="whitespace-nowrap px-3 py-3 align-bottom font-semibold text-foreground">
                                             {t('medications:treatments.table.actions')}
                                         </th>
                                     )}
@@ -997,9 +1001,19 @@ const Medications: React.FC = () => {
                                         key={med.id}
                                         className={cn('border-b border-border align-top last:border-b-0', !med.active && 'opacity-70')}
                                     >
-                                        <td className="px-3 py-3 text-foreground">{med.active_ingredient || ''}</td>
-                                        <th scope="row" className="px-3 py-3 text-left font-normal">
+                                        <th scope="row" className="min-w-[12rem] px-3 py-3 text-left font-normal">
                                             <span className="block text-body font-semibold text-foreground">{med.name}</span>
+                                            {(med.active_ingredient || med.dosage) && (
+                                                <span className="block text-caption text-muted-foreground">
+                                                    {[med.active_ingredient, med.dosage].filter(Boolean).join(' ')}
+                                                </span>
+                                            )}
+                                            {med.form && (
+                                                <span className="block text-caption text-muted-foreground">{formLabel(med.form)}</span>
+                                            )}
+                                            {unitCell(med) && (
+                                                <span className="block text-caption text-muted-foreground">{unitCell(med)}</span>
+                                            )}
                                             {(med.prn || !med.active) && (
                                                 <span className="mt-1 flex flex-wrap gap-1">
                                                     {med.prn && (
@@ -1011,14 +1025,11 @@ const Medications: React.FC = () => {
                                                 </span>
                                             )}
                                         </th>
-                                        <td className="px-3 py-3 text-foreground">{med.dosage || ''}</td>
-                                        <td className="px-3 py-3 text-foreground">{med.form ? formLabel(med.form) : ''}</td>
                                         {MOMENTS.map((moment) => (
                                             <td key={moment} className="whitespace-nowrap px-3 py-3 text-foreground">
                                                 {momentCell(med, moment)}
                                             </td>
                                         ))}
-                                        <td className="px-3 py-3 text-foreground">{unitCell(med)}</td>
                                         <td className="px-3 py-3 text-foreground">
                                             {med.with_food ? t(`medications:withFood.${med.with_food}`) : ''}
                                         </td>
@@ -1085,7 +1096,7 @@ const Medications: React.FC = () => {
             ) : (
                 <Card>
                     <CardContent className="overflow-x-auto p-0">
-                        <table className="w-full min-w-[36rem] border-collapse text-left text-caption">
+                        <table className="w-full min-w-[36rem] border-collapse text-left text-body [overflow-wrap:normal] [word-break:normal]">
                             <caption className="sr-only">{t('medications:tabs.stock')}</caption>
                             <thead>
                                 <tr className="border-b border-border bg-muted/50">
@@ -1093,13 +1104,13 @@ const Medications: React.FC = () => {
                                         <th
                                             key={key}
                                             scope="col"
-                                            className="px-3 py-3 align-bottom font-semibold text-foreground"
+                                            className="whitespace-nowrap px-3 py-3 align-bottom font-semibold text-foreground"
                                         >
                                             {t(`medications:stock.table.${key}`)}
                                         </th>
                                     ))}
                                     {canWriteContent && (
-                                        <th scope="col" className="px-3 py-3 align-bottom font-semibold text-foreground">
+                                        <th scope="col" className="whitespace-nowrap px-3 py-3 align-bottom font-semibold text-foreground">
                                             {t('medications:stock.table.actions')}
                                         </th>
                                     )}
@@ -1422,7 +1433,7 @@ const Medications: React.FC = () => {
                     ) : null}
 
                     <Input
-                        label={`${t('medications:form.name')} ${t('medications:form.requiredMark')}`}
+                        label={t('medications:form.name')}
                         value={medForm.name}
                         onChange={(e) => setMedForm({ ...medForm, name: e.target.value })}
                         required
@@ -1436,7 +1447,7 @@ const Medications: React.FC = () => {
                     />
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <Input
-                            label={`${t('medications:form.dosage')} ${t('medications:form.requiredMark')}`}
+                            label={t('medications:form.dosage')}
                             value={medForm.dosage}
                             aria-required="true"
                             onChange={(e) => setMedForm({ ...medForm, dosage: e.target.value })}
@@ -1444,7 +1455,7 @@ const Medications: React.FC = () => {
                         />
                         <div>
                             <label className="mb-1.5 block text-caption font-medium text-foreground">
-                                {`${t('medications:form.form')} ${t('medications:form.requiredMark')}`}
+                                {t('medications:form.form')}
                             </label>
                             <Select
                                 value={medForm.form}
@@ -1561,7 +1572,7 @@ const Medications: React.FC = () => {
                     {/* Einnahme: feste Zeiten oder bei Bedarf */}
                     <fieldset>
                         <legend className="mb-1.5 block text-caption font-medium text-foreground">
-                            {`${t('medications:form.intakeType')} ${t('medications:form.requiredMark')}`}
+                            {t('medications:form.intakeType')}
                         </legend>
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                             {([false, true] as const).map((prn) => (
@@ -1616,6 +1627,39 @@ const Medications: React.FC = () => {
                                         key={index}
                                         className="space-y-3 rounded-input border border-border bg-surface-2/40 p-3"
                                     >
+                                        <fieldset>
+                                            <legend className="mb-1.5 block text-caption font-medium text-foreground">
+                                                {t('medications:form.moment')}
+                                            </legend>
+                                            <div className="flex flex-wrap gap-2">
+                                                {MOMENTS.map((moment) => {
+                                                    const selected =
+                                                        TIME_RE.test(row.time_of_day) &&
+                                                        momentOf(parseInt(row.time_of_day.slice(0, 2), 10)) === moment;
+                                                    return (
+                                                        <button
+                                                            key={moment}
+                                                            type="button"
+                                                            aria-pressed={selected}
+                                                            onClick={() =>
+                                                                updateScheduleRow(index, { time_of_day: MOMENT_TIMES[moment] })
+                                                            }
+                                                            className={cn(
+                                                                'min-h-[48px] rounded-input border px-4 text-body font-medium',
+                                                                selected
+                                                                    ? 'border-primary bg-primary text-primary-foreground'
+                                                                    : 'border-border bg-surface text-foreground hover:bg-surface-2'
+                                                            )}
+                                                        >
+                                                            {t(`medications:moments.${moment}`)}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                            <p className="mt-1.5 text-caption text-muted-foreground">
+                                                {t('medications:form.momentHint')}
+                                            </p>
+                                        </fieldset>
                                         <div className="flex flex-wrap items-end gap-3">
                                             <div className="w-32 flex-shrink-0">
                                                 <DatePicker

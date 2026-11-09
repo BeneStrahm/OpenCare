@@ -178,7 +178,9 @@
     "fixedTimes": "Horaires fixes",
     "fixedTimesHint": "Avec heure, quantité et jours.",
     "requiredError": "Veuillez remplir : {{fields}}.",
-    "schedulesRequiredError": "Ajoutez au moins un horaire ou choisissez « Si besoin »."
+    "schedulesRequiredError": "Ajoutez au moins un horaire ou choisissez « Si besoin ».",
+    "moment": "Moment de la journée",
+    "momentHint": "L'heure est proposée et peut être ajustée ci-dessous."
   },
   "prescriptions": {
     "add": "Ajouter une ordonnance",
