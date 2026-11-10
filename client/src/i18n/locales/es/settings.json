@@ -139,7 +139,7 @@
     "dataKept": "Desactivar no borra nada. Al volver a activar una función, todo sigue ahí.",
     "modules": {
       "title": "Partes de la aplicación",
-      "subtitle": "El menú, el inicio y la tableta solo muestran las partes activadas.",
+      "subtitle": "El menú, el inicio y la vista sencilla solo muestran las partes activadas.",
       "fixed": "Siempre activos: inicio, diario, ajustes y emergencia."
     },
     "items": {
@@ -159,17 +159,6 @@
       "voice_journal": "Notas de voz en el diario",
       "digests": "Resumen semanal",
       "heatwave": "Aviso de calor"
-    },
-    "kiosk": {
-      "title": "Vista de tableta",
-      "subtitle": "Lo que su ser querido ve en la tableta.",
-      "items": {
-        "status_bar": "«Todo va bien» / «Necesito ayuda»",
-        "voice": "«Hablar»",
-        "ask": "«Pregúntame»",
-        "consultation": "Botón «Grabar consulta»",
-        "info": "«Mi información»"
-      }
     },
     "vitals": {
       "title": "Mediciones",

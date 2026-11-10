@@ -54,7 +54,7 @@ export interface CircleData {
     intakeOverrides: Json;
     /** Prises ponctuelles des médicaments "si besoin" (créées à la demande). */
     prnIntakes: Json[];
-    /** Visites déclarées depuis le mode Kiosk (bouton « Visiteur »). */
+    /** Visites (déclarées autrefois depuis le mode Kiosk). */
     visits: Json[];
     /** Plan de soins : consignes de la famille (sections texte). */
     carePlan: Json | null;
@@ -179,8 +179,8 @@ export function createSeed(): DemoStore {
     // d'observance) : la clé reprend le format d'id généré par mockApi.
     const intakeOverrides: Json = {
         [`in_med-amlo_sch-amlo-1_${dstr(0)}`]: { status: 'taken', confirmed_at: at(0, 8, 10), confirmed_by: 'Nadia', confirmed_source: 'link', journal_entry_id: 'j-med-1' },
-        [`in_med-metfo_sch-metfo-1_${dstr(0)}`]: { status: 'taken', confirmed_at: at(0, 8, 12), confirmed_by: 'Jeanne', confirmed_source: 'kiosk', journal_entry_id: null },
-        [`in_med-vitd_sch-vitd-1_${dstr(0)}`]: { status: 'taken', confirmed_at: at(0, 8, 12), confirmed_by: 'Jeanne', confirmed_source: 'kiosk', journal_entry_id: null },
+        [`in_med-metfo_sch-metfo-1_${dstr(0)}`]: { status: 'taken', confirmed_at: at(0, 8, 12), confirmed_by: 'Jeanne', confirmed_source: 'self', journal_entry_id: null },
+        [`in_med-vitd_sch-vitd-1_${dstr(0)}`]: { status: 'taken', confirmed_at: at(0, 8, 12), confirmed_by: 'Jeanne', confirmed_source: 'self', journal_entry_id: null },
         [`in_med-karde_sch-karde-1_${dstr(0)}`]: { status: 'missed', confirmed_at: null, confirmed_by: null, journal_entry_id: null },
         [`in_med-metfo_sch-metfo-2_${dstr(-3)}`]: { status: 'skipped', confirmed_at: at(-3, 20, 25), confirmed_by: 'Marie Dupont', confirmed_source: 'caregiver', journal_entry_id: null },
         [`in_med-karde_sch-karde-1_${dstr(-9)}`]: { status: 'missed', confirmed_at: null, confirmed_by: null, journal_entry_id: null },

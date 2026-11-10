@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { query, getClient } from '../db';
-import { requireJournalWriter, JOURNAL_WRITER_ROLES, CircleRequest } from '../middleware/circle';
-import { kioskOrMember, allowDeviceOr } from '../middleware/kioskDevice';
+import { authMiddleware } from '../middleware/auth';
+import { circleMiddleware, requireJournalWriter, CircleRequest } from '../middleware/circle';
 import { decryptCredentials } from '../utils/crypto';
 import { UnsafeUrlError, unsafeUrlMessage } from '../utils/urlGuard';
 import { safeFetch } from '../utils/safeFetch';
@@ -25,9 +25,7 @@ import { isLocalServiceUrl } from '../modules/consultations/localOnly';
 
 const router = Router();
 
-// Un appareil patient appaire (tablette, telephone) peut transcrire pour le
-// compagnon ; le journal vocal (/journal) reste reserve aux membres.
-router.use(kioskOrMember());
+router.use(authMiddleware, circleMiddleware);
 
 // data URL audio: type MIME de base + paramètres optionnels (;codecs=opus) + base64
 const AUDIO_DATA_URL_REGEX = /^data:(audio\/[a-z0-9.+-]+)((?:;[a-zA-Z0-9.+=_-]+)*);base64,([A-Za-z0-9+/]+={0,2})$/;
@@ -70,7 +68,7 @@ async function loadWhisperIntegration(circleId: string): Promise<WhisperIntegrat
 // POST /api/voice/transcribe : { audio: data URL } -> { text }
 // Sent as multipart/form-data to <base_url>/v1/audio/transcriptions
 // (OpenAI-compatible Whisper endpoint). Node 20: FormData/Blob globals.
-router.post('/transcribe', allowDeviceOr(...JOURNAL_WRITER_ROLES), async (req: CircleRequest, res: Response) => {
+router.post('/transcribe', requireJournalWriter, async (req: CircleRequest, res: Response) => {
     const lang = langFromRequest(req);
     try {
         const audio = typeof req.body?.audio === 'string' ? req.body.audio : '';
@@ -112,8 +110,7 @@ router.post('/transcribe', allowDeviceOr(...JOURNAL_WRITER_ROLES), async (req: C
             ? config.model.trim()
             : DEFAULT_WHISPER_MODEL;
         // A blank language follows the caller's screen language (Accept-Language:
-        // the app language for a caregiver, the kiosk's own language for a paired
-        // device) rather than a fixed one: Whisper transcribes in the language it is
+        // the app language of the caller) rather than a fixed one: Whisper transcribes in the language it is
         // told, so a wrong default turns English dictation into French gibberish.
         const language = typeof config.language === 'string' && config.language.trim()
             ? config.language.trim()

@@ -1,0 +1,83 @@
+{
+  "greeting": "Bonjour, {{name}} !",
+  "greetingEvening": "Bonsoir, {{name}} !",
+  "greetingNoName": "Bonjour !",
+  "tagline": "Prenons soin de ta journée",
+  "heat": {
+    "banner": "Il fait chaud aujourd'hui. Pense à boire de l'eau régulièrement."
+  },
+  "meds": {
+    "empty": "Pas de médicament aujourd'hui.",
+    "saved": "C'est noté, bravo !",
+    "title": "Vos médicaments aujourd'hui",
+    "undoHint": "Vous pouvez annuler jusqu'à {{time}}.",
+    "queued": "Enregistré sans internet. Ce sera envoyé dès qu'internet reviendra.",
+    "error": "Cela n'a pas marché. Réessayez, s'il vous plaît.",
+    "undone": "Annulé.",
+    "undoExpired": "Ce n'est plus possible d'annuler. Prévenez vos proches, s'il vous plaît."
+  },
+  "visitors": {
+    "title": "Qui vient aujourd'hui",
+    "empty": "Personne de prévu aujourd'hui.",
+    "nurse": "Infirmier(ère)",
+    "aide": "Aide à domicile",
+    "someone": "Quelqu'un passe"
+  },
+  "appointments": {
+    "title": "Rendez-vous du jour",
+    "empty": "Pas de rendez-vous aujourd'hui.",
+    "companion": "Vous accompagne : {{names}}"
+  },
+  "contacts": {
+    "title": "Les personnes que je peux appeler",
+    "categories": {
+      "doctor": "Médecin",
+      "nurse": "Infirmier(ère)",
+      "pharmacy": "Pharmacie",
+      "aide": "Aide à domicile",
+      "physio": "Kiné"
+    },
+    "empty": "Aucun contact enregistré pour le moment.",
+    "call": "Appeler"
+  },
+  "ask": {
+    "button": "Demandez-moi",
+    "hint": "Médicaments, visites, rendez-vous",
+    "choose": "Touchez une question.",
+    "loading": "Un instant, s’il vous plaît…",
+    "error": "Pas de réponse pour le moment. Réessayez plus tard, s'il vous plaît.",
+    "readAloud": "Lire à voix haute",
+    "stop": "Arrêter la lecture",
+    "other": "Autre question",
+    "close": "Fermer"
+  },
+  "reminder": {
+    "title": "C'est l'heure de tes médicaments",
+    "subtitle_one": "{{count}} prise à prendre maintenant",
+    "subtitle_other": "{{count}} prises à prendre maintenant",
+    "taken": "J'ai tout pris",
+    "later": "D'accord, dans un instant"
+  },
+  "settings": {
+    "fontSize": "Taille du texte",
+    "fontNormal": "Normal",
+    "fontLarge": "Grand",
+    "fontXL": "Très grand",
+    "title": "Réglages",
+    "language": "Langue",
+    "close": "Fermer"
+  },
+  "header": {
+    "settings": "Réglages",
+    "logout": "Se déconnecter"
+  },
+  "loadError": "Les informations n'ont pas pu être chargées. Vérifiez la connexion internet.",
+  "reload": "Recharger",
+  "ok": "OK",
+  "logout": {
+    "title": "Voulez-vous vous déconnecter ?",
+    "hint": "Ensuite, il faudra votre mot de passe pour revenir.",
+    "yes": "Oui, me déconnecter",
+    "no": "Non, rester ici"
+  }
+}

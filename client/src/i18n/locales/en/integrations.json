@@ -110,7 +110,7 @@
       "modelPlaceholder": "Systran/faster-whisper-small",
       "languageLabel": "Dictation language (optional)",
       "languagePlaceholder": "Automatic: the app's language",
-      "languageHint": "Leave blank to use each person's app language (the kiosk uses its screen language). Enter a code like en or es to force one language for everyone.",
+      "languageHint": "Leave blank to use each person's app language. Enter a code like en or es to force one language for everyone.",
       "keyLabel": "API key (optional)",
       "keyPlaceholder": "Bearer key if your service requires one"
     }

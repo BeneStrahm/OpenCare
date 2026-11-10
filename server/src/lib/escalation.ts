@@ -8,12 +8,13 @@ import { pick, pickLang, type Lang } from './i18n';
 
 /**
  * Escalade configurable des alertes (regles par cercle, table escalation_rules) :
- *  - prise de medicament en retard : rappel au proche en mode Kiosk
+ *  - prise de medicament en retard : rappel au proche dans la vue simple
  *    (message WebSocket "reminder"), puis aidants principaux, puis aidants de
  *    relais, chacun apres un delai en minutes (0 = palier desactive) ;
- *  - "J'ai besoin d'aide" : aidants principaux tout de suite (route kiosk),
- *    puis aidants de relais si personne n'a pris en charge la demande
- *    (table help_requests, prise en charge par POST /api/escalation/help/:id/ack).
+ *  - demandes d'aide encore ouvertes (table help_requests, prise en charge par
+ *    POST /api/escalation/help/:id/ack) : aidants de relais si personne ne les
+ *    a prises en charge. Launch Block C : plus aucune nouvelle demande (le
+ *    bouton "J'ai besoin d'aide" de la tablette a disparu).
  * Sans selection, les aidants principaux sont les admins du cercle et les
  * aidants de relais les membres "famille". Tout est desactive par defaut.
  */
@@ -148,14 +149,6 @@ export interface HelpRequestRow {
     acknowledged_at: string | null;
     acknowledged_by: string | null;
     escalated_at: string | null;
-}
-
-export async function createHelpRequest(circleId: string, journalEntryId: string | null, source: string): Promise<HelpRequestRow> {
-    const result = await query(
-        `INSERT INTO help_requests (circle_id, journal_entry_id, source) VALUES ($1, $2, $3) RETURNING *`,
-        [circleId, journalEntryId, source.slice(0, 20)]
-    );
-    return result.rows[0] as HelpRequestRow;
 }
 
 export async function acknowledgeHelp(circleId: string, id: string, userId: string): Promise<HelpRequestRow | null> {
@@ -299,8 +292,8 @@ async function remindPatient(rule: RuleRow): Promise<void> {
         [rule.circle_id, rule.med_patient_min]
     );
     if (rows.length === 0) return;
-    // Les appareils patient (tablette, telephone) recoivent le rappel ; les
-    // sessions aidant ignorent ce message.
+    // La vue simple de la personne accompagnee affiche le rappel ; l'app des
+    // aidants ignore ce message.
     await broadcastToCircle(rule.circle_id, { type: 'reminder', kind: 'medication', count: rows.length });
     logger.info('escalation.patient_reminder', { circleId: rule.circle_id, intakes: rows.length });
 }

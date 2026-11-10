@@ -24,7 +24,7 @@
   "delete": "Diese Notiz entfernen",
   "deleted": "Notiz vom Kühlschrank entfernt",
   "added": "Notiz an den Kühlschrank geheftet",
-  "emptyHint": "Hinterlassen Sie der Familie eine kleine Notiz. Sie erscheint hier und in der Tablet-Ansicht.",
+  "emptyHint": "Hinterlassen Sie der Familie eine kleine Notiz. Sie erscheint hier.",
   "by": "von {{name}}",
   "age": {
     "now": "gerade eben",

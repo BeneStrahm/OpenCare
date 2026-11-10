@@ -3,9 +3,7 @@ import { query } from '../db';
 /**
  * Fiche urgence : identite, traitements en cours, contacts a appeler.
  *
- * Servie a deux endroits, d'ou cette lib partagee : la page aidant qui fabrique
- * le QR du frigo (routes/emergency.ts) et le mode Kiosk, ou un secouriste
- * arrive chez le proche peut la lire tout de suite (routes/kiosk.ts).
+ * Servie a la page aidant qui fabrique le QR du frigo (routes/emergency.ts).
  */
 
 export interface EmergencyRecipient {
@@ -89,13 +87,4 @@ export async function buildEmergencyData(circleId: string): Promise<EmergencyDat
         medications: medsResult.rows as EmergencyMedication[],
         contacts: contactsResult.rows as EmergencyContact[],
     };
-}
-
-/** La fiche complete, notes complementaires comprises. */
-export async function loadEmergencySheet(circleId: string): Promise<EmergencyData & { extra_notes: string | null }> {
-    const [data, sheetResult] = await Promise.all([
-        buildEmergencyData(circleId),
-        query('SELECT extra_notes FROM emergency_sheets WHERE circle_id = $1', [circleId]),
-    ]);
-    return { ...data, extra_notes: (sheetResult.rows[0]?.extra_notes as string | null) ?? null };
 }

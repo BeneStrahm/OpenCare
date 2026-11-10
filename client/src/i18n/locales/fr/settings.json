@@ -139,7 +139,7 @@
     "dataKept": "Désactiver ne supprime rien. Réactivez une fonctionnalité et tout est encore là.",
     "modules": {
       "title": "Parties de l'application",
-      "subtitle": "Le menu, l'accueil et la tablette n'affichent que les parties activées.",
+      "subtitle": "Le menu, l'accueil et la vue simple n'affichent que les parties activées.",
       "fixed": "Toujours actifs : accueil, journal, réglages et urgence."
     },
     "items": {
@@ -159,17 +159,6 @@
       "voice_journal": "Notes vocales du journal",
       "digests": "Résumé de la semaine",
       "heatwave": "Alerte canicule"
-    },
-    "kiosk": {
-      "title": "Vue tablette",
-      "subtitle": "Ce que votre proche voit sur la tablette.",
-      "items": {
-        "status_bar": "« Tout va bien » / « J'ai besoin d'aide »",
-        "voice": "« Parler »",
-        "ask": "« Demandez-moi »",
-        "consultation": "Bouton « Enregistrer la consultation »",
-        "info": "« Mes informations »"
-      }
     },
     "vitals": {
       "title": "Mesures",

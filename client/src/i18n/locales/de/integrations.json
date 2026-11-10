@@ -110,7 +110,7 @@
       "modelPlaceholder": "Systran/faster-whisper-small",
       "languageLabel": "Sprache beim Diktieren (optional)",
       "languagePlaceholder": "Automatisch: die Sprache der App",
-      "languageHint": "Leer lassen, um die App-Sprache der jeweiligen Person zu verwenden (die Tablet-Ansicht nutzt ihre Bildschirmsprache). Geben Sie einen Code wie de oder en ein, um für alle eine Sprache festzulegen.",
+      "languageHint": "Leer lassen, um die App-Sprache der jeweiligen Person zu verwenden. Geben Sie einen Code wie de oder en ein, um für alle eine Sprache festzulegen.",
       "keyLabel": "API-Schlüssel (optional)",
       "keyPlaceholder": "Bearer-Schlüssel, falls Ihr Dienst einen verlangt"
     }

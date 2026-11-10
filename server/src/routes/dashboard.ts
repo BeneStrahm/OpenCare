@@ -96,7 +96,7 @@ router.get('/', async (req: CircleRequest, res: Response) => {
     try {
         const circleId = req.circleId!;
         const includeHealth = req.circleRole !== 'neighbor';
-        // Betreute Person: nur ihr Alltag wie in der Tablet-Ansicht (Termine, Einnahmen),
+        // Betreute Person: nur ihr Alltag wie in der einfachen Ansicht (Termine, Einnahmen),
         // kein Tagebuch, keine Aufgaben, Werte, Nachrichten oder Hinweise fuer Pflegende.
         const isRecipient = req.circleRole === 'recipient';
         // Today's intakes exist and late ones are marked missed before we read them

@@ -1,7 +1,6 @@
-// Fork: Funktionen, Tablet-Elemente und Messwerte pro Kreis (Gegenstueck zu
+// Fork: Funktionen und Messwerte pro Kreis (Gegenstueck zu
 // server/src/lib/features.ts). Gespeichert in den Kreis-Einstellungen:
 //   features:       { id: false }  nur ausgeschaltete stehen drin
-//   kiosk_elements: { id: false }
 //   vital_types:    Liste oder null (= alle)
 // Standard: alles an. Ausschalten loescht keine Daten.
 
@@ -32,9 +31,6 @@ const ROUTE_FEATURES: Array<[string, FeatureId]> = [
     ['/documents', 'documents'],
 ];
 
-export const KIOSK_ELEMENTS = ['status_bar', 'voice', 'ask', 'consultation', 'info'] as const;
-export type KioskElementId = (typeof KIOSK_ELEMENTS)[number];
-
 export const VITAL_TYPES = ['weight', 'bp', 'pain', 'mood', 'temperature', 'glucose'] as const;
 export type VitalType = (typeof VITAL_TYPES)[number];
 
@@ -47,9 +43,6 @@ const flags = (settings: Settings, key: string): Record<string, unknown> => {
 
 export const isFeatureEnabled = (settings: Settings, id: FeatureId): boolean =>
     flags(settings, 'features')[id] !== false;
-
-export const isKioskElementEnabled = (settings: Settings, id: KioskElementId): boolean =>
-    flags(settings, 'kiosk_elements')[id] !== false;
 
 export const enabledVitalTypes = (settings: Settings): VitalType[] => {
     const value = settings?.vital_types;

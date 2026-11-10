@@ -24,7 +24,7 @@
   },
   "section": {
     "title": "Heat monitoring",
-    "intro": "During a heat episode, OpenCare shows the right habits on the dashboard and the kiosk, and sends hydration reminders to caregivers.",
+    "intro": "During a heat episode, OpenCare shows the right habits on the dashboard and in the simple view of the person cared for, and sends hydration reminders to caregivers.",
     "enable": "Enable heat monitoring for this circle",
     "enableHint": "Once enabled, you can declare an episode in one tap when the heat rises.",
     "reminderTimes": "Hydration reminders",

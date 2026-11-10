@@ -207,26 +207,6 @@
     "automatic": "Ajoutés automatiquement",
     "automaticHint": "À partir des médicaments, médecins et spécialités de ce cercle. Ils sont toujours utilisés."
   },
-  "kiosk": {
-    "button": "Enregistrer la consultation",
-    "buttonHint": "Avec l'accord du médecin",
-    "close": "Fermer",
-    "consentQuestion": "Le médecin a-t-il accepté l'enregistrement ?",
-    "consentHint": "Demandez d'abord au médecin.",
-    "yes": "Oui",
-    "no": "Non",
-    "declinedTitle": "Pas d'enregistrement",
-    "declinedHint": "Rien n'a été enregistré.",
-    "ok": "OK",
-    "recording": "Enregistrement",
-    "recordingHint": "Appuyez sur Arrêter quand la consultation est terminée.",
-    "stop": "Arrêter",
-    "savedTitle": "C'est enregistré.",
-    "savedHint": "L'enregistrement sera envoyé dès qu'internet sera disponible.",
-    "queueUnpaired": "La tablette n'est plus connectée. L'enregistrement est conservé ici en sécurité. Prévenez vos proches.",
-    "queueNeedsHelp": "Un enregistrement ne peut pas être envoyé. Prévenez vos proches.",
-    "unpairPending": "Des enregistrements de cette tablette n'ont pas encore été envoyés. Le détachement les supprimera. Détacher quand même ?"
-  },
   "proposals": {
     "title_section": "Propositions issues de la consultation",
     "hint": "Ces propositions viennent du résumé. Rien n'est créé automatiquement. Vérifiez chaque proposition, modifiez-la si besoin, puis choisissez ce qu'il faut ajouter.",

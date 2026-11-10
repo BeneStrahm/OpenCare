@@ -1,0 +1,83 @@
+{
+  "greeting": "Guten Morgen, {{name}}!",
+  "greetingEvening": "Guten Abend, {{name}}!",
+  "greetingNoName": "Guten Tag!",
+  "tagline": "Machen wir uns einen schönen Tag",
+  "heat": {
+    "banner": "Heute ist es heiß. Denken Sie daran, regelmäßig Wasser zu trinken."
+  },
+  "meds": {
+    "empty": "Heute keine Medikamente.",
+    "saved": "Eingetragen, sehr gut!",
+    "title": "Ihre Medikamente heute",
+    "undoHint": "Rückgängig ist bis {{time}} möglich.",
+    "queued": "Ohne Internet gespeichert. Es wird übertragen, sobald wieder Internet da ist.",
+    "error": "Das hat nicht geklappt. Bitte versuchen Sie es noch einmal.",
+    "undone": "Rückgängig gemacht.",
+    "undoExpired": "Rückgängig ist nicht mehr möglich. Bitte sagen Sie Ihren Angehörigen Bescheid."
+  },
+  "visitors": {
+    "title": "Wer heute kommt",
+    "empty": "Heute hat sich niemand angekündigt.",
+    "nurse": "Pflegedienst",
+    "aide": "Haushaltshilfe",
+    "someone": "Jemand kommt"
+  },
+  "appointments": {
+    "title": "Termine heute",
+    "empty": "Heute kein Termin.",
+    "companion": "Es kommt mit: {{names}}"
+  },
+  "contacts": {
+    "title": "Wen ich anrufen kann",
+    "categories": {
+      "doctor": "Arzt",
+      "nurse": "Pflegedienst",
+      "pharmacy": "Apotheke",
+      "aide": "Haushaltshilfe",
+      "physio": "Physiotherapie"
+    },
+    "empty": "Noch keine Kontakte eingetragen.",
+    "call": "Anrufen"
+  },
+  "ask": {
+    "button": "Fragen Sie mich",
+    "hint": "Medikamente, Besuche, Termine",
+    "choose": "Tippen Sie auf eine Frage.",
+    "loading": "Einen Moment bitte …",
+    "error": "Darauf gibt es gerade keine Antwort. Bitte versuchen Sie es später noch einmal.",
+    "readAloud": "Vorlesen",
+    "stop": "Vorlesen beenden",
+    "other": "Andere Frage",
+    "close": "Schließen"
+  },
+  "reminder": {
+    "title": "Es ist Zeit für Ihre Medikamente",
+    "subtitle_one": "Jetzt {{count}} Einnahme",
+    "subtitle_other": "Jetzt {{count}} Einnahmen",
+    "taken": "Ich habe alles genommen",
+    "later": "Gut, gleich"
+  },
+  "settings": {
+    "fontSize": "Schriftgröße",
+    "fontNormal": "Normal",
+    "fontLarge": "Groß",
+    "fontXL": "Sehr groß",
+    "title": "Einstellungen",
+    "language": "Sprache",
+    "close": "Schließen"
+  },
+  "header": {
+    "settings": "Einstellungen",
+    "logout": "Abmelden"
+  },
+  "loadError": "Die Angaben konnten nicht geladen werden. Bitte prüfen Sie die Internetverbindung.",
+  "reload": "Neu laden",
+  "ok": "OK",
+  "logout": {
+    "title": "Möchten Sie sich abmelden?",
+    "hint": "Danach brauchen Sie Ihr Passwort, um wieder hineinzukommen.",
+    "yes": "Ja, abmelden",
+    "no": "Nein, hierbleiben"
+  }
+}

@@ -2,7 +2,7 @@ import type { TFunction } from 'i18next';
 
 /**
  * Helpers d'affichage des medicaments partages par la page Medicaments, le
- * tableau de bord, le kiosk et le lien intervenant : "2 comprimes", "5 ml".
+ * tableau de bord, la vue simple du proche et le lien intervenant : "2 comprimes", "5 ml".
  * Meme table que shared/src/constants.ts (DEFAULT_UNIT_BY_FORM).
  */
 

@@ -34,7 +34,8 @@ If email is unavailable, open a GitHub issue with no exploit details and ask for
 - We acknowledge new reports within 72 hours.
 - We triage and assess severity. Anything exposing care-circle data across circle
   boundaries, through public token pages (emergency sheet, magic links, handover) or
-  through the kiosk is treated as high severity by default.
+  through the simple view of the cared-for person (role recipient) is treated as high
+  severity by default.
 - We work on a fix and coordinate disclosure with the reporter.
 - We publish a patch release and security notes when applicable.
 

@@ -127,12 +127,3 @@ export function eventsSpoken(date: string, events: Array<{ title: string; time: 
     }[lang];
 }
 
-/** Vermerk an Eintraegen, die am Tablet der betreuten Person entstanden sind. */
-export function deviceNote(deviceName: string, lang: VoiceLang): string {
-    return {
-        de: `Per Sprache am Gerät „${deviceName}“ angelegt.`,
-        en: `Added by voice on the device "${deviceName}".`,
-        fr: `Ajouté à la voix sur l'appareil « ${deviceName} ».`,
-        es: `Añadido por voz en el dispositivo «${deviceName}».`,
-    }[lang];
-}

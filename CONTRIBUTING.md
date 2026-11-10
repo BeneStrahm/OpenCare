@@ -70,8 +70,10 @@ good explanation.
 - **The `neighbor` role never sees health data.** No medications, no vitals, no full recipient
   profile, on any route, in any payload. The permission matrix in [docs/SPEC.md](docs/SPEC.md)
   is the reference.
-- **A paired patient device only reaches patient routes.** The `X-Kiosk-Token` header opens
-  `/api/kiosk/*`, the companion and the transcription endpoint, and nothing else.
+- **The cared-for person (role `recipient`) only reaches her own day.** Every request she may
+  make is listed in `RECIPIENT_ALLOWED_REQUESTS` (`server/src/middleware/circle.ts`); anything
+  else is refused with 403. The client shows her only the simple view
+  (`client/src/pages/RecipientView.tsx`). Paired devices without an account no longer exist.
 - **Outgoing requests to user-supplied URLs go through `safeFetch`** and the URL guard, which
   block private ranges and cloud metadata endpoints.
 - **The emergency sheet is off by default** and its public token is revocable.
@@ -85,8 +87,8 @@ good explanation.
   route needs lives in `server/src/lib/`.
 - The client is React with Tailwind. Colors and spacing come from the design tokens in
   `client/src/design/tokens.css`, not from raw hex values, with one deliberate exception:
-  Kiosk mode (`client/src/pages/Kiosk.tsx` and its overlays) has its own high
-  contrast palette in the file itself.
+  the simple view of the cared-for person (`client/src/pages/RecipientView.tsx`) has its own
+  high contrast palette in the file itself.
 - Comments explain why, not what. They are welcome on anything a future reader could get
   wrong, especially timezone handling, permissions and recurrence.
 - Timestamps are naive local `TIMESTAMP` columns and naive local ISO strings. Never

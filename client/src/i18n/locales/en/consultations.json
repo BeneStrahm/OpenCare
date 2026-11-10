@@ -207,26 +207,6 @@
     "automatic": "Added automatically",
     "automaticHint": "From medicines, doctors and specialties in this circle. These are always used."
   },
-  "kiosk": {
-    "button": "Record doctor visit",
-    "buttonHint": "With the doctor's consent",
-    "close": "Close",
-    "consentQuestion": "Has the doctor agreed to the recording?",
-    "consentHint": "Please ask the doctor first.",
-    "yes": "Yes",
-    "no": "No",
-    "declinedTitle": "No recording",
-    "declinedHint": "Nothing was recorded.",
-    "ok": "OK",
-    "recording": "Recording",
-    "recordingHint": "Press Stop when the conversation is over.",
-    "stop": "Stop",
-    "savedTitle": "Saved.",
-    "savedHint": "The recording will be uploaded as soon as there is internet.",
-    "queueUnpaired": "The tablet is no longer connected. The recording is safely stored here. Please tell your family.",
-    "queueNeedsHelp": "A recording cannot be uploaded. Please tell your family.",
-    "unpairPending": "Recordings on this tablet have not been uploaded yet. Unpairing will delete them. Unpair anyway?"
-  },
   "proposals": {
     "title_section": "Suggestions from the visit",
     "hint": "These suggestions come from the summary. Nothing is created automatically. Check each suggestion, change it if needed, and choose what to add.",

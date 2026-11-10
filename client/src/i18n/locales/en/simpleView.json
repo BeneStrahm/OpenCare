@@ -1,0 +1,83 @@
+{
+  "greeting": "Good morning, {{name}}!",
+  "greetingEvening": "Good evening, {{name}}!",
+  "greetingNoName": "Hello!",
+  "tagline": "Let's take care of today",
+  "heat": {
+    "banner": "It is hot today. Remember to drink water regularly."
+  },
+  "meds": {
+    "empty": "No medication today.",
+    "saved": "Recorded, well done!",
+    "title": "Your medicines today",
+    "undoHint": "You can undo this until {{time}}.",
+    "queued": "Saved without internet. It will be sent as soon as the internet is back.",
+    "error": "That did not work. Please try again.",
+    "undone": "Undone.",
+    "undoExpired": "It can no longer be undone. Please tell your family."
+  },
+  "visitors": {
+    "title": "Who's coming today",
+    "empty": "Nobody planned today.",
+    "nurse": "Nurse",
+    "aide": "Home aide",
+    "someone": "Someone is coming"
+  },
+  "appointments": {
+    "title": "Today's appointments",
+    "empty": "No appointment today.",
+    "companion": "Coming with you: {{names}}"
+  },
+  "contacts": {
+    "title": "People I can call",
+    "categories": {
+      "doctor": "Doctor",
+      "nurse": "Nurse",
+      "pharmacy": "Pharmacy",
+      "aide": "Home aide",
+      "physio": "Physiotherapist"
+    },
+    "empty": "No contacts entered yet.",
+    "call": "Call"
+  },
+  "ask": {
+    "button": "Ask Me",
+    "hint": "Medication, visits, appointments",
+    "choose": "Tap a question.",
+    "loading": "One moment please …",
+    "error": "There is no answer right now. Please try again later.",
+    "readAloud": "Read aloud",
+    "stop": "Stop reading",
+    "other": "Another question",
+    "close": "Close"
+  },
+  "reminder": {
+    "title": "It is time for your medication",
+    "subtitle_one": "{{count}} dose to take now",
+    "subtitle_other": "{{count}} doses to take now",
+    "taken": "I took everything",
+    "later": "Okay, in a moment"
+  },
+  "settings": {
+    "fontSize": "Text size",
+    "fontNormal": "Normal",
+    "fontLarge": "Large",
+    "fontXL": "Extra large",
+    "title": "Settings",
+    "language": "Language",
+    "close": "Close"
+  },
+  "header": {
+    "settings": "Settings",
+    "logout": "Log out"
+  },
+  "loadError": "The information could not be loaded. Please check the internet connection.",
+  "reload": "Reload",
+  "ok": "OK",
+  "logout": {
+    "title": "Do you want to log out?",
+    "hint": "You will need your password to come back in.",
+    "yes": "Yes, log out",
+    "no": "No, stay here"
+  }
+}

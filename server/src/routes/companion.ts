@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { query } from '../db';
-import { JOURNAL_WRITER_ROLES } from '../middleware/circle';
-import { kioskOrMember, allowDeviceOr, KioskRequest } from '../middleware/kioskDevice';
+import { authMiddleware } from '../middleware/auth';
+import { circleMiddleware, requireJournalWriter, CircleRequest } from '../middleware/circle';
 import { aiComplete, AiError, loadAiSettingsRow, decryptStoredApiKey, type AiSettings } from '../services/ai';
 import {
     COMPANION_SCHEMA,
@@ -14,6 +14,7 @@ import {
 } from '../services/ai/companion';
 import { loadTodaySnapshot } from '../lib/todaySnapshot';
 import { loadCompanionExtraFacts } from '../lib/companionExtraFacts';
+import { isFeatureEnabled, loadCircleSettings, type FeatureId } from '../lib/features';
 import {
     detectIntent,
     hasDistressSignal,
@@ -30,7 +31,7 @@ import { broadcastToCircle } from '../lib/broadcaster';
 import { langFromRequest, pick, pickLang, type Lang } from '../lib/i18n';
 import logger from '../lib/logger';
 
-// "Demandez-moi" : le compagnon du mode Kiosk. Les questions pratiques
+// "Demandez-moi" : le compagnon. Les questions pratiques
 // (medicaments a prendre, qui vient, rendez-vous, date, qui appeler) sont
 // repondues depuis les donnees du cercle, sans IA et sans invention ; la
 // conversation libre passe par l'IA du cercle quand elle est configuree, avec
@@ -38,8 +39,7 @@ import logger from '../lib/logger';
 // l'historique vit cote client et n'est persiste QUE si une detresse est
 // detectee (escalade journal + notification).
 const router = Router();
-// Un appareil patient appaire (tablette, telephone) est accepte comme un membre.
-router.use(kioskOrMember());
+router.use(authMiddleware, circleMiddleware);
 
 type ReplySource = 'facts' | 'ai' | 'fallback';
 
@@ -51,24 +51,24 @@ function buildAlertTexts(name: string, language: Lang): { title: string; message
     if (language === 'de') {
         return {
             title: `💬 ${who} braucht vielleicht Aufmerksamkeit`,
-            message: 'Bei einem Gespräch in der Tablet-Ansicht ist etwas aufgefallen. Bitte melden Sie sich.',
+            message: 'Bei einem Gespräch mit dem Assistenten ist etwas aufgefallen. Bitte melden Sie sich.',
         };
     }
     if (language === 'es') {
         return {
             title: `💬 ${who} puede necesitar atención`,
-            message: 'Ha surgido una señal durante una conversación en el modo Kiosco. Pregunte cómo se encuentra.',
+            message: 'Ha surgido una señal durante una conversación con el asistente. Pregunte cómo se encuentra.',
         };
     }
     if (language === 'en') {
         return {
             title: `💬 ${who} may need attention`,
-            message: 'Something came up during a conversation on the kiosk. Please check in.',
+            message: 'Something came up during a conversation with the assistant. Please check in.',
         };
     }
     return {
         title: `💬 ${who} a peut-être besoin d'attention`,
-        message: 'Un signal est apparu pendant une conversation sur le kiosk. Pensez à prendre des nouvelles.',
+        message: 'Un signal est apparu pendant une conversation avec l\'assistant. Pensez à prendre des nouvelles.',
     };
 }
 
@@ -99,10 +99,10 @@ async function escalate(circleId: string, recipientFirstName: string, flagReason
                     de: `Hinweis während eines Gesprächs: ${flagReason}`,
                 })
                 : pick(language, {
-                    fr: 'Signal pendant une conversation sur le kiosk',
-                    en: 'Signal during a conversation on the kiosk',
-                    es: 'Señal durante una conversación en el modo Kiosco',
-                    de: 'Hinweis während eines Gesprächs in der Tablet-Ansicht',
+                    fr: "Signal pendant une conversation avec l'assistant",
+                    en: 'Signal during a conversation with the assistant',
+                    es: 'Señal durante una conversación con el asistente',
+                    de: 'Hinweis während eines Gesprächs mit dem Assistenten',
                 }),
             JSON.stringify({ source: 'companion', flag_reason: flagReason }),
         ]
@@ -131,10 +131,10 @@ async function escalate(circleId: string, recipientFirstName: string, flagReason
 
 // POST /api/companion/message : { messages: [{role, content}] }
 //   -> { reply, flagged, source: 'facts' | 'ai' | 'fallback', intent }
-// allowDeviceOr(journal writers): l'escalade ecrit une entree de journal
-// (incident), donc meme classe d'action que /api/voice/transcribe; les recipient
+// Journal writers only: l'escalade ecrit une entree de journal (incident),
+// donc meme classe d'action que /api/voice/transcribe; les recipient
 // (lecture seule) sont exclus, conformement a la matrice de permissions.
-router.post('/message', allowDeviceOr(...JOURNAL_WRITER_ROLES), async (req: KioskRequest, res: Response) => {
+router.post('/message', requireJournalWriter, async (req: CircleRequest, res: Response) => {
     try {
         if (Array.isArray(req.body?.messages) && req.body.messages.length > 200) {
             return res.status(400).json({ success: false, error: 'too many messages' });
@@ -150,7 +150,7 @@ router.post('/message', allowDeviceOr(...JOURNAL_WRITER_ROLES), async (req: Kios
         const language = langFromRequest(req);
 
         // Fork: Gesundheitsdaten nicht fuer Nachbarn (wie Uebersicht und Pflegeplan).
-        const includeHealth = Boolean(req.kioskDevice) || req.circleRole !== 'neighbor';
+        const includeHealth = req.circleRole !== 'neighbor';
 
         const [snapshot, storyResult, row, extra] = await Promise.all([
             loadTodaySnapshot(circleId, now),
@@ -216,7 +216,7 @@ router.post('/message', allowDeviceOr(...JOURNAL_WRITER_ROLES), async (req: Kios
             } catch (aiError) {
                 if (!(aiError instanceof AiError)) throw aiError;
                 // Provider injoignable: une phrase calme (200) plutot qu'une erreur
-                // brute, pour ne pas derouter la personne agee en mode Kiosk.
+                // brute, pour ne pas derouter la personne agee.
                 logger.warn('companion.ai_failed', { circleId, code: aiError.code });
                 reply = intent ? answer(intent) : companionFallback(language);
                 source = intent ? 'facts' : 'fallback';
@@ -233,6 +233,82 @@ router.post('/message', allowDeviceOr(...JOURNAL_WRITER_ROLES), async (req: Kios
         res.json({ success: true, data: { reply, flagged, source, intent } });
     } catch (error) {
         logger.error('companion.message_error', {
+            error: error instanceof Error ? error.message : String(error),
+        });
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
+
+/**
+ * Feste Fragen der einfachen Ansicht (betreute Person), Launch Block C.
+ * Schluessel in der Adresse -> Thema in lib/companionAnswers. Die Antwort
+ * entsteht nur aus den Daten des Kreises: keine KI, keine freie Eingabe,
+ * nichts wird gespeichert, keine Meldung an den Kreis.
+ */
+export const FIXED_QUESTIONS = {
+    medications: 'medications',
+    visitors: 'visitors',
+    appointments: 'appointments',
+    week: 'appointments_week',
+    date: 'datetime',
+    contacts: 'contacts',
+} as const satisfies Record<string, CompanionIntent>;
+export type FixedQuestion = keyof typeof FIXED_QUESTIONS;
+
+/** Ausgeschaltete Funktion -> keine Antwort zu diesem Thema (wie die Seiten der App). */
+const FIXED_QUESTION_FEATURE: Partial<Record<FixedQuestion, FeatureId>> = {
+    medications: 'medications',
+    visitors: 'calendar',
+    appointments: 'calendar',
+    week: 'calendar',
+    contacts: 'contacts',
+};
+
+export const isFixedQuestion = (value: string): value is FixedQuestion =>
+    Object.prototype.hasOwnProperty.call(FIXED_QUESTIONS, value);
+
+// GET /api/companion/answer/:question -> { reply, intent }
+router.get('/answer/:question', async (req: CircleRequest, res: Response) => {
+    try {
+        const question = String(req.params.question);
+        if (!isFixedQuestion(question)) {
+            return res.status(400).json({ success: false, error: 'Unknown question' });
+        }
+        const intent = FIXED_QUESTIONS[question];
+        const circleId = req.circleId!;
+        const now = new Date();
+        const language = langFromRequest(req);
+
+        const settings = await loadCircleSettings(circleId);
+        const feature = FIXED_QUESTION_FEATURE[question];
+        if (feature && !isFeatureEnabled(settings, feature)) {
+            return res.status(403).json({ success: false, error: 'FEATURE_DISABLED' });
+        }
+        // Gesundheitsdaten nicht fuer Nachbarn (wie /message).
+        if (req.circleRole === 'neighbor' && HEALTH_INTENTS.includes(intent)) {
+            return res.json({ success: true, data: { reply: noAccess(language), intent } });
+        }
+
+        const snapshot = await loadTodaySnapshot(circleId, now);
+        // Ausgeschaltete Funktionen fliessen auch nicht in andere Antworten ein.
+        const on = (id: FeatureId) => isFeatureEnabled(settings, id);
+        if (!on('calendar')) snapshot.events_today = [];
+        if (!on('visitors')) { snapshot.visits_today = []; snapshot.active_visit = null; }
+        if (!on('contacts')) snapshot.contacts_key = [];
+        if (!on('heatwave')) snapshot.heatwave = null;
+        // Termine der Woche nur fuer diese Frage; Aufgaben, Vorrat und Messwerte nie.
+        const week = intent === 'appointments_week'
+            ? (await loadCompanionExtraFacts(circleId, false, language, now)).events_week
+            : null;
+        const facts = {
+            ...snapshot,
+            recipientFirstName: snapshot.recipient?.first_name?.trim() || '',
+            events_week: week,
+        };
+        const reply = answerIntent(intent, facts, language, now);
+        res.json({ success: true, data: { reply, intent } });
+    } catch (error) {
+        logger.error('companion.answer_error', {
             error: error instanceof Error ? error.message : String(error),
         });
         res.status(500).json({ success: false, error: 'Internal server error' });

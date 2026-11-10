@@ -123,6 +123,13 @@ async function main() {
     await api('POST', '/api/events', {
         title: 'Besuch von Sabine', category: 'visit', start_time: tag(4, 15, 0), end_time: tag(4, 17, 0),
     });
+    // Heute, damit die einfache Ansicht der betreuten Person Fahrt und Mitnehmen zeigt
+    await api('POST', '/api/events', {
+        title: 'Augenarzt', category: 'medical', start_time: tag(0, 15, 0), end_time: tag(0, 15, 30),
+        location: 'Augenpraxis Musterstadt', guests: ['Sabine Muster'], companion_needed: true,
+        travel_needed: true, travel_to_minutes: 30, travel_back_minutes: 15, driver_to: 'Sabine Muster',
+        take_along: 'Versichertenkarte und Brille',
+    });
 
     // Arztgespraech in Vorbereitung, mit Kalendertermin
     const gespraech = await api('POST', '/api/consultations', {

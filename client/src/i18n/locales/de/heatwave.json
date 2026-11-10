@@ -24,7 +24,7 @@
   },
   "section": {
     "title": "Hitzeschutz",
-    "intro": "Während einer Hitzeperiode zeigt OpenCare auf der Startseite und in der Tablet-Ansicht die richtigen Verhaltensregeln und schickt den Pflegenden Erinnerungen zum Trinken.",
+    "intro": "Während einer Hitzeperiode zeigt OpenCare auf der Startseite und in der einfachen Ansicht der betreuten Person die richtigen Verhaltensregeln und schickt den Pflegenden Erinnerungen zum Trinken.",
     "enable": "Hitzeschutz für diesen Kreis einschalten",
     "enableHint": "Danach können Sie bei steigender Hitze mit einem Tippen eine Hitzeperiode melden.",
     "reminderTimes": "Trink-Erinnerungen",

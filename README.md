@@ -51,15 +51,15 @@ All on **your** server: the health data of a vulnerable person should not live o
 | ⚖️ **Care load fairness** | "Marie covered 78% of the visits this month": objective stats to prevent burnout of the primary caregiver |
 | 🔗 **Magic links** | The home aide or the nurse writes in the journal from a simple link (SMS/QR), no account, no app to install |
 | 🩺 **Consultation prep** | One click: a printable summary for the doctor (key events, vitals trends, current treatments, the family's questions) |
-| 🖥️ **Kiosk** | A wall tablet at your loved one's home: who is coming today (with photos), big medication reminders, weather, and two huge buttons: "All is well" / "I need help" |
+| 🖥️ **Simple view** | The cared-for person logs in with her own account and sees only a calm, large-print view: today's medicines with one "Taken" button each (undo for 10 minutes), who is coming, today's appointments, key contacts and fixed "Ask me" questions |
 | 🚨 **Emergency QR sheet** | A printed QR on the fridge: paramedics scan it and see the vital sheet (treatments, allergies, directives, contacts), always up to date |
 | 📖 **"Who I am"** | A life-story page (career, pride, habits, what soothes them) shown to every new caregiver, inspired by the Alzheimer's Society "This is me" document |
 | 🧳 **Respite handover** | The primary caregiver leaves for a week: an auto-generated handover pack (schedule, medications, instructions, contacts) shared by link |
 | 🏠 **Passive monitoring** | Home Assistant webhooks (door sensor, coffee-maker plug, motion): "normal activity this morning" on the family dashboard, alert cascade if no sign of life. No camera, no wristband |
 | 🎙️ **Voice journal** | Dictate on your way out ("20 minute visit, all fine, get paracetamol"): your self-hosted Whisper transcribes, the AI files the journal entry and the shopping item |
 | 🤖 **Weekly AI digest** | Every Sunday: "Calm week. 5 visits. Stable blood pressure. Attention: 2 missed doses on Tuesday and Thursday." With slow-trend detection (recurring low mood, gradual weight loss) |
-| 🌡️ **Heat-wave watch** | Declare a heat episode in one tap: prevention checklist on the dashboard and kiosk, hydration reminders to caregivers at chosen times, and an "I drank water" button on the kiosk |
-| 🗣️ **AI companion** | An optional voice companion the cared-for person chats with from the kiosk: gentle reminiscence drawn from the "Who I am" page, voice in (your Whisper) and read aloud. Strict guardrails (never medical advice, distress alerts the circle). Local-first with Ollama, or your own cloud key |
+| 🌡️ **Heat-wave watch** | Declare a heat episode in one tap: prevention checklist on the dashboard and a heat banner in the simple view, hydration reminders to caregivers at chosen times |
+| 🗣️ **AI companion** | An optional voice companion for free conversation (not offered in the simple view, which only has fixed questions): gentle reminiscence drawn from the "Who I am" page, voice in (your Whisper) and read aloud. Strict guardrails (never medical advice, distress alerts the circle). Local-first with Ollama, or your own cloud key |
 
 ### Built to be yours
 
@@ -137,7 +137,7 @@ creates one for you on Windows).
 | Free, no subscription | ✅ | ⚠️ |
 | Caregivers write without an account (magic link) | ✅ | ❌ |
 | Shared expenses and care-load fairness | ✅ | ❌ |
-| Kiosk for the cared-for person | ✅ | ❌ |
+| Simple view for the cared-for person | ✅ | ❌ |
 | Passive monitoring via Home Assistant | ✅ | ❌ |
 
 ## 🧰 Tech stack

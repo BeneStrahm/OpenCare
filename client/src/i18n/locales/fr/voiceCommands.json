@@ -1,7 +1,6 @@
 {
   "title": "Commande vocale",
   "trigger": "Parler",
-  "triggerHint": "Dire un rendez-vous, une tâche ou une mesure",
   "typeInstead": "Plutôt écrire",
   "textPlaceholder": "Par exemple : Appointment physio tomorrow at 10 am",
   "send": "Envoyer",

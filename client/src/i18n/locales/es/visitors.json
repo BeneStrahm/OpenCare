@@ -1,8 +1,8 @@
 {
   "title": "Visitas",
-  "subtitle": "Quién ha pasado a ver a su familiar, registrado desdel modo Kiosco.",
+  "subtitle": "Quién ha pasado a ver a su familiar.",
   "empty": "Ninguna visita registrada en este periodo.",
-  "emptyHint": "En el modo Kiosco, el botón « Visita » permite que cada persona que pasa se anuncie en dos gestos.",
+  "emptyHint": "Todavía no hay visitas registradas.",
   "range": {
     "week": "Últimos 7 días",
     "month": "Últimos 30 días",

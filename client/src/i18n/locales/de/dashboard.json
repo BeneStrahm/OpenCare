@@ -85,6 +85,5 @@
     "stockLeft_one": "{{name}} (noch {{count}})",
     "stockLeft_other": "{{name}} (noch {{count}})"
   },
-  "openKiosk": "Tablet-Ansicht",
   "openAskMe": "Fragen Sie mich"
 }

@@ -1,15 +1,13 @@
 // Routen des Arztgespraech-Moduls. Vertrag: docs/consultations-api.md
 //
 // Zwei Router:
-//  - recordingsRouter (/api/consultations/recordings): Upload in Stuecken,
-//    auch fuer gekoppelte Patienten-Geraete (Tablet der betreuten Person).
+//  - recordingsRouter (/api/consultations/recordings): Upload in Stuecken.
 //  - consultationsRouter (/api/consultations): alles andere, nur Mitglieder.
 
 import express, { Router, Response } from 'express';
 import { query, getClient } from '../../db';
 import { authMiddleware } from '../../middleware/auth';
 import { circleMiddleware, requireRole, CircleRequest, CircleRole, CONSULTATION_READER_ROLES } from '../../middleware/circle';
-import { kioskOrMember, allowDeviceOr, KioskRequest } from '../../middleware/kioskDevice';
 import { broadcastToCircle } from '../../lib/broadcaster';
 import logger from '../../lib/logger';
 import { sanitizeSummaryForQuestions, isValidIsoDate, isValidTime, type ConsultationSummary } from './summary';
@@ -77,7 +75,7 @@ async function loadConsultation(id: string, circleId: string) {
 // ═════════════════════════════════════════════════════════════════════════════
 
 export const recordingsRouter = Router();
-recordingsRouter.use(kioskOrMember());
+recordingsRouter.use(authMiddleware, circleMiddleware);
 
 const RECORDING_PUBLIC = `id, client_id, consultation_id, status, error_code, duration_seconds, size_bytes,
     consent_at, created_at, processed_at, audio_deleted_at`;
@@ -100,7 +98,7 @@ async function recordingByClientId(clientId: string, circleId: string) {
 }
 
 // POST /recordings: Aufnahme anmelden (idempotent ueber client_id)
-recordingsRouter.post('/', allowDeviceOr(...WRITER_ROLES), async (req: KioskRequest, res: Response) => {
+recordingsRouter.post('/', requireRole(...WRITER_ROLES), async (req: CircleRequest, res: Response) => {
     const circleId = req.circleId!;
     const body = req.body ?? {};
     try {
@@ -135,11 +133,11 @@ recordingsRouter.post('/', allowDeviceOr(...WRITER_ROLES), async (req: KioskRequ
         try {
             await db.query('BEGIN');
         if (!consultationId) {
-            // Vom Tablet ohne vorbereitetes Gespraech: neues Gespraech mit Startzeit anlegen.
+            // Ohne vorbereitetes Gespraech: neues Gespraech mit Startzeit anlegen.
             const created = await db.query(
                 `INSERT INTO consultations (circle_id, scheduled_at, created_by, created_by_device)
                  VALUES ($1, COALESCE($2::timestamp, date_trunc('minute', NOW()::timestamp)), $3, $4) RETURNING id`,
-                [circleId, startedAt, req.kioskDevice ? null : req.userId, req.kioskDevice?.id ?? null]
+                [circleId, startedAt, req.userId, null]
             );
             consultationId = created.rows[0].id as string;
         }
@@ -152,7 +150,7 @@ recordingsRouter.post('/', allowDeviceOr(...WRITER_ROLES), async (req: KioskRequ
                       AND $8::timestamp >= NOW()::timestamp - interval '30 days' THEN $8::timestamp ELSE NOW()::timestamp END,
                 $5, $6, $7)
              RETURNING ${RECORDING_PUBLIC}`,
-            [consultationId, circleId, clientId, mime, req.kioskDevice ? null : req.userId, req.kioskDevice?.id ?? null, startedAt, consentRaw]
+            [consultationId, circleId, clientId, mime, req.userId, null, startedAt, consentRaw]
         );
             await db.query('COMMIT');
         } catch (error) {
@@ -175,7 +173,7 @@ recordingsRouter.post('/', allowDeviceOr(...WRITER_ROLES), async (req: KioskRequ
 });
 
 // GET /recordings/:clientId: Stand des Uploads
-recordingsRouter.get('/:clientId', allowDeviceOr(...WRITER_ROLES), async (req: KioskRequest, res: Response) => {
+recordingsRouter.get('/:clientId', requireRole(...WRITER_ROLES), async (req: CircleRequest, res: Response) => {
     try {
         const rec = await recordingByClientId(String(req.params.clientId), req.circleId!);
         if (!rec) return fail(res, 404, 'Recording not found');
@@ -188,8 +186,8 @@ recordingsRouter.get('/:clientId', allowDeviceOr(...WRITER_ROLES), async (req: K
 // PUT /recordings/:clientId/chunks/:index: ein Stueck Audio (Rohdaten)
 recordingsRouter.put(
     '/:clientId/chunks/:index',
-    allowDeviceOr(...WRITER_ROLES),
-    (req: KioskRequest, res: Response, next: express.NextFunction) =>
+    requireRole(...WRITER_ROLES),
+    (req: CircleRequest, res: Response, next: express.NextFunction) =>
         express.raw({ type: 'application/octet-stream', limit: MAX_CHUNK_BYTES })(req, res, (err?: unknown) => {
             if (err) {
                 const status = (err as { status?: number }).status;
@@ -197,7 +195,7 @@ recordingsRouter.put(
             }
             next();
         }),
-    async (req: KioskRequest, res: Response) => {
+    async (req: CircleRequest, res: Response) => {
         try {
             const index = Number(req.params.index);
             if (!Number.isInteger(index) || index < 0 || index >= MAX_CHUNKS) return fail(res, 400, 'INVALID_INDEX');
@@ -238,7 +236,7 @@ recordingsRouter.put(
 );
 
 // POST /recordings/:clientId/complete: alle Stuecke da, Verarbeitung einreihen
-recordingsRouter.post('/:clientId/complete', allowDeviceOr(...WRITER_ROLES), async (req: KioskRequest, res: Response) => {
+recordingsRouter.post('/:clientId/complete', requireRole(...WRITER_ROLES), async (req: CircleRequest, res: Response) => {
     try {
         const total = Number(req.body?.total_chunks);
         if (!Number.isInteger(total) || total < 1 || total > MAX_CHUNKS) return fail(res, 400, 'INVALID_TOTAL');
@@ -277,8 +275,7 @@ recordingsRouter.post('/:clientId/complete', allowDeviceOr(...WRITER_ROLES), asy
 });
 
 // POST /recordings/:id/retry: erneut verarbeiten (nur Familie)
-recordingsRouter.post('/:id/retry', allowDeviceOr(...WRITER_ROLES), async (req: KioskRequest, res: Response) => {
-    if (req.kioskDevice) return fail(res, 403, 'Insufficient role');
+recordingsRouter.post('/:id/retry', requireRole(...WRITER_ROLES), async (req: CircleRequest, res: Response) => {
     try {
         if (!UUID_RE.test(String(req.params.id))) return fail(res, 404, 'Recording not found');
         const r = await query(
@@ -298,8 +295,7 @@ recordingsRouter.post('/:id/retry', allowDeviceOr(...WRITER_ROLES), async (req: 
 });
 
 // DELETE /recordings/:id/audio: Audio loeschen, Mitschrift bleibt
-recordingsRouter.delete('/:id/audio', allowDeviceOr(...WRITER_ROLES), async (req: KioskRequest, res: Response) => {
-    if (req.kioskDevice) return fail(res, 403, 'Insufficient role');
+recordingsRouter.delete('/:id/audio', requireRole(...WRITER_ROLES), async (req: CircleRequest, res: Response) => {
     try {
         if (!UUID_RE.test(String(req.params.id))) return fail(res, 404, 'Recording not found');
         const r = await query(

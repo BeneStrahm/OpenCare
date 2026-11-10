@@ -24,7 +24,7 @@
   },
   "section": {
     "title": "Seguimiento de la ola de calor",
-    "intro": "Durante un episodio de calor intenso, OpenCare muestra lo que ayuda en el panel y en el kiosco, y envía recordatorios de hidratación a las personas cuidadoras.",
+    "intro": "Durante un episodio de calor intenso, OpenCare muestra lo que ayuda en el panel y en la vista sencilla de su familiar, y envía recordatorios de hidratación a las personas cuidadoras.",
     "enable": "Activar el seguimiento de la ola de calor en este círculo",
     "enableHint": "Una vez activado, podrá declarar un episodio con un solo gesto cuando suba el calor.",
     "reminderTimes": "Recordatorios de hidratación",

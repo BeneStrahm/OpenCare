@@ -6,7 +6,7 @@
 // Abfragen von Terminen braucht keine Bestaetigung.
 //
 // Rechte (gleiche Regeln wie die bestehenden Routen):
-//  - Termine abfragen: jedes Mitglied (wie GET /api/events) und Patienten-Geraete.
+//  - Termine abfragen: jedes Mitglied (wie GET /api/events).
 //  - Termin anlegen: admin, family (wie POST /api/events fuer die Kategorien
 //    'medical' und 'other'; professional darf diese Kategorien dort nicht).
 //  - Aufgabe anlegen: admin, family (wie POST /api/tasks).
@@ -15,19 +15,11 @@
 //    recipient schreiben nichts.
 //  - Gewicht und Blutzucker: admin, family, professional (wie POST /api/vitals).
 //
-// Patienten-Geraete (Tablet, Kiosk): Heute schreibt der Kiosk schon selbst
-// Gesundheitsdaten (Medikamenten-Einnahme bestaetigen) sowie Tagebuch und
-// Besuche. Deshalb darf er per Sprache auch Gewicht und Blutzucker eintragen
-// und Termine und Aufgaben ANLEGEN: Die Person kann so selbst "Termin beim
-// Hausarzt am Montag um 10" festhalten, und jeder Eintrag traegt den Vermerk,
-// an welchem Geraet er entstand. Abhaken, Aendern oder Loeschen bleibt den
-// Angehoerigen vorbehalten, damit am Tablet nichts versehentlich verschwindet.
-
 import { isFeatureEnabled, isVitalTypeEnabled, loadCircleSettings, type FeatureId } from '../../lib/features';
 import { Router, Response } from 'express';
 import { query } from '../../db';
-import { CircleRole } from '../../middleware/circle';
-import { kioskOrMember, KioskRequest } from '../../middleware/kioskDevice';
+import { authMiddleware } from '../../middleware/auth';
+import { circleMiddleware, CircleRole, CircleRequest } from '../../middleware/circle';
 import { broadcastToCircle } from '../../lib/broadcaster';
 import { getPublicSettings } from '../../lib/circleSettings';
 import { expandEventOccurrences, toLocalISO } from '../../routes/events';
@@ -46,27 +38,24 @@ import {
     type MissingField,
 } from './parser';
 import { extractDateTimeWithLocalModel } from './llm';
-import { confirmationText, doneText, eventsSpoken, deviceNote, toVoiceLang, type VoiceLang } from './texts';
+import { confirmationText, doneText, eventsSpoken, toVoiceLang, type VoiceLang } from './texts';
 
 const router = Router();
-router.use(kioskOrMember());
+router.use(authMiddleware, circleMiddleware);
 
-const WRITE_RULES: Record<VoiceIntent, { roles: CircleRole[]; device: boolean }> = {
-    list_events: { roles: ['admin', 'family', 'professional', 'neighbor', 'recipient'], device: true },
-    create_event: { roles: ['admin', 'family'], device: true },
-    create_task: { roles: ['admin', 'family'], device: true },
-    complete_task: { roles: ['admin', 'family', 'professional'], device: false },
-    record_weight: { roles: ['admin', 'family', 'professional'], device: true },
-    record_glucose: { roles: ['admin', 'family', 'professional'], device: true },
+const WRITE_RULES: Record<VoiceIntent, CircleRole[]> = {
+    list_events: ['admin', 'family', 'professional', 'neighbor', 'recipient'],
+    create_event: ['admin', 'family'],
+    create_task: ['admin', 'family'],
+    complete_task: ['admin', 'family', 'professional'],
+    record_weight: ['admin', 'family', 'professional'],
+    record_glucose: ['admin', 'family', 'professional'],
 };
 
-const allowed = (req: KioskRequest, intent: VoiceIntent): boolean => {
-    const rule = WRITE_RULES[intent];
-    if (req.kioskDevice) return rule.device;
-    return !!req.circleRole && rule.roles.includes(req.circleRole);
-};
+const allowed = (req: CircleRequest, intent: VoiceIntent): boolean =>
+    !!req.circleRole && WRITE_RULES[intent].includes(req.circleRole);
 
-const langOf = (req: KioskRequest): VoiceLang => toVoiceLang(req.headers['accept-language']);
+const langOf = (req: CircleRequest): VoiceLang => toVoiceLang(req.headers['accept-language']);
 
 /** Lokales Datum des Servers (gleiche Zeitzone wie die Termine in der Datenbank). */
 const today = () => new Date();
@@ -96,7 +85,7 @@ async function withDefaultUnits(circleId: string, intent: VoiceIntent, params: V
  * Vervollstaendigt und prueft einen Befehl. Bei "Aufgabe erledigt" wird die
  * Aufgabe gesucht: genau ein Treffer oder eine klare Rueckmeldung.
  */
-async function prepare(req: KioskRequest, intent: VoiceIntent, rawParams: unknown) {
+async function prepare(req: CircleRequest, intent: VoiceIntent, rawParams: unknown) {
     const lang = langOf(req);
     const checked = validateCommand(intent, rawParams);
     if ('error' in checked) return { error: checked.error } as const;
@@ -126,7 +115,7 @@ async function prepare(req: KioskRequest, intent: VoiceIntent, rawParams: unknow
 }
 
 // POST /api/voice-commands/parse { text }
-router.post('/parse', async (req: KioskRequest, res: Response) => {
+router.post('/parse', async (req: CircleRequest, res: Response) => {
     try {
         const text = typeof req.body?.text === 'string' ? req.body.text.trim().slice(0, MAX_TEXT) : '';
         if (!text) return res.status(400).json({ success: false, error: 'TEXT_REQUIRED' });
@@ -188,7 +177,7 @@ router.post('/parse', async (req: KioskRequest, res: Response) => {
 });
 
 // POST /api/voice-commands/preview { intent, params }: nach Ergaenzung im Dialog
-router.post('/preview', async (req: KioskRequest, res: Response) => {
+router.post('/preview', async (req: CircleRequest, res: Response) => {
     try {
         const intent = req.body?.intent as VoiceIntent;
         const checked = validateCommand(intent, req.body?.params);
@@ -206,7 +195,7 @@ router.post('/preview', async (req: KioskRequest, res: Response) => {
 });
 
 // POST /api/voice-commands/execute { intent, params }
-router.post('/execute', async (req: KioskRequest, res: Response) => {
+router.post('/execute', async (req: CircleRequest, res: Response) => {
     const lang = langOf(req);
     try {
         const intent = req.body?.intent as VoiceIntent;
@@ -229,8 +218,7 @@ router.post('/execute', async (req: KioskRequest, res: Response) => {
         }
         const p = prepared.params;
         const circleId = req.circleId!;
-        const userId = req.kioskDevice ? null : (req.userId ?? null);
-        const note = req.kioskDevice ? deviceNote(req.kioskDevice.name, lang) : null;
+        const userId = req.userId ?? null;
 
         switch (checked.intent) {
             case 'list_events': {
@@ -261,7 +249,7 @@ router.post('/execute', async (req: KioskRequest, res: Response) => {
                 const result = await query(
                     `INSERT INTO events (circle_id, title, description, category, start_time, member_ids, created_by)
                      VALUES ($1, $2, $3, $4, $5, '[]'::jsonb, $6) RETURNING id`,
-                    [circleId, p.title, note, p.category === 'medical' ? 'medical' : 'other', `${p.date}T${p.time}:00`, userId]
+                    [circleId, p.title, null, p.category === 'medical' ? 'medical' : 'other', `${p.date}T${p.time}:00`, userId]
                 );
                 await broadcastToCircle(circleId, { type: 'update', entity: 'events', action: 'created' });
                 return res.json({ success: true, data: { intent: 'create_event', id: result.rows[0].id, spoken_text: doneText('create_event', lang) } });
@@ -270,7 +258,7 @@ router.post('/execute', async (req: KioskRequest, res: Response) => {
                 const result = await query(
                     `INSERT INTO tasks (circle_id, title, description, category, due_date, assigned_to)
                      VALUES ($1, $2, $3, 'other', $4, '[]'::jsonb) RETURNING id`,
-                    [circleId, p.title, note, p.due_date ?? null]
+                    [circleId, p.title, null, p.due_date ?? null]
                 );
                 await broadcastToCircle(circleId, { type: 'update', entity: 'tasks', action: 'created' });
                 return res.json({ success: true, data: { intent: 'create_task', id: result.rows[0].id, spoken_text: doneText('create_task', lang) } });
@@ -296,7 +284,7 @@ router.post('/execute', async (req: KioskRequest, res: Response) => {
                 const result = await query(
                     `INSERT INTO vitals (circle_id, type, value, unit, recorded_by_user, notes)
                      VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-                    [circleId, type, metric, unit, userId, note]
+                    [circleId, type, metric, unit, userId, null]
                 );
                 await broadcastToCircle(circleId, { type: 'update', entity: 'vitals', action: 'created' });
                 const thresholdResult = await query(

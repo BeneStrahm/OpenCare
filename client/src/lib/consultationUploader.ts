@@ -15,7 +15,6 @@
  * Kreis-ID kommt hier aus der Aufnahme selbst, nicht aus dem aktiven Kreis.
  */
 import i18n from '../i18n';
-import { getKioskToken, getPairedDevice } from './kioskDevice';
 import {
     backoffDelay,
     belongsToOwner,
@@ -23,7 +22,6 @@ import {
     contiguousChunkCount,
     isAbandonedRecording,
     missingChunks,
-    type KioskLastRecording,
 } from './consultationLogic';
 import {
     deleteRecording,
@@ -120,29 +118,9 @@ export function currentOwner(): { userId: string | null; deviceId: string | null
     } catch {
         userId = null;
     }
-    const device = getPairedDevice();
-    return { userId, deviceId: device?.id ?? null };
-}
-
-// Tablet: letzte Aufnahme merken, damit eine Folgeaufnahme zum selben Gespraech gehoert.
-const KIOSK_LAST_KEY = 'opencare.consultations.kioskLast';
-
-export function getKioskLastRecording(): KioskLastRecording | null {
-    try {
-        const raw = localStorage.getItem(KIOSK_LAST_KEY);
-        const v = raw ? JSON.parse(raw) : null;
-        return v && typeof v.client_id === 'string' && typeof v.at === 'number' ? v : null;
-    } catch {
-        return null;
-    }
-}
-
-export function setKioskLastRecording(value: KioskLastRecording): void {
-    try {
-        localStorage.setItem(KIOSK_LAST_KEY, JSON.stringify(value));
-    } catch {
-        /* Speicher voll oder gesperrt: dann eben neues Gespraech */
-    }
+    // Gekoppelte Tablets gibt es nicht mehr (Launch Block C): alte Tablet-Aufnahmen
+    // (from_kiosk) gehoeren niemandem in diesem Fenster und werden nicht gesendet.
+    return { userId, deviceId: null };
 }
 
 class NetworkError extends Error {}
@@ -156,17 +134,11 @@ class HttpError extends Error {
 function headersFor(recording: LocalRecording, json: boolean): Record<string, string> {
     const headers: Record<string, string> = { 'Accept-Language': i18n.language || 'de' };
     if (json) headers['Content-Type'] = 'application/json';
-    if (recording.from_kiosk) {
-        // Tablet-Aufnahmen gehen NUR mit dem Geraete-Token raus, nie als angemeldete Person.
-        const kioskToken = getKioskToken();
-        if (!kioskToken) throw new HttpError(401, 'DEVICE_NOT_PAIRED', null);
-        headers['X-Kiosk-Token'] = kioskToken;
-    } else {
-        // Angehoerige senden immer als Person, auch auf einem gekoppelten Tablet.
-        const token = localStorage.getItem('token');
-        if (token) headers.Authorization = `Bearer ${token}`;
-        if (recording.circle_id) headers['X-Circle-Id'] = recording.circle_id;
-    }
+    // Alte Tablet-Aufnahmen nie als angemeldete Person senden.
+    if (recording.from_kiosk) throw new HttpError(401, 'DEVICE_NOT_PAIRED', null);
+    const token = localStorage.getItem('token');
+    if (token) headers.Authorization = `Bearer ${token}`;
+    if (recording.circle_id) headers['X-Circle-Id'] = recording.circle_id;
     return headers;
 }
 
@@ -230,39 +202,17 @@ async function uploadOne(recording: LocalRecording): Promise<void> {
     // Datensaetze ohne das Feld entstanden nur mit bestaetigter Einwilligung.
     if (recording.consent_confirmed === false) throw new HttpError(0, 'LOCAL_CONSENT_MISSING', null);
 
-    // Tablet-Folgeaufnahme: Gespraech der vorigen Aufnahme uebernehmen, sobald bekannt.
-    let consultationIdForUpload = recording.consultation_id;
-    if (!consultationIdForUpload && recording.follows_client_id) {
-        const last = getKioskLastRecording();
-        if (last && last.client_id === recording.follows_client_id && last.consultation_id) {
-            consultationIdForUpload = last.consultation_id;
-        }
-    }
-
     let total = recording.total_chunks ?? 0;
     const init = await call(recording, 'POST', BASE, {
         client_id: recording.client_id,
-        consultation_id: consultationIdForUpload,
+        consultation_id: recording.consultation_id,
         consent_confirmed: true,
         consent_at: recording.consent_at,
         mime_type: recording.mime_type,
         started_at: recording.started_at,
     });
     const received: number[] = Array.isArray(init?.data?.received) ? init.data.received : [];
-    const consultationId: string | null = init?.data?.consultation_id ?? consultationIdForUpload;
-    if (recording.from_kiosk && consultationId) {
-        const last = getKioskLastRecording();
-        if (last && last.client_id === recording.client_id) {
-            setKioskLastRecording({ ...last, consultation_id: consultationId });
-        }
-        // Folgeaufnahmen, die auf diese warten, bekommen jetzt das Gespraech.
-        for (const other of await listRecordings()) {
-            if (other.follows_client_id === recording.client_id && !other.consultation_id) {
-                await updateRecording(other.client_id, { consultation_id: consultationId, follows_client_id: null }).catch(() => undefined);
-            }
-        }
-    }
-
+    const consultationId: string | null = init?.data?.consultation_id ?? recording.consultation_id;
     // Fehlt lokal ein Stueck (z. B. Speicher voll), mit den lueckenlosen
     // Stuecken abschliessen statt endlos zu scheitern.
     const local = await listChunkIndexes(recording.client_id);
@@ -359,14 +309,6 @@ async function runOnce(): Promise<void> {
             const code = error instanceof HttpError ? (error.code || `HTTP_${error.status}`) : 'UNKNOWN';
             if (kind === 'permanent') {
                 const helpCode = error instanceof HttpError && error.status === 404 ? 'CONSULTATION_GONE' : code;
-                if (rec.from_kiosk && helpCode === 'CONSULTATION_GONE') {
-                    // Tablet: Gespraech wurde geloescht. Ohne Rueckfrage als neues Gespraech speichern.
-                    await reassignRecording(rec.client_id, crypto.randomUUID(), {
-                        consultation_id: null, follows_client_id: null, needs_help: null, last_error: null,
-                    }).catch(() => undefined);
-                    rerun = true;
-                    continue;
-                }
                 await updateRecording(rec.client_id, { needs_help: helpCode, last_error: code }).catch(() => undefined);
                 setState({ offline: false, needsHelp: { ...state.needsHelp, [rec.client_id]: helpCode } });
                 continue;
@@ -451,23 +393,6 @@ export async function clearRecordingsForCurrentUser(): Promise<void> {
     const owner = currentOwner();
     for (const r of await listRecordings()) {
         if (!r.from_kiosk && belongsToOwner(r, owner)) await deleteRecording(r.client_id);
-    }
-    setState({ pending: 0, errors: {}, needsHelp: {} });
-}
-
-/** Anzahl lokal wartender Aufnahmen dieses Tablets (fuer die Warnung beim Entkoppeln). */
-export async function pendingRecordingsForDevice(): Promise<number> {
-    if (IS_DEMO || !isLocalStoreAvailable()) return 0;
-    const owner = currentOwner();
-    return (await listRecordings()).filter((r) => r.from_kiosk && belongsToOwner(r, owner)).length;
-}
-
-/** Beim Entkoppeln: lokale Aufnahmen dieses Tablets loeschen (nur nach Bestaetigung). */
-export async function clearRecordingsForDevice(): Promise<void> {
-    if (IS_DEMO || !isLocalStoreAvailable()) return;
-    const owner = currentOwner();
-    for (const r of await listRecordings()) {
-        if (r.from_kiosk && belongsToOwner(r, owner)) await deleteRecording(r.client_id);
     }
     setState({ pending: 0, errors: {}, needsHelp: {} });
 }

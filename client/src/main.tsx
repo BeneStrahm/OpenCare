@@ -11,7 +11,7 @@ import './i18n';
 import './index.css';
 import { startConsultationUploader } from './lib/consultationUploader';
 
-// Warteschlange fuer Aufnahmen von Arztgespraechen (auch im Kiosk-Modus).
+// Warteschlange fuer Aufnahmen von Arztgespraechen.
 startConsultationUploader();
 
 // The static GitHub Pages demo is served from a sub-path with no server-side

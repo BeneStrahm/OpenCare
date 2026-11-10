@@ -463,26 +463,10 @@ export function belongsToOwner(
     owner: { userId: string | null; deviceId: string | null }
 ): boolean {
     if (rec.from_kiosk) {
-        // Aeltere Datensaetze ohne Geraete-ID gehoeren dem gekoppelten Geraet.
+        // Alte Tablet-Aufnahmen (Kiosk bis Launch Block C) gehoeren nur einem gekoppelten Geraet.
         return Boolean(owner.deviceId) && (rec.owner_device_id == null || rec.owner_device_id === owner.deviceId);
     }
     return Boolean(owner.userId) && (rec.owner_user_id == null || rec.owner_user_id === owner.userId);
-}
-
-/** Tablet: Folgeaufnahme innerhalb von 3 Stunden gehoert zum selben Gespraech. */
-export const KIOSK_FOLLOW_UP_MS = 3 * 60 * 60_000;
-
-export interface KioskLastRecording {
-    client_id: string;
-    consultation_id: string | null;
-    at: number;
-}
-
-export function kioskFollowUp(last: KioskLastRecording | null, now: number): { consultation_id: string | null; follows_client_id: string | null } {
-    if (!last || now - last.at > KIOSK_FOLLOW_UP_MS || now < last.at) return { consultation_id: null, follows_client_id: null };
-    return last.consultation_id
-        ? { consultation_id: last.consultation_id, follows_client_id: null }
-        : { consultation_id: null, follows_client_id: last.client_id };
 }
 
 /** Antwort zu einer Frage: zuerst ueber question_id, nur ohne ID ueber den Listenplatz. */

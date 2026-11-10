@@ -33,8 +33,10 @@ Oben links lässt sich die Sprache auf **DE** stellen.
 
 - **Arztgespräche** im Menü unter „Pflege“: Gespräch anlegen, Fragen vorbereiten, Aufnahme
   starten (das Kontrollkästchen zur Zustimmung des Arztes ist Pflicht).
-- **Tablet-Ansicht**: unter „Kreis“ ein Gerät koppeln und den Code in einem zweiten
-  Browserfenster unter http://localhost:3000/kiosk/pair eingeben.
+- **Einfache Ansicht der betreuten Person**: mit dem Konto der betreuten Person anmelden
+  (bei `npm run dev:lokal` das Testkonto „Betreute Person“, siehe unten). Sie sieht nur
+  diese Ansicht: Medikamente heute mit „Genommen“ und „Rückgängig“, Besuche, Termine,
+  wichtige Kontakte und „Fragen Sie mich“ mit festen Fragen. Andere Seiten führen zurück.
 - **Sprechen**: grüne Taste oben rechts. Ohne lokale KI funktioniert die Texteingabe.
 
 Ohne lokale KI werden Aufnahmen gespeichert, aber nicht ausgewertet. Die App zeigt dann einen

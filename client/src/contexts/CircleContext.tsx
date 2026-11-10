@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { api } from '../lib/api';
 import { useAuth } from './AuthContext';
+import { chooseActiveCircleId, recipientCircleOf } from '../lib/recipientView';
 
 export type CircleRole = 'admin' | 'family' | 'professional' | 'neighbor' | 'recipient';
 
@@ -62,9 +63,9 @@ export const CircleProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             setCircles(list);
 
             // Réconcilier le cercle actif: garder s'il existe encore, sinon prendre le premier.
+            // Betreute Person: immer der Kreis, in dem sie recipient ist (lib/recipientView).
             setActiveCircleId((current) => {
-                const stillValid = current && list.some((c) => c.id === current);
-                const next = stillValid ? current : (list[0]?.id ?? null);
+                const next = chooseActiveCircleId(list, current);
                 api.setCircleId(next);
                 return next;
             });
@@ -93,10 +94,13 @@ export const CircleProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         };
     }, [isAuthenticated, refreshCircles]);
 
+    // Die betreute Person wechselt den Kreis nicht (sie sieht nur die einfache Ansicht).
+    const recipientCircle = recipientCircleOf(circles);
     const selectCircle = useCallback((circleId: string) => {
+        if (recipientCircle) return;
         api.setCircleId(circleId);
         setActiveCircleId(circleId);
-    }, []);
+    }, [recipientCircle]);
 
     const activeCircle = circles.find((c) => c.id === activeCircleId) ?? null;
     const myRole = activeCircle?.role ?? null;

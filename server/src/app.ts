@@ -21,7 +21,6 @@ import documentsRoutes from './routes/documents';
 import contactsRoutes from './routes/contacts';
 import caregiverLinksRoutes from './routes/caregiverLinks';
 import emergencyRoutes from './routes/emergency';
-import kioskRoutes from './routes/kiosk';
 import insightsRoutes from './routes/insights';
 import storyRoutes from './routes/story';
 import handoverRoutes from './routes/handover';
@@ -92,20 +91,6 @@ const forgotPasswordRateLimiter = rateLimit({
     }
 });
 
-// Appairage d'un appareil patient et verification du PIN aidant : peu d'essais
-// par IP, succes compris (un code ou un PIN ne se devinent pas en boucle).
-const kioskPairRateLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 10,
-    standardHeaders: true,
-    legacyHeaders: false,
-    skipSuccessfulRequests: false,
-    message: {
-        success: false,
-        error: 'Too many attempts. Please try again later.'
-    }
-});
-
 // Backstop anti-DoS sur toute l'API (y compris les endpoints publics a token):
 // plafond large qui n'affecte pas un usage normal de l'app mais borne le
 // martelage (saturation du pool PostgreSQL, pression memoire sur les uploads).
@@ -125,9 +110,7 @@ const apiRateLimiter = rateLimit({
 // apply an explicit CSP tailored to the SPA instead of helmet's default (which is
 // too strict for it): the Vite build has no inline scripts, but Radix/Recharts
 // inject inline styles, images can come from https URLs (and data URLs for
-// avatars), and the app talks to its own origin via fetch + WebSocket. The kiosk
-// also asks Open-Meteo for the weather and the city search, straight from the
-// browser: without those two hosts the weather card silently disappeared.
+// avatars), and the app talks to its own origin via fetch + WebSocket only.
 const spaContentSecurityPolicy = {
     useDefaults: false,
     directives: {
@@ -135,7 +118,7 @@ const spaContentSecurityPolicy = {
         'script-src': ["'self'"],
         'style-src': ["'self'", "'unsafe-inline'"],
         'img-src': ["'self'", 'data:', 'blob:', 'https:'],
-        'connect-src': ["'self'", 'ws:', 'wss:', 'https://api.open-meteo.com', 'https://geocoding-api.open-meteo.com'],
+        'connect-src': ["'self'", 'ws:', 'wss:'],
         'font-src': ["'self'", 'data:'],
         'worker-src': ["'self'"],
         'manifest-src': ["'self'"],
@@ -194,8 +177,6 @@ app.use('/api', (_req, res, next) => {
 app.use('/api/auth/login', authRateLimiter);
 app.use('/api/auth/register', registerRateLimiter);
 app.use('/api/auth/forgot-password', forgotPasswordRateLimiter);
-app.use('/api/kiosk/pair', kioskPairRateLimiter);
-app.use('/api/kiosk/pin/verify', kioskPairRateLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/auth', userSettingsRoutes);
 app.use('/api/auth', passwordResetRoutes);
@@ -213,7 +194,6 @@ app.use('/api/documents', requireFeature('documents'), documentsRoutes);
 app.use('/api/contacts', requireFeature('contacts'), contactsRoutes);
 app.use('/api/caregiver-links', caregiverLinksRoutes);
 app.use('/api/emergency', emergencyRoutes);
-app.use('/api/kiosk', kioskRoutes);
 app.use('/api/visits', requireFeature('visitors'), visitsRoutes);
 app.use('/api/insights', insightsRoutes);
 app.use('/api/story', storyRoutes);

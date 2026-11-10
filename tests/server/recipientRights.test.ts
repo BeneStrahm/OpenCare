@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Response } from 'express';
 
 /**
- * Rechte der betreuten Person (Rolle recipient), Launch Block B.
+ * Rechte der betreuten Person (Rolle recipient), Launch Block B und C.
  * Ohne Datenbank: die Abfrage der Mitgliedschaft in circleMiddleware wird ersetzt,
  * die Regeln (Liste der erlaubten Anfragen, Rueckgaengig) laufen direkt.
  */
@@ -94,7 +94,22 @@ const BLOCKED: Array<[string, string]> = [
     ['POST', '/api/kiosk/intakes/confirm'],
     ['POST', '/api/kiosk/visits/check-in'],
     ['GET', '/api/kiosk/devices'],
+    // Launch Block C: Kiosk entfernt, die einfache Ansicht nutzt nur die normalen Routen.
+    ['GET', '/api/kiosk/today'],
+    ['GET', '/api/kiosk/emergency'],
+    ['GET', '/api/kiosk/photo'],
+    ['POST', '/api/kiosk/pin/verify'],
+    // Sprechen ist nicht Teil der einfachen Ansicht.
+    ['POST', '/api/voice-commands/parse'],
+    ['POST', '/api/voice-commands/execute'],
+    // Fragen Sie mich: keine freie Eingabe, keine Themen ausserhalb ihres Alltags.
     ['POST', '/api/companion/message'],
+    ['POST', '/api/companion/answer/medications'],
+    ['GET', '/api/companion/answer/tasks'],
+    ['GET', '/api/companion/answer/vitals'],
+    ['GET', '/api/companion/answer/stock'],
+    ['GET', '/api/companion/answer/help'],
+    ['GET', '/api/companion/answer'],
     ['POST', '/api/voice/transcribe'],
     ['POST', '/api/voice/journal'],
     ['HEAD', '/api/journal'],
@@ -116,10 +131,12 @@ const ALLOWED: Array<[string, string]> = [
     ['GET', '/api/contacts/'],
     ['GET', '/api/visits'],
     ['GET', '/api/heatwave'],
-    ['GET', '/api/kiosk/today'],
-    ['GET', '/api/kiosk/emergency'],
-    ['POST', '/api/kiosk/pin/verify'],
-    ['POST', '/api/voice-commands/execute'],
+    ['GET', '/api/companion/answer/medications'],
+    ['GET', '/api/companion/answer/visitors'],
+    ['GET', '/api/companion/answer/appointments'],
+    ['GET', '/api/companion/answer/week'],
+    ['GET', '/api/companion/answer/date'],
+    ['GET', '/api/companion/answer/contacts'],
 ];
 
 describe('recipient: gesperrte Bereiche (403 auf dem Server)', () => {
@@ -134,6 +151,9 @@ describe('recipient: gesperrte Bereiche (403 auf dem Server)', () => {
         expect(recipientMayAccess('GET', '/api/journal?x=/api/contacts')).toBe(false);
         expect(recipientMayAccess('GET', '/api/dashboardx')).toBe(false);
         expect(recipientMayAccess('GET', '')).toBe(false);
+        expect(recipientMayAccess('GET', '/api/companion/answer/medications/../../journal')).toBe(false);
+        expect(recipientMayAccess('GET', '/api/companion/answer/medicationsx')).toBe(false);
+        expect(recipientMayAccess('GET', '/api/companion/answer/date/extra')).toBe(false);
     });
 });
 

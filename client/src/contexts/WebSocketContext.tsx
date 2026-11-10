@@ -3,13 +3,11 @@ import React, {
     useContext,
     useEffect,
     useRef,
-    useState,
     useCallback,
     ReactNode,
 } from 'react';
 import { useAuth } from './AuthContext';
 import { api } from '../lib/api';
-import { getKioskToken, onPairedDeviceChange } from '../lib/kioskDevice';
 import { replay as replayWriteQueue } from '../lib/offlineQueue';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -82,9 +80,6 @@ const PING_INTERVAL_MS = 25_000;
 
 export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const { user } = useAuth();
-    // Appareil patient appaire : il se connecte sans compte, avec son token.
-    const [kioskToken, setKioskToken] = useState<string | null>(() => getKioskToken());
-    useEffect(() => onPairedDeviceChange(() => setKioskToken(getKioskToken())), []);
 
     // Map entity → set of subscriber callbacks
     const subscribers = useRef<Map<WsEntity, Set<Subscriber>>>(new Map());
@@ -111,7 +106,7 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
 
     const connect = useCallback(() => {
-        if (unmounted.current || (!user && !kioskToken) || IS_DEMO) return;
+        if (unmounted.current || !user || IS_DEMO) return;
 
         // Close any existing socket
         if (wsRef.current) {
@@ -125,13 +120,8 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
         ws.onopen = () => {
             reconnectDelay.current = RECONNECT_DELAY_MS;
 
-            // Authenticate with JWT (never the raw userId), or with the device
-            // token when this browser is a paired Kiosk device without account.
-            if (user) {
-                ws.send(JSON.stringify({ type: 'auth', token: api.getToken() }));
-            } else {
-                ws.send(JSON.stringify({ type: 'auth', kioskToken }));
-            }
+            // Authenticate with JWT (never the raw userId).
+            ws.send(JSON.stringify({ type: 'auth', token: api.getToken() }));
 
             // Le serveur est joignable: rejouer les écritures en attente.
             void replayWriteQueue();
@@ -148,7 +138,7 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
         ws.onmessage = (event: MessageEvent) => {
             try {
                 const msg = JSON.parse(event.data as string) as WsUpdateMessage;
-                // Rappel de prise pousse au mode Kiosk (escalade) : pas d'entite, juste un signal.
+                // Erinnerung an eine Einnahme (Eskalation): nur die einfache Ansicht der betreuten Person zeigt sie.
                 if ((msg as { type?: string }).type === 'reminder') {
                     notify('reminder');
                     return;
@@ -185,13 +175,13 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
             // onclose will fire after onerror, reconnect handled there
             ws.close();
         };
-    }, [user, kioskToken, notify]);
+    }, [user, notify]);
 
-    // Connect when a user (or a paired device) is available, disconnect on logout
+    // Connect when a user is available, disconnect on logout
     useEffect(() => {
         unmounted.current = false;
 
-        if (user || kioskToken) {
+        if (user) {
             connect();
         }
 

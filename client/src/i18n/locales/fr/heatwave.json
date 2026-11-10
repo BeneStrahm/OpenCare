@@ -24,7 +24,7 @@
   },
   "section": {
     "title": "Suivi canicule",
-    "intro": "Pendant un épisode de forte chaleur, OpenCare affiche les bons gestes sur le tableau de bord et le kiosk, et envoie des rappels d'hydratation aux aidants.",
+    "intro": "Pendant un épisode de forte chaleur, OpenCare affiche les bons gestes sur le tableau de bord et dans la vue simple du proche, et envoie des rappels d'hydratation aux aidants.",
     "enable": "Activer le suivi canicule pour ce cercle",
     "enableHint": "Une fois activé, vous pourrez déclarer un épisode en un geste quand la chaleur monte.",
     "reminderTimes": "Rappels d'hydratation",

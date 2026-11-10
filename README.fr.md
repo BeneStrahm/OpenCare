@@ -52,15 +52,15 @@ les données de santé d'une personne vulnérable n'ont rien à faire sur le clo
 | ⚖️ **Équité de la charge** | « Marie a assuré 78 % des visites ce mois-ci » : des chiffres objectifs pour prévenir l'épuisement de l'aidant principal |
 | 🔗 **Liens magiques** | L'auxiliaire de vie ou l'infirmière écrit dans le journal depuis un simple lien (SMS/QR), sans compte ni application |
 | 🩺 **Préparation de consultation** | En un clic, un document imprimable pour le médecin : événements marquants, évolution des constantes, traitements, questions de la famille |
-| 🖥️ **Kiosk** | Une tablette au mur chez le proche : qui vient aujourd'hui (avec photo), rappels de médicaments en gros, météo, et deux gros boutons : « Tout va bien » / « J'ai besoin d'aide » |
+| 🖥️ **Vue simple** | La personne aidée se connecte avec son propre compte et ne voit qu'une vue calme en gros caractères : médicaments du jour avec un bouton « Pris » chacun (annulable 10 minutes), qui vient, rendez-vous du jour, contacts importants et questions fixes « Demandez-moi » |
 | 🚨 **Fiche urgence QR** | Un QR imprimé sur le frigo : les pompiers et le SAMU scannent et voient la fiche vitale (traitements, allergies, directives, contacts), toujours à jour |
 | 📖 **« Qui je suis »** | Une page récit de vie (métier, fiertés, habitudes, ce qui l'apaise) montrée à tout nouvel intervenant, inspirée du « This is me » de l'Alzheimer's Society |
 | 🧳 **Mode relais** | L'aidant principal part une semaine : un pack de passation auto-généré (planning, médicaments, consignes, contacts) partagé par lien |
 | 🏠 **Veille passive** | Webhooks Home Assistant (capteur de porte, prise de la cafetière, mouvement) : « activité normale ce matin » sur le tableau de bord, cascade d'alertes si aucun signe de vie. Ni caméra, ni bracelet |
 | 🎙️ **Journal vocal** | Dictez en sortant (« passage de 20 minutes, RAS, prévoir du paracétamol ») : votre Whisper auto-hébergé transcrit, l'IA range l'entrée au journal et le paracétamol dans les courses |
 | 🤖 **Synthèse hebdo IA** | Chaque dimanche : « Semaine calme. 5 visites. Tension stable. Point d'attention : 2 prises oubliées mardi et jeudi. » Avec détection des signaux faibles (moral en baisse, perte de poids lente) |
-| 🌡️ **Veille canicule** | Déclarez un épisode de forte chaleur en un geste : checklist de prévention sur le tableau de bord et le kiosk, rappels d'hydratation aux aidants aux heures choisies, et un bouton « J'ai bu de l'eau » sur le kiosk |
-| 🗣️ **Compagnon IA** | Un compagnon vocal optionnel avec qui le proche discute depuis le kiosk : réminiscence douce à partir de la page « Qui je suis », parole en entrée (votre Whisper) et lecture à voix haute. Garde-fous stricts (jamais de conseil médical, alerte le cercle en cas de détresse). Local d'abord avec Ollama, ou votre propre clé cloud |
+| 🌡️ **Veille canicule** | Déclarez un épisode de forte chaleur en un geste : checklist de prévention sur le tableau de bord et un bandeau dans la vue simple, rappels d'hydratation aux aidants aux heures choisies |
+| 🗣️ **Compagnon IA** | Un compagnon vocal optionnel pour la conversation libre (absent de la vue simple, qui n'a que des questions fixes) : réminiscence douce à partir de la page « Qui je suis », parole en entrée (votre Whisper) et lecture à voix haute. Garde-fous stricts (jamais de conseil médical, alerte le cercle en cas de détresse). Local d'abord avec Ollama, ou votre propre clé cloud |
 
 ### Chez vous, pour de bon
 
@@ -137,7 +137,7 @@ Le schéma de base de données s'installe tout seul au premier démarrage : aucu
 | Gratuit, sans abonnement | ✅ | ⚠️ |
 | Les intervenants écrivent sans compte (lien magique) | ✅ | ❌ |
 | Frais partagés et équité de la charge | ✅ | ❌ |
-| Kiosk pour la personne aidée | ✅ | ❌ |
+| Vue simple pour la personne aidée | ✅ | ❌ |
 | Veille passive via Home Assistant | ✅ | ❌ |
 
 ## 🧰 Pile technique

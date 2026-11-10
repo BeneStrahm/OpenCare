@@ -20,13 +20,10 @@ export const CHUNK_MS = 30_000;
 export interface StartOptions {
     circleId: string | null;
     consultationId: string | null;
-    fromKiosk: boolean;
     /** Muss true sein: Der Arzt hat der Aufnahme zugestimmt. */
     consentConfirmed: boolean;
     /** Zeitpunkt der Bestaetigung (Standard: jetzt) */
     consentAt?: Date;
-    /** Tablet: gehoert zum selben Gespraech wie diese fruehere Aufnahme */
-    followsClientId?: string | null;
 }
 
 export type RecorderError = 'CONSENT_REQUIRED' | 'UNSUPPORTED' | 'MIC_DENIED' | 'STORAGE_UNAVAILABLE' | 'START_FAILED';
@@ -101,15 +98,15 @@ export async function startConsultationRecording(options: StartOptions): Promise
         state: 'recording',
         total_chunks: null,
         duration_seconds: null,
-        from_kiosk: options.fromKiosk,
+        from_kiosk: false,
         last_error: null,
         updated_at: Date.now(),
         consent_confirmed: true,
-        owner_user_id: options.fromKiosk ? null : owner.userId,
-        owner_device_id: options.fromKiosk ? owner.deviceId : null,
+        owner_user_id: owner.userId,
+        owner_device_id: null,
         last_heartbeat_at: Date.now(),
         needs_help: null,
-        follows_client_id: options.followsClientId ?? null,
+        follows_client_id: null,
     });
     markRecordingActive(clientId, true);
 

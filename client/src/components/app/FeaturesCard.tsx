@@ -7,8 +7,8 @@ import { useCircle } from '../../contexts/CircleContext';
 import { Card, CardContent } from '../ui';
 import RegionSectionHeader from './RegionSectionHeader';
 import {
-    FEATURE_IDS, KIOSK_ELEMENTS, VITAL_TYPES,
-    isFeatureEnabled, isKioskElementEnabled, enabledVitalTypes,
+    FEATURE_IDS, VITAL_TYPES,
+    isFeatureEnabled, enabledVitalTypes,
     type VitalType,
 } from '../../lib/features';
 
@@ -88,13 +88,6 @@ const FeaturesCard: React.FC = () => {
         void save({ features: next });
     };
 
-    const toggleKiosk = (id: (typeof KIOSK_ELEMENTS)[number]) => {
-        const next: Record<string, boolean> = {};
-        for (const k of KIOSK_ELEMENTS) next[k] = isKioskElementEnabled(settings, k);
-        next[id] = !next[id];
-        void save({ kiosk_elements: next });
-    };
-
     const vitals = enabledVitalTypes(settings);
     const toggleVital = (type: VitalType) => {
         const next = vitals.includes(type) ? vitals.filter((v) => v !== type) : [...vitals, type];
@@ -131,21 +124,6 @@ const FeaturesCard: React.FC = () => {
                             ))}
                         </div>
                         <p className="mt-3 text-micro text-muted-foreground">{t('features.modules.fixed')}</p>
-                    </section>
-
-                    <section>
-                        <RegionSectionHeader title={t('features.kiosk.title')} subtitle={t('features.kiosk.subtitle')} scope="circle" />
-                        <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
-                            {KIOSK_ELEMENTS.map((id) => (
-                                <SwitchRow
-                                    key={id}
-                                    label={t(`features.kiosk.items.${id}`)}
-                                    on={isKioskElementEnabled(settings, id)}
-                                    disabled={saving}
-                                    onToggle={() => toggleKiosk(id)}
-                                />
-                            ))}
-                        </div>
                     </section>
 
                     {healthOn && (

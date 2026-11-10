@@ -1,8 +1,8 @@
 {
   "title": "Besuche",
-  "subtitle": "Wer Ihren Angehörigen besucht hat, so wie es in der Tablet-Ansicht eingetragen wurde.",
+  "subtitle": "Wer Ihren Angehörigen besucht hat.",
   "empty": "In diesem Zeitraum wurde kein Besuch eingetragen.",
-  "emptyHint": "In der Tablet-Ansicht kann sich jeder Besuch mit dem Knopf \"Besuch\" in zwei Schritten anmelden.",
+  "emptyHint": "Noch keine Besuche eingetragen.",
   "range": {
     "week": "Letzte 7 Tage",
     "month": "Letzte 30 Tage",

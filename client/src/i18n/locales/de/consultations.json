@@ -207,26 +207,6 @@
     "automatic": "Automatisch hinzugefügt",
     "automaticHint": "Aus Medikamenten, Ärzten und Fachrichtungen in diesem Kreis. Sie werden immer verwendet."
   },
-  "kiosk": {
-    "button": "Arztgespräch aufnehmen",
-    "buttonHint": "Mit Zustimmung des Arztes",
-    "close": "Schließen",
-    "consentQuestion": "Hat der Arzt zugestimmt?",
-    "consentHint": "Bitte fragen Sie zuerst den Arzt.",
-    "yes": "Ja",
-    "no": "Nein",
-    "declinedTitle": "Keine Aufnahme",
-    "declinedHint": "Es wurde nichts aufgenommen.",
-    "ok": "OK",
-    "recording": "Aufnahme läuft",
-    "recordingHint": "Drücken Sie auf Stopp, wenn das Gespräch vorbei ist.",
-    "stop": "Stopp",
-    "savedTitle": "Gespeichert.",
-    "savedHint": "Wird hochgeladen, sobald Internet da ist.",
-    "queueUnpaired": "Das Tablet ist nicht mehr verbunden. Die Aufnahme ist hier sicher gespeichert. Bitte sagen Sie Ihren Angehörigen Bescheid.",
-    "queueNeedsHelp": "Eine Aufnahme lässt sich nicht hochladen. Bitte sagen Sie Ihren Angehörigen Bescheid.",
-    "unpairPending": "Auf diesem Tablet warten noch Aufnahmen, die nicht hochgeladen sind. Beim Entkoppeln werden sie gelöscht. Trotzdem entkoppeln?"
-  },
   "proposals": {
     "title_section": "Vorschläge aus dem Gespräch",
     "hint": "Diese Vorschläge stammen aus der Zusammenfassung. Es wird nichts automatisch angelegt. Prüfen Sie jeden Vorschlag, ändern Sie ihn bei Bedarf und wählen Sie aus, was übernommen werden soll.",

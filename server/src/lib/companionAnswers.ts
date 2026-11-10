@@ -4,7 +4,7 @@
  * Detection d'intention par mots-cles (francais, anglais, espagnol et allemand) et phrase
  * de reponse construite a partir de l'instantane du jour : medicaments a prendre
  * maintenant, visites, rendez-vous, date et heure, personnes a appeler,
- * canicule. Le francais et l'espagnol tutoient, comme le reste du mode Kiosk ;
+ * canicule. Le francais et l'espagnol tutoient, comme le reste de l'ecran du proche ;
  * l'allemand vouvoie ("Sie"), l'usage pour s'adresser a une personne agee.
  *
  * Module sans dependance. Une copie identique sert la demo statique

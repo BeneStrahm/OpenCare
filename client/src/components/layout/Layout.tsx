@@ -317,7 +317,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
                         <div className="flex items-center gap-2">
                             {/* Sprachsteuerung: auf dem Handy immer in Reichweite */}
-                            {myRole && myRole !== 'recipient' && isOn('voice_commands') && <VoiceCommandButton variant="header" />}
+                            {myRole && myRole !== 'recipient' && isOn('voice_commands') && <VoiceCommandButton />}
                             <NotificationBell />
                             <div className="hidden items-center gap-2 lg:flex">
                                 <Button

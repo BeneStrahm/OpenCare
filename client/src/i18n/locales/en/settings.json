@@ -139,7 +139,7 @@
     "dataKept": "Switching off deletes nothing. Switch a feature back on and everything is still there.",
     "modules": {
       "title": "Parts of the app",
-      "subtitle": "Menu, dashboard and tablet only show switched-on parts.",
+      "subtitle": "Menu, dashboard and simple view only show switched-on parts.",
       "fixed": "Always on: dashboard, care journal, settings and emergency."
     },
     "items": {
@@ -159,17 +159,6 @@
       "voice_journal": "Voice notes in the journal",
       "digests": "Weekly summary",
       "heatwave": "Heat warning"
-    },
-    "kiosk": {
-      "title": "Tablet view",
-      "subtitle": "What your loved one sees on the tablet.",
-      "items": {
-        "status_bar": "“All is well” / “I need help”",
-        "voice": "“Speak”",
-        "ask": "“Ask Me”",
-        "consultation": "“Record doctor visit” button",
-        "info": "“My information”"
-      }
     },
     "vitals": {
       "title": "Measurements",

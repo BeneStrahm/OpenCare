@@ -95,14 +95,8 @@ c=$(curl -s -o /dev/null -w '%{http_code}' -X POST $A/api/consultations/recordin
 CID3=$(curl -s -X POST $A/api/circles -H "Authorization: Bearer $T2" -H 'Content-Type: application/json' -d '{"recipient_first_name":"X"}' | jq -r .data.circle.id)
 c=$(curl -s -o /dev/null -w '%{http_code}' $A/api/consultations/$ID -H "Authorization: Bearer $T2" -H "X-Circle-Id: $CID3"); [ "$c" = 404 ] && ok "fremder Kreis 404" || bad "fremd $c"
 
-# Tablet
-PC=$(curl -s -X POST $A/api/kiosk/devices/pairing "${H[@]}" -d '{"kind":"kiosk","name":"Tablet"}' | jq -r .data.code)
-KT=$(curl -s -X POST $A/api/kiosk/pair -H 'Content-Type: application/json' -d "{\"code\":\"$PC\"}" | jq -r .data.token)
-CL2=$(cat /proc/sys/kernel/random/uuid)
-k=$(curl -s -X POST $A/api/consultations/recordings -H "X-Kiosk-Token: $KT" -H 'Content-Type: application/json' -d "{\"client_id\":\"$CL2\",\"consultation_id\":null,\"consent_confirmed\":true,\"mime_type\":\"audio/webm\",\"started_at\":\"2026-11-07T10:00:00\"}")
-[ "$(echo $k | jq -r .data.consultation_id)" != null ] && ok "Tablet legt Gespräch an" || bad "Tablet $k"
-c=$(curl -s -o /dev/null -w '%{http_code}' $A/api/consultations -H "X-Kiosk-Token: $KT"); [ "$c" = 401 ] && ok "Tablet liest keine Gespräche" || bad "Tablet liest $c"
-c=$(curl -s -o /dev/null -w '%{http_code}' -X POST $A/api/consultations/recordings/$RID/retry -H "X-Kiosk-Token: $KT"); [ "$c" = 403 ] && ok "Tablet kein retry" || bad "Tablet retry $c"
+# Kein gekoppeltes Tablet mehr (Launch Block C): ein Geraete-Token oeffnet nichts.
+c=$(curl -s -o /dev/null -w '%{http_code}' -X POST $A/api/consultations/recordings -H "X-Kiosk-Token: $(printf 'a%.0s' $(seq 64))" -H 'Content-Type: application/json' -d '{}'); [ "$c" = 401 ] && ok "Geraete-Token abgelehnt" || bad "Geraete-Token $c"
 curl -s -X DELETE $A/api/consultations/$ID "${H[@]}" | jq -e .success >/dev/null && ok "Gespräch gelöscht" || bad "delete"
 n=$(sudo -n -u postgres psql -tA opencare -c "select count(*) from events where id='$EV'"); [ "$n" = 0 ] && ok "Termin mitgelöscht" || bad "Termin bleibt $n"
 

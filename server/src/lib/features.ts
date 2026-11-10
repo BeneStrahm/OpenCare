@@ -1,14 +1,12 @@
-// Fork: Funktionen, Tablet-Elemente und Messwerte pro Kreis ein- und ausschalten.
+// Fork: Funktionen und Messwerte pro Kreis ein- und ausschalten.
 //
 // Gespeichert in care_circles.settings (siehe circleSettings.ts):
 //   features:       { [FeatureId]: false }   nur ausgeschaltete stehen drin
-//   kiosk_elements: { [KioskElementId]: false }
 //   vital_types:    VitalType[] | null       null = alle Messwerte
 // Standard: alles an. Ausschalten loescht keine Daten.
 
 import { Request, Response, NextFunction } from 'express';
 import { query } from '../db';
-import { resolveKioskDevice } from '../middleware/kioskDevice';
 
 /**
  * Abschaltbare Funktionen und die API-Pfade, die der Server dann sperrt.
@@ -39,10 +37,6 @@ export const FEATURES = {
 export type FeatureId = keyof typeof FEATURES;
 export const FEATURE_IDS = Object.keys(FEATURES) as FeatureId[];
 
-/** Elemente der Tablet-Ansicht, die ein Admin ausblenden kann. */
-export const KIOSK_ELEMENTS = ['status_bar', 'voice', 'ask', 'consultation', 'info'] as const;
-export type KioskElementId = (typeof KIOSK_ELEMENTS)[number];
-
 /** Die Messwerte, die OpenCare kennt (routes/vitals.ts). */
 export const VITAL_TYPES = ['weight', 'bp', 'pain', 'mood', 'temperature', 'glucose'] as const;
 export type VitalType = (typeof VITAL_TYPES)[number];
@@ -57,10 +51,6 @@ const flags = (settings: Settings, key: string): Record<string, unknown> => {
 /** An, solange nicht ausdruecklich false gespeichert ist. */
 export function isFeatureEnabled(settings: Settings, id: FeatureId): boolean {
     return flags(settings, 'features')[id] !== false;
-}
-
-export function isKioskElementEnabled(settings: Settings, id: KioskElementId): boolean {
-    return flags(settings, 'kiosk_elements')[id] !== false;
 }
 
 /** Ausgewaehlte Messwerte; ohne Auswahl alle. */
@@ -117,16 +107,10 @@ export async function loadCircleSettings(circleId: string): Promise<Settings> {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Kreis der Anfrage: X-Circle-Id, sonst das gekoppelte Geraet. */
-async function circleOf(req: Request): Promise<string | null> {
+/** Kreis der Anfrage: X-Circle-Id. */
+function circleOf(req: Request): string | null {
     const header = req.headers['x-circle-id'];
-    if (typeof header === 'string' && UUID_RE.test(header)) return header;
-    const token = req.headers['x-kiosk-token'];
-    if (typeof token === 'string' && token) {
-        const device = await resolveKioskDevice(token).catch(() => null);
-        return device?.circle_id ?? null;
-    }
-    return null;
+    return typeof header === 'string' && UUID_RE.test(header) ? header : null;
 }
 
 /**
@@ -136,7 +120,7 @@ async function circleOf(req: Request): Promise<string | null> {
  */
 export const requireFeature = (...ids: FeatureId[]) => async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const circleId = await circleOf(req);
+        const circleId = circleOf(req);
         if (!circleId) return next();
         const settings = await loadCircleSettings(circleId);
         if (ids.some((id) => isFeatureEnabled(settings, id))) return next();

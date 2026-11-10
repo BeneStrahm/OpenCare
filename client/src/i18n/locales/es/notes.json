@@ -24,7 +24,7 @@
   "delete": "Quitar esta nota",
   "deleted": "Nota quitada de la nevera",
   "added": "Nota pegada en la nevera",
-  "emptyHint": "Deje una nota a la familia: aparecerá aquí y en la pantalla del kiosco.",
+  "emptyHint": "Deje una nota a la familia: aparecerá aquí.",
   "by": "por {{name}}",
   "age": {
     "now": "ahora mismo",

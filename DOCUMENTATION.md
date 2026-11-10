@@ -8,7 +8,7 @@
 4. [Modules et API](#modules-et-api)
 5. [Modèle de permissions](#modèle-de-permissions)
 6. [Pages publiques (sans compte)](#pages-publiques-sans-compte)
-7. [Le kiosk](#le-kiosk)
+7. [La vue simple de la personne aidée](#la-vue-simple-de-la-personne-aidée)
 8. [Intégrations](#intégrations)
 9. [Base de données](#base-de-données)
 10. [Sécurité](#sécurité)
@@ -33,7 +33,7 @@ La spécification produit de référence vit dans [docs/SPEC.md](docs/SPEC.md).
 Deux publics, deux interfaces :
 
 - **Les aidants** (famille, professionnels, voisins) : usage mobile et desktop. Tableau de bord par cercle ouvert sur « À traiter », journal, calendrier, médicaments, frais, messagerie. La navigation est regroupée en six sections (Aujourd'hui, Soins, Organiser, Informations, Équipe, Plus) et masque au rôle voisin ce qu'il ne peut pas consulter.
-- **La personne aidée** : une tablette murale en mode kiosk, lecture simple en gros caractères, et deux gros boutons : « Tout va bien » et « J'ai besoin d'aide ».
+- **La personne aidée** (rôle `recipient`) : avec son propre compte, uniquement la vue simple en gros caractères (médicaments du jour, visites, rendez-vous, contacts importants, questions fixes).
 
 **Cas d'usage typiques :**
 
@@ -181,7 +181,7 @@ Toutes les routes (sauf mention contraire) exigent un JWT (`Authorization: Beare
 ### Veille passive (`/api/presence`)
 
 - `POST /api/presence/webhook/:circleId/:webhookToken` (public, token secret) : réception des signaux Home Assistant (capteur de porte, prise de la cafetière, mouvement).
-- `GET /api/presence/status`, `GET /api/presence/signals` : « activité normale » sur le tableau de bord. Le bouton « Tout va bien » du mode Kiosk enregistre aussi un signal de présence (source `kiosk`) : appuyer dessus suffit à lever l'alerte « aucun signe de vie ».
+- `GET /api/presence/status`, `GET /api/presence/signals` : « activité normale » sur le tableau de bord. Les anciens signaux du mode Kiosk (source `kiosk`) restent dans l'historique ; le mode Kiosk a été retiré (Launch Block C).
 - `PUT /api/presence/rule`, `POST /api/presence/webhook-token` (admin) : règles d'alerte et rotation du token.
 
 ### Journal vocal (`/api/voice`)
@@ -196,22 +196,20 @@ Toutes les routes (sauf mention contraire) exigent un JWT (`Authorization: Beare
 - `GET /api/insights/consultation` : préparation de consultation (événements marquants, courbes, traitements, questions) prête à imprimer.
 - `GET /api/dashboard` : agrégation du tableau de bord. Le champ `attention` (« À traiter ») liste, par gravité, ce qu'un aidant doit regarder en premier : signaux d'alerte des dernières 24 h (bouton d'aide, compagnon), aucun signe de vie avant l'heure limite de la veille passive, prises manquées, ordonnances à renouveler, tâches en retard, visiteur sur place, rendez-vous dans les deux heures, constantes hors de la plage définie et médicaments bientôt épuisés. Les éléments de santé sont omis pour le rôle voisin.
 
-### Kiosk (`/api/kiosk`)
+### Questions fixes (`/api/companion/answer/:question`)
 
-- `POST /api/kiosk/status` : les deux gros boutons (« ok » et « help »).
-- `GET /api/kiosk/today` : qui vient aujourd'hui, prises du jour (avec photo, quantité et consignes), et la vue patient `medications` : uniquement ce qui est **à prendre maintenant** (`due_now`), le reste résumé (`upcoming_count`, `next_due_at`, `taken_count`). Les prises du jour sont générées à l'appel, même si personne n'a ouvert l'application aidant.
-- `POST /api/kiosk/intakes/confirm` : « J'ai tout pris » depuis le kiosk ou le téléphone du patient (`intake_ids`, `source`), attribué au proche dans le journal avec la source conservée.
+- `GET /api/companion/answer/:question` : réponse sans IA, construite à partir des données du cercle, à l'une des questions fixes de la vue simple (`medications`, `visitors`, `appointments`, `week`, `date`, `contacts`). Pas de saisie libre, rien n'est enregistré. Seule route du compagnon ouverte au rôle `recipient` (liste `RECIPIENT_ALLOWED_REQUESTS` dans `server/src/middleware/circle.ts`).
 
 ### Plan de soins (`/api/care-plan`)
 
-Une page qui rassemble ce qu'il faut savoir pour prendre soin du proche, sans dupliquer : huit **consignes** rédigées par la famille (routine du matin, repas, aide à la mobilité, toilette et soins personnels, communication, ce qui contrarie, ce qui apaise, en cas d'urgence ; table `care_plans`, 4 000 caractères par section, mise à jour partielle par `PUT /api/care-plan` pour admin et famille), puis la **routine médicamenteuse** calculée depuis les traitements actifs et leurs horaires (matin, midi, soir, coucher, plus « si besoin » ; omise pour le rôle voisin), les **professionnels réguliers** (contacts médecin, infirmier, aide à domicile, kiné, pharmacie) et la **semaine à venir** (agenda sur sept jours, occurrences récurrentes comprises). Chaque bloc renvoie vers sa page. La page s'imprime. Les consignes alimentent aussi le pack de relais (`content.care_plan`) et le mode Kiosk : un visiteur professionnel peut les lire pendant sa visite (`GET /api/kiosk/care-plan`, sections non vides seulement).
+Une page qui rassemble ce qu'il faut savoir pour prendre soin du proche, sans dupliquer : huit **consignes** rédigées par la famille (routine du matin, repas, aide à la mobilité, toilette et soins personnels, communication, ce qui contrarie, ce qui apaise, en cas d'urgence ; table `care_plans`, 4 000 caractères par section, mise à jour partielle par `PUT /api/care-plan` pour admin et famille), puis la **routine médicamenteuse** calculée depuis les traitements actifs et leurs horaires (matin, midi, soir, coucher, plus « si besoin » ; omise pour le rôle voisin), les **professionnels réguliers** (contacts médecin, infirmier, aide à domicile, kiné, pharmacie) et la **semaine à venir** (agenda sur sept jours, occurrences récurrentes comprises). Chaque bloc renvoie vers sa page. La page s'imprime. Les consignes alimentent aussi le pack de relais (`content.care_plan`).
 
 ### Alertes et escalade (`/api/escalation`)
 
 Chaque famille choisit son niveau de surveillance (Paramètres, section « Alertes et escalade », administrateurs ; table `escalation_rules`, désactivée par défaut).
 
-- **Prise de médicament en retard** : rappel au proche sur le Kiosk après N minutes (écran calme, lu à voix haute, un seul bouton « J'ai tout pris »), puis notification aux **aidants principaux**, puis aux **aidants de relais**. Chaque palier a son délai en minutes ; 0 désactive le palier. Au-delà de quatre heures la prise est marquée manquée et l'escalade s'arrête.
-- **Bouton « J'ai besoin d'aide »** : les aidants principaux sont prévenus immédiatement et la demande est tracée (table `help_requests`). Sans prise en charge (« Je m'en occupe » depuis le bloc « À traiter » du tableau de bord, `POST /api/escalation/help/:id/ack`), les aidants de relais sont prévenus après N minutes.
+- **Prise de médicament en retard** : rappel au proche dans la vue simple après N minutes (écran calme, un seul bouton « J'ai tout pris »), puis notification aux **aidants principaux**, puis aux **aidants de relais**. Chaque palier a son délai en minutes ; 0 désactive le palier. Au-delà de quatre heures la prise est marquée manquée et l'escalade s'arrête.
+- **Demandes d'aide** (table `help_requests`, créées autrefois par le bouton « J'ai besoin d'aide » du mode Kiosk, retiré) : les demandes encore ouvertes restent traitées. Sans prise en charge (« Je m'en occupe » depuis le bloc « À traiter » du tableau de bord, `POST /api/escalation/help/:id/ack`), les aidants de relais sont prévenus après N minutes.
 - Sans sélection, les aidants principaux sont les **administrateurs** du cercle et les aidants de relais les membres **famille**.
 - Endpoints : `GET /api/escalation/rules` (tout membre), `PUT /api/escalation/rules` (admin), `GET /api/escalation/help`, `POST /api/escalation/help/:id/ack`.
 
@@ -355,37 +353,18 @@ S'y ajoutent deux endpoints publics côté serveur : le flux iCal (`/api/calenda
 
 ---
 
-## Le kiosk
+## La vue simple de la personne aidée
 
-La page `/kiosk` (alias `/myday`) est l'**mode Kiosk** : un mode plein écran sans menu, pour la tablette fixée au mur chez le proche et, à l'identique, pour son téléphone (mode poche). Il répond à quatre questions seulement :
+Le mode Kiosk (tablette appairée sans compte, code aidant, `/kiosk`, `/api/kiosk`) a été retiré (Launch Block C). La personne aidée se connecte avec **son propre compte** (rôle `recipient`) et ne voit que la **vue simple** (`client/src/pages/RecipientView.tsx`) : pas de menu, toute autre adresse ramène à l'accueil. Si le compte est `recipient` dans un cercle et a un autre rôle ailleurs, c'est le cercle où il est `recipient` qui est actif.
 
-- **Qu'est-ce que je dois faire maintenant ?** Uniquement les médicaments dus maintenant, avec photo, nom, dosage et « Prends 2 comprimés », puis un seul bouton « J'ai tout pris ». Les prises futures ne sont pas montrées (« Prochaine prise à 20 h »), les prises manquées restent côté aidant.
-- **Qui vient aujourd'hui ?** Les visites du jour avec la photo et le rôle des membres, ou l'infirmière et l'aide à domicile.
-- **Est-ce que j'ai un rendez-vous ?** Les rendez-vous médicaux du jour, avec l'heure et le lieu.
-- **Urgences** : un bouton rouge dans la barre du haut ouvre la **fiche urgence** en grand, à montrer aux secours qui arrivent chez le proche : identité, âge, groupe sanguin, allergies en rouge, traitements en cours, antécédents, directives anticipées et qui appeler. Un QR code à côté permet au secouriste de l'emporter dans son téléphone. Ce QR contient la fiche dans le fragment de son URL, il s'ouvre donc hors ligne, dans l'ambulance, sans exposer OpenCare. `GET /api/kiosk/emergency`, accessible à un appareil appairé comme à un membre : c'est la même fiche que le QR du frigo.
-- **Comment demander ?** « Demandez-moi » (réponses sur la journée, puis compagnon de conversation), « Mes informations » (nom, adresse, téléphone, médecin, pharmacie, infirmière, aide à domicile), et les deux gros boutons « Tout va bien » (entrée de journal de type humeur) et « J'ai besoin d'aide » (entrée incident + notification urgente, y compris Web Push, à tout le cercle).
+- **Médicaments du jour**, par moment de la journée, avec photo, quantité et consignes : un bouton « Pris » par prise, « Annuler » pendant 10 minutes pour sa propre confirmation, et « Tous pris » avec confirmation. Hors ligne, la confirmation est mise en file d'attente.
+- **Qui vient aujourd'hui** et **rendez-vous du jour**, avec le trajet (aller, retour, chauffeur) et « À emporter » quand ils sont renseignés et actifs.
+- **Contacts importants** avec un bouton d'appel.
+- **Alerte canicule** quand un épisode est en cours.
+- **Demandez-moi** : uniquement des questions fixes (`GET /api/companion/answer/:question`), réponses sans IA à partir des données du cercle. La lecture à voix haute n'est proposée que si le navigateur a une voix locale (aucun texte envoyé à un service de synthèse en ligne).
+- **Réglages** propres : taille du texte (sur cet appareil) et langue (du compte). **Se déconnecter** avec confirmation.
 
-### Demandez-moi
-
-Le bouton **« Demandez-moi »** répond d'abord avec les données du cercle, sans IA : « Qu'est-ce que je dois prendre ? » (les prises dues maintenant, avec la quantité), « Qui vient aujourd'hui ? » (visites prévues à l'agenda et visiteurs signalés sur l'écran), « Mes rendez-vous ? », « Quel jour sommes-nous ? », « Qui puis-je appeler ? » (médecin, pharmacie, infirmier, aide à domicile), la canicule. Les questions sont reconnues par mots-clés en français et en anglais, proposées en boutons rapides, et les réponses sont lues à voix haute par le navigateur. Une demande d'aide (« au secours », « j'ai besoin d'aide ») rappelle le gros bouton rouge et envoie le même signal discret aux admins et à la famille que le compagnon IA (notification et entrée de journal). Quand l'IA du cercle est configurée et le compagnon activé, tout le reste (souvenirs, conversation) passe par le modèle, qui reçoit les mêmes faits du jour dans son prompt avec pour consigne de ne rien inventer au-delà, et toujours aucun conseil médical. Sans IA, le compagnon reste disponible pour les questions pratiques. `POST /api/companion/message` répond `{ reply, flagged, source: 'facts' | 'ai' | 'fallback', intent }`.
-
-La dictée passe par le serveur Whisper auto-hébergé du cercle quand il est configuré (intégration `whisper`). À défaut, un aidant peut activer **« Dictée par le navigateur »** dans les réglages du mode Kiosk : la reconnaissance vocale est alors celle du navigateur (Google, Apple ou Microsoft selon l'appareil), ce qui fait sortir la voix de votre serveur ; l'option est désactivée par défaut. Le clavier reste toujours disponible.
-
-### Visiteurs
-
-Le bouton **« Visiteur »** du mode Kiosk permet à quiconque arrive de se signaler en deux gestes : type (famille, ami ou voisin, aide à domicile, infirmier, médecin, autre), prénom, arrivée notée. Le proche sait qui est là, la famille reçoit une notification (« Nadia est arrivée à 8 h ») et une entrée de journal de type visite est écrite au nom du visiteur. Un **professionnel** peut, depuis le même écran, lire les consignes du plan de soins, laisser une note de passage et confirmer les médicaments dus maintenant (la confirmation est alors à son nom), puis signaler son départ, sans jamais voir le reste des données du cercle. La page **Visiteurs** de l'app aidant liste les passages (durée, notes) ; un admin peut supprimer une visite erronée. Endpoints : `POST /api/kiosk/visits/check-in`, `POST /api/kiosk/visits/:id/note`, `POST /api/kiosk/visits/:id/check-out` (appareil ou membre), `GET /api/visits`, `DELETE /api/visits/:id` (membres).
-
-En **plein écran**, le mode Kiosk occupe toute la largeur de la dalle : une tablette murale ou un téléviseur n'a pas à garder des marges vides. Hors plein écran, la largeur reste bornée pour rester lisible dans une fenêtre de navigateur.
-
-Le bandeau d'accueil affiche les **photos de famille** de votre instance Immich quand l'option est activée (la clé API ne quitte jamais le serveur, les photos sont proxifiées par `/api/kiosk/photo`), sinon une image calme. La **météo** du jour apparaît quand un lieu est réglé.
-
-### Identité de l'appareil, appairage et code aidant
-
-La tablette et le téléphone n'ont **pas besoin de compte** : un aidant (admin ou famille) génère un code d'appairage à usage unique (15 minutes) depuis Réglages, section « Mode Kiosk », affiché avec un QR code. L'appareil le saisit sur `/kiosk/pair` et reçoit un **token d'appareil** (table `kiosk_devices`) qui n'ouvre que les routes patient : `GET /api/kiosk/today`, `POST /api/kiosk/status`, `POST /api/kiosk/intakes/confirm`, `/api/kiosk/photo`, `/api/companion/message`, `/api/voice/transcribe` et ses propres réglages (`/api/kiosk/device/settings`). Tout le reste répond 401. Un appareil se détache depuis ses réglages ou se révoque depuis l'app aidant : son token meurt aussitôt. Les appareils rejoignent aussi le canal WebSocket de leur cercle : une prise confirmée sur la tablette s'affiche instantanément sur le téléphone, et inversement.
-
-Le **code aidant (PIN, 4 à 8 chiffres)**, défini dans la même section, protège les réglages de l'écran et sa sortie, ce qui compte quand des visiteurs touchent la tablette. Il est stocké haché dans les réglages du cercle et vérifié par `POST /api/kiosk/pin/verify` (limité en débit).
-
-Un membre du cercle connecté peut toujours ouvrir `/kiosk` avec sa session (usage historique). Contraintes d'accessibilité respectées : gros textes (taille réglable), contrastes AA, cibles tactiles larges.
+Seules les routes listées dans `RECIPIENT_ALLOWED_REQUESTS` (`server/src/middleware/circle.ts`) sont accessibles à ce rôle ; tout le reste renvoie 403. Les tables `kiosk_devices` et `kiosk_pairings` restent en base mais ne sont plus utilisées.
 
 ---
 
@@ -397,7 +376,7 @@ Les intégrations se configurent par cercle, dans l'interface (page Intégration
 |---|---|
 | **Home Assistant** | Deux usages : la **veille passive** (capteur de porte, prise de la cafetière, détecteur de mouvement, envoyés au webhook de présence) et la synchronisation de la **liste de courses** |
 | **Whisper** (speaches, faster-whisper-server ou tout serveur compatible API OpenAI) | Transcription locale du journal vocal |
-| **Immich** | Source des photos de famille du kiosk |
+| **Immich** | Photos de famille (affichées autrefois dans le mode Kiosk, retiré) |
 | **Nextcloud** | Import CalDAV des agendas dans le calendrier du cercle |
 | **Grocy** | Synchronisation de la liste de courses et du stock |
 | **Ollama / Anthropic / OpenAI-compatible** | Fournisseur IA pour la synthèse hebdo, le rangement du journal vocal et l'analyse de texte (`/api/ai/settings`) |

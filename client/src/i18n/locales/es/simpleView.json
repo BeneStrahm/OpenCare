@@ -1,0 +1,83 @@
+{
+  "greeting": "¡Hola, {{name}}!",
+  "greetingEvening": "¡Buenas tardes, {{name}}!",
+  "greetingNoName": "¡Hola!",
+  "tagline": "Cuidemos tu día",
+  "heat": {
+    "banner": "Hoy hace calor. Acuérdate de beber agua a menudo."
+  },
+  "meds": {
+    "empty": "Hoy no hay medicamentos.",
+    "saved": "¡Queda anotado, muy bien!",
+    "title": "Sus medicamentos de hoy",
+    "undoHint": "Puede deshacerlo hasta las {{time}}.",
+    "queued": "Guardado sin internet. Se enviará en cuanto vuelva internet.",
+    "error": "No ha funcionado. Inténtelo de nuevo, por favor.",
+    "undone": "Deshecho.",
+    "undoExpired": "Ya no se puede deshacer. Avise a su familia, por favor."
+  },
+  "visitors": {
+    "title": "Quién viene hoy",
+    "empty": "Hoy no viene nadie.",
+    "nurse": "Enfermero/a",
+    "aide": "Auxiliar a domicilio",
+    "someone": "Viene alguien"
+  },
+  "appointments": {
+    "title": "Citas de hoy",
+    "empty": "Hoy no hay ninguna cita.",
+    "companion": "Le acompaña: {{names}}"
+  },
+  "contacts": {
+    "title": "Personas a las que puedo llamar",
+    "categories": {
+      "doctor": "Médico",
+      "nurse": "Enfermero/a",
+      "pharmacy": "Farmacia",
+      "aide": "Auxiliar a domicilio",
+      "physio": "Fisioterapeuta"
+    },
+    "empty": "Todavía no hay contactos.",
+    "call": "Llamar"
+  },
+  "ask": {
+    "button": "Pregúntame",
+    "hint": "Medicamentos, visitas, citas",
+    "choose": "Toque una pregunta.",
+    "loading": "Un momento, por favor…",
+    "error": "Ahora mismo no hay respuesta. Inténtelo más tarde, por favor.",
+    "readAloud": "Leer en voz alta",
+    "stop": "Dejar de leer",
+    "other": "Otra pregunta",
+    "close": "Cerrar"
+  },
+  "reminder": {
+    "title": "Es la hora de tus medicamentos",
+    "subtitle_one": "{{count}} toma pendiente ahora",
+    "subtitle_other": "{{count}} tomas pendientes ahora",
+    "taken": "Ya lo tomé todo",
+    "later": "De acuerdo, en un momento"
+  },
+  "settings": {
+    "fontSize": "Tamaño del texto",
+    "fontNormal": "Normal",
+    "fontLarge": "Grande",
+    "fontXL": "Muy grande",
+    "title": "Ajustes",
+    "language": "Idioma",
+    "close": "Cerrar"
+  },
+  "header": {
+    "settings": "Ajustes",
+    "logout": "Cerrar sesión"
+  },
+  "loadError": "No se ha podido cargar la información. Compruebe la conexión a internet.",
+  "reload": "Volver a cargar",
+  "ok": "Vale",
+  "logout": {
+    "title": "¿Quiere cerrar la sesión?",
+    "hint": "Después necesitará su contraseña para volver a entrar.",
+    "yes": "Sí, cerrar sesión",
+    "no": "No, quedarme aquí"
+  }
+}

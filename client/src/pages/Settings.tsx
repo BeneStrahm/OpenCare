@@ -24,7 +24,6 @@ import { useNotifications } from '../hooks/useNotifications';
 import { useAuth } from '../contexts/AuthContext';
 import { useCircle } from '../contexts/CircleContext';
 import { useTheme } from '../contexts/ThemeContext';
-import KioskDevicesCard from '../components/app/KioskDevicesCard';
 import EscalationCard from '../components/app/EscalationCard';
 import RegionSettingsCard from '../components/app/RegionSettingsCard';
 import FeaturesCard from '../components/app/FeaturesCard';
@@ -347,7 +346,7 @@ const AiAssistantCard: React.FC = () => {
 };
 
 const Settings: React.FC = () => {
-    const { t } = useTranslation(['settings', 'common', 'kiosk']);
+    const { t } = useTranslation(['settings', 'common']);
     const entityLabel = (key: string) => t(`settings:entities.${key}`, { defaultValue: key });
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [exportLoading, setExportLoading] = useState(false);
@@ -674,9 +673,6 @@ const Settings: React.FC = () => {
                     </div>
                 </CardContent>
             </Card>
-
-            {/* Mode Kiosk : tablette murale, telephone du proche, appairage, code aidant */}
-            <KioskDevicesCard />
 
             {/* Push Notifications */}
             <Card>

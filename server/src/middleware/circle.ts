@@ -8,11 +8,12 @@ export type CircleRole = 'admin' | 'family' | 'professional' | 'neighbor' | 'rec
 export const CIRCLE_ROLES: CircleRole[] = ['admin', 'family', 'professional', 'neighbor', 'recipient'];
 
 /*
- * Rolle recipient ("Betreute Person"), Entscheidung E10, Launch Block B.
+ * Rolle recipient ("Betreute Person"), Entscheidung E10, Launch Block B und C.
  * Alle Rechte der Rolle stehen hier, an einer Stelle:
- * - liest nur ihren Alltag, Umfang wie die Tablet-Ansicht (Kiosk): Termine,
- *   Medikamente heute, wichtige Kontakte, Besuche, Notfallblatt, Hitzewarnung,
- *   Name und Foto. Erlaubt ist nur, was in RECIPIENT_ALLOWED_REQUESTS steht;
+ * - sieht in der App nur die einfache Ansicht (client/src/pages/RecipientView.tsx)
+ *   und liest nur ihren Alltag: Termine, Medikamente heute, wichtige Kontakte,
+ *   Besuche, Hitzewarnung, Name und Foto, Antworten auf die festen Fragen
+ *   von "Fragen Sie mich". Erlaubt ist nur, was in RECIPIENT_ALLOWED_REQUESTS steht;
  *   alles andere lehnt circleMiddleware mit 403 ab (Tagebuch, Arztgespraech,
  *   Dokumente, Gesundheitswerte, Aufgaben, Mitglieder- und Kreisverwaltung, Export ...).
  * - schreibt nichts. Ausnahme: bestaetigt Einnahmen als "Genommen"
@@ -44,11 +45,9 @@ export const RECIPIENT_ALLOWED_REQUESTS: Array<{ method: 'GET' | 'POST' | 'PUT';
     { method: 'GET', path: /^\/api\/contacts$/ },
     { method: 'GET', path: /^\/api\/visits$/ },
     { method: 'GET', path: /^\/api\/heatwave$/ },
-    // Tablet-Ansicht mit eigenem Konto: die Routen pruefen die Rolle selbst.
-    { method: 'GET', path: /^\/api\/kiosk\/(today|photo|emergency|care-plan)$/ },
-    { method: 'POST', path: /^\/api\/kiosk\/pin\/verify$/ },
-    // Sprachbefehle: fuer recipient nur "Termine vorlesen" (WRITE_RULES in modules/voiceCommands/routes.ts).
-    { method: 'POST', path: /^\/api\/voice-commands\/(parse|preview|execute)$/ },
+    // "Fragen Sie mich": nur die festen Fragen, Antwort ohne KI aus den eigenen Daten
+    // (FIXED_QUESTIONS in routes/companion.ts). Keine freie Eingabe (/message bleibt gesperrt).
+    { method: 'GET', path: /^\/api\/companion\/answer\/(medications|visitors|appointments|week|date|contacts)$/ },
 ];
 
 /** Darf recipient diese Anfrage stellen? url ist die volle Adresse (req.originalUrl). */

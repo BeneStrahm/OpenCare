@@ -2,8 +2,8 @@ import { PoolClient } from 'pg';
 import { query } from '../db';
 
 /**
- * Prises de medicaments : logique partagee entre la page Medicaments, le kiosk
- * (et le mode telephone patient) et le lien magique.
+ * Prises de medicaments : logique partagee entre la page Medicaments (et la
+ * vue simple de la personne accompagnee) et le lien magique.
  *
  * - generateIntakes : cree les occurrences manquantes d'une periode depuis les
  *   horaires (idempotent grace a la contrainte unique). La quantite et l'unite
@@ -11,7 +11,8 @@ import { query } from '../db';
  *   (la re-edition remplace les lignes et met schedule_id a NULL).
  * - markMissed : une prise en attente depuis plus de 4 h devient "manquee".
  * - applyIntakeStatus : changement de statut + entree de journal, avec la
- *   source de confirmation (aidant, kiosk, telephone, lien magique).
+ *   source de confirmation (aidant, lien magique, la personne elle-meme ;
+ *   kiosk et telephone restent pour les anciennes confirmations).
  * - splitForPatient : ce que la personne aidee doit voir maintenant, et rien
  *   de plus (les prises futures restent cote aidant).
  */
@@ -66,7 +67,7 @@ export async function markMissed(circleId: string): Promise<void> {
     );
 }
 
-/** Genere et met a jour les prises du jour (utilise par le kiosk et le lien magique). */
+/** Genere et met a jour les prises du jour (utilise par le lien magique et le compagnon). */
 export async function ensureTodayIntakes(circleId: string): Promise<void> {
     const today = toDateString(new Date());
     await generateIntakes(circleId, today, today);

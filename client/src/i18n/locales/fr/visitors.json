@@ -1,8 +1,8 @@
 {
   "title": "Visiteurs",
-  "subtitle": "Qui est passé voir votre proche, déclaré depuis le mode Kiosk.",
+  "subtitle": "Qui est passé voir votre proche.",
   "empty": "Aucune visite déclarée sur cette période.",
-  "emptyHint": "Sur le mode Kiosk, le bouton « Visiteur » permet à chaque personne qui passe de se signaler en deux gestes.",
+  "emptyHint": "Aucune visite enregistrée pour le moment.",
   "range": {
     "week": "7 derniers jours",
     "month": "30 derniers jours",

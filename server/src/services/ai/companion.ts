@@ -1,4 +1,4 @@
-// Compagnon de conversation pour le proche (kiosk). Comme le reste de l'IA, la
+// Compagnon de conversation pour le proche. Comme le reste de l'IA, la
 // sortie passe par aiComplete() en JSON: le modele renvoie { reply, flagged,
 // flag_reason }. La validation ne fait JAMAIS confiance au modele.
 //

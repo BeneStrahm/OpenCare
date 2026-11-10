@@ -1,4 +1,4 @@
-import { FEATURE_IDS, KIOSK_ELEMENTS, cleanFlags, cleanVitalTypes, forgetCircleSettings } from './features';
+import { FEATURE_IDS, cleanFlags, cleanVitalTypes, forgetCircleSettings } from './features';
 import { query } from '../db';
 import { pick, type Lang } from './i18n';
 
@@ -7,14 +7,15 @@ import { pick, type Lang } from './i18n';
  *
  * Ce JSONB melange deux choses : des preferences que tout le cercle peut lire
  * (le systeme d'unites, le premier jour de la semaine) et des secrets qui ne doivent jamais sortir du serveur
- * (l'empreinte du code aidant du mode Kiosk). Un code a quatre chiffres dont
+ * (l'empreinte du code aidant de l'ancien mode Kiosk, kiosk_pin_hash, qui peut
+ * encore figurer dans une base). Un code a quatre chiffres dont
  * l'empreinte circule se casse hors ligne en quelques secondes : la lecture
  * passe donc par un filtre, et l'ecriture fusionne au lieu de remplacer, pour
  * qu'enregistrer une preference n'efface pas le code.
  */
 
 /** Ce qu'un membre du cercle peut lire. */
-export const PUBLIC_SETTING_KEYS = ['unit_system', 'week_start', 'emergency_numbers', 'aid_types', 'features', 'kiosk_elements', 'vital_types'] as const;
+export const PUBLIC_SETTING_KEYS = ['unit_system', 'week_start', 'emergency_numbers', 'aid_types', 'features', 'vital_types'] as const;
 
 /** Systeme d'unites de saisie et d'affichage des constantes. */
 export const UNIT_SYSTEMS = ['metric', 'imperial'] as const;
@@ -56,8 +57,6 @@ export interface PublicCircleSettings {
     aid_types: string[] | null;
     /** Fork: ausgeschaltete Funktionen ({ id: false }), siehe lib/features.ts */
     features: Record<string, false>;
-    /** Fork: ausgeblendete Elemente der Tablet-Ansicht */
-    kiosk_elements: Record<string, false>;
     /** Fork: erfasste Messwerte, null = alle */
     vital_types: string[] | null;
 }
@@ -125,7 +124,6 @@ export function publicSettings(raw: unknown): PublicCircleSettings {
             return 'list' in check ? check.list : null;
         })(),
         features: cleanFlags(source.features, FEATURE_IDS) ?? {},
-        kiosk_elements: cleanFlags(source.kiosk_elements, KIOSK_ELEMENTS) ?? {},
         vital_types: cleanVitalTypes(source.vital_types ?? null) ?? null,
     };
 }
@@ -180,12 +178,12 @@ export function validateSettingsPatch(input: unknown, lang: Lang): { patch?: Rec
             }
             patch.emergency_numbers = cleaned;
         }
-        if (key === 'features' || key === 'kiosk_elements') {
-            const cleaned = cleanFlags(value, key === 'features' ? FEATURE_IDS : KIOSK_ELEMENTS);
+        if (key === 'features') {
+            const cleaned = cleanFlags(value, FEATURE_IDS);
             if (!cleaned) {
                 return { error: pick(lang, { fr: `${key} : valeurs invalides`, en: `${key}: invalid values`, es: `${key}: valores no válidos`, de: `${key}: ungültige Werte` }) };
             }
-            patch[key] = cleaned;
+            patch.features = cleaned;
             continue;
         }
         if (key === 'vital_types') {
@@ -225,7 +223,7 @@ export function validateSettingsPatch(input: unknown, lang: Lang): { patch?: Rec
  * est rattache (meme foyer, donc meme pays) : unites, premier jour de la
  * semaine, numeros d'urgence, types d'aides (les aides dependent du pays).
  * Seules les cles reellement choisies et valides
- * passent ; jamais une cle privee comme l'empreinte du code Kiosk.
+ * passent ; jamais une cle privee comme l'empreinte de l'ancien code Kiosk.
  */
 export function inheritedSettings(raw: unknown): Partial<PublicCircleSettings> {
     const source = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};

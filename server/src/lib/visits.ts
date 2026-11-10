@@ -1,19 +1,14 @@
-import { query } from '../db';
-import { createNotification } from './notifications';
-import { broadcastToCircle } from './broadcaster';
-import { pick, pickLang, type Lang } from './i18n';
+import { pick, type Lang } from './i18n';
 
 /**
- * Visites declarees en mode Kiosk : arrivee, note de passage, depart.
- * Chaque arrivee ecrit une entree de journal de type "visit" au nom du
- * visiteur et previent les aidants (admin + famille), en leur langue.
+ * Visites (table visits) : qui est passe voir le proche. Launch Block C : les
+ * arrivees se declaraient sur la tablette (mode Kiosk, supprime) ; il reste la
+ * liste (routes/visits.ts), la vue simple de la personne accompagnee et le
+ * texte de journal d'une visite.
  */
 
 export const VISITOR_TYPES = ['family', 'friend', 'caregiver', 'nurse', 'doctor', 'other'] as const;
 export type VisitorType = typeof VISITOR_TYPES[number];
-
-/** Les professionnels peuvent laisser une note et confirmer les medicaments. */
-export const PROFESSIONAL_VISITOR_TYPES: VisitorType[] = ['caregiver', 'nurse', 'doctor'];
 
 const TYPE_LABELS: Record<Lang, Record<VisitorType, string>> = {
     fr: { family: 'famille', friend: 'ami ou voisin', caregiver: 'aide à domicile', nurse: 'infirmier(ère)', doctor: 'médecin', other: 'visiteur' },
@@ -65,122 +60,4 @@ export function journalContent(visit: { visitor_name: string; visitor_type: Visi
     }
     const base = `${visit.visitor_name} (${type}) est arrivé(e) à ${arrived}${recipientName ? ` chez ${recipientName}` : ''}`;
     return visit.checked_out_at ? `${base}, reparti(e) à ${fmtTime(visit.checked_out_at, lang)}` : base;
-}
-
-/** Cree la visite, son entree de journal et previent admin + famille. */
-export async function checkIn(input: {
-    circleId: string;
-    visitorType: VisitorType;
-    visitorName: string;
-    memberId: string | null;
-    deviceId: string | null;
-    lang: Lang;
-}): Promise<VisitRow> {
-    const recipient = await query('SELECT first_name FROM care_recipients WHERE circle_id = $1', [input.circleId]);
-    const recipientName: string = recipient.rows[0]?.first_name?.trim() || '';
-    const now = new Date();
-
-    const entry = await query(
-        `INSERT INTO journal_entries (circle_id, author_name, type, content, data)
-         VALUES ($1, $2, 'visit', $3, $4)
-         RETURNING id`,
-        [
-            input.circleId,
-            input.visitorName,
-            journalContent({ visitor_name: input.visitorName, visitor_type: input.visitorType, checked_in_at: now }, input.lang, recipientName),
-            JSON.stringify({ source: 'kiosk_visitor', visitor_type: input.visitorType }),
-        ]
-    );
-
-    const visit = await query(
-        `INSERT INTO visits (circle_id, visitor_type, visitor_name, member_id, device_id, journal_entry_id)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING ${VISIT_COLUMNS}`,
-        [input.circleId, input.visitorType, input.visitorName, input.memberId, input.deviceId, entry.rows[0].id]
-    );
-    const row = visit.rows[0] as VisitRow;
-    await query('UPDATE journal_entries SET data = data || $2::jsonb WHERE id = $1', [entry.rows[0].id, JSON.stringify({ visit_id: row.id })]);
-
-    // Les aidants savent qui est la, sans avoir a demander.
-    const members = await query(
-        `SELECT m.user_id, COALESCE(u.language, 'fr') AS language
-         FROM circle_members m JOIN users u ON u.id = m.user_id
-         WHERE m.circle_id = $1 AND m.role IN ('admin', 'family')`,
-        [input.circleId]
-    );
-    await Promise.all((members.rows as Array<{ user_id: string; language: string }>).map((member) => {
-        const lang = pickLang(member.language);
-        const type = TYPE_LABELS[lang][input.visitorType];
-        return createNotification({
-            userId: member.user_id,
-            circleId: input.circleId,
-            title: pick(lang, {
-                fr: `${input.visitorName} est arrivé(e)`,
-                en: `${input.visitorName} checked in`,
-                es: `${input.visitorName} ha llegado`,
-                de: `${input.visitorName} ist angekommen`,
-            }),
-            message: pick(lang, {
-                fr: `${input.visitorName} (${type}) est arrivé(e) à ${fmtTime(now, 'fr')}${recipientName ? ` chez ${recipientName}` : ''}.`,
-                en: `${input.visitorName} (${type}) checked in at ${fmtTime(now, 'en')}${recipientName ? ` to see ${recipientName}` : ''}.`,
-                es: `${input.visitorName} (${type}) ha llegado ${esAt(now)}${recipientName ? ` a casa de ${recipientName}` : ''}.`,
-                de: `${input.visitorName} (${type}) ist um ${fmtTime(now, 'de')} angekommen${recipientName ? `, zu Besuch bei ${recipientName}` : ''}.`,
-            }),
-            type: 'visitor_checkin',
-            relatedId: row.id,
-            url: '/visitors',
-            tag: `visit-${row.id}`,
-        });
-    }));
-
-    await broadcastToCircle(input.circleId, { type: 'update', entity: 'visits', action: 'created' });
-    await broadcastToCircle(input.circleId, { type: 'update', entity: 'journal', action: 'created' });
-    return row;
-}
-
-/** Depart : horodate la sortie et complete l'entree de journal. */
-export async function checkOut(circleId: string, visitId: string, lang: Lang): Promise<VisitRow | null> {
-    const result = await query(
-        `UPDATE visits SET checked_out_at = NOW()
-         WHERE id = $1 AND circle_id = $2 AND checked_out_at IS NULL
-         RETURNING ${VISIT_COLUMNS}`,
-        [visitId, circleId]
-    );
-    const row = result.rows[0] as VisitRow | undefined;
-    if (!row) return null;
-    if (row.journal_entry_id) {
-        const recipient = await query('SELECT first_name FROM care_recipients WHERE circle_id = $1', [circleId]);
-        await query('UPDATE journal_entries SET content = $2 WHERE id = $1', [
-            row.journal_entry_id,
-            journalContent(
-                { visitor_name: row.visitor_name, visitor_type: row.visitor_type, checked_in_at: new Date(row.checked_in_at), checked_out_at: new Date(row.checked_out_at!) },
-                lang,
-                recipient.rows[0]?.first_name?.trim() || ''
-            ),
-        ]);
-    }
-    await broadcastToCircle(circleId, { type: 'update', entity: 'visits', action: 'updated' });
-    await broadcastToCircle(circleId, { type: 'update', entity: 'journal', action: 'updated' });
-    return row;
-}
-
-/** Note de passage d'un professionnel : une entree de journal a son nom. */
-export async function addVisitNote(circleId: string, visitId: string, content: string): Promise<VisitRow | null> {
-    const current = await query(`SELECT ${VISIT_COLUMNS} FROM visits WHERE id = $1 AND circle_id = $2`, [visitId, circleId]);
-    const visit = current.rows[0] as VisitRow | undefined;
-    if (!visit) return null;
-    await query(
-        `INSERT INTO journal_entries (circle_id, author_name, type, content, data)
-         VALUES ($1, $2, 'visit', $3, $4)`,
-        [circleId, visit.visitor_name, content, JSON.stringify({ source: 'kiosk_visitor', visit_id: visit.id, visitor_type: visit.visitor_type, note: true })]
-    );
-    const updated = await query(
-        `UPDATE visits SET note = CASE WHEN note IS NULL OR note = '' THEN $3 ELSE note || E'\\n' || $3 END
-         WHERE id = $1 AND circle_id = $2
-         RETURNING ${VISIT_COLUMNS}`,
-        [visitId, circleId, content]
-    );
-    await broadcastToCircle(circleId, { type: 'update', entity: 'visits', action: 'updated' });
-    await broadcastToCircle(circleId, { type: 'update', entity: 'journal', action: 'created' });
-    return updated.rows[0] as VisitRow;
 }

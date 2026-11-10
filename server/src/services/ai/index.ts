@@ -29,7 +29,7 @@ export interface AiSettingsRow {
     encrypted_api_key: string | null;
     model: string;
     enabled: boolean;
-    /** Conversation companion enabled for the recipient (kiosk). */
+    /** Conversation companion enabled (free conversation in "Ask me"). */
     companion_enabled: boolean;
 }
 

@@ -207,26 +207,6 @@
     "automatic": "Añadidas automáticamente",
     "automaticHint": "A partir de los medicamentos, médicos y especialidades de este círculo. Se usan siempre."
   },
-  "kiosk": {
-    "button": "Grabar consulta",
-    "buttonHint": "Con el permiso del médico",
-    "close": "Cerrar",
-    "consentQuestion": "¿Ha aceptado el médico la grabación?",
-    "consentHint": "Pregunta primero al médico.",
-    "yes": "Sí",
-    "no": "No",
-    "declinedTitle": "Sin grabación",
-    "declinedHint": "No se ha grabado nada.",
-    "ok": "Vale",
-    "recording": "Grabando",
-    "recordingHint": "Pulsa Detener cuando termine la consulta.",
-    "stop": "Detener",
-    "savedTitle": "Guardado.",
-    "savedHint": "La grabación se subirá en cuanto haya internet.",
-    "queueUnpaired": "La tableta ya no está conectada. La grabación está guardada aquí de forma segura. Avisa a tu familia.",
-    "queueNeedsHelp": "Una grabación no se puede subir. Avisa a tu familia.",
-    "unpairPending": "Hay grabaciones en esta tableta que aún no se han subido. Al desvincularla se borrarán. ¿Desvincular de todos modos?"
-  },
   "proposals": {
     "title_section": "Propuestas de la consulta",
     "hint": "Estas propuestas vienen del resumen. No se crea nada automáticamente. Revisa cada propuesta, cámbiala si hace falta y elige qué añadir.",

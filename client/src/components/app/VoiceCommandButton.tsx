@@ -11,7 +11,7 @@ import { cn } from '../../lib/utils';
 // Ohne Ja wird nie etwas gespeichert. Fehlt etwas (Uhrzeit, Einheit...), traegt
 // man es im Dialog ein. Kein Mikrofon oder kein Whisper: Texteingabe.
 //
-// Helle, feste Farben wie im Kiosk-Modus, grosse Tasten, Schrift skalierbar.
+// Helle, feste Farben, grosse Tasten, Schrift skalierbar.
 const C = {
     bg: '#f5f7fb',
     card: '#ffffff',
@@ -90,17 +90,15 @@ const MAX_AUDIO_BYTES = 5 * 1024 * 1024;
 const MAX_RECORD_MS = 30_000;
 
 interface VoiceCommandButtonProps {
-    /** 'kiosk': grosse Kachel fuer die betreute Person; 'header': Taste in der Kopfzeile. */
-    variant: 'kiosk' | 'header';
+    /** Taste in der Kopfzeile der App (Layout.tsx). */
     fontScale?: number;
     className?: string;
 }
 
-const VoiceCommandButton: React.FC<VoiceCommandButtonProps> = ({ variant, fontScale = 1, className }) => {
+const VoiceCommandButton: React.FC<VoiceCommandButtonProps> = ({ fontScale = 1, className }) => {
     const { t } = useTranslation(['voiceCommands']);
     const fs = (px: number): React.CSSProperties => ({ fontSize: `calc(${px}px * ${fontScale})` });
     const speechLang = intlLocale();
-    const isKiosk = variant === 'kiosk';
 
     const [open, setOpen] = useState(false);
     const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
@@ -303,20 +301,7 @@ const VoiceCommandButton: React.FC<VoiceCommandButtonProps> = ({ variant, fontSc
 
     const bigButton = 'flex min-h-[72px] w-full items-center justify-center gap-3 rounded-2xl px-5 font-bold shadow-sm active:shadow-inner disabled:opacity-60';
 
-    const trigger = isKiosk ? (
-        <button
-            type="button"
-            onClick={() => setOpen(true)}
-            className={cn('flex min-h-[80px] items-center gap-4 rounded-2xl px-5 text-left text-white shadow-md active:shadow-inner', className)}
-            style={{ backgroundColor: C.green }}
-        >
-            <Mic className="h-10 w-10 shrink-0" aria-hidden="true" />
-            <span>
-                <span className="block font-bold" style={fs(24)}>{t('voiceCommands:trigger')}</span>
-                <span className="block" style={{ ...fs(15), opacity: 0.9 }}>{t('voiceCommands:triggerHint')}</span>
-            </span>
-        </button>
-    ) : (
+    const trigger = (
         <button
             type="button"
             onClick={() => setOpen(true)}
@@ -533,7 +518,7 @@ const VoiceCommandButton: React.FC<VoiceCommandButtonProps> = ({ variant, fontSc
         <>
             {trigger}
             <div
-                className={cn('fixed inset-0 z-[130] flex flex-col overflow-y-auto', isKiosk && 'font-kiosk')}
+                className="fixed inset-0 z-[130] flex flex-col overflow-y-auto"
                 style={{ backgroundColor: C.bg, color: C.text }}
                 role="dialog"
                 aria-modal="true"

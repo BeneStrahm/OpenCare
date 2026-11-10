@@ -21,7 +21,7 @@ const RECIPIENT_FIELDS = `id, circle_id, first_name, last_name, birth_date, phot
 // docs/SPEC.md lui refuse les donnees medicales et administratives.
 const RECIPIENT_FIELDS_MINIMAL = 'id, circle_id, first_name, last_name, photo_url, created_at, updated_at';
 
-// Die betreute Person selbst (recipient) sieht wie in der Tablet-Ansicht nur Name und Foto.
+// Die betreute Person selbst (recipient) sieht wie in der einfachen Ansicht nur Name und Foto.
 const recipientFieldsFor = (role: string | undefined) =>
     role === 'neighbor' || role === 'recipient' ? RECIPIENT_FIELDS_MINIMAL : RECIPIENT_FIELDS;
 
@@ -44,7 +44,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
             [req.userId]
         );
         // Les reglages passent par le filtre public : l'empreinte du code aidant
-        // du mode Kiosk n'a rien a faire dans une reponse d'API.
+        // de l'ancien mode Kiosk n'a rien a faire dans une reponse d'API.
         res.json({ success: true, data: result.rows.map(withPublicSettings) });
     } catch (error) {
         console.error('List circles error:', error);
@@ -173,7 +173,7 @@ router.get('/:circleId', circleMiddleware, async (req: CircleRequest, res: Respo
             data: {
                 circle: withPublicSettings(circleResult.rows[0]),
                 recipient: recipientResult.rows[0] ?? null,
-                // Betreute Person: Namen und Fotos wie in der Tablet-Ansicht, ohne E-Mail-Adressen.
+                // Betreute Person: Namen und Fotos wie in der einfachen Ansicht, ohne E-Mail-Adressen.
                 members: req.circleRole === 'recipient'
                     ? membersResult.rows.map(({ email: _email, ...member }) => member)
                     : membersResult.rows,

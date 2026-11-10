@@ -1,7 +1,6 @@
 {
   "title": "Control por voz",
   "trigger": "Hablar",
-  "triggerHint": "Decir una cita, una tarea o una medición",
   "typeInstead": "Mejor escribir",
   "textPlaceholder": "Por ejemplo: Appointment physio tomorrow at 10 am",
   "send": "Enviar",

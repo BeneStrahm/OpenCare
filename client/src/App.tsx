@@ -13,7 +13,6 @@ import Handover from './pages/Handover';
 import ConsultationPrep from './pages/ConsultationPrep';
 import Consultations from './pages/Consultations';
 import ConsultationDetail from './pages/ConsultationDetail';
-import KioskGate from './pages/KioskGate';
 import Onboarding from './pages/Onboarding';
 import Dashboard from './pages/Dashboard';
 import Journal from './pages/Journal';
@@ -32,11 +31,13 @@ import Visitors from './pages/Visitors';
 import CarePlan from './pages/CarePlan';
 import Settings from './pages/Settings';
 import Integrations from './pages/Integrations';
+import RecipientView from './pages/RecipientView';
 import { isPathEnabled } from './lib/features';
+import { recipientCircleOf, recipientRedirect } from './lib/recipientView';
 
 function App() {
     const { isAuthenticated, loading } = useAuth();
-    const { loading: circlesLoading, needsOnboarding, activeCircle } = useCircle();
+    const { loading: circlesLoading, needsOnboarding, activeCircle, circles } = useCircle();
     const { t } = useTranslation('common');
     const location = useLocation();
 
@@ -63,11 +64,6 @@ function App() {
             </Routes>
         );
     }
-    // Ecrans patient (tablette murale, telephone du proche) : un appareil
-    // appaire n'a pas de session d'aidant, la garde decide avant l'auth.
-    if (location.pathname === '/kiosk' || location.pathname === '/myday' || location.pathname === '/kiosk/pair') {
-        return <KioskGate />;
-    }
     // Mot de passe oublie : pages publiques, hors session.
     if (location.pathname === '/forgot-password' || location.pathname === '/reset-password') {
         return (
@@ -91,6 +87,15 @@ function App() {
 
     if (!isAuthenticated) {
         return <Login />;
+    }
+
+    // Betreute Person (Launch Block C): nur die einfache Ansicht, kein Menü und
+    // keine Seite der normalen App. Jede andere Adresse führt zurück auf "/".
+    const recipientCircle = recipientCircleOf(circles);
+    if (recipientCircle) {
+        const redirect = recipientRedirect(location.pathname);
+        if (redirect) return <Navigate to={redirect} replace />;
+        return <RecipientView circle={recipientCircle} />;
     }
 
     // Sans cercle: onboarding (création du premier cercle) ou page d'invitation.

@@ -87,7 +87,7 @@
   color-scheme: dark;
 
   /* Mode sombre: neutres chauds assombris, sauge eclairci (reserve a l'app
-     aidants; le kiosk reste toujours en clair pour la lisibilite seniors). */
+     aidants; la vue simple du proche reste toujours en clair pour la lisibilite seniors). */
   --bg: #1b1a18;
   --surface: #252320;
   --surface-2: #211f1c;

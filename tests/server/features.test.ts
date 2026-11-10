@@ -1,25 +1,22 @@
 import { describe, it, expect } from 'vitest';
 import {
-    isFeatureEnabled, isKioskElementEnabled, enabledVitalTypes, isVitalTypeEnabled, cleanFlags, cleanVitalTypes,
-    FEATURE_IDS, KIOSK_ELEMENTS,
+    isFeatureEnabled, enabledVitalTypes, isVitalTypeEnabled, cleanFlags, cleanVitalTypes,
+    FEATURE_IDS,
 } from '../../server/src/lib/features';
 import { publicSettings, validateSettingsPatch } from '../../server/src/lib/circleSettings';
 
-// Fork: Funktionen, Tablet-Elemente und Messwerte pro Kreis.
+// Fork: Funktionen und Messwerte pro Kreis.
 
 describe('Standard: alles an', () => {
-    it('ohne Einstellungen sind alle Funktionen, Elemente und Messwerte an', () => {
+    it('ohne Einstellungen sind alle Funktionen und Messwerte an', () => {
         for (const id of FEATURE_IDS) expect(isFeatureEnabled({}, id)).toBe(true);
-        for (const id of KIOSK_ELEMENTS) expect(isKioskElementEnabled(null, id)).toBe(true);
         expect(enabledVitalTypes(undefined)).toHaveLength(6);
     });
 
     it('nur ausdruecklich false schaltet aus', () => {
-        const settings = { features: { calendar: false, tasks: true }, kiosk_elements: { status_bar: false } };
+        const settings = { features: { calendar: false, tasks: true } };
         expect(isFeatureEnabled(settings, 'calendar')).toBe(false);
         expect(isFeatureEnabled(settings, 'tasks')).toBe(true);
-        expect(isKioskElementEnabled(settings, 'status_bar')).toBe(false);
-        expect(isKioskElementEnabled(settings, 'voice')).toBe(true);
     });
 });
 
@@ -55,7 +52,9 @@ describe('Pruefung der Schalter', () => {
     it('publicSettings gibt die Schalter heraus', () => {
         const pub = publicSettings({ features: { shopping: false }, kiosk_elements: { info: false }, vital_types: ['bp'] });
         expect(pub.features).toEqual({ shopping: false });
-        expect(pub.kiosk_elements).toEqual({ info: false });
+        // Die fruehere Tablet-Einstellung (Kiosk, entfernt in Launch Block C) geht nicht mehr hinaus.
+        expect(pub).not.toHaveProperty('kiosk_elements');
+        expect(validateSettingsPatch({ kiosk_elements: { info: false } }, 'de').error).toBeTruthy();
         expect(pub.vital_types).toEqual(['bp']);
     });
 });

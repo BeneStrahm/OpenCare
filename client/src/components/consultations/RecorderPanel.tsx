@@ -54,7 +54,6 @@ const RecorderPanel: React.FC<Props> = ({ circleId, consultationId, onStopped })
             const rec = await startConsultationRecording({
                 circleId,
                 consultationId,
-                fromKiosk: false,
                 consentConfirmed: true,
                 consentAt: consentAt ?? new Date(),
             });

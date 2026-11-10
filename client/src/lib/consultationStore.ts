@@ -26,7 +26,7 @@ export interface LocalRecording {
     /** Gesetzt, sobald die Aufnahme beendet ist */
     total_chunks: number | null;
     duration_seconds: number | null;
-    /** Aufgenommen am Patienten-Geraet (Tablet) */
+    /** Aufgenommen am frueheren gekoppelten Tablet (Kiosk, bis Launch Block C); neue Aufnahmen: false */
     from_kiosk: boolean;
     last_error: string | null;
     updated_at: number;

@@ -206,7 +206,7 @@ const fetchMedicationWithSchedules = async (client: PoolClient, medicationId: st
 };
 
 // applyIntakeStatus / fetchIntakeForUpdate live in ../lib/intakes (shared with
-// the kiosk and the patient phone).
+// the caregiver link).
 
 /** Wer bestaetigt: die betreute Person selbst ('self') oder eine Pflegeperson. */
 const intakeSourceFor = (req: CircleRequest): IntakeSource => intakeSourceForRole(req.circleRole);
@@ -600,7 +600,7 @@ router.get('/intakes', async (req: CircleRequest, res: Response) => {
         }
 
         // Generate the missing occurrences of the period (idempotent), then flag
-        // the overdue ones (shared with the kiosk: ../lib/intakes).
+        // the overdue ones (shared with the caregiver link: ../lib/intakes).
         await generateIntakes(req.circleId!, from, to);
         await markMissed(req.circleId!);
 

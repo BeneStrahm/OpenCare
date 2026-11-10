@@ -37,7 +37,6 @@ const shots = [
   { name: 'calendar',    route: '#/calendar' },
   { name: 'medications', route: '#/medications' },
   { name: 'expenses',    route: '#/expenses' },
-  { name: 'kiosk',       route: '#/kiosk' },
 ];
 
 const browser = await chromium.launch();

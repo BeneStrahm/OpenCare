@@ -139,7 +139,7 @@
     "dataKept": "Beim Ausschalten wird nichts gelöscht. Schalten Sie eine Funktion wieder ein, ist alles wie vorher da.",
     "modules": {
       "title": "Bereiche der App",
-      "subtitle": "Menü, Übersicht und Tablet zeigen nur eingeschaltete Bereiche.",
+      "subtitle": "Menü, Übersicht und einfache Ansicht zeigen nur eingeschaltete Bereiche.",
       "fixed": "Immer an: Übersicht, Pflegetagebuch, Einstellungen und Notfall."
     },
     "items": {
@@ -159,17 +159,6 @@
       "voice_journal": "Sprachnotizen im Tagebuch",
       "digests": "Wochenzusammenfassung",
       "heatwave": "Hitzewarnung"
-    },
-    "kiosk": {
-      "title": "Tablet-Ansicht",
-      "subtitle": "Was die betreute Person auf dem Tablet sieht.",
-      "items": {
-        "status_bar": "„Alles in Ordnung“ / „Ich brauche Hilfe“",
-        "voice": "„Sprechen“",
-        "ask": "„Fragen Sie mich“",
-        "consultation": "Taste „Arztgespräch aufnehmen“",
-        "info": "„Meine Informationen“"
-      }
     },
     "vitals": {
       "title": "Messwerte",

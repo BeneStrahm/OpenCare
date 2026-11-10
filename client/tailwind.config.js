@@ -75,7 +75,7 @@ export default {
             },
             fontFamily: {
                 sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
-                // Kiosk senior: police concue pour les basses visions (Braille Institute)
+                // Vue simple du proche (font-kiosk, nom historique) : police concue pour les basses visions (Braille Institute)
                 kiosk: ['Atkinson Hyperlegible', 'Inter', 'system-ui', 'sans-serif'],
                 // Alias de transition: les anciennes pages utilisaient font-serif
                 serif: ['Inter', 'system-ui', 'sans-serif'],

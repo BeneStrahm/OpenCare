@@ -5,9 +5,8 @@ import { expandEventOccurrences, toLocalISO } from '../routes/events';
 import { activeMemberIds } from './eventExtras';
 
 /**
- * Instantane de la journee du proche : ce que le mode Kiosk affiche
- * (GET /api/kiosk/today) et ce que le compagnon "Demandez-moi" utilise pour
- * repondre sans rien inventer. Une seule source pour les deux.
+ * Instantane de la journee du proche : ce que le compagnon "Demandez-moi"
+ * utilise pour repondre sans rien inventer (routes/companion.ts).
  */
 
 export interface TodayMember { id: string; name: string; avatar_url: string | null; role: string }
@@ -51,7 +50,7 @@ export interface TodaySnapshot {
     companion_enabled: boolean;
 }
 
-/** Wichtige Kontakte der Tablet-Ansicht; die betreute Person sieht in der App dieselben (routes/contacts.ts). */
+/** Wichtige Kontakte; die betreute Person sieht in der einfachen Ansicht dieselben (routes/contacts.ts). */
 export const KEY_CONTACT_CATEGORIES = ['doctor', 'nurse', 'pharmacy', 'aide', 'physio'];
 
 export async function loadTodaySnapshot(circleId: string, now: Date = new Date()): Promise<TodaySnapshot> {

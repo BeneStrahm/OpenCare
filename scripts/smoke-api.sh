@@ -123,50 +123,29 @@ check=$(request GET "/api/auth/reset-password/0000000000000000000000000000000000
 echo "$check" | jq -e '.data.valid == false' >/dev/null
 request GET "/api/auth/password-resets" >/dev/null
 
-echo "[12/14] Medications (quantity per dose, patient view, kiosk confirm, as-needed dose)"
+echo "[12/14] Medications (quantity per dose, confirm several, as-needed dose)"
 med=$(request POST "/api/medications" '{"name":"Metformine","dosage":"500 mg","form":"tablet","with_food":"with","reason":"Diabete","schedules":[{"time_of_day":"08:00","quantity":2},{"time_of_day":"20:00","quantity":1}]}')
 assert_success "$med"
 echo "$med" | jq -e '.data.schedules | length == 2 and (.[0].quantity | tonumber) == 2' >/dev/null
 intakes=$(request GET "/api/medications/intakes")
 echo "$intakes" | jq -e '.data | length == 2 and all(.[]; has("quantity") and has("photo_url") and has("confirmed_source"))' >/dev/null
-kiosk=$(request GET "/api/kiosk/today")
-echo "$kiosk" | jq -e '.data.medications | has("due_now") and has("upcoming_count") and .total == 2' >/dev/null
 first_id=$(echo "$intakes" | jq -r '.data[0].id')
-confirm=$(request POST "/api/kiosk/intakes/confirm" "{\"intake_ids\":[\"$first_id\"]}")
+confirm=$(request POST "/api/medications/intakes/confirm" "{\"intake_ids\":[\"$first_id\"]}")
 echo "$confirm" | jq -e '.data.confirmed == 1' >/dev/null
-request GET "/api/medications/intakes" | jq -e '.data | any(.[]; .status == "taken" and .confirmed_source == "kiosk")' >/dev/null
+request GET "/api/medications/intakes" | jq -e '.data | any(.[]; .status == "taken" and .confirmed_source == "caregiver")' >/dev/null
 prn=$(request POST "/api/medications" '{"name":"Doliprane","dosage":"1000 mg","prn":true}')
 assert_success "$prn"
 prn_id=$(echo "$prn" | jq -r '.data.id')
 dose=$(request POST "/api/medications/$prn_id/intakes" '{}')
 echo "$dose" | jq -e '.data.status == "taken" and .data.confirmed_source == "caregiver"' >/dev/null
 
-echo "[13/14] Patient device (pairing, visitor check-in, care plan, escalation rules, help request, Ask me, PIN)"
-pairing=$(request POST "/api/kiosk/devices/pairing" '{"kind":"kiosk","name":"Smoke tablet"}')
-assert_success "$pairing"
-code=$(echo "$pairing" | jq -r '.data.code')
-paired=$(curl -sS -X POST "$API_BASE/api/kiosk/pair" -H "Content-Type: application/json" -d "{\"code\":\"$code\"}")
-echo "$paired" | jq -e '.success == true and (.data.token | length) == 64' >/dev/null
-kiosk_token=$(echo "$paired" | jq -r '.data.token')
-device_today=$(curl -sS "$API_BASE/api/kiosk/today" -H "X-Kiosk-Token: $kiosk_token")
-echo "$device_today" | jq -e '.success == true and .data.device.kind == "kiosk" and (.data.medications | has("due_now"))' >/dev/null
-forbidden=$(curl -sS -o /dev/null -w "%{http_code}" "$API_BASE/api/medications" -H "X-Kiosk-Token: $kiosk_token")
-[[ "$forbidden" == "401" ]] || { echo "[FAIL] device token must not reach caregiver routes (got $forbidden)"; exit 1; }
-pin=$(request PUT "/api/kiosk/pin" '{"pin":"2468"}')
-assert_success "$pin"
-verify=$(curl -sS -X POST "$API_BASE/api/kiosk/pin/verify" -H "Content-Type: application/json" -H "X-Kiosk-Token: $kiosk_token" -d '{"pin":"2468"}')
-echo "$verify" | jq -e '.data.ok == true' >/dev/null
-visit=$(curl -sS -X POST "$API_BASE/api/kiosk/visits/check-in" -H "Content-Type: application/json" -H "X-Kiosk-Token: $kiosk_token" -d '{"visitor_type":"nurse","visitor_name":"Camille"}')
-echo "$visit" | jq -e '.success == true and .data.visitor_type == "nurse" and .data.checked_out_at == null' >/dev/null
-visit_id=$(echo "$visit" | jq -r '.data.id')
-dash=$(request GET "/api/dashboard")
-echo "$dash" | jq -e '.data.attention | type == "array" and (map(.kind) | index("visitor_present") != null)' >/dev/null
-note=$(curl -sS -X POST "$API_BASE/api/kiosk/visits/$visit_id/note" -H "Content-Type: application/json" -H "X-Kiosk-Token: $kiosk_token" -d '{"content":"Tension prise, tout va bien."}')
-echo "$note" | jq -e '.data.note == "Tension prise, tout va bien."' >/dev/null
-out=$(curl -sS -X POST "$API_BASE/api/kiosk/visits/$visit_id/check-out" -H "Content-Type: application/json" -H "X-Kiosk-Token: $kiosk_token" -d '{}')
-echo "$out" | jq -e '.data.checked_out_at != null' >/dev/null
-visits=$(request GET "/api/visits")
-echo "$visits" | jq -e '.data | length == 1 and .[0].visitor_name == "Camille"' >/dev/null
+echo "[13/14] Kiosk removed, care plan, escalation rules, Ask me (fixed questions)"
+# Launch Block C: kein Kiosk mehr, weder mit Geraete-Token noch mit Sitzung.
+gone=$(curl -sS -o /dev/null -w "%{http_code}" "$API_BASE/api/kiosk/today" -H "Authorization: Bearer $TOKEN" -H "X-Circle-Id: $CIRCLE_ID")
+[[ "$gone" != "200" ]] || { echo "[FAIL] /api/kiosk/today still answers"; exit 1; }
+gone=$(curl -sS -o /dev/null -w "%{http_code}" -X POST "$API_BASE/api/kiosk/pair" -H "Content-Type: application/json" -d '{"code":"ABCDEF"}')
+[[ "$gone" != "200" ]] || { echo "[FAIL] /api/kiosk/pair still answers"; exit 1; }
+request GET "/api/visits" | jq -e '.data | type == "array"' >/dev/null
 occ_event=$(request POST "/api/events" '{"title":"Passage infirmier","category":"nurse","start_time":"2026-01-05T09:00:00","rrule":"FREQ=WEEKLY;BYDAY=MO"}')
 occ_id=$(echo "$occ_event" | jq -r '.data.id')
 skipped=$(request PUT "/api/events/$occ_id/occurrences/2026-01-12" '{"action":"skip"}')
@@ -186,7 +165,7 @@ stock=$(request PUT "/api/medications/$med_id/stock" '{"stock_quantity":10,"stoc
 echo "$stock" | jq -e '(.data.stock_quantity | tonumber) == 10 and (.data.stock_alert_threshold | tonumber) == 4' >/dev/null
 bad_stock=$(curl -sS -o /dev/null -w "%{http_code}" -X PUT "$API_BASE/api/medications/$med_id/stock" -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -H "X-Circle-Id: $CIRCLE_ID" -d '{"stock_quantity":-2}')
 [[ "$bad_stock" == "400" ]]
-request POST "/api/kiosk/intakes/confirm" "{\"intake_ids\":[\"$second_id\"]}" >/dev/null
+request POST "/api/medications/intakes/confirm" "{\"intake_ids\":[\"$second_id\"]}" >/dev/null
 after_stock=$(request GET "/api/medications" | jq -r --arg id "$med_id" '.data[] | select(.id == $id) | .stock_quantity')
 awk -v a="$after_stock" -v q="$second_qty" 'BEGIN { exit !(a + 0 == 10 - q) }'
 
@@ -224,8 +203,6 @@ cleared=$(request PUT "/api/circles/$CIRCLE_ID" '{"settings":{"emergency_numbers
 echo "$cleared" | jq -e '.data.settings.emergency_numbers == null' >/dev/null
 bad_setting=$(curl -sS -o /dev/null -w "%{http_code}" -X PUT "$API_BASE/api/circles/$CIRCLE_ID" -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -H "X-Circle-Id: $CIRCLE_ID" -d '{"settings":{"kiosk_pin_hash":"a-moi"}}')
 [[ "$bad_setting" == "400" ]]
-pin_kept=$(curl -sS -X POST "$API_BASE/api/kiosk/pin/verify" -H "Content-Type: application/json" -H "X-Kiosk-Token: $kiosk_token" -d '{"pin":"2468"}')
-echo "$pin_kept" | jq -e '.data.ok == true' >/dev/null
 request PUT "/api/circles/$CIRCLE_ID" '{"settings":{"unit_system":"metric","week_start":"monday"}}' >/dev/null
 
 esc=$(request GET "/api/escalation/rules")
@@ -236,33 +213,19 @@ esc=$(request PUT "/api/escalation/rules" '{"enabled":true,"med_patient_min":15,
 echo "$esc" | jq -e '.data.rules.enabled == true and .data.rules.help_ack_min == 5' >/dev/null
 help_before=$(request GET "/api/escalation/help")
 echo "$help_before" | jq -e '. | .data | length == 0' >/dev/null
-status=$(curl -sS -X POST "$API_BASE/api/kiosk/status" -H "Content-Type: application/json" -H "X-Kiosk-Token: $kiosk_token" -d '{"kind":"help"}')
-echo "$status" | jq -e '.success == true' >/dev/null
-help_after=$(request GET "/api/escalation/help")
-echo "$help_after" | jq -e '.data | length == 1 and (.[0].acknowledged_at == null)' >/dev/null
-help_id=$(echo "$help_after" | jq -r '.data[0].id')
-ack=$(request POST "/api/escalation/help/$help_id/ack")
-echo "$ack" | jq -e '.data.acknowledged_at != null' >/dev/null
-request GET "/api/escalation/help" | jq -e '.data | length == 0' >/dev/null
 request PUT "/api/escalation/rules" '{"enabled":false}' | jq -e '.data.rules.enabled == false' >/dev/null
 plan=$(request PUT "/api/care-plan" '{"sections":{"morning":"Lever vers 7 h 30","emergency":"Appeler Alice en premier","bogus":"ignore"}}')
 echo "$plan" | jq -e '.success == true and .data.sections.morning == "Lever vers 7 h 30" and (.data.sections | has("bogus") | not)' >/dev/null
 plan=$(request GET "/api/care-plan")
 echo "$plan" | jq -e '.data.sections.emergency == "Appeler Alice en premier" and (.data.week.days | length == 7) and (.data.medications | type == "array") and (.data.professionals | type == "array")' >/dev/null
-kurg=$(curl -sS "$API_BASE/api/kiosk/emergency" -H "X-Kiosk-Token: $kiosk_token")
-echo "$kurg" | jq -e '.success == true and .data.recipient.first_name == "Jeanne" and (.data.medications | type == "array") and (.data.contacts | type == "array")' >/dev/null
-kplan=$(curl -sS "$API_BASE/api/kiosk/care-plan" -H "X-Kiosk-Token: $kiosk_token")
-echo "$kplan" | jq -e '.data.sections.morning == "Lever vers 7 h 30"' >/dev/null
-ask=$(curl -sS -X POST "$API_BASE/api/companion/message" -H "Content-Type: application/json" -H "X-Kiosk-Token: $kiosk_token" -d '{"messages":[{"role":"user","content":"Qui est venu aujourd hui ?"}]}')
-echo "$ask" | jq -e '.success == true and .data.source == "facts" and .data.intent == "visitors" and (.data.reply | test("Camille"))' >/dev/null
-ask=$(curl -sS -X POST "$API_BASE/api/companion/message" -H "Content-Type: application/json" -H "X-Kiosk-Token: $kiosk_token" -d '{"messages":[{"role":"user","content":"Quels medicaments je dois prendre ?"}]}')
-echo "$ask" | jq -e '.data.source == "facts" and .data.intent == "medications"' >/dev/null
-ask=$(curl -sS -X POST "$API_BASE/api/companion/message" -H "Content-Type: application/json" -H "X-Kiosk-Token: $kiosk_token" -d '{"messages":[{"role":"user","content":"Raconte moi un souvenir"}]}')
+ask=$(request GET "/api/companion/answer/medications")
+echo "$ask" | jq -e '.success == true and .data.intent == "medications" and (.data.reply | type == "string")' >/dev/null
+ask=$(request GET "/api/companion/answer/week")
+echo "$ask" | jq -e '.data.intent == "appointments_week"' >/dev/null
+bad_ask=$(curl -sS -o /dev/null -w "%{http_code}" "$API_BASE/api/companion/answer/Wie%20geht%20es%20mir" -H "Authorization: Bearer $TOKEN" -H "X-Circle-Id: $CIRCLE_ID")
+[[ "$bad_ask" == "400" ]] || { echo "[FAIL] free question must be refused (got $bad_ask)"; exit 1; }
+ask=$(request POST "/api/companion/message" '{"messages":[{"role":"user","content":"Raconte moi un souvenir"}]}')
 echo "$ask" | jq -e '.data.source == "fallback" and .data.flagged == false' >/dev/null
-unpair=$(curl -sS -X POST "$API_BASE/api/kiosk/device/unpair" -H "Content-Type: application/json" -H "X-Kiosk-Token: $kiosk_token" -d '{}')
-echo "$unpair" | jq -e '.success == true' >/dev/null
-dead=$(curl -sS -o /dev/null -w "%{http_code}" "$API_BASE/api/kiosk/today" -H "X-Kiosk-Token: $kiosk_token")
-[[ "$dead" == "401" ]] || { echo "[FAIL] revoked device token still accepted (got $dead)"; exit 1; }
 
 # Role neighbor : aucune donnee de sante, sur aucune route (synthese, journal,
 # tableau de bord), et pas le jeton de la fiche urgence en direct. L'admin, lui,

@@ -1,7 +1,6 @@
 {
   "title": "Voice control",
   "trigger": "Speak",
-  "triggerHint": "Say an appointment, task or reading",
   "typeInstead": "Type instead",
   "textPlaceholder": "For example: appointment physio tomorrow at 10 am",
   "send": "Send",

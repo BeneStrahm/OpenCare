@@ -34,7 +34,7 @@ export interface WsUpdatePayload {
     circleId?: string;
 }
 
-/** Rappel pousse aux appareils patient (escalade niveau 1) ; les sessions aidant l'ignorent. */
+/** Erinnerung an die Einnahme (Eskalation Stufe 1): die einfache Ansicht der betreuten Person zeigt sie an, die normale App ignoriert sie. */
 export interface WsReminderPayload {
     type: 'reminder';
     kind: 'medication';
@@ -49,35 +49,6 @@ export type WsBroadcast = Omit<WsUpdatePayload, 'circleId'> | Omit<WsReminderPay
 
 /** Registered WebSocket connections keyed by userId */
 export const clients = new Map<string, Set<WebSocket>>();
-
-/**
- * Appareils patient (kiosk, telephone) connectes, par cercle. Ils n'ont pas
- * d'utilisateur : ils recoivent les mises a jour du cercle pour rester
- * synchronises entre eux (une prise confirmee sur la tablette s'affiche
- * aussitot sur le telephone, et inversement).
- */
-export const deviceClients = new Map<string, Set<WebSocket>>();
-
-export const registerDeviceSocket = (circleId: string, ws: WebSocket): void => {
-    if (!deviceClients.has(circleId)) deviceClients.set(circleId, new Set());
-    deviceClients.get(circleId)!.add(ws);
-};
-
-export const unregisterDeviceSocket = (circleId: string, ws: WebSocket): void => {
-    const set = deviceClients.get(circleId);
-    if (!set) return;
-    set.delete(ws);
-    if (set.size === 0) deviceClients.delete(circleId);
-};
-
-const sendToDevices = (circleId: string, payload: WsPayload): void => {
-    const set = deviceClients.get(circleId);
-    if (!set) return;
-    const message = JSON.stringify(payload);
-    set.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) client.send(message);
-    });
-};
 
 /** Push a real-time update to all connections of a given user */
 export const broadcast = (userId: string, data: WsPayload): void => {
@@ -103,7 +74,6 @@ export const broadcastToCircle = async (circleId: string, data: WsBroadcast): Pr
         for (const row of result.rows as Array<{ user_id: string }>) {
             broadcast(row.user_id, payload);
         }
-        sendToDevices(circleId, payload);
     } catch (error) {
         logger.warn('ws.broadcast_circle_failed', {
             circleId,

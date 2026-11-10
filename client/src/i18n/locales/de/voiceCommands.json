@@ -1,7 +1,6 @@
 {
   "title": "Sprachsteuerung",
   "trigger": "Sprechen",
-  "triggerHint": "Termin, Aufgabe oder Messwert sagen",
   "typeInstead": "Lieber tippen",
   "textPlaceholder": "Zum Beispiel: Termin Fußpflege morgen um 10 Uhr",
   "send": "Senden",

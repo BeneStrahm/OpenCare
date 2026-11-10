@@ -6,19 +6,10 @@
 // Le cercle actif est résolu depuis localStorage (la clé qu'utilise
 // ApiClient.setCircleId), faute d'en-tête X-Circle-Id dans le mock.
 import { createSeed, type CircleData, type DemoStore, type Json } from './seed';
-import { detectIntent, answerIntent, hasDistressSignal, distressHint, type CompanionFactsInput, type CompanionLang, type FactsVitalType } from './companionAnswers';
+import { detectIntent, answerIntent, hasDistressSignal, distressHint, type CompanionFactsInput, type CompanionIntent, type CompanionLang, type FactsVitalType } from './companionAnswers';
 import { formatVital } from '../lib/units';
 
 const store: DemoStore = createSeed();
-
-// Mode Kiosk (demo) : appareils appaires et code aidant, en memoire.
-const demoKiosk: { pinSet: boolean; pin: string; devices: Json[] } = {
-    pinSet: false,
-    pin: '',
-    devices: [
-        { id: 'dev-salon', name: 'Tablette du salon', kind: 'kiosk', last_seen_at: null, created_at: null },
-    ],
-};
 
 const ok = <T,>(data: T) => ({ success: true, data });
 const uid = () =>
@@ -355,7 +346,7 @@ function setIntakeStatus(c: CircleData, intakeId: string, status: string, source
     const entryId = uid();
     c.journal.unshift({
         id: entryId, circle_id: c.id, author_user_id: store.user.id, caregiver_link_id: null,
-        author_name: source === 'kiosk' || source === 'phone' ? (c.recipient?.first_name || store.user.name) : store.user.name, type: 'medication',
+        author_name: store.user.name, type: 'medication',
         content: med.dosage ? `${med.name} ${med.dosage}` : med.name,
         data: { medication_id: med.id, intake_id: intakeId, status, source },
         occurred_at: naiveNow(), created_at: naiveNow(), photos: [],
@@ -515,7 +506,7 @@ function withTotals(rows: Json[]): Json {
     return { members, totals: { ...totals, total: grandTotal } };
 }
 
-// ── Constantes, tâches, dashboard, kiosk ─────────────────────────────────────
+// ── Constantes, tâches, dashboard ─────────────────────────────────────
 
 /** Fork: Fakten fuer Vorrat, letzte Messwerte, Aufgaben heute und Termine der Woche (Demo). */
 function demoExtraFacts(c: CircleData, lang: CompanionLang): Pick<CompanionFactsInput, 'medication_stock' | 'vitals_latest' | 'tasks_due' | 'events_week'> {
@@ -753,7 +744,8 @@ function householdDashboard(active: CircleData): Json {
     return { circles };
 }
 
-function kioskToday(c: CircleData): Json {
+/** Tagesstand fuer die Antworten des Assistenten (wie server/src/lib/todaySnapshot.ts). */
+function todaySnapshot(c: CircleData): Json {
     const now = new Date();
     const dayStart = startOfDay(now);
     const dayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
@@ -775,15 +767,10 @@ function kioskToday(c: CircleData): Json {
             .filter((k) => ['doctor', 'nurse', 'pharmacy', 'aide', 'physio'].includes(String(k.category)))
             .slice(0, 8)
             .map((k) => ({ id: k.id, name: k.name, category: k.category, phone: k.phone ?? null, organization: k.organization ?? null })),
-        pin_required: demoKiosk.pinSet,
-        device: null,
-        unit_system: (c.settings as { unit_system?: string } | undefined)?.unit_system === 'imperial' ? 'imperial' : 'metric',
         members: c.members.map((m) => ({ id: m.id, name: m.name, avatar_url: m.avatar_url ?? null, role: m.role })),
         visits_today: c.visits.filter((v) => String(v.checked_in_at).slice(0, 10) === isoDate(now)),
         active_visit: c.visits.find((v) => !v.checked_out_at) ?? null,
         photos_enabled: false,
-        features: (c.settings as Json | undefined)?.features ?? {},
-        kiosk_elements: (c.settings as Json | undefined)?.kiosk_elements ?? {},
         heatwave: (() => {
             const h = heatwaveOf(c);
             return h.enabled && h.active ? { active: true, level: h.level } : null;
@@ -967,7 +954,7 @@ async function route(method: string, path: string, q: Record<string, string>, bo
                 if (body.settings && typeof body.settings === 'object') {
                     const patch = body.settings as Record<string, unknown>;
                     for (const key of Object.keys(patch)) {
-                        if (!['unit_system', 'week_start', 'emergency_numbers', 'aid_types', 'features', 'kiosk_elements', 'vital_types'].includes(key)) throw new Error('Unknown setting: ' + key);
+                        if (!['unit_system', 'week_start', 'emergency_numbers', 'aid_types', 'features', 'vital_types'].includes(key)) throw new Error('Unknown setting: ' + key);
                     }
                     if (patch.unit_system !== undefined) {
                         if (patch.unit_system !== 'metric' && patch.unit_system !== 'imperial') throw new Error('unit_system must be metric or imperial');
@@ -988,8 +975,8 @@ async function route(method: string, path: string, q: Record<string, string>, bo
                         const list = Array.isArray(raw) ? raw.map((v) => String(v).trim()) : [];
                         target.settings = { ...(target.settings as Json), aid_types: list.length > 0 ? list : null };
                     }
-                    // Fork: Funktionen, Tablet-Elemente, Messwerte (nur false wird gespeichert)
-                    for (const key of ['features', 'kiosk_elements'] as const) {
+                    // Fork: Funktionen, Messwerte (nur false wird gespeichert)
+                    for (const key of ['features'] as const) {
                         const raw = patch[key];
                         if (raw === undefined) continue;
                         if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error(key + ': invalid values');
@@ -1756,23 +1743,6 @@ async function route(method: string, path: string, q: Record<string, string>, bo
         return ok(heatwaveOf(c));
     }
 
-    // ── Kiosk ────────────────────────────────────────────────────────────────
-    if (path === '/api/kiosk/today') return ok(kioskToday(c));
-    if (path === '/api/kiosk/emergency' && method === 'GET') {
-        const r = c.recipient ?? {};
-        return ok({
-            recipient: r,
-            medications: c.medications.filter((m) => m.active !== false).map((m) => ({
-                name: m.name, dosage: m.dosage ?? null, form: m.form ?? null,
-                schedules: ((m.schedules as Json[]) || []).map((s) => ({ time: s.time_of_day, label: s.label ?? null })),
-            })),
-            contacts: c.contacts.filter((k) => k.phone).slice(0, 8).map((k) => ({
-                name: k.name, category: k.category, organization: k.organization ?? null, phone: k.phone ?? null, phone2: k.phone2 ?? null,
-            })),
-            extra_notes: c.emergencySheet?.extra_notes ?? null,
-        });
-    }
-    if (path === '/api/kiosk/care-plan') return ok({ sections: Object.fromEntries(Object.entries((c.carePlan?.sections ?? {}) as Record<string, string>).filter(([, v]) => v)), updated_at: c.carePlan?.updated_at ?? null });
     // Plan de soins : consignes (texte) + routine medicamenteuse + professionnels + semaine
     // Escalade : regles du cercle et demandes d aide sans prise en charge
     // Exceptions d'occurrence d'un evenement recurrent
@@ -1861,100 +1831,12 @@ async function route(method: string, path: string, q: Record<string, string>, bo
         c.carePlan = { sections: next, updated_at: naiveNow(), updated_by_name: store.user.name };
         return ok({ sections: next, updated_at: c.carePlan.updated_at, updated_by_name: store.user.name });
     }
-    // Visiteurs : arrivee, note de passage, depart (mode Kiosk) et liste (aidants)
-    if (path === '/api/kiosk/visits/check-in' && method === 'POST') {
-        const visit: Json = {
-            id: uid(), circle_id: c.id, visitor_type: body.visitor_type || 'other', visitor_name: String(body.visitor_name || '').trim() || 'Visiteur',
-            member_id: body.member_id || null, device_id: null, checked_in_at: naiveNow(), checked_out_at: null, note: null, journal_entry_id: null, created_at: naiveNow(),
-        };
-        const entryId = uid();
-        c.journal.unshift({ id: entryId, circle_id: c.id, author_user_id: null, caregiver_link_id: null, author_name: visit.visitor_name, type: 'visit', content: `${visit.visitor_name} est arrivé(e) chez ${c.recipient?.first_name ?? ''}`.trim(), data: { source: 'kiosk_visitor', visit_id: visit.id }, occurred_at: naiveNow(), created_at: naiveNow(), photos: [] });
-        visit.journal_entry_id = entryId;
-        c.visits.unshift(visit);
-        return ok(visit);
-    }
-    if (seg[1] === 'kiosk' && seg[2] === 'visits' && seg.length === 5 && method === 'POST') {
-        const visit = c.visits.find((v) => v.id === seg[3]);
-        if (!visit) throw new Error('Not found');
-        if (seg[4] === 'check-out') { visit.checked_out_at = naiveNow(); return ok(visit); }
-        if (seg[4] === 'note') {
-            const content = String(body.content || '').trim();
-            visit.note = visit.note ? `${visit.note}\n${content}` : content;
-            c.journal.unshift({ id: uid(), circle_id: c.id, author_user_id: null, caregiver_link_id: null, author_name: visit.visitor_name, type: 'visit', content, data: { source: 'kiosk_visitor', visit_id: visit.id, note: true }, occurred_at: naiveNow(), created_at: naiveNow(), photos: [] });
-            return ok(visit);
-        }
-    }
     if (path === '/api/visits' && method === 'GET') {
         const from = q.from ? `${q.from}T00:00:00` : '0000';
         const to = q.to ? `${q.to}T23:59:59` : '9999';
         return ok(c.visits.filter((v) => String(v.checked_in_at) >= from && String(v.checked_in_at) <= to).sort((a, b) => String(b.checked_in_at).localeCompare(String(a.checked_in_at))));
     }
     if (seg[1] === 'visits' && seg.length === 3 && method === 'DELETE') { removeFrom(c.visits, seg[2]); return ok({}); }
-    // Appareils patient, appairage et code aidant (tout en memoire pour la demo)
-    if (path === '/api/kiosk/devices' && method === 'GET') return ok({ devices: demoKiosk.devices, pin_configured: demoKiosk.pinSet });
-    if (path === '/api/kiosk/devices/pairing' && method === 'POST') {
-        const kind = body.kind === 'phone' ? 'phone' : 'kiosk';
-        const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim() : (kind === 'phone' ? 'Téléphone' : 'Tablette');
-        // Le code de demo est accepte tel quel par /api/kiosk/pair : l'appareil apparait dans la liste.
-        const expires = new Date(Date.now() + 15 * 60000);
-        demoKiosk.devices.push({ id: uid(), name, kind, last_seen_at: null, created_at: naiveNow() });
-        return ok({ code: 'DEMO24', kind, name, expires_at: toLocalISO(expires) });
-    }
-    if (seg[1] === 'kiosk' && seg[2] === 'devices' && seg.length === 4 && method === 'DELETE') {
-        removeFrom(demoKiosk.devices, seg[3]);
-        return ok({});
-    }
-    if (path === '/api/kiosk/pin' && method === 'PUT') {
-        if (!/^\d{4,8}$/.test(String(body.pin ?? ''))) throw new Error('PIN_INVALID');
-        demoKiosk.pin = String(body.pin); demoKiosk.pinSet = true;
-        return ok({ pin_configured: true });
-    }
-    if (path === '/api/kiosk/pin' && method === 'DELETE') { demoKiosk.pin = ''; demoKiosk.pinSet = false; return ok({ pin_configured: false }); }
-    if (path === '/api/kiosk/pin/verify' && method === 'POST') {
-        return ok({ ok: !demoKiosk.pinSet || String(body.pin ?? '') === demoKiosk.pin, configured: demoKiosk.pinSet });
-    }
-    if (path === '/api/kiosk/pair' && method === 'POST') {
-        const device = { id: uid(), name: 'Tablette (démo)', kind: 'kiosk', settings: {} };
-        return ok({ token: 'demo-kiosk-token', circle_id: c.id, device, recipient_first_name: c.recipient?.first_name ?? null });
-    }
-    if (path === '/api/kiosk/device/settings' && method === 'PUT') return ok({ id: 'demo', name: 'Tablette (démo)', kind: 'kiosk', settings: body });
-    if (path === '/api/kiosk/device/unpair' && method === 'POST') return ok({});
-    // "J'ai tout pris" : toutes les prises listees passent a "pris", source kiosk ou telephone.
-    if (path === '/api/kiosk/intakes/confirm' && method === 'POST') {
-        const ids: string[] = Array.isArray(body.intake_ids) ? body.intake_ids : [];
-        const source = body.source === 'phone' ? 'phone' : 'kiosk';
-        let confirmed = 0;
-        for (const id of ids) { if (setIntakeStatus(c, id, 'taken', source)) confirmed++; }
-        return ok({ confirmed });
-    }
-    if (path === '/api/kiosk/status' && method === 'POST') {
-        const kind = body.kind === 'help' ? 'help' : body.kind === 'hydration' ? 'hydration' : 'ok';
-        const firstName = c.recipient ? c.recipient.first_name : 'Kiosk';
-        const content = kind === 'help'
-            ? 'J\'ai besoin d\'aide (signal envoyé depuis le kiosk)'
-            : kind === 'hydration'
-                ? 'A bu de l\'eau (signalé depuis le kiosk)'
-                : 'Tout va bien (signal envoyé depuis le kiosk)';
-        const entry = {
-            id: uid(), circle_id: c.id, author_user_id: null, caregiver_link_id: null,
-            author_name: firstName,
-            type: kind === 'help' ? 'incident' : kind === 'hydration' ? 'note' : 'mood',
-            content,
-            data: { source: 'kiosk', kind },
-            occurred_at: naiveNow(), created_at: naiveNow(), photos: [],
-        };
-        c.journal.unshift(entry);
-        if (kind === 'help') {
-            store.notifications.unshift({
-                id: uid(), user_id: store.user.id, circle_id: c.id,
-                title: `${firstName} demande de l'aide`,
-                message: `${firstName} a appuyé sur le bouton d'aide du kiosk. Pensez à prendre des nouvelles tout de suite.`,
-                type: 'kiosk_help', related_id: entry.id, url: '/journal', is_read: false, created_at: naiveNow(),
-            });
-        }
-        return ok(entry);
-    }
-
     // ── Journal vocal (transcription factice) ────────────────────────────────
     if (path === '/api/voice/transcribe' && method === 'POST') {
         await new Promise((resolve) => setTimeout(resolve, 800));
@@ -1986,6 +1868,27 @@ async function route(method: string, path: string, q: Record<string, string>, bo
             companion_enabled: body.companion_enabled === true,
         });
     }
+    // Feste Fragen der einfachen Ansicht (wie GET /api/companion/answer/:frage im Server).
+    if (seg[1] === 'companion' && seg[2] === 'answer' && seg.length === 4 && method === 'GET') {
+        const intents: Record<string, CompanionIntent> = {
+            medications: 'medications', visitors: 'visitors', appointments: 'appointments',
+            week: 'appointments_week', date: 'datetime', contacts: 'contacts',
+        };
+        const intent = intents[seg[3]];
+        if (!intent) throw new Error('Unknown question');
+        const lang: CompanionLang = store.user.language === 'en' ? 'en' : store.user.language === 'es' ? 'es' : store.user.language === 'de' ? 'de' : 'fr';
+        const today = todaySnapshot(c);
+        const facts: CompanionFactsInput = {
+            recipientFirstName: c.recipient?.first_name ?? '',
+            medications: today.medications,
+            events_today: today.events_today,
+            visits_today: today.visits_today,
+            contacts_key: today.contacts_key,
+            heatwave: today.heatwave,
+            events_week: demoExtraFacts(c, lang).events_week,
+        };
+        return ok({ reply: answerIntent(intent, facts, lang, new Date()), intent });
+    }
     if (path === '/api/companion/message' && method === 'POST') {
         // Comme le serveur : les questions pratiques sont repondues depuis les
         // donnees du cercle (sans IA), le reste simule un compagnon.
@@ -1993,7 +1896,7 @@ async function route(method: string, path: string, q: Record<string, string>, bo
         const msgs = Array.isArray(body.messages) ? (body.messages as Array<{ role: string; content: string }>) : [];
         const last = msgs.length > 0 ? String(msgs[msgs.length - 1]?.content || '') : '';
         const lang: CompanionLang = store.user.language === 'en' ? 'en' : store.user.language === 'es' ? 'es' : store.user.language === 'de' ? 'de' : 'fr';
-        const today = kioskToday(c);
+        const today = todaySnapshot(c);
         const facts: CompanionFactsInput = {
             recipientFirstName: c.recipient?.first_name ?? '',
             medications: today.medications,

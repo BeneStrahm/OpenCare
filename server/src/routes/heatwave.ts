@@ -8,8 +8,8 @@ import logger from '../lib/logger';
 // Suivi canicule / fortes chaleurs, rattache au cercle actif (X-Circle-Id).
 // L'episode est declenche manuellement par un admin/family (pas de source meteo
 // externe: offline-first). Pendant un episode actif, le scheduler pousse des
-// rappels d'hydratation aux aidants (reminderScheduler.ts) et le kiosk affiche
-// un bandeau + un bouton "J'ai bu de l'eau".
+// rappels d'hydratation aux aidants (reminderScheduler.ts) et la vue simple de
+// la personne accompagnee affiche un bandeau.
 const router = Router();
 router.use(authMiddleware, circleMiddleware);
 

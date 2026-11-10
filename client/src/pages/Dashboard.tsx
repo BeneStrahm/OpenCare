@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
-    CalendarDays, Pill, BookOpen, CheckSquare, Activity, ChevronRight, MessageCircle, MonitorPlay, Mic,
+    CalendarDays, Pill, BookOpen, CheckSquare, Activity, ChevronRight, MessageCircle, Mic,
 } from 'lucide-react';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { api } from '../lib/api';
@@ -317,9 +317,6 @@ const Dashboard: React.FC = () => {
                     </h1>
                     <p className="text-caption text-muted-foreground first-letter:uppercase">{todayLabel}</p>
                 </div>
-                {/* Le mode Kiosk s'ouvre d'ici : c'est l'ecran qu'on lance en
-                    arrivant chez le proche, pas un reglage qu'on va chercher.
-                    Masque au role voisin, qui ne voit aucune donnee de sante. */}
                 {/* Fork: Assistent, nicht fuer die Betreute Person (recipient), die der Server ablehnt. */}
                 {myRole !== 'recipient' && (
                     <button
@@ -329,16 +326,6 @@ const Dashboard: React.FC = () => {
                     >
                         <Mic className="h-4 w-4 text-primary" aria-hidden="true" />
                         {t('dashboard:openAskMe')}
-                    </button>
-                )}
-                {myRole !== 'neighbor' && (
-                    <button
-                        type="button"
-                        onClick={() => navigate('/kiosk')}
-                        className={cn(myRole === 'recipient' && 'ml-auto', 'flex min-h-[44px] shrink-0 items-center gap-2 rounded-card border border-border bg-card px-4 text-caption font-medium text-foreground transition-colors duration-fast hover:bg-surface-2')}
-                    >
-                        <MonitorPlay className="h-4 w-4 text-primary" aria-hidden="true" />
-                        {t('dashboard:openKiosk')}
                     </button>
                 )}
             </div>

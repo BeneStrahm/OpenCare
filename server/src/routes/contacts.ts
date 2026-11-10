@@ -18,7 +18,7 @@ const cleanOptionalText = (value: unknown): string | null =>
     typeof value === 'string' && value.trim() ? value.trim() : null;
 
 // The circle's address book, readable by every member.
-// Betreute Person (recipient): nur die wichtigen Kontakte wie in der Tablet-Ansicht.
+// Betreute Person (recipient): nur die wichtigen Kontakte (einfache Ansicht).
 router.get('/', async (req: CircleRequest, res: Response) => {
     try {
         if (req.circleRole === 'recipient') {
