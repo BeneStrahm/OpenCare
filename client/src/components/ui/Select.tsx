@@ -13,6 +13,10 @@ interface SelectProps {
     icon?: React.ReactNode;
     /** Name für Screenreader, wenn keine sichtbare Beschriftung über dem Feld steht. */
     ariaLabel?: string;
+    /** Gesperrt: Wert wird angezeigt, kann aber nicht geändert werden. */
+    disabled?: boolean;
+    /** ID eines Hinweistexts, der den Grund der Sperre erklärt. */
+    describedBy?: string;
 }
 
 const EMPTY_SELECT_VALUE = '__of_empty_value__';
@@ -28,16 +32,20 @@ export const Select: React.FC<SelectProps> = ({
     className,
     icon,
     ariaLabel,
+    disabled,
+    describedBy,
 }) => {
     return (
         <SelectPrimitive.Root
             value={toInternalValue(value)}
             onValueChange={(nextValue: string) => onValueChange(fromInternalValue(nextValue))}
+            disabled={disabled}
         >
             <SelectPrimitive.Trigger
                 aria-label={ariaLabel}
+                aria-describedby={describedBy}
                 className={cn(
-                    'input-nexus flex items-center justify-between py-0 text-caption',
+                    'input-nexus flex items-center justify-between py-0 text-caption disabled:cursor-not-allowed disabled:bg-surface-2',
                     className
                 )}
             >

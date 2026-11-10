@@ -31,7 +31,8 @@
     "done": "Faites",
     "all": "Toutes",
     "allAssignees": "Tous les membres",
-    "assigneeLabel": "Filtrer par membre"
+    "assigneeLabel": "Filtrer par membre",
+    "assigneeLocked": "« Non attribuées » affiche toujours tous les membres."
   },
   "row": {
     "markDone": "Marquer comme faite",

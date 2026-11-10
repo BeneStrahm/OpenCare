@@ -4,6 +4,7 @@ import { format, parseISO, endOfWeek, endOfMonth } from 'date-fns';
 import { Plus, Check, ClipboardList, Pencil, Trash2, Repeat, ChevronDown, ChevronRight, CalendarClock, Users } from 'lucide-react';
 import { api } from '../lib/api';
 import { useCircle } from '../contexts/CircleContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useWebSocketUpdates } from '../hooks/useWebSocketUpdates';
 import { dateLocale } from '../i18n/format';
 import { Button, Dialog, Input, Select, Textarea, DatePicker, Badge } from '../components/ui';
@@ -85,6 +86,7 @@ const MemberAvatar: React.FC<{ member: AssignedMember; className?: string }> = (
 const Tasks: React.FC = () => {
     const { t } = useTranslation(['tasks', 'common']);
     const { activeCircle, canWriteContent, canWriteJournal } = useCircle();
+    const { user } = useAuth();
 
     const [tasks, setTasks] = useState<Task[]>([]);
     const [members, setMembers] = useState<CircleMember[]>([]);
@@ -131,7 +133,11 @@ const Tasks: React.FC = () => {
                 `/api/circles/${circleId}`
             );
             if (response.success) {
-                setMembers(response.data.members ?? []);
+                const list = response.data.members ?? [];
+                setMembers(list);
+                // Standard: nur die eigenen Aufgaben zeigen
+                const me = list.find((member) => member.user_id === user?.id);
+                if (me) setAssigneeFilter(me.id);
             }
         } catch (err) {
             console.error('Failed to load circle members:', err);
@@ -258,9 +264,13 @@ const Tasks: React.FC = () => {
         }));
     };
 
+    // Bei "Unverteilt" ist der Mitglieder-Filter gesperrt und zeigt "Alle Mitglieder";
+    // die vorherige Auswahl bleibt erhalten und gilt wieder bei den anderen Filtern.
+    const assigneeLocked = statusFilter === 'unassigned';
+    const effectiveAssignee = assigneeLocked ? '' : assigneeFilter;
     const filteredTasks = useMemo(
-        () => tasks.filter((task) => !assigneeFilter || (task.assigned_to || []).includes(assigneeFilter)),
-        [tasks, assigneeFilter]
+        () => tasks.filter((task) => !effectiveAssignee || (task.assigned_to || []).includes(effectiveAssignee)),
+        [tasks, effectiveAssignee]
     );
     const openTasks = useMemo(() => filteredTasks.filter((task) => !task.is_completed), [filteredTasks]);
     const doneTasks = useMemo(() => filteredTasks.filter((task) => task.is_completed), [filteredTasks]);
@@ -495,8 +505,10 @@ const Tasks: React.FC = () => {
                     ))}
                 </div>
                 <Select
-                    value={assigneeFilter}
+                    value={effectiveAssignee}
                     onValueChange={setAssigneeFilter}
+                    disabled={assigneeLocked}
+                    describedBy={assigneeLocked ? 'tasks-assignee-locked' : undefined}
                     options={[
                         { value: '', label: t('tasks:filters.allAssignees') },
                         ...members.map((member) => ({ value: member.id, label: member.name })),
@@ -505,6 +517,11 @@ const Tasks: React.FC = () => {
                     ariaLabel={t('tasks:filters.assigneeLabel')}
                     className="min-h-[48px] w-full text-body sm:w-64"
                 />
+                {assigneeLocked && (
+                    <p id="tasks-assignee-locked" className="w-full text-caption text-muted-foreground">
+                        {t('tasks:filters.assigneeLocked')}
+                    </p>
+                )}
             </div>
 
             {/* Liste principale */}

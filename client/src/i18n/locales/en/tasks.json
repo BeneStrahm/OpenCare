@@ -31,7 +31,8 @@
     "done": "Done",
     "all": "All",
     "allAssignees": "All members",
-    "assigneeLabel": "Filter by member"
+    "assigneeLabel": "Filter by member",
+    "assigneeLocked": "“Unassigned” always shows all members."
   },
   "row": {
     "markDone": "Mark as done",

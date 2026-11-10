@@ -31,7 +31,8 @@
     "done": "Erledigt",
     "all": "Alle",
     "allAssignees": "Alle Mitglieder",
-    "assigneeLabel": "Nach Mitglied filtern"
+    "assigneeLabel": "Nach Mitglied filtern",
+    "assigneeLocked": "Bei „Unverteilt“ werden immer alle Mitglieder gezeigt."
   },
   "row": {
     "markDone": "Als erledigt markieren",

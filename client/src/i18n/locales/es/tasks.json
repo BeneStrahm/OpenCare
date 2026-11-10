@@ -31,7 +31,8 @@
     "done": "Hechas",
     "all": "Todas",
     "allAssignees": "Todos los miembros",
-    "assigneeLabel": "Filtrar por miembro"
+    "assigneeLabel": "Filtrar por miembro",
+    "assigneeLocked": "«Sin asignar» muestra siempre a todos los miembros."
   },
   "row": {
     "markDone": "Marcar como hecha",
