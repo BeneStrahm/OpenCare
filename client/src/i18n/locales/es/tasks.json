@@ -27,15 +27,25 @@
   "filters": {
     "statusLabel": "Filtrar por estado",
     "todo": "Por hacer",
+    "unassigned": "Sin asignar",
     "done": "Hechas",
     "all": "Todas",
-    "allAssignees": "Todos los miembros"
+    "allAssignees": "Todos los miembros",
+    "assigneeLabel": "Filtrar por miembro"
   },
   "row": {
     "markDone": "Marcar como hecha",
     "markPending": "Marcar como por hacer",
     "due": "Para el {{date}}",
     "overdue": "Con retraso ({{date}})"
+  },
+  "groups": {
+    "overdue": "Atrasadas",
+    "thisWeek": "Esta semana",
+    "thisMonth": "Este mes",
+    "later": "Más tarde",
+    "noDate": "Sin fecha",
+    "done": "Hechas"
   },
   "completedSection_one": "Tareas terminadas ({{count}})",
   "completedSection_other": "Tareas terminadas ({{count}})",

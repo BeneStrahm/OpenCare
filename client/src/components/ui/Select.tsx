@@ -9,6 +9,10 @@ interface SelectProps {
     placeholder?: string;
     options: Array<{ value: string; label: string }>;
     className?: string;
+    /** Symbol links im Feld, z. B. <Users />. */
+    icon?: React.ReactNode;
+    /** Name für Screenreader, wenn keine sichtbare Beschriftung über dem Feld steht. */
+    ariaLabel?: string;
 }
 
 const EMPTY_SELECT_VALUE = '__of_empty_value__';
@@ -22,6 +26,8 @@ export const Select: React.FC<SelectProps> = ({
     placeholder = 'Selectionner...',
     options,
     className,
+    icon,
+    ariaLabel,
 }) => {
     return (
         <SelectPrimitive.Root
@@ -29,12 +35,20 @@ export const Select: React.FC<SelectProps> = ({
             onValueChange={(nextValue: string) => onValueChange(fromInternalValue(nextValue))}
         >
             <SelectPrimitive.Trigger
+                aria-label={ariaLabel}
                 className={cn(
                     'input-nexus flex items-center justify-between py-0 text-caption',
                     className
                 )}
             >
-                <SelectPrimitive.Value placeholder={placeholder} />
+                <span className="flex min-w-0 items-center gap-2">
+                    {icon && (
+                        <span aria-hidden="true" className="flex flex-shrink-0 text-muted-foreground">
+                            {icon}
+                        </span>
+                    )}
+                    <SelectPrimitive.Value placeholder={placeholder} />
+                </span>
                 <SelectPrimitive.Icon>
                     <ChevronDown className="h-4 w-4 text-muted-foreground" />
                 </SelectPrimitive.Icon>

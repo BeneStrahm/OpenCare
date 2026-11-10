@@ -27,15 +27,25 @@
   "filters": {
     "statusLabel": "Nach Status filtern",
     "todo": "Offen",
+    "unassigned": "Unverteilt",
     "done": "Erledigt",
     "all": "Alle",
-    "allAssignees": "Alle Mitglieder"
+    "allAssignees": "Alle Mitglieder",
+    "assigneeLabel": "Nach Mitglied filtern"
   },
   "row": {
     "markDone": "Als erledigt markieren",
     "markPending": "Als offen markieren",
     "due": "Fällig am {{date}}",
     "overdue": "Überfällig ({{date}})"
+  },
+  "groups": {
+    "overdue": "Überfällig",
+    "thisWeek": "Diese Woche",
+    "thisMonth": "Dieser Monat",
+    "later": "Später",
+    "noDate": "Ohne Datum",
+    "done": "Erledigt"
   },
   "completedSection_one": "Erledigte Aufgaben ({{count}})",
   "completedSection_other": "Erledigte Aufgaben ({{count}})",

@@ -27,15 +27,25 @@
   "filters": {
     "statusLabel": "Filter by status",
     "todo": "To do",
+    "unassigned": "Unassigned",
     "done": "Done",
     "all": "All",
-    "allAssignees": "All members"
+    "allAssignees": "All members",
+    "assigneeLabel": "Filter by member"
   },
   "row": {
     "markDone": "Mark as done",
     "markPending": "Mark as to do",
     "due": "Due {{date}}",
     "overdue": "Overdue ({{date}})"
+  },
+  "groups": {
+    "overdue": "Overdue",
+    "thisWeek": "This week",
+    "thisMonth": "This month",
+    "later": "Later",
+    "noDate": "No date",
+    "done": "Done"
   },
   "completedSection_one": "Completed tasks ({{count}})",
   "completedSection_other": "Completed tasks ({{count}})",

@@ -27,15 +27,25 @@
   "filters": {
     "statusLabel": "Filtrer par statut",
     "todo": "À faire",
+    "unassigned": "Non attribuées",
     "done": "Faites",
     "all": "Toutes",
-    "allAssignees": "Tous les membres"
+    "allAssignees": "Tous les membres",
+    "assigneeLabel": "Filtrer par membre"
   },
   "row": {
     "markDone": "Marquer comme faite",
     "markPending": "Marquer comme à faire",
     "due": "Pour le {{date}}",
     "overdue": "En retard ({{date}})"
+  },
+  "groups": {
+    "overdue": "En retard",
+    "thisWeek": "Cette semaine",
+    "thisMonth": "Ce mois-ci",
+    "later": "Plus tard",
+    "noDate": "Sans date",
+    "done": "Terminées"
   },
   "completedSection_one": "Tâches terminées ({{count}})",
   "completedSection_other": "Tâches terminées ({{count}})",

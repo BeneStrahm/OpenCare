@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { format, parseISO } from 'date-fns';
-import { Plus, Check, ClipboardList, Pencil, Trash2, Repeat, ChevronDown, ChevronRight, CalendarClock } from 'lucide-react';
+import { format, parseISO, endOfWeek, endOfMonth } from 'date-fns';
+import { Plus, Check, ClipboardList, Pencil, Trash2, Repeat, ChevronDown, ChevronRight, CalendarClock, Users } from 'lucide-react';
 import { api } from '../lib/api';
 import { useCircle } from '../contexts/CircleContext';
 import { useWebSocketUpdates } from '../hooks/useWebSocketUpdates';
@@ -9,6 +9,7 @@ import { dateLocale } from '../i18n/format';
 import { Button, Dialog, Input, Select, Textarea, DatePicker, Badge } from '../components/ui';
 import { EmptyState } from '../components/app';
 import { cn } from '../lib/utils';
+import { circleWeekStart, weekStartsOn } from '../lib/weekStart';
 
 // Catégories normalisées côté serveur (tasks.ts: TASK_CATEGORIES)
 const TASK_CATEGORIES = ['shopping', 'pharmacy', 'laundry', 'admin', 'transport', 'other'] as const;
@@ -46,7 +47,11 @@ interface CircleMember {
     role: string;
 }
 
-type StatusFilter = 'todo' | 'done' | 'all';
+type StatusFilter = 'todo' | 'unassigned' | 'done' | 'all';
+
+/** Zeitgruppen für offene Aufgaben, in dieser Reihenfolge angezeigt. */
+const DUE_GROUPS = ['overdue', 'thisWeek', 'thisMonth', 'later', 'noDate'] as const;
+type DueGroup = (typeof DUE_GROUPS)[number];
 
 const initials = (name: string): string =>
     name
@@ -260,10 +265,66 @@ const Tasks: React.FC = () => {
     const openTasks = useMemo(() => filteredTasks.filter((task) => !task.is_completed), [filteredTasks]);
     const doneTasks = useMemo(() => filteredTasks.filter((task) => task.is_completed), [filteredTasks]);
 
+    const unassignedTasks = useMemo(
+        () => openTasks.filter((task) => (task.assigned_to || []).length === 0),
+        [openTasks]
+    );
+
     const mainList =
-        statusFilter === 'done' ? doneTasks : statusFilter === 'all' ? [...openTasks, ...doneTasks] : openTasks;
+        statusFilter === 'done'
+            ? doneTasks
+            : statusFilter === 'all'
+              ? [...openTasks, ...doneTasks]
+              : statusFilter === 'unassigned'
+                ? unassignedTasks
+                : openTasks;
     const showCompletedSection = statusFilter === 'todo' && doneTasks.length > 0;
     const today = todayLocal();
+
+    // Grenzen für "Diese Woche" und "Dieser Monat" (Wochenbeginn wie im Kalender)
+    const now = new Date();
+    const weekEnd = format(endOfWeek(now, { weekStartsOn: weekStartsOn(circleWeekStart(activeCircle)) }), 'yyyy-MM-dd');
+    const monthEnd = format(endOfMonth(now), 'yyyy-MM-dd');
+
+    const dueGroupOf = (task: Task): DueGroup => {
+        if (!task.due_date) return 'noDate';
+        const due = dueDatePart(task.due_date);
+        if (due < today) return 'overdue';
+        if (due <= weekEnd) return 'thisWeek';
+        if (due <= monthEnd) return 'thisMonth';
+        return 'later';
+    };
+
+    /** Offene Aufgaben in Zeitgruppen, erledigte Aufgaben als eigene Gruppe am Ende. */
+    const renderGrouped = (list: Task[]) => {
+        const open = list.filter((task) => !task.is_completed);
+        const done = list.filter((task) => task.is_completed);
+        const groups: Array<{ key: string; tasks: Task[] }> = DUE_GROUPS.map((group) => ({
+            key: group,
+            tasks: open.filter((task) => dueGroupOf(task) === group),
+        }));
+        groups.push({ key: 'done', tasks: done });
+        return (
+            <div className="space-y-5">
+                {groups
+                    .filter((group) => group.tasks.length > 0)
+                    .map((group) => (
+                        <section key={group.key} aria-labelledby={`task-group-${group.key}`}>
+                            <h2
+                                id={`task-group-${group.key}`}
+                                className={cn(
+                                    'mb-2 text-body font-semibold',
+                                    group.key === 'overdue' ? 'text-destructive' : 'text-foreground'
+                                )}
+                            >
+                                {t(`tasks:groups.${group.key}`)} ({group.tasks.length})
+                            </h2>
+                            <ul className="space-y-2">{group.tasks.map(renderTaskRow)}</ul>
+                        </section>
+                    ))}
+            </div>
+        );
+    };
 
     const renderTaskRow = (task: Task) => {
         const due = task.due_date ? dueDatePart(task.due_date) : null;
@@ -414,16 +475,16 @@ const Tasks: React.FC = () => {
                 <div
                     role="group"
                     aria-label={t('tasks:filters.statusLabel')}
-                    className="inline-flex min-h-[44px] rounded-pill bg-surface-2 p-1"
+                    className="inline-flex min-h-[48px] flex-wrap rounded-pill bg-surface-2 p-1"
                 >
-                    {(['todo', 'done', 'all'] as StatusFilter[]).map((status) => (
+                    {(['todo', 'unassigned', 'done', 'all'] as StatusFilter[]).map((status) => (
                         <button
                             key={status}
                             type="button"
                             onClick={() => setStatusFilter(status)}
                             aria-pressed={statusFilter === status}
                             className={cn(
-                                'min-h-[36px] flex-1 rounded-pill px-4 text-caption font-medium transition-colors duration-fast ease-soft sm:flex-none',
+                                'min-h-[40px] flex-1 rounded-pill px-4 text-body font-medium transition-colors duration-fast ease-soft sm:flex-none',
                                 statusFilter === status
                                     ? 'bg-card text-primary shadow-surface'
                                     : 'text-muted-foreground hover:text-foreground'
@@ -440,7 +501,9 @@ const Tasks: React.FC = () => {
                         { value: '', label: t('tasks:filters.allAssignees') },
                         ...members.map((member) => ({ value: member.id, label: member.name })),
                     ]}
-                    className="w-full sm:w-56"
+                    icon={<Users className="h-5 w-5" />}
+                    ariaLabel={t('tasks:filters.assigneeLabel')}
+                    className="min-h-[48px] w-full text-body sm:w-64"
                 />
             </div>
 
@@ -468,7 +531,7 @@ const Tasks: React.FC = () => {
                     onAction={statusFilter !== 'done' && tasks.length === 0 && canWriteContent ? openCreate : undefined}
                 />
             ) : (
-                <ul className="space-y-2">{mainList.map(renderTaskRow)}</ul>
+                renderGrouped(mainList)
             )}
 
             {/* Tâches terminées (section repliée) */}
