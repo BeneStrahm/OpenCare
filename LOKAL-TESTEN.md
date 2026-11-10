@@ -72,3 +72,37 @@ Alle Testdaten löschen (Datenbank inklusive):
 ```
 docker compose down -v
 ```
+
+## Für die Entwicklung: dev:lokal und precheck
+
+Zwei Befehle reichen:
+
+| Befehl | Wann | Adresse |
+| --- | --- | --- |
+| `npm run dev:lokal` | Beim Arbeiten. Änderungen erscheinen nach etwa einer Sekunde, ohne neuen Build. Keine Tests | http://localhost:5173 |
+| `npm run precheck` | Vor jedem Commit: Typprüfung, Tests und die fertige App in Docker, so wie auf dem Server | http://localhost:3000 |
+
+`npm run precheck:fast` (nur Typprüfung und Tests) bleibt für zwischendurch.
+
+`npm run dev:lokal` startet nur die Datenbank in Docker (erreichbar nur über 127.0.0.1:5433,
+siehe `docker-compose.dev.yml`), dann Server und Oberfläche direkt auf dem Rechner. Beim ersten Start
+legt es `server/.env` aus `server/.env.example` an und spielt die Testdaten ein. Läuft die Docker-App
+von `npm run precheck`, wird sie angehalten, weil beide Port 3001 brauchen. Beide nutzen dieselbe
+Datenbank und dieselben Testdaten.
+
+Alle Meldungen von Server und Oberfläche stehen in `dev-lokal.log` im Hauptordner (bei jedem Start
+neu, nicht im Repo). Im Terminal stehen nur die Schritte und die Testkonten.
+
+Beenden mit Strg+C. Die Datenbank läuft weiter, anhalten mit `docker compose stop postgres`.
+
+### Testkonten (fiktiv)
+
+Passwort für alle: `Testpasswort-123`
+
+| Rolle | E-Mail |
+| --- | --- |
+| Administrator | admin@example.com |
+| Familie | familie@example.com |
+| Fachkraft | fachkraft@example.com |
+| Freunde | freunde@example.com |
+| Betreute Person | erika@example.com |

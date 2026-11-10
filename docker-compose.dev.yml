@@ -1,0 +1,7 @@
+# Nur fuer den lokalen Entwicklungsmodus (npm run dev:lokal).
+# Ergaenzt docker-compose.yml: Die Datenbank ist von diesem Rechner aus erreichbar,
+# aber nur ueber 127.0.0.1 (nicht aus dem Netzwerk). Auf dem Server nie verwenden.
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:5433:5432"
