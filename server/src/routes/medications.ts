@@ -9,6 +9,8 @@ import {
     requireRole,
     HEALTH_READER_ROLES,
     INTAKE_CONFIRMER_ROLES,
+    recipientMayChangeIntake,
+    recipientUndoMsLeft,
     caregiverLinkMiddleware,
     CircleRequest,
     CaregiverLinkRequest,
@@ -26,6 +28,7 @@ import {
     toDateString,
     INTAKE_DISPLAY_COLUMNS,
     INTAKE_DISPLAY_FROM,
+    CONFIRMED_AGE_MS_SQL,
 } from '../lib/intakes';
 import { langFromRequest, t, type Lang } from '../lib/i18n';
 
@@ -602,7 +605,7 @@ router.get('/intakes', async (req: CircleRequest, res: Response) => {
         await markMissed(req.circleId!);
 
         const result = await query(
-            `SELECT ${INTAKE_DISPLAY_COLUMNS}
+            `SELECT ${INTAKE_DISPLAY_COLUMNS}, ${CONFIRMED_AGE_MS_SQL} AS confirmed_age_ms
              ${INTAKE_DISPLAY_FROM}
              WHERE i.circle_id = $1
                AND i.due_at >= $2::date
@@ -610,14 +613,19 @@ router.get('/intakes', async (req: CircleRequest, res: Response) => {
              ORDER BY i.due_at, m.name`,
             [req.circleId, from, to]
         );
-        res.json({ success: true, data: result.rows });
+        // Betreute Person: wie lange sie eine eigene Bestaetigung noch zuruecksetzen darf (Taste "Rueckgaengig").
+        const rows = req.circleRole === 'recipient'
+            ? result.rows.map((row) => ({ ...row, undo_ms_left: recipientUndoMsLeft(row, req.userId) }))
+            : result.rows;
+        res.json({ success: true, data: rows });
     } catch (error) {
         console.error('List intakes error:', error);
         res.status(500).json({ success: false, error: 'Internal server error' });
     }
 });
 
-// Confirm, skip or reset an intake. recipient may only confirm ("taken").
+// Confirm, skip or reset an intake. recipient may only confirm ("taken") and undo her own
+// confirmation for RECIPIENT_UNDO_MINUTES (middleware/circle.ts).
 router.put('/intakes/:id', requireRole(...INTAKE_CONFIRMER_ROLES), async (req: CircleRequest, res: Response) => {
     const lang = langFromRequest(req);
     const client = await getClient();
@@ -626,7 +634,7 @@ router.put('/intakes/:id', requireRole(...INTAKE_CONFIRMER_ROLES), async (req: C
         if (!INTAKE_STATUSES.includes(status)) {
             return res.status(400).json({ success: false, error: t(lang, 'medications.statusInvalid') });
         }
-        if (req.circleRole === 'recipient' && status !== 'taken') {
+        if (req.circleRole === 'recipient' && status !== 'taken' && status !== 'pending') {
             return res.status(403).json({ success: false, error: 'Insufficient role' });
         }
 
@@ -636,6 +644,14 @@ router.put('/intakes/:id', requireRole(...INTAKE_CONFIRMER_ROLES), async (req: C
         if (!intake) {
             await client.query('ROLLBACK');
             return res.status(404).json({ success: false, error: t(lang, 'medications.intakeNotFound') });
+        }
+
+        // Betreute Person: nur offene Einnahmen bestaetigen, und nur die eigene
+        // Bestaetigung kurz danach zuruecksetzen (Regeln in middleware/circle.ts).
+        if (req.circleRole === 'recipient' && !recipientMayChangeIntake(status, intake, req.userId)) {
+            await client.query('ROLLBACK');
+            const error = status === 'pending' ? t(lang, 'medications.undoExpired') : 'Insufficient role';
+            return res.status(403).json({ success: false, error });
         }
 
         const userResult = await client.query('SELECT name FROM users WHERE id = $1', [req.userId]);

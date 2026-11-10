@@ -104,6 +104,10 @@ interface Intake {
     instructions: string | null;
     with_food: WithFood | null;
     appearance: string | null;
+    /** Nur fuer die betreute Person: Restzeit fuer "Rueckgaengig" in ms, vom Server berechnet. */
+    undo_ms_left?: number;
+    /** Lokal: bis wann die Taste "Rueckgaengig" zu sehen ist (Date.now()-Zeit). */
+    undo_until?: number;
 }
 
 interface Prescription {
@@ -367,14 +371,24 @@ const Medications: React.FC = () => {
             const response = await api.get<{ success: boolean; data: Intake[] }>(
                 '/api/medications/intakes'
             );
-            if (response.success) setIntakes(response.data);
+            if (response.success) {
+                const loadedAt = Date.now();
+                setIntakes(response.data.map((intake) => ({
+                    ...intake,
+                    undo_until: intake.undo_ms_left && intake.undo_ms_left > 0 ? loadedAt + intake.undo_ms_left : undefined,
+                })));
+            }
         } catch (err) {
             console.error('Failed to load intakes:', err);
             setError(err instanceof Error ? err.message : t('medications:errors.loadIntakes'));
         }
     };
 
+    // Betreute Person liest nur "Heute" wie in der Tablet-Ansicht; Plan, Vorrat und Rezepte sperrt der Server.
+    const readsTodayOnly = myRole === 'recipient';
+
     const loadMedications = async () => {
+        if (readsTodayOnly) return;
         try {
             const response = await api.get<{ success: boolean; data: Medication[] }>(
                 `/api/medications?active=${showArchived ? 'all' : 'true'}`
@@ -387,6 +401,7 @@ const Medications: React.FC = () => {
     };
 
     const loadPrescriptions = async () => {
+        if (readsTodayOnly) return;
         try {
             const response = await api.get<{ success: boolean; data: Prescription[] }>(
                 '/api/medications/prescriptions'
@@ -410,7 +425,7 @@ const Medications: React.FC = () => {
     }, [activeCircle?.id]);
 
     useEffect(() => {
-        if (!activeCircle) return;
+        if (!activeCircle || readsTodayOnly) return;
         // Nur Vorschläge: Fehler hier stören die Seite nicht.
         api.get<{ success: boolean; data: ContactOption[] }>('/api/contacts')
             .then((response) => {
@@ -482,6 +497,21 @@ const Medications: React.FC = () => {
     const isRecipient = myRole === 'recipient';
     const canConfirmIntakes = canWriteJournal || isRecipient;
 
+    // Rueckgaengig fuer die betreute Person: die Taste verschwindet, sobald die
+    // vom Server genannte Zeit um ist (der Server prueft beim Zuruecksetzen erneut).
+    const [clock, setClock] = useState(() => Date.now());
+    useEffect(() => {
+        const next = intakes.reduce(
+            (min, intake) => (intake.undo_until && intake.undo_until > clock ? Math.min(min, intake.undo_until) : min),
+            Infinity
+        );
+        if (next === Infinity) return;
+        const timer = window.setTimeout(() => setClock(Date.now()), Math.max(0, next - Date.now()) + 50);
+        return () => window.clearTimeout(timer);
+    }, [intakes, clock]);
+    const canUndoOwn = (intake: Intake) =>
+        isRecipient && intake.status === 'taken' && Boolean(intake.undo_until && intake.undo_until > clock);
+
     // "Morgens alle genommen": Rueckfrage, dann alle offenen Einnahmen des Blocks bestaetigen.
     const [confirmAllMoment, setConfirmAllMoment] = useState<Moment | null>(null);
     const [confirmAllBusy, setConfirmAllBusy] = useState(false);
@@ -542,6 +572,14 @@ const Medications: React.FC = () => {
     const renderIntakeActions = (intake: Intake) => {
         if (!canConfirmIntakes) return null;
         if (isRecipient) {
+            if (canUndoOwn(intake)) {
+                return (
+                    <Button variant="secondary" size="lg" onClick={() => void setIntakeStatus(intake, 'pending')}>
+                        <RotateCcw className="mr-2 h-5 w-5" aria-hidden="true" />
+                        {t('medications:today.undo')}
+                    </Button>
+                );
+            }
             if (isDone(intake)) return null;
             return (
                 <Button size="lg" className="sm:min-w-[12rem]" onClick={() => void setIntakeStatus(intake, 'taken')}>
@@ -1478,7 +1516,9 @@ const Medications: React.FC = () => {
 
             <Tabs
                 defaultValue="today"
-                tabs={[
+                tabs={readsTodayOnly ? [
+                    { value: 'today', label: t('medications:tabs.today'), content: todaySection },
+                ] : [
                     { value: 'today', label: t('medications:tabs.today'), content: todaySection },
                     {
                         value: 'treatments',

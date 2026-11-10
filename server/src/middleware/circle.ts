@@ -8,15 +8,88 @@ export type CircleRole = 'admin' | 'family' | 'professional' | 'neighbor' | 'rec
 export const CIRCLE_ROLES: CircleRole[] = ['admin', 'family', 'professional', 'neighbor', 'recipient'];
 
 /*
- * Rolle recipient ("Betreute Person"), Entscheidung E10.
- * Rechte VORLAEUFIG minimal und nur hier festgelegt (Roadmap Phase 3e, Schritt 2):
- * - liest wie die anderen, Gesundheitsdaten eingeschlossen (HEALTH_READER_ROLES)
- * - schreibt nichts: fehlt in JOURNAL_WRITER_ROLES und CONTENT_WRITER_ROLES
- *   Ausnahme: bestaetigt eigene Medikamenten-Einnahmen als "Genommen"
- *   (INTAKE_CONFIRMER_ROLES), einzeln oder pro Tageszeit; nicht auslassen, nicht zuruecksetzen
- * - verwaltet nichts, laedt nicht ein, entfernt niemanden (nur admin)
- * - kein Zugriff auf Arztgespraeche (CONSULTATION_READER_ROLES)
+ * Rolle recipient ("Betreute Person"), Entscheidung E10, Launch Block B.
+ * Alle Rechte der Rolle stehen hier, an einer Stelle:
+ * - liest nur ihren Alltag, Umfang wie die Tablet-Ansicht (Kiosk): Termine,
+ *   Medikamente heute, wichtige Kontakte, Besuche, Notfallblatt, Hitzewarnung,
+ *   Name und Foto. Erlaubt ist nur, was in RECIPIENT_ALLOWED_REQUESTS steht;
+ *   alles andere lehnt circleMiddleware mit 403 ab (Tagebuch, Arztgespraech,
+ *   Dokumente, Gesundheitswerte, Aufgaben, Mitglieder- und Kreisverwaltung, Export ...).
+ * - schreibt nichts. Ausnahme: bestaetigt Einnahmen als "Genommen"
+ *   (INTAKE_CONFIRMER_ROLES), einzeln oder pro Tageszeit; nicht auslassen,
+ *   kein "Bei Bedarf". Eine eigene Bestaetigung (Quelle self) darf sie
+ *   RECIPIENT_UNDO_MINUTES lang selbst zuruecksetzen (recipientMayChangeIntake).
+ * - eigenes Konto (Profil, Sprache, Benachrichtigungen) unter /api/auth und
+ *   /api/notifications haengt an keinem Kreis und bleibt unberuehrt.
  */
+
+/** So lange darf die betreute Person ihre eigene Bestaetigung rueckgaengig machen. */
+export const RECIPIENT_UNDO_MINUTES = 10;
+export const RECIPIENT_UNDO_MS = RECIPIENT_UNDO_MINUTES * 60 * 1000;
+
+const SEGMENT = '[^/]+';
+
+/**
+ * Anfragen, die recipient in einem Kreis stellen darf (Methode + Pfad ohne Query).
+ * Alles, was hier fehlt, ist gesperrt. Die Routen selbst filtern zusaetzlich,
+ * was recipient sieht (Dashboard, Kontakte, Mitglieder) oder schreiben darf.
+ */
+export const RECIPIENT_ALLOWED_REQUESTS: Array<{ method: 'GET' | 'POST' | 'PUT'; path: RegExp }> = [
+    { method: 'GET', path: /^\/api\/dashboard(\/household)?$/ },
+    { method: 'GET', path: new RegExp(`^/api/circles/${SEGMENT}(/recipient)?$`) },
+    { method: 'GET', path: /^\/api\/events(\/upcoming)?$/ },
+    { method: 'GET', path: /^\/api\/medications\/intakes$/ },
+    { method: 'PUT', path: new RegExp(`^/api/medications/intakes/${SEGMENT}$`) },
+    { method: 'POST', path: /^\/api\/medications\/intakes\/confirm$/ },
+    { method: 'GET', path: /^\/api\/contacts$/ },
+    { method: 'GET', path: /^\/api\/visits$/ },
+    { method: 'GET', path: /^\/api\/heatwave$/ },
+    // Tablet-Ansicht mit eigenem Konto: die Routen pruefen die Rolle selbst.
+    { method: 'GET', path: /^\/api\/kiosk\/(today|photo|emergency|care-plan)$/ },
+    { method: 'POST', path: /^\/api\/kiosk\/pin\/verify$/ },
+    // Sprachbefehle: fuer recipient nur "Termine vorlesen" (WRITE_RULES in modules/voiceCommands/routes.ts).
+    { method: 'POST', path: /^\/api\/voice-commands\/(parse|preview|execute)$/ },
+];
+
+/** Darf recipient diese Anfrage stellen? url ist die volle Adresse (req.originalUrl). */
+export function recipientMayAccess(method: string, url: string): boolean {
+    const path = (url.split('?')[0] || '').replace(/\/+$/, '');
+    return RECIPIENT_ALLOWED_REQUESTS.some((rule) => rule.method === method && rule.path.test(path));
+}
+
+/** Felder einer Einnahme, die fuer das Rueckgaengig der betreuten Person zaehlen. */
+export interface IntakeConfirmationInfo {
+    status: string;
+    confirmed_source?: string | null;
+    confirmed_by_user?: string | null;
+    /** Alter der Bestaetigung in ms, auf dem Server berechnet (Datenbankzeit). */
+    confirmed_age_ms?: number | string | null;
+}
+
+/**
+ * Restzeit in ms, in der recipient diese Einnahme selbst zuruecksetzen darf:
+ * nur die eigene Bestaetigung (Quelle self, eigenes Konto), hoechstens
+ * RECIPIENT_UNDO_MS nach dem Bestaetigen. Sonst 0.
+ */
+export function recipientUndoMsLeft(intake: IntakeConfirmationInfo, userId: string | undefined): number {
+    if (intake.status !== 'taken' || intake.confirmed_source !== 'self') return 0;
+    if (!userId || intake.confirmed_by_user !== userId) return 0;
+    if (intake.confirmed_age_ms === null || intake.confirmed_age_ms === undefined) return 0;
+    const age = Number(intake.confirmed_age_ms);
+    if (!Number.isFinite(age) || age < 0) return 0;
+    return Math.max(0, RECIPIENT_UNDO_MS - age);
+}
+
+/** Darf recipient diese Einnahme auf den Status target setzen? */
+export function recipientMayChangeIntake(
+    target: string,
+    intake: IntakeConfirmationInfo,
+    userId: string | undefined
+): boolean {
+    if (target === 'taken') return intake.status === 'pending' || intake.status === 'missed';
+    if (target === 'pending') return recipientUndoMsLeft(intake, userId) > 0;
+    return false;
+}
 
 /** Roles allowed to read health data (vitals, medications, documents, digests). */
 export const HEALTH_READER_ROLES: CircleRole[] = ['admin', 'family', 'professional', 'recipient'];
@@ -58,6 +131,11 @@ export const circleMiddleware = async (req: CircleRequest, res: Response, next: 
             return res.status(403).json({ success: false, error: 'Not a member of this circle' });
         }
 
+        // Betreute Person: nur die freigegebenen Bereiche (siehe RECIPIENT_ALLOWED_REQUESTS).
+        if (membership.role === 'recipient' && !recipientMayAccess(req.method, req.originalUrl ?? req.url ?? '')) {
+            return res.status(403).json({ success: false, error: 'Insufficient role' });
+        }
+
         req.circleId = circleId;
         req.memberId = membership.id;
         req.circleRole = membership.role;
@@ -84,7 +162,8 @@ export const requireRole = (...roles: CircleRole[]) => {
 export const JOURNAL_WRITER_ROLES: CircleRole[] = ['admin', 'family', 'professional', 'neighbor'];
 
 /**
- * Roles allowed to confirm medication intakes. recipient may only mark them taken (see above).
+ * Roles allowed to confirm medication intakes. recipient may only mark them taken,
+ * and undo her own confirmation for a short while (recipientMayChangeIntake).
  * neighbor ("Freunde") is left out: it reads no health data, so it confirms no intakes either.
  */
 export const INTAKE_CONFIRMER_ROLES: CircleRole[] = ['admin', 'family', 'professional', 'recipient'];

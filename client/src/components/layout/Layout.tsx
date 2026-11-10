@@ -56,49 +56,53 @@ interface NavItem {
 
 // Le role neighbor n'a pas acces aux donnees de sante ni aux documents (matrice docs/SPEC.md).
 const HEALTH_HIDDEN = ['neighbor'];
+// Betreute Person (recipient): nur ihr Alltag wie in der Tablet-Ansicht, der Server sperrt den Rest
+// (RECIPIENT_ALLOWED_REQUESTS in server/src/middleware/circle.ts).
+const RECIPIENT_HIDDEN = ['recipient'];
 
 const NAV_GROUPS: Array<{ key: string; items: NavItem[] }> = [
     { key: 'today', items: [
         { labelKey: 'items.today', href: '/', icon: Home },
-        { labelKey: 'items.journal', href: '/journal', icon: BookOpen },
+        { labelKey: 'items.journal', href: '/journal', icon: BookOpen, hideFor: RECIPIENT_HIDDEN },
         { labelKey: 'items.calendar', href: '/calendar', icon: CalendarIcon },
-        { labelKey: 'items.messages', href: '/messages', icon: MessageCircle },
+        { labelKey: 'items.messages', href: '/messages', icon: MessageCircle, hideFor: RECIPIENT_HIDDEN },
     ] },
     { key: 'care', items: [
-        { labelKey: 'items.carePlan', href: '/care-plan', icon: ClipboardList },
+        { labelKey: 'items.carePlan', href: '/care-plan', icon: ClipboardList, hideFor: RECIPIENT_HIDDEN },
         { labelKey: 'items.medications', href: '/medications', icon: Pill, hideFor: HEALTH_HIDDEN },
-        { labelKey: 'items.health', href: '/health', icon: Activity, hideFor: HEALTH_HIDDEN },
+        { labelKey: 'items.health', href: '/health', icon: Activity, hideFor: [...HEALTH_HIDDEN, ...RECIPIENT_HIDDEN] },
         // Freunde (neighbor) und Betreute Person (recipient) sehen keine Arztgespraeche (Mitschriften sind Gesundheitsdaten).
         { labelKey: 'items.consultations', href: '/consultations', icon: Stethoscope, hideFor: ['neighbor', 'recipient'] },
         { labelKey: 'items.visitors', href: '/visitors', icon: DoorOpen },
     ] },
     { key: 'organise', items: [
-        { labelKey: 'items.tasks', href: '/tasks', icon: CheckSquare },
-        { labelKey: 'items.shopping', href: '/shopping', icon: ShoppingCart },
-        { labelKey: 'items.expenses', href: '/expenses', icon: Wallet },
+        { labelKey: 'items.tasks', href: '/tasks', icon: CheckSquare, hideFor: RECIPIENT_HIDDEN },
+        { labelKey: 'items.shopping', href: '/shopping', icon: ShoppingCart, hideFor: RECIPIENT_HIDDEN },
+        { labelKey: 'items.expenses', href: '/expenses', icon: Wallet, hideFor: RECIPIENT_HIDDEN },
     ] },
     { key: 'information', items: [
-        { labelKey: 'items.recipient', href: '/recipient', icon: HeartHandshake },
+        { labelKey: 'items.recipient', href: '/recipient', icon: HeartHandshake, hideFor: RECIPIENT_HIDDEN },
         { labelKey: 'items.contacts', href: '/contacts', icon: BookUser },
-        { labelKey: 'items.documents', href: '/documents', icon: FolderOpen, hideFor: HEALTH_HIDDEN },
+        { labelKey: 'items.documents', href: '/documents', icon: FolderOpen, hideFor: [...HEALTH_HIDDEN, ...RECIPIENT_HIDDEN] },
     ] },
     { key: 'team', items: [
-        { labelKey: 'items.circle', href: '/circle', icon: Users },
+        { labelKey: 'items.circle', href: '/circle', icon: Users, hideFor: RECIPIENT_HIDDEN },
     ] },
     { key: 'more', items: [
-        { labelKey: 'items.integrations', href: '/integrations', icon: Plug },
+        { labelKey: 'items.integrations', href: '/integrations', icon: Plug, hideFor: RECIPIENT_HIDDEN },
         { labelKey: 'items.settings', href: '/settings', icon: Settings },
     ] },
 ];
 
 const allNavigation: NavItem[] = NAV_GROUPS.flatMap((group) => group.items);
 
-const mobileTabs = [
+const mobileTabs: NavItem[] = [
     { labelKey: 'mobile.home', href: '/', icon: Home },
-    { labelKey: 'mobile.journal', href: '/journal', icon: BookOpen },
+    { labelKey: 'mobile.journal', href: '/journal', icon: BookOpen, hideFor: RECIPIENT_HIDDEN },
     { labelKey: 'mobile.calendar', href: '/calendar', icon: CalendarIcon },
-    { labelKey: 'mobile.medications', href: '/medications', icon: Pill },
-    { labelKey: 'mobile.messages', href: '/messages', icon: MessageCircle },
+    // Freunde (neighbor) haben keinen Zugriff auf Medikamente: Reiter nicht zeigen.
+    { labelKey: 'mobile.medications', href: '/medications', icon: Pill, hideFor: HEALTH_HIDDEN },
+    { labelKey: 'mobile.messages', href: '/messages', icon: MessageCircle, hideFor: RECIPIENT_HIDDEN },
 ];
 
 const quickActions = [
@@ -122,7 +126,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     const { user, logout } = useAuth();
     const { myRole } = useCircle();
     const { isPathOn, isOn } = useFeatures();
-    const visibleTabs = mobileTabs.filter((item) => isPathOn(item.href));
+    const visibleTabs = mobileTabs.filter((item) => isPathOn(item.href) && (!item.hideFor || !myRole || !item.hideFor.includes(myRole)));
+    // Betreute Person legt nichts an: keine Taste "Schnell hinzufügen".
+    const showQuickActions = myRole !== 'recipient';
     const visibleActions = quickActions.filter((item) => isPathOn(item.href));
     const { setTheme, actualTheme } = useTheme();
     const [sidebarOpen, setSidebarOpen] = React.useState(false);
@@ -364,7 +370,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 </main>
             </div>
 
-            <button
+            {showQuickActions && <button
                 type="button"
                 onClick={() => {
                     setSidebarOpen(false);
@@ -374,9 +380,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 aria-label={t('quickActions.title')}
             >
                 <Plus className="h-6 w-6" />
-            </button>
+            </button>}
 
-            <div
+            {showQuickActions && <div
                 className={cn(
                     'fixed inset-x-4 bottom-44 z-50 rounded-card border border-border bg-card p-4 shadow-surface-hover',
                     'transition-all duration-base ease-soft lg:hidden',
@@ -402,7 +408,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         );
                     })}
                 </div>
-            </div>
+            </div>}
 
             <nav aria-label={t('mobileNav')} className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 pb-safe backdrop-blur lg:hidden">
                 <div className="grid gap-1 px-2 py-2" style={{ gridTemplateColumns: `repeat(${visibleTabs.length}, minmax(0, 1fr))` }}>

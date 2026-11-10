@@ -96,6 +96,9 @@ router.get('/', async (req: CircleRequest, res: Response) => {
     try {
         const circleId = req.circleId!;
         const includeHealth = req.circleRole !== 'neighbor';
+        // Betreute Person: nur ihr Alltag wie in der Tablet-Ansicht (Termine, Einnahmen),
+        // kein Tagebuch, keine Aufgaben, Werte, Nachrichten oder Hinweise fuer Pflegende.
+        const isRecipient = req.circleRole === 'recipient';
         // Today's intakes exist and late ones are marked missed before we read them
         // (the "Needs attention" block relies on accurate statuses).
         if (includeHealth) await ensureTodayIntakes(circleId);
@@ -198,17 +201,17 @@ router.get('/', async (req: CircleRequest, res: Response) => {
             data: {
                 recipient: recipientResult.rows[0] ?? null,
                 today_events: on('calendar') ? todayEvents : [],
-                last_journal_entries: journalResult.rows,
-                pending_tasks: on('tasks')
+                last_journal_entries: isRecipient ? [] : journalResult.rows,
+                pending_tasks: on('tasks') && !isRecipient
                     ? { count: pendingCountResult.rows[0]?.count ?? 0, next: pendingTasksResult.rows }
                     : { count: 0, next: [] },
                 medication_intakes_today: includeHealth && on('medications') ? intakesResult!.rows : null,
-                latest_vitals: includeHealth && on('health')
+                latest_vitals: includeHealth && !isRecipient && on('health')
                     ? (vitalsResult!.rows as Array<{ type: string }>).filter((v) => isVitalTypeEnabled(settings, v.type))
                     : null,
-                unread_messages_count: on('messages') ? unread.total : 0,
+                unread_messages_count: on('messages') && !isRecipient ? unread.total : 0,
                 // "Needs attention": what a caregiver should look at first.
-                attention: visibleAttention,
+                attention: isRecipient ? [] : visibleAttention,
             },
         });
     } catch (error) {
@@ -300,7 +303,8 @@ router.get('/household', async (req: CircleRequest, res: Response) => {
                 today_event_count: todayEvents.length,
                 next_event: nextEvent,
                 meds,
-                last_journal: last ? { author_name: last.author_name, occurred_at: last.occurred_at } : null,
+                // Betreute Person liest kein Tagebuch (middleware/circle.ts).
+                last_journal: last && circle.role !== 'recipient' ? { author_name: last.author_name, occurred_at: last.occurred_at } : null,
             };
         }));
 

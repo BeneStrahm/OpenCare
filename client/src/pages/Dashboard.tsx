@@ -179,6 +179,7 @@ const Dashboard: React.FC = () => {
     const { t } = useTranslation(['dashboard', 'common', 'medications']);
     const navigate = useNavigate();
     const { activeCircle, circles, myRole } = useCircle();
+    const isRecipient = myRole === 'recipient';
     const { isOn, vitalTypes } = useFeatures();
 
     const [data, setData] = useState<DashboardData | null>(null);
@@ -261,7 +262,8 @@ const Dashboard: React.FC = () => {
 
             {isOn('heatwave') && <HeatwaveBanner />}
 
-            <PresenceBanner />
+            {/* Betreute Person: nur ihr Alltag (Termine, Einnahmen), siehe server/src/middleware/circle.ts */}
+            {!isRecipient && <PresenceBanner />}
 
             {householdPartners.length > 0 && (
                 <div className="inline-flex rounded-pill border border-border bg-card p-1">
@@ -435,6 +437,7 @@ const Dashboard: React.FC = () => {
                 )}
 
                 {/* Latest journal entries */}
+                {!isRecipient && (
                 <DashCard
                     icon={BookOpen}
                     title={t('dashboard:journal.title')}
@@ -460,9 +463,10 @@ const Dashboard: React.FC = () => {
                         </ul>
                     )}
                 </DashCard>
+                )}
 
                 {/* Pending tasks */}
-                {isOn('tasks') && (
+                {isOn('tasks') && !isRecipient && (
                 <DashCard
                     icon={CheckSquare}
                     title={t('dashboard:tasks.title')}
@@ -526,7 +530,7 @@ const Dashboard: React.FC = () => {
             </div>
 
             {/* Weekly AI digest: full width, below the grid. Built from health data, so never for a neighbor. */}
-            {myRole !== 'neighbor' && isOn('digests') && <WeeklyDigestCard />}
+            {myRole !== 'neighbor' && !isRecipient && isOn('digests') && <WeeklyDigestCard />}
             </>
             )}
 

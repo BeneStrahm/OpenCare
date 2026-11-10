@@ -1462,7 +1462,8 @@ const Calendar: React.FC = () => {
                 </CardContent>
             </Card>
 
-            {/* Discreet iCal feed section */}
+            {/* Discreet iCal feed section (nicht fuer die betreute Person: kein Export) */}
+            {myRole !== 'recipient' && (
             <section className="rounded-card border border-border bg-surface-2/40 p-4">
                 <div className="flex items-start gap-3">
                     <CalendarPlus className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
@@ -1511,6 +1512,7 @@ const Calendar: React.FC = () => {
                     </div>
                 </div>
             </section>
+            )}
 
             {/* Detail dialog (read-only view, actions when allowed) */}
             <Dialog

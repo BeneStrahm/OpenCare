@@ -147,7 +147,9 @@ router.get('/feed/:token.ics', async (req, res) => {
             `SELECT m.circle_id, r.first_name
              FROM circle_members m
              LEFT JOIN care_recipients r ON r.circle_id = m.circle_id
-             WHERE m.user_id = $1`,
+             WHERE m.user_id = $1
+               -- Betreute Person: kein Export, also keine Termine im Kalender-Abo
+               AND m.role <> 'recipient'`,
             [userId]
         );
         const circleIds: string[] = circlesResult.rows.map((row: any) => row.circle_id);

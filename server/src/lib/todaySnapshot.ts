@@ -51,6 +51,9 @@ export interface TodaySnapshot {
     companion_enabled: boolean;
 }
 
+/** Wichtige Kontakte der Tablet-Ansicht; die betreute Person sieht in der App dieselben (routes/contacts.ts). */
+export const KEY_CONTACT_CATEGORIES = ['doctor', 'nurse', 'pharmacy', 'aide', 'physio'];
+
 export async function loadTodaySnapshot(circleId: string, now: Date = new Date()): Promise<TodaySnapshot> {
     const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
     const dayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
@@ -95,10 +98,10 @@ export async function loadTodaySnapshot(circleId: string, now: Date = new Date()
         query(
             `SELECT id, name, category, phone, organization
              FROM contacts
-             WHERE circle_id = $1 AND category IN ('doctor', 'nurse', 'pharmacy', 'aide', 'physio')
+             WHERE circle_id = $1 AND category = ANY($2::text[])
              ORDER BY CASE category WHEN 'doctor' THEN 0 WHEN 'pharmacy' THEN 1 WHEN 'nurse' THEN 2 ELSE 3 END, name
              LIMIT 8`,
-            [circleId]
+            [circleId, KEY_CONTACT_CATEGORIES]
         ),
         query(
             `SELECT ${VISIT_COLUMNS} FROM visits

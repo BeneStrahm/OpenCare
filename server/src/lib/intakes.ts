@@ -103,7 +103,14 @@ export interface IntakeForUpdate {
     medication_dosage: string | null;
     quantity: number | null;
     unit: string | null;
+    /** Fuer das Rueckgaengig der betreuten Person (middleware/circle.ts) */
+    confirmed_source?: IntakeSource | null;
+    confirmed_by_user?: string | null;
+    confirmed_age_ms?: number | string | null;
 }
+
+/** Alter der Bestaetigung in ms, in der Datenbankzeit gerechnet (wie confirmed_at = NOW()). */
+export const CONFIRMED_AGE_MS_SQL = 'EXTRACT(EPOCH FROM (LOCALTIMESTAMP - i.confirmed_at)) * 1000';
 
 export async function fetchIntakeForUpdate(
     client: PoolClient,
@@ -113,7 +120,8 @@ export async function fetchIntakeForUpdate(
     const result = await client.query(
         `SELECT i.id, i.circle_id, i.medication_id, i.journal_entry_id, i.status,
                 m.name AS medication_name, m.dosage AS medication_dosage,
-                i.quantity, i.unit
+                i.quantity, i.unit, i.confirmed_source, i.confirmed_by_user,
+                ${CONFIRMED_AGE_MS_SQL} AS confirmed_age_ms
          FROM medication_intakes i
          JOIN medications m ON m.id = i.medication_id
          WHERE i.id = $1 AND i.circle_id = $2

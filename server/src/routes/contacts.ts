@@ -3,6 +3,7 @@ import { query } from '../db';
 import { authMiddleware } from '../middleware/auth';
 import { circleMiddleware, requireContentWriter, CircleRequest } from '../middleware/circle';
 import { broadcastToCircle } from '../lib/broadcaster';
+import { KEY_CONTACT_CATEGORIES } from '../lib/todaySnapshot';
 
 const router = Router();
 
@@ -16,9 +17,20 @@ const OPTIONAL_TEXT_FIELDS = ['organization', 'phone', 'phone2', 'email', 'addre
 const cleanOptionalText = (value: unknown): string | null =>
     typeof value === 'string' && value.trim() ? value.trim() : null;
 
-// The circle's address book, readable by every member
+// The circle's address book, readable by every member.
+// Betreute Person (recipient): nur die wichtigen Kontakte wie in der Tablet-Ansicht.
 router.get('/', async (req: CircleRequest, res: Response) => {
     try {
+        if (req.circleRole === 'recipient') {
+            const keyContacts = await query(
+                `SELECT id, name, category, phone, organization
+                 FROM contacts
+                 WHERE circle_id = $1 AND category = ANY($2::text[])
+                 ORDER BY name ASC`,
+                [req.circleId, KEY_CONTACT_CATEGORIES]
+            );
+            return res.json({ success: true, data: keyContacts.rows });
+        }
         const result = await query(
             'SELECT * FROM contacts WHERE circle_id = $1 ORDER BY name ASC',
             [req.circleId]
