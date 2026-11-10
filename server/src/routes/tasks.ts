@@ -8,6 +8,7 @@ import {
     CircleRequest,
 } from '../middleware/circle';
 import { toNullIfEmpty } from '../lib/normalize';
+import { cleanGuests } from '../lib/eventExtras';
 import { broadcastToCircle } from '../lib/broadcaster';
 
 const router = Router();
@@ -63,6 +64,7 @@ const enrichTasksWithMembers = async (tasks: any[], circleId: string) => {
         return {
             ...task,
             assigned_to: assignedTo,
+            assigned_names: Array.isArray(task.assigned_names) ? task.assigned_names : [],
             assigned_to_members: assignedTo.map((id) => membersById.get(id)).filter(Boolean),
         };
     });
@@ -130,7 +132,7 @@ router.get('/statistics', async (req: CircleRequest, res: Response) => {
 // Create task (admin and family)
 router.post('/', requireContentWriter, async (req: CircleRequest, res: Response) => {
     try {
-        const { title, description, category, due_date, frequency, priority, assigned_to } = req.body;
+        const { title, description, category, due_date, frequency, priority, assigned_to, assigned_names } = req.body;
 
         const cleanedTitle = typeof title === 'string' ? title.trim() : '';
         if (!cleanedTitle) {
@@ -141,8 +143,8 @@ router.post('/', requireContentWriter, async (req: CircleRequest, res: Response)
         await ensureMembersBelongToCircle(assignedTo, req.circleId!);
 
         const result = await query(
-            `INSERT INTO tasks (circle_id, title, description, category, due_date, frequency, priority, assigned_to)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb) RETURNING *`,
+            `INSERT INTO tasks (circle_id, title, description, category, due_date, frequency, priority, assigned_to, assigned_names)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb) RETURNING *`,
             [
                 req.circleId,
                 cleanedTitle,
@@ -152,6 +154,7 @@ router.post('/', requireContentWriter, async (req: CircleRequest, res: Response)
                 toNullIfEmpty(frequency),
                 toNullIfEmpty(priority),
                 JSON.stringify(assignedTo),
+                JSON.stringify(cleanGuests(assigned_names)),
             ]
         );
 
@@ -220,7 +223,7 @@ router.put('/:id/complete', requireJournalWriter, async (req: CircleRequest, res
 router.put('/:id', requireContentWriter, async (req: CircleRequest, res: Response) => {
     try {
         const { id } = req.params;
-        const { title, description, category, is_completed, due_date, frequency, priority, assigned_to } = req.body;
+        const { title, description, category, is_completed, due_date, frequency, priority, assigned_to, assigned_names } = req.body;
 
         const existingResult = await query(
             'SELECT * FROM tasks WHERE id = $1 AND circle_id = $2',
@@ -272,6 +275,11 @@ router.put('/:id', requireContentWriter, async (req: CircleRequest, res: Respons
             await ensureMembersBelongToCircle(assignedTo, req.circleId!);
             values.push(JSON.stringify(assignedTo));
             updates.push(`assigned_to = $${values.length}::jsonb`);
+        }
+
+        if (assigned_names !== undefined) {
+            values.push(JSON.stringify(cleanGuests(assigned_names)));
+            updates.push(`assigned_names = $${values.length}::jsonb`);
         }
 
         if (is_completed !== undefined) {

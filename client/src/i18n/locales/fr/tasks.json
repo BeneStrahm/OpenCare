@@ -32,13 +32,14 @@
     "all": "Toutes",
     "allAssignees": "Tous les membres",
     "assigneeLabel": "Filtrer par membre",
-    "assigneeLocked": "« Non attribuées » affiche toujours tous les membres."
+    "otherPeople": "Autres personnes"
   },
   "row": {
     "markDone": "Marquer comme faite",
     "markPending": "Marquer comme à faire",
     "due": "Pour le {{date}}",
-    "overdue": "En retard ({{date}})"
+    "overdue": "En retard ({{date}})",
+    "unassigned": "Personne n’est encore désigné"
   },
   "groups": {
     "overdue": "En retard",
@@ -48,8 +49,6 @@
     "noDate": "Sans date",
     "done": "Terminées"
   },
-  "completedSection_one": "Tâches terminées ({{count}})",
-  "completedSection_other": "Tâches terminées ({{count}})",
   "empty": {
     "title": "Aucune tâche pour le moment",
     "description": "Créez la première tâche pour organiser le qui fait quoi du cercle.",
@@ -71,7 +70,10 @@
     "priority": "Priorité",
     "frequency": "Récurrence",
     "assignees": "Assigner à (facultatif)",
-    "noMembers": "Aucun membre dans le cercle pour le moment."
+    "noMembers": "Aucun membre dans le cercle pour le moment.",
+    "personPlaceholder": "Saisir un nom",
+    "addPerson": "Ajouter",
+    "removePerson": "Retirer {{name}}"
   },
   "confirmDelete": "Supprimer cette tâche ?",
   "errors": {

@@ -32,13 +32,14 @@
     "all": "All",
     "allAssignees": "All members",
     "assigneeLabel": "Filter by member",
-    "assigneeLocked": "“Unassigned” always shows all members."
+    "otherPeople": "Other people"
   },
   "row": {
     "markDone": "Mark as done",
     "markPending": "Mark as to do",
     "due": "Due {{date}}",
-    "overdue": "Overdue ({{date}})"
+    "overdue": "Overdue ({{date}})",
+    "unassigned": "Nobody assigned yet"
   },
   "groups": {
     "overdue": "Overdue",
@@ -48,8 +49,6 @@
     "noDate": "No date",
     "done": "Done"
   },
-  "completedSection_one": "Completed tasks ({{count}})",
-  "completedSection_other": "Completed tasks ({{count}})",
   "empty": {
     "title": "No tasks yet",
     "description": "Create the first task to organize who does what in the circle.",
@@ -71,7 +70,10 @@
     "priority": "Priority",
     "frequency": "Recurrence",
     "assignees": "Assign to (optional)",
-    "noMembers": "No members in the circle yet."
+    "noMembers": "No members in the circle yet.",
+    "personPlaceholder": "Enter a name",
+    "addPerson": "Add",
+    "removePerson": "Remove {{name}}"
   },
   "confirmDelete": "Delete this task?",
   "errors": {

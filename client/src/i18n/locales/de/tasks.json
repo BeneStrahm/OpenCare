@@ -32,13 +32,14 @@
     "all": "Alle",
     "allAssignees": "Alle Mitglieder",
     "assigneeLabel": "Nach Mitglied filtern",
-    "assigneeLocked": "Bei „Unverteilt“ werden immer alle Mitglieder gezeigt."
+    "otherPeople": "Weitere Personen"
   },
   "row": {
     "markDone": "Als erledigt markieren",
     "markPending": "Als offen markieren",
     "due": "Fällig am {{date}}",
-    "overdue": "Überfällig ({{date}})"
+    "overdue": "Überfällig ({{date}})",
+    "unassigned": "Noch niemand zugeteilt"
   },
   "groups": {
     "overdue": "Überfällig",
@@ -48,8 +49,6 @@
     "noDate": "Ohne Datum",
     "done": "Erledigt"
   },
-  "completedSection_one": "Erledigte Aufgaben ({{count}})",
-  "completedSection_other": "Erledigte Aufgaben ({{count}})",
   "empty": {
     "title": "Noch keine Aufgaben",
     "description": "Legen Sie die erste Aufgabe an, um zu regeln, wer im Kreis was übernimmt.",
@@ -71,7 +70,10 @@
     "priority": "Priorität",
     "frequency": "Wiederholung",
     "assignees": "Zuweisen an (optional)",
-    "noMembers": "Der Kreis hat noch keine Mitglieder."
+    "noMembers": "Der Kreis hat noch keine Mitglieder.",
+    "personPlaceholder": "Name eingeben",
+    "addPerson": "Hinzufügen",
+    "removePerson": "{{name}} entfernen"
   },
   "confirmDelete": "Diese Aufgabe löschen?",
   "errors": {

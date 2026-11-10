@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { format, parseISO, endOfWeek, endOfMonth } from 'date-fns';
-import { Plus, Check, ClipboardList, Pencil, Trash2, Repeat, ChevronDown, ChevronRight, CalendarClock, Users } from 'lucide-react';
+import { Plus, Check, ClipboardList, Pencil, Trash2, Repeat, CalendarClock, Users, X, AlertCircle } from 'lucide-react';
 import { api } from '../lib/api';
 import { useCircle } from '../contexts/CircleContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -9,6 +9,8 @@ import { useWebSocketUpdates } from '../hooks/useWebSocketUpdates';
 import { dateLocale } from '../i18n/format';
 import { Button, Dialog, Input, Select, Textarea, DatePicker, Badge } from '../components/ui';
 import { EmptyState } from '../components/app';
+import { PersonCombobox } from '../components/calendar/PersonCombobox';
+import { addParticipant } from '../lib/calendarForm';
 import { cn } from '../lib/utils';
 import { circleWeekStart, weekStartsOn } from '../lib/weekStart';
 
@@ -35,6 +37,8 @@ interface Task {
     frequency?: string | null;
     priority?: string | null;
     assigned_to: string[];
+    /** Freie Namen von Personen ohne Konto im Kreis. */
+    assigned_names?: string[];
     assigned_to_members: AssignedMember[];
     completed_at?: string | null;
     created_at: string;
@@ -47,6 +51,18 @@ interface CircleMember {
     color: string;
     role: string;
 }
+
+interface ContactOption {
+    id: string;
+    name: string;
+    organization: string | null;
+}
+
+/** Filterwert für alle Personen ohne Konto (freie Namen) als eine Gruppe. */
+const OTHER_PEOPLE = '__others__';
+
+const isUnassigned = (task: Task) =>
+    (task.assigned_to || []).length === 0 && (task.assigned_names || []).length === 0;
 
 type StatusFilter = 'todo' | 'unassigned' | 'done' | 'all';
 
@@ -74,7 +90,7 @@ const MemberAvatar: React.FC<{ member: AssignedMember; className?: string }> = (
     <span
         title={member.name}
         className={cn(
-            'flex h-7 w-7 items-center justify-center rounded-full border-2 bg-surface-2 text-micro font-semibold text-foreground',
+            'flex h-7 w-7 shrink-0 items-center justify-center whitespace-nowrap rounded-full border-2 bg-surface-2 text-micro font-semibold text-foreground',
             className
         )}
         style={{ borderColor: member.color }}
@@ -90,12 +106,13 @@ const Tasks: React.FC = () => {
 
     const [tasks, setTasks] = useState<Task[]>([]);
     const [members, setMembers] = useState<CircleMember[]>([]);
+    const [contacts, setContacts] = useState<ContactOption[]>([]);
+    const [personInput, setPersonInput] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('todo');
     const [assigneeFilter, setAssigneeFilter] = useState('');
-    const [completedOpen, setCompletedOpen] = useState(false);
 
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -108,6 +125,7 @@ const Tasks: React.FC = () => {
         priority: 'Moyenne',
         frequency: 'Une fois',
         assigned_to: [] as string[],
+        assigned_names: [] as string[],
     });
 
     const categoryLabel = (value: string) => t(`tasks:categories.${value}`, { defaultValue: value });
@@ -151,6 +169,12 @@ const Tasks: React.FC = () => {
         setLoading(true);
         setAssigneeFilter('');
         void Promise.all([loadTasks(), loadMembers(activeCircle.id)]).finally(() => setLoading(false));
+        // Kontakte nur als Vorschläge beim Zuweisen: Fehler stören die Seite nicht.
+        api.get<{ success: boolean; data: ContactOption[] }>('/api/contacts')
+            .then((response) => {
+                if (response.success) setContacts(response.data);
+            })
+            .catch((err) => console.error('Failed to load contacts:', err));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeCircle?.id]);
 
@@ -191,7 +215,9 @@ const Tasks: React.FC = () => {
             priority: 'Moyenne',
             frequency: 'Une fois',
             assigned_to: [],
+            assigned_names: [],
         });
+        setPersonInput('');
     };
 
     const openCreate = () => {
@@ -209,7 +235,9 @@ const Tasks: React.FC = () => {
             priority: task.priority || 'Moyenne',
             frequency: task.frequency || 'Une fois',
             assigned_to: task.assigned_to || [],
+            assigned_names: task.assigned_names || [],
         });
+        setPersonInput('');
         setDialogOpen(true);
     };
 
@@ -226,6 +254,7 @@ const Tasks: React.FC = () => {
                 priority: formData.priority,
                 frequency: formData.frequency,
                 assigned_to: formData.assigned_to,
+                assigned_names: formData.assigned_names,
             };
             if (editingTask) {
                 await api.put(`/api/tasks/${editingTask.id}`, payload);
@@ -255,13 +284,49 @@ const Tasks: React.FC = () => {
         }
     };
 
-    const toggleAssignee = (memberId: string) => {
-        setFormData((prev) => ({
-            ...prev,
-            assigned_to: prev.assigned_to.includes(memberId)
-                ? prev.assigned_to.filter((id) => id !== memberId)
-                : [...prev.assigned_to, memberId],
-        }));
+    // Vorschlagsliste wie im Kalender: Mitglieder, dann Kontakte, ohne doppelte Namen.
+    const personSuggestions = useMemo(() => {
+        const seen = new Set<string>();
+        const list: { key: string; name: string; hint: string }[] = [];
+        for (const member of members) {
+            const k = member.name.trim().toLocaleLowerCase('de');
+            if (!k || seen.has(k)) continue;
+            seen.add(k);
+            list.push({ key: `m-${member.id}`, name: member.name, hint: '' });
+        }
+        for (const contact of contacts) {
+            const k = contact.name.trim().toLocaleLowerCase('de');
+            if (!k || seen.has(k)) continue;
+            seen.add(k);
+            list.push({ key: `c-${contact.id}`, name: contact.name, hint: contact.organization || '' });
+        }
+        return list;
+    }, [members, contacts]);
+
+    // Passt der Name zu einem Mitglied, wird das Mitglied gewählt, sonst steht der Name frei.
+    const addAssignee = (name: string) => {
+        setFormData((prev) => {
+            const next = addParticipant(
+                { member_ids: prev.assigned_to, guests: prev.assigned_names },
+                name,
+                members
+            );
+            return { ...prev, assigned_to: next.member_ids, assigned_names: next.guests };
+        });
+        setPersonInput('');
+    };
+
+    const selectedAssigneeNames = [
+        ...formData.assigned_to.map((id) => members.find((m) => m.id === id)?.name ?? ''),
+        ...formData.assigned_names,
+    ].filter(Boolean);
+
+    const removeAssignedMember = (memberId: string) => {
+        setFormData((prev) => ({ ...prev, assigned_to: prev.assigned_to.filter((id) => id !== memberId) }));
+    };
+
+    const removeAssignedName = (name: string) => {
+        setFormData((prev) => ({ ...prev, assigned_names: prev.assigned_names.filter((n) => n !== name) }));
     };
 
     // Bei "Unverteilt" ist der Mitglieder-Filter gesperrt und zeigt "Alle Mitglieder";
@@ -269,14 +334,21 @@ const Tasks: React.FC = () => {
     const assigneeLocked = statusFilter === 'unassigned';
     const effectiveAssignee = assigneeLocked ? '' : assigneeFilter;
     const filteredTasks = useMemo(
-        () => tasks.filter((task) => !effectiveAssignee || (task.assigned_to || []).includes(effectiveAssignee)),
+        () =>
+            tasks.filter((task) =>
+                !effectiveAssignee
+                    ? true
+                    : effectiveAssignee === OTHER_PEOPLE
+                      ? (task.assigned_names || []).length > 0
+                      : (task.assigned_to || []).includes(effectiveAssignee)
+            ),
         [tasks, effectiveAssignee]
     );
     const openTasks = useMemo(() => filteredTasks.filter((task) => !task.is_completed), [filteredTasks]);
     const doneTasks = useMemo(() => filteredTasks.filter((task) => task.is_completed), [filteredTasks]);
 
     const unassignedTasks = useMemo(
-        () => openTasks.filter((task) => (task.assigned_to || []).length === 0),
+        () => openTasks.filter(isUnassigned),
         [openTasks]
     );
 
@@ -288,7 +360,6 @@ const Tasks: React.FC = () => {
               : statusFilter === 'unassigned'
                 ? unassignedTasks
                 : openTasks;
-    const showCompletedSection = statusFilter === 'todo' && doneTasks.length > 0;
     const today = todayLocal();
 
     // Grenzen für "Diese Woche" und "Dieser Monat" (Wochenbeginn wie im Kalender)
@@ -417,6 +488,18 @@ const Tasks: React.FC = () => {
                                 ))}
                             </span>
                         )}
+                        {(task.assigned_names || []).length > 0 && (
+                            <span className="inline-flex items-center gap-1 text-micro text-muted-foreground">
+                                <Users className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                {(task.assigned_names || []).join(', ')}
+                            </span>
+                        )}
+                        {!task.is_completed && isUnassigned(task) && (
+                            <span className="inline-flex items-center gap-1.5 rounded-input border border-danger/40 bg-danger/10 px-1.5 py-0.5 text-caption font-medium text-danger">
+                                <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                {t('tasks:row.unassigned')}
+                            </span>
+                        )}
                     </div>
                 </div>
 
@@ -508,20 +591,17 @@ const Tasks: React.FC = () => {
                     value={effectiveAssignee}
                     onValueChange={setAssigneeFilter}
                     disabled={assigneeLocked}
-                    describedBy={assigneeLocked ? 'tasks-assignee-locked' : undefined}
                     options={[
                         { value: '', label: t('tasks:filters.allAssignees') },
                         ...members.map((member) => ({ value: member.id, label: member.name })),
+                        ...(tasks.some((task) => (task.assigned_names || []).length > 0)
+                            ? [{ value: OTHER_PEOPLE, label: t('tasks:filters.otherPeople') }]
+                            : []),
                     ]}
                     icon={<Users className="h-5 w-5" />}
                     ariaLabel={t('tasks:filters.assigneeLabel')}
                     className="min-h-[48px] w-full text-body sm:w-64"
                 />
-                {assigneeLocked && (
-                    <p id="tasks-assignee-locked" className="w-full text-caption text-muted-foreground">
-                        {t('tasks:filters.assigneeLocked')}
-                    </p>
-                )}
             </div>
 
             {/* Liste principale */}
@@ -549,28 +629,6 @@ const Tasks: React.FC = () => {
                 />
             ) : (
                 renderGrouped(mainList)
-            )}
-
-            {/* Tâches terminées (section repliée) */}
-            {showCompletedSection && (
-                <section className="rounded-card border border-border bg-surface-2/40">
-                    <button
-                        type="button"
-                        onClick={() => setCompletedOpen((open) => !open)}
-                        aria-expanded={completedOpen}
-                        className="flex min-h-[48px] w-full items-center gap-2 px-4 py-3 text-left"
-                    >
-                        {completedOpen ? (
-                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        )}
-                        <span className="text-caption font-medium text-muted-foreground">
-                            {t('tasks:completedSection', { count: doneTasks.length })}
-                        </span>
-                    </button>
-                    {completedOpen && <ul className="space-y-2 px-3 pb-3">{doneTasks.map(renderTaskRow)}</ul>}
-                </section>
             )}
 
             {/* Création / édition */}
@@ -648,30 +706,60 @@ const Tasks: React.FC = () => {
                         </div>
                     </div>
                     <div>
-                        <span className="mb-1.5 block text-caption font-medium text-foreground">
+                        <label htmlFor="task-person-input" className="mb-1.5 block text-caption font-medium text-foreground">
                             {t('tasks:form.assignees')}
-                        </span>
-                        {members.length === 0 ? (
-                            <p className="text-caption text-muted-foreground">{t('tasks:form.noMembers')}</p>
-                        ) : (
-                            <div className="space-y-1 rounded-input border border-border bg-surface-2/40 p-2">
-                                {members.map((member) => (
-                                    <label
-                                        key={member.id}
-                                        className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-input px-2 hover:bg-surface-2"
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.assigned_to.includes(member.id)}
-                                            onChange={() => toggleAssignee(member.id)}
-                                            className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                                        />
-                                        <MemberAvatar member={member} />
-                                        <span className="text-caption text-foreground">{member.name}</span>
-                                    </label>
+                        </label>
+                        {(formData.assigned_to.length > 0 || formData.assigned_names.length > 0) && (
+                            <ul className="mb-2 flex flex-wrap gap-2">
+                                {formData.assigned_to.map((id) => {
+                                    const member = members.find((m) => m.id === id);
+                                    if (!member) return null;
+                                    return (
+                                        <li key={`m-${id}`} className="inline-flex min-h-[48px] items-center gap-2 rounded-pill border border-border bg-surface-2 pl-3 pr-1 text-body text-foreground">
+                                            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: member.color }} aria-hidden="true" />
+                                            {member.name}
+                                            <button
+                                                type="button"
+                                                onClick={() => removeAssignedMember(id)}
+                                                aria-label={t('tasks:form.removePerson', { name: member.name })}
+                                                className="flex h-12 w-12 items-center justify-center rounded-full text-muted-foreground hover:bg-surface hover:text-foreground"
+                                            >
+                                                <X className="h-5 w-5" aria-hidden="true" />
+                                            </button>
+                                        </li>
+                                    );
+                                })}
+                                {formData.assigned_names.map((name) => (
+                                    <li key={`g-${name}`} className="inline-flex min-h-[48px] items-center gap-2 rounded-pill border border-border bg-surface-2 pl-3 pr-1 text-body text-foreground">
+                                        {name}
+                                        <button
+                                            type="button"
+                                            onClick={() => removeAssignedName(name)}
+                                            aria-label={t('tasks:form.removePerson', { name })}
+                                            className="flex h-12 w-12 items-center justify-center rounded-full text-muted-foreground hover:bg-surface hover:text-foreground"
+                                        >
+                                            <X className="h-5 w-5" aria-hidden="true" />
+                                        </button>
+                                    </li>
                                 ))}
-                            </div>
+                            </ul>
                         )}
+                        <div className="flex items-start gap-2">
+                            <PersonCombobox
+                                id="task-person-input"
+                                value={personInput}
+                                onChange={setPersonInput}
+                                onPick={addAssignee}
+                                onEnter={() => addAssignee(personInput)}
+                                options={personSuggestions}
+                                exclude={selectedAssigneeNames}
+                                placeholder={t('tasks:form.personPlaceholder')}
+                            />
+                            <Button type="button" variant="secondary" size="lg" onClick={() => addAssignee(personInput)} disabled={!personInput.trim()}>
+                                <Plus className="mr-2 h-5 w-5" aria-hidden="true" />
+                                {t('tasks:form.addPerson')}
+                            </Button>
+                        </div>
                     </div>
                     <div className="flex justify-end gap-3 pt-2">
                         <Button type="button" variant="secondary" onClick={() => setDialogOpen(false)}>
