@@ -1,7 +1,8 @@
 // Erinnerung, wenn ein Medikament zur Neige geht (Fork).
 //
 // Einfach und robust: Ein Durchlauf jede Minute prueft alle Medikamente mit
-// Vorrat und Schwelle. Faellt der Vorrat auf oder unter die Schwelle, bekommen
+// Vorrat. Die Schwelle wird aus dem Plan berechnet: Reicht der Vorrat laut Plan
+// noch STOCK_REMINDER_DAYS Tage oder weniger (oder ist er leer), bekommen
 // Admins und Familie EINE Benachrichtigung (stock_alert_sent_at wird gesetzt).
 // Steigt der Vorrat wieder ueber die Schwelle (aufgefuellt), wird die Markierung
 // geloescht, damit das naechste Absinken wieder meldet.
@@ -14,12 +15,29 @@ import { createNotification } from './notifications';
 
 export type StockState = 'low' | 'ok' | 'untracked';
 
-/** Reiner Vergleich: low = auf oder unter der Schwelle. */
-export function stockState(quantity: unknown, threshold: unknown): StockState {
+/** Erinnerung, sobald der Vorrat laut Plan nur noch so viele Tage reicht. */
+export const STOCK_REMINDER_DAYS = 7;
+
+/**
+ * Tagesmenge laut Plan (SQL, Medikament als `m`). Einnahmen an einzelnen
+ * Wochentagen zaehlen anteilig. Bei Bedarf (prn) gibt es keinen Plan: 0.
+ */
+export const DAILY_DOSE_SQL = `(CASE WHEN m.prn THEN 0 ELSE (
+    SELECT COALESCE(SUM(s.quantity * jsonb_array_length(s.days_of_week) / 7.0), 0)
+    FROM medication_schedules s WHERE s.medication_id = m.id) END)`;
+
+/** Bedingung "Vorrat geht zur Neige" (SQL, Medikament als `m`), passend zu stockState. */
+export const STOCK_LOW_SQL = `(m.active = TRUE AND m.stock_quantity IS NOT NULL
+    AND (m.stock_quantity <= 0 OR m.stock_quantity <= ${STOCK_REMINDER_DAYS} * ${DAILY_DOSE_SQL}))`;
+
+/** Reiner Vergleich: low = leer oder reicht laut Plan hoechstens STOCK_REMINDER_DAYS Tage. */
+export function stockState(quantity: unknown, dailyDose: unknown): StockState {
     const q = quantity === null || quantity === undefined ? NaN : Number(quantity);
-    const t = threshold === null || threshold === undefined ? NaN : Number(threshold);
-    if (!Number.isFinite(q) || !Number.isFinite(t)) return 'untracked';
-    return q <= t ? 'low' : 'ok';
+    if (!Number.isFinite(q)) return 'untracked';
+    if (q <= 0) return 'low';
+    const d = dailyDose === null || dailyDose === undefined ? NaN : Number(dailyDose);
+    if (!Number.isFinite(d) || d <= 0) return 'ok';
+    return q <= STOCK_REMINDER_DAYS * d ? 'low' : 'ok';
 }
 
 /** Was ein Durchlauf tun muss: melden, Markierung loeschen oder nichts. */
@@ -70,7 +88,7 @@ interface StockRow {
     name: string;
     active: boolean;
     stock_quantity: string | null;
-    stock_alert_threshold: string | null;
+    daily_dose: string | null;
     stock_alert_sent_at: string | null;
     unit: string | null;
 }
@@ -78,17 +96,16 @@ interface StockRow {
 export async function checkLowStock(): Promise<void> {
     try {
         const { rows } = await query(
-            `SELECT m.id, m.circle_id, m.name, m.active, m.stock_quantity, m.stock_alert_threshold, m.stock_alert_sent_at,
+            `SELECT m.id, m.circle_id, m.name, m.active, m.stock_quantity, m.stock_alert_sent_at,
+                    ${DAILY_DOSE_SQL} AS daily_dose,
                     (SELECT s.unit FROM medication_schedules s WHERE s.medication_id = m.id ORDER BY s.time_of_day LIMIT 1) AS unit
              FROM medications m
-             WHERE m.stock_alert_sent_at IS NOT NULL
-                OR (m.active = TRUE AND m.stock_quantity IS NOT NULL AND m.stock_alert_threshold IS NOT NULL
-                    AND m.stock_quantity <= m.stock_alert_threshold)`
+             WHERE m.stock_alert_sent_at IS NOT NULL OR ${STOCK_LOW_SQL}`
         );
         for (const med of rows as StockRow[]) {
             // Archivierte Medikamente gelten als nicht verfolgt: Markierung wird geloescht,
             // damit nach dem Wiederaktivieren erneut gemeldet werden kann.
-            const state = med.active ? stockState(med.stock_quantity, med.stock_alert_threshold) : 'untracked';
+            const state = med.active ? stockState(med.stock_quantity, med.daily_dose) : 'untracked';
             const action = stockAction(state, med.stock_alert_sent_at !== null);
             if (action === 'reset') {
                 await query(`UPDATE medications SET stock_alert_sent_at = NULL WHERE id = $1`, [med.id]);

@@ -218,7 +218,7 @@ const FormSection: React.FC<{
     summary?: string;
     open?: boolean;
     onToggle?: () => void;
-    /** Text neben dem Kästchen, z. B. „Jemand muss mitkommen“. */
+    /** Text links vom Kästchen rechts in der Überschrift, z. B. „Benötigt“. */
     checkLabel?: string;
     onCheckedChange?: (checked: boolean) => void;
     /** Hinweis in Rot, z. B. „Noch offen: Wer fährt?“. */
@@ -257,20 +257,23 @@ const FormSection: React.FC<{
                     alert && open && 'rounded-input border border-danger/40 bg-danger/10 p-3 first-of-type:border-t first-of-type:p-3'
                 )}
             >
-                <h3 id={`${id}-title`} className="text-h2 text-foreground">
-                    <span className="flex min-h-[48px] items-center gap-3">{titleContent}</span>
-                </h3>
-                <label className="mt-1 flex min-h-[48px] cursor-pointer items-center gap-3 rounded-input text-body text-foreground">
-                    <input
-                        type="checkbox"
-                        checked={open}
-                        onChange={(e) => onCheckedChange(e.target.checked)}
-                        aria-controls={`${id}-body`}
-                        aria-describedby={alert && open ? `${id}-alert` : undefined}
-                        className="h-6 w-6 shrink-0 cursor-pointer accent-primary"
-                    />
-                    {checkLabel}
-                </label>
+                <div className="flex min-h-[48px] items-center gap-3">
+                    <h3 id={`${id}-title`} className="min-w-0 flex-1 text-h2 text-foreground">
+                        <span className="flex items-center gap-3">{titleContent}</span>
+                    </h3>
+                    <label className="flex min-h-[48px] shrink-0 cursor-pointer items-center gap-3 rounded-input pl-2 text-body text-foreground">
+                        <span id={`${id}-check`}>{checkLabel}</span>
+                        <input
+                            type="checkbox"
+                            checked={open}
+                            onChange={(e) => onCheckedChange(e.target.checked)}
+                            aria-labelledby={`${id}-title ${id}-check`}
+                            aria-controls={`${id}-body`}
+                            aria-describedby={alert && open ? `${id}-alert` : undefined}
+                            className="h-6 w-6 shrink-0 cursor-pointer accent-primary"
+                        />
+                    </label>
+                </div>
                 {body}
             </section>
         );
@@ -1849,7 +1852,7 @@ const Calendar: React.FC = () => {
                         id="event-section-people"
                         icon={Users}
                         title={t('calendar:form.participants')}
-                        checkLabel={t('calendar:form.companionNeeded')}
+                        checkLabel={t('calendar:form.needed')}
                         open={formData.companionNeeded}
                         onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, companionNeeded: checked }))}
                         alert={formData.member_ids.length === 0 && formData.guests.length === 0
@@ -1917,7 +1920,7 @@ const Calendar: React.FC = () => {
                         id="event-section-travel"
                         icon={Car}
                         title={t('calendar:form.travel')}
-                        checkLabel={t('calendar:form.travelNeeded')}
+                        checkLabel={t('calendar:form.needed')}
                         open={formData.travelNeeded}
                         onCheckedChange={(checked) => setFormData((prev) => ({
                             ...prev,

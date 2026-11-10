@@ -16,7 +16,7 @@ import { query } from '../db';
  *   de plus (les prises futures restent cote aidant).
  */
 
-export type IntakeSource = 'caregiver' | 'kiosk' | 'phone' | 'link';
+export type IntakeSource = 'caregiver' | 'kiosk' | 'phone' | 'link' | 'self';
 export type IntakeWriteStatus = 'taken' | 'skipped' | 'pending';
 
 /** Fenetre "a prendre maintenant" : de 30 min avant l'heure jusqu'au marquage "manque" (4 h apres). */

@@ -12,6 +12,8 @@ export const CIRCLE_ROLES: CircleRole[] = ['admin', 'family', 'professional', 'n
  * Rechte VORLAEUFIG minimal und nur hier festgelegt (Roadmap Phase 3e, Schritt 2):
  * - liest wie die anderen, Gesundheitsdaten eingeschlossen (HEALTH_READER_ROLES)
  * - schreibt nichts: fehlt in JOURNAL_WRITER_ROLES und CONTENT_WRITER_ROLES
+ *   Ausnahme: bestaetigt eigene Medikamenten-Einnahmen als "Genommen"
+ *   (INTAKE_CONFIRMER_ROLES), einzeln oder pro Tageszeit; nicht auslassen, nicht zuruecksetzen
  * - verwaltet nichts, laedt nicht ein, entfernt niemanden (nur admin)
  * - kein Zugriff auf Arztgespraeche (CONSULTATION_READER_ROLES)
  */
@@ -80,6 +82,9 @@ export const requireRole = (...roles: CircleRole[]) => {
 
 /** Roles allowed to write journal entries (everyone except recipient, see above). */
 export const JOURNAL_WRITER_ROLES: CircleRole[] = ['admin', 'family', 'professional', 'neighbor'];
+
+/** Roles allowed to confirm medication intakes. recipient may only mark them taken (see above). */
+export const INTAKE_CONFIRMER_ROLES: CircleRole[] = [...JOURNAL_WRITER_ROLES, 'recipient'];
 
 /** Roles allowed to manage circle content (calendar, tasks, documents...). */
 export const CONTENT_WRITER_ROLES: CircleRole[] = ['admin', 'family'];

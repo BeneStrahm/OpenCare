@@ -1,6 +1,7 @@
 import { query } from '../db';
 import { VISIT_COLUMNS, VisitRow } from './visits';
 import { expandEventOccurrences, toLocalISO } from '../routes/events';
+import { STOCK_LOW_SQL } from './stockAlerts';
 
 /**
  * "A traiter" : ce qui demande l'attention d'un aidant maintenant, pour le
@@ -150,12 +151,10 @@ export async function loadAttention(circleId: string, includeHealth: boolean, no
         ),
         includeHealth
             ? query(
-                `SELECT id, name AS label, stock_quantity, stock_alert_threshold
-                 FROM medications
-                 WHERE circle_id = $1 AND active = TRUE
-                   AND stock_quantity IS NOT NULL AND stock_alert_threshold IS NOT NULL
-                   AND stock_quantity <= stock_alert_threshold
-                 ORDER BY stock_quantity, name
+                `SELECT m.id, m.name AS label, m.stock_quantity
+                 FROM medications m
+                 WHERE m.circle_id = $1 AND ${STOCK_LOW_SQL}
+                 ORDER BY m.stock_quantity, m.name
                  LIMIT 20`,
                 [circleId]
             )

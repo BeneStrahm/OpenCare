@@ -183,6 +183,14 @@ app.get('/health', (req, res) => {
 // API Routes
 // Backstop global d'abord (s'applique a toutes les routes /api, publiques incluses).
 app.use('/api', apiRateLimiter);
+// Fork: API-Antworten nie im HTTP-Cache des Browsers ablegen. Sonst kann Firefox
+// beim Neuladen eine leere 304-Antwort an die App geben ("JSON.parse: unexpected end
+// of data"). Gesundheitsdaten gehoeren ohnehin nicht dorthin; der Offline-Cache des
+// Service Workers (Cache-API) ist davon nicht betroffen.
+app.use('/api', (_req, res, next) => {
+    res.set('Cache-Control', 'no-store');
+    next();
+});
 app.use('/api/auth/login', authRateLimiter);
 app.use('/api/auth/register', registerRateLimiter);
 app.use('/api/auth/forgot-password', forgotPasswordRateLimiter);

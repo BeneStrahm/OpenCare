@@ -5,6 +5,7 @@ import {
     Plus,
     Pill,
     Check,
+    CheckCheck,
     RotateCcw,
     Edit2,
     Trash2,
@@ -41,7 +42,7 @@ type IntakeStatus = 'pending' | 'taken' | 'skipped' | 'missed';
 type Moment = 'morning' | 'noon' | 'evening' | 'night';
 
 type WithFood = 'with' | 'without' | 'any';
-type IntakeSource = 'caregiver' | 'kiosk' | 'phone' | 'link';
+type IntakeSource = 'caregiver' | 'kiosk' | 'phone' | 'link' | 'self';
 
 interface MedicationSchedule {
     id?: string;
@@ -196,12 +197,17 @@ const stockDaysLeft = (med: Medication): number | null => {
     return Math.floor(remaining / perDay);
 };
 
-/** Stock bas : epuise, ou sous le seuil d'alerte choisi par l'aidant. */
+/** Wie im Server (stockAlerts.ts): Erinnerung, sobald der Vorrat laut Plan nur noch so viele Tage reicht. */
+const STOCK_REMINDER_DAYS = 7;
+
+/** Vorrat geht zur Neige: leer, oder reicht laut Plan hoechstens STOCK_REMINDER_DAYS Tage. */
 const isStockLow = (med: Medication): boolean => {
     const remaining = stockNumber(med.stock_quantity);
     if (remaining === null) return false;
-    const threshold = stockNumber(med.stock_alert_threshold);
-    return remaining <= 0 || (threshold !== null && remaining <= threshold);
+    if (remaining <= 0) return true;
+    if (med.prn) return false;
+    const perDay = dailyDoseTotal(med);
+    return perDay > 0 && remaining <= STOCK_REMINDER_DAYS * perDay;
 };
 
 // Same limit as the server: the raw data URL string must stay under 1.5 MB.
@@ -308,7 +314,7 @@ const Medications: React.FC = () => {
 
     // Stock dialog
     const [stockMed, setStockMed] = useState<Medication | null>(null);
-    const [stockForm, setStockForm] = useState({ quantity: '', threshold: '' });
+    const [stockForm, setStockForm] = useState({ quantity: '' });
     const [stockFormError, setStockFormError] = useState('');
     const [savingStock, setSavingStock] = useState(false);
 
@@ -471,6 +477,33 @@ const Medications: React.FC = () => {
 
     const isDone = (intake: Intake) => intake.status === 'taken' || intake.status === 'skipped';
 
+    // Bestaetigen duerfen alle mit Schreibrecht im Tagebuch und die betreute Person
+    // selbst (nur "Genommen", kein Auslassen oder Zuruecksetzen, siehe server/src/middleware/circle.ts).
+    const isRecipient = myRole === 'recipient';
+    const canConfirmIntakes = canWriteJournal || isRecipient;
+
+    // "Morgens alle genommen": Rueckfrage, dann alle offenen Einnahmen des Blocks bestaetigen.
+    const [confirmAllMoment, setConfirmAllMoment] = useState<Moment | null>(null);
+    const [confirmAllBusy, setConfirmAllBusy] = useState(false);
+    const openIntakesOf = (moment: Moment) => intakesByMoment[moment].filter((i) => !isDone(i));
+    const confirmAllIntakes = async () => {
+        if (!confirmAllMoment) return;
+        const ids = openIntakesOf(confirmAllMoment).map((i) => i.id);
+        setError('');
+        setConfirmAllBusy(true);
+        try {
+            if (ids.length > 0) await api.post('/api/medications/intakes/confirm', { intake_ids: ids });
+            setConfirmAllMoment(null);
+            await loadIntakes();
+        } catch (err) {
+            console.error('Failed to confirm intakes:', err);
+            setConfirmAllMoment(null);
+            setError(err instanceof Error ? err.message : t('medications:errors.confirmAll'));
+        } finally {
+            setConfirmAllBusy(false);
+        }
+    };
+
     // Offene Einnahmen zuerst, erledigte blass darunter; jeweils nach Uhrzeit.
     const sortForToday = (group: Intake[]) =>
         [...group].sort((x, y) => {
@@ -507,7 +540,16 @@ const Medications: React.FC = () => {
     };
 
     const renderIntakeActions = (intake: Intake) => {
-        if (!canWriteJournal) return null;
+        if (!canConfirmIntakes) return null;
+        if (isRecipient) {
+            if (isDone(intake)) return null;
+            return (
+                <Button size="lg" className="sm:min-w-[12rem]" onClick={() => void setIntakeStatus(intake, 'taken')}>
+                    <Check className="mr-2 h-5 w-5" aria-hidden="true" />
+                    {t('medications:today.markTaken')}
+                </Button>
+            );
+        }
         if (isDone(intake)) {
             return (
                 <Button variant="ghost" size="lg" onClick={() => void setIntakeStatus(intake, 'pending')}>
@@ -570,11 +612,20 @@ const Medications: React.FC = () => {
                 MOMENTS.map((moment) => {
                     const group = intakesByMoment[moment];
                     if (group.length === 0) return null;
+                    const openCount = openIntakesOf(moment).length;
                     return (
                         <section key={moment} aria-labelledby={`moment-${moment}`}>
-                            <h2 id={`moment-${moment}`} className="mb-3 text-h1 text-foreground">
-                                {t(`medications:moments.${moment}`)}
-                            </h2>
+                            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                                <h2 id={`moment-${moment}`} className="text-h1 text-foreground">
+                                    {t(`medications:moments.${moment}`)}
+                                </h2>
+                                {canConfirmIntakes && openCount > 0 && (
+                                    <Button size="lg" onClick={() => setConfirmAllMoment(moment)}>
+                                        <CheckCheck className="mr-2 h-5 w-5" aria-hidden="true" />
+                                        {t(`medications:today.allTaken.${moment}`)}
+                                    </Button>
+                                )}
+                            </div>
                             <ul className="space-y-3">
                                 {sortForToday(group).map((intake) => {
                                     const details = intakeDetails(intake);
@@ -634,6 +685,44 @@ const Medications: React.FC = () => {
                     );
                 })
             )}
+
+            <Dialog
+                open={confirmAllMoment !== null}
+                onOpenChange={(open) => {
+                    if (!open && !confirmAllBusy) setConfirmAllMoment(null);
+                }}
+                title={confirmAllMoment ? t(`medications:today.allTaken.${confirmAllMoment}`) : ''}
+                description={t('medications:today.allTakenQuestion')}
+            >
+                <ul className="mb-6 space-y-2">
+                    {confirmAllMoment &&
+                        openIntakesOf(confirmAllMoment).map((intake) => (
+                            <li key={intake.id} className="flex items-start gap-2 text-body text-foreground">
+                                <Pill className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary" aria-hidden="true" />
+                                <span>
+                                    {intake.medication_name}
+                                    {intake.medication_dosage ? ` ${intake.medication_dosage}` : ''}
+                                    {': '}
+                                    {amountLabel(intake.quantity, intake.unit, intake.form)}
+                                </span>
+                            </li>
+                        ))}
+                </ul>
+                <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                    <Button
+                        variant="secondary"
+                        size="lg"
+                        disabled={confirmAllBusy}
+                        onClick={() => setConfirmAllMoment(null)}
+                    >
+                        {t('medications:today.allTakenNo')}
+                    </Button>
+                    <Button size="lg" disabled={confirmAllBusy} onClick={() => void confirmAllIntakes()}>
+                        <Check className="mr-2 h-5 w-5" aria-hidden="true" />
+                        {t('medications:today.allTakenYes')}
+                    </Button>
+                </div>
+            </Dialog>
 
             {prnMedications.length > 0 && (
                 <section aria-labelledby="moment-prn">
@@ -872,21 +961,14 @@ const Medications: React.FC = () => {
         setStockMed(med);
         setStockForm({
             quantity: med.stock_quantity === null ? '' : String(stockNumber(med.stock_quantity) ?? ''),
-            threshold:
-                med.stock_alert_threshold === null
-                    ? ''
-                    : String(stockNumber(med.stock_alert_threshold) ?? ''),
         });
         setStockFormError('');
     };
 
-    const saveStock = async (med: Medication, quantity: number | null, threshold: number | null) => {
+    const saveStock = async (med: Medication, quantity: number | null) => {
         setSavingStock(true);
         try {
-            await api.put(`/api/medications/${med.id}/stock`, {
-                stock_quantity: quantity,
-                stock_alert_threshold: threshold,
-            });
+            await api.put(`/api/medications/${med.id}/stock`, { stock_quantity: quantity });
             setStockMed(null);
             await loadMedications();
         } catch (err) {
@@ -902,12 +984,11 @@ const Medications: React.FC = () => {
         if (!stockMed) return;
         setStockFormError('');
         const quantity = parseStockValue(stockForm.quantity);
-        const threshold = parseStockValue(stockForm.threshold);
-        if (quantity === undefined || threshold === undefined) {
+        if (quantity === undefined) {
             setStockFormError(t('medications:stock.invalid'));
             return;
         }
-        await saveStock(stockMed, quantity, threshold);
+        await saveStock(stockMed, quantity);
     };
 
     const stockActionLabel = (med: Medication) =>
@@ -1856,32 +1937,15 @@ const Medications: React.FC = () => {
                             onChange={(e) => setStockForm({ ...stockForm, quantity: e.target.value })}
                             placeholder={t('medications:stock.quantityPlaceholder')}
                         />
-                        <Input
-                            label={t('medications:stock.threshold')}
-                            type="number"
-                            inputMode="decimal"
-                            min={0}
-                            max={MAX_STOCK}
-                            step={1}
-                            value={stockForm.threshold}
-                            onChange={(e) => setStockForm({ ...stockForm, threshold: e.target.value })}
-                            placeholder={t('medications:stock.thresholdPlaceholder')}
-                        />
                     </div>
-                    <p className="text-sm text-muted-foreground">{t('medications:stock.thresholdHint')}</p>
-                    <p className="text-sm text-muted-foreground">{t('medications:stock.hint')}</p>
 
                     <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
                         <Button
                             type="button"
-                            variant="ghost"
-                            disabled={
-                                savingStock ||
-                                (stockMed?.stock_quantity === null &&
-                                    stockMed?.stock_alert_threshold === null)
-                            }
+                            variant="secondary"
+                            disabled={savingStock || stockMed?.stock_quantity === null}
                             onClick={() => {
-                                if (stockMed) void saveStock(stockMed, null, null);
+                                if (stockMed) void saveStock(stockMed, null);
                             }}
                         >
                             {t('medications:stock.stopTracking')}

@@ -663,7 +663,14 @@ function attention(c: CircleData): Json[] {
         const weekAgo = new Date(now.getTime() - 7 * 86400000).getTime();
         const outOfRange = c.vitals.filter((v) => new Date(String(v.measured_at)).getTime() >= weekAgo && vitalOutOfRange(c, v));
         if (outOfRange.length) items.push({ kind: 'vitals_out_of_range', severity: 'warn', count: outOfRange.length, href: '/health', details: outOfRange.slice(0, 5).map((v) => ({ id: v.id, label: v.type, when: v.measured_at, extra: v.value2 !== null && v.value2 !== undefined ? `${v.value}/${v.value2}` : String(v.value), value: Number(v.value), value2: v.value2 !== null && v.value2 !== undefined ? Number(v.value2) : null })) });
-        const low = c.medications.filter((m) => m.active !== false && m.stock_quantity !== null && m.stock_quantity !== undefined && m.stock_alert_threshold !== null && m.stock_alert_threshold !== undefined && Number(m.stock_quantity) <= Number(m.stock_alert_threshold));
+        // Wie stockAlerts.ts im Server: leer, oder reicht laut Plan hoechstens 7 Tage.
+        const dailyDose = (m: Json): number => (m.prn ? 0 : ((m.schedules as Json[]) || []).reduce(
+            (sum, s) => sum + (Number(s.quantity) || 0) * (((s.days_of_week as number[]) || []).length / 7), 0));
+        const low = c.medications.filter((m) => {
+            if (m.active === false || m.stock_quantity === null || m.stock_quantity === undefined) return false;
+            const q = Number(m.stock_quantity);
+            return q <= 0 || q <= 7 * dailyDose(m);
+        });
         if (low.length) items.push({ kind: 'medication_stock', severity: 'warn', count: low.length, href: '/medications', details: low.slice(0, 5).map((m) => ({ id: m.id, label: m.name, when: null, extra: String(m.stock_quantity) })) });
         const missed = intakesForRange(c, today, today).filter((i) => i.status === 'missed');
         if (missed.length) items.push({ kind: 'missed_intakes', severity: 'urgent', count: missed.length, href: '/medications', details: missed.slice(0, 5).map((i) => ({ id: i.id, label: i.medication_name, when: i.due_at })) });
@@ -1194,6 +1201,19 @@ async function route(method: string, path: string, q: Record<string, string>, bo
     if (seg[1] === 'medications' && seg[2] === 'intakes' && seg.length === 4 && method === 'PUT') {
         const updated = setIntakeStatus(c, seg[3], body.status);
         return ok(updated ?? {});
+    }
+    // "Morgens alle genommen": nur offene Einnahmen (wie server/src/routes/medications.ts).
+    if (path === '/api/medications/intakes/confirm' && method === 'POST') {
+        const ids: string[] = Array.isArray(body.intake_ids) ? body.intake_ids : [];
+        const today = isoDate(new Date());
+        const current = intakesForRange(c, today, today);
+        let confirmed = 0;
+        for (const id of ids) {
+            const intake = current.find((i) => i.id === id);
+            if (!intake || intake.status === 'taken' || intake.status === 'skipped') continue;
+            if (setIntakeStatus(c, id, 'taken')) confirmed++;
+        }
+        return ok({ confirmed });
     }
     if (path === '/api/medications/prescriptions' && method === 'GET') {
         const list = [...c.prescriptions].sort((a, b) => String(a.renewal_date || '9999').localeCompare(String(b.renewal_date || '9999')));

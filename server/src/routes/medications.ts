@@ -8,6 +8,7 @@ import {
     requireJournalWriter,
     requireRole,
     HEALTH_READER_ROLES,
+    INTAKE_CONFIRMER_ROLES,
     caregiverLinkMiddleware,
     CircleRequest,
     CaregiverLinkRequest,
@@ -17,6 +18,7 @@ import {
     applyIntakeStatus,
     fetchIntakeForUpdate,
     generateIntakes,
+    IntakeSource,
     markMissed,
     toDateString,
     INTAKE_DISPLAY_COLUMNS,
@@ -199,6 +201,10 @@ const fetchMedicationWithSchedules = async (client: PoolClient, medicationId: st
 
 // applyIntakeStatus / fetchIntakeForUpdate live in ../lib/intakes (shared with
 // the kiosk and the patient phone).
+
+/** Wer bestaetigt: die betreute Person selbst ('self') oder eine Pflegeperson. */
+const intakeSourceFor = (req: CircleRequest): IntakeSource =>
+    req.circleRole === 'recipient' ? 'self' : 'caregiver';
 
 // ============================================================
 // Magic link (no account): confirm an intake through a caregiver link.
@@ -609,14 +615,17 @@ router.get('/intakes', async (req: CircleRequest, res: Response) => {
     }
 });
 
-// Confirm, skip or reset an intake (everyone except recipient)
-router.put('/intakes/:id', requireJournalWriter, async (req: CircleRequest, res: Response) => {
+// Confirm, skip or reset an intake. recipient may only confirm ("taken").
+router.put('/intakes/:id', requireRole(...INTAKE_CONFIRMER_ROLES), async (req: CircleRequest, res: Response) => {
     const lang = langFromRequest(req);
     const client = await getClient();
     try {
         const { status } = req.body;
         if (!INTAKE_STATUSES.includes(status)) {
             return res.status(400).json({ success: false, error: t(lang, 'medications.statusInvalid') });
+        }
+        if (req.circleRole === 'recipient' && status !== 'taken') {
+            return res.status(403).json({ success: false, error: 'Insufficient role' });
         }
 
         await client.query('BEGIN');
@@ -633,7 +642,7 @@ router.put('/intakes/:id', requireJournalWriter, async (req: CircleRequest, res:
         const updated = await applyIntakeStatus(client, intake, status, {
             userId: req.userId,
             name: authorName,
-        }, 'caregiver');
+        }, intakeSourceFor(req));
 
         await client.query('COMMIT');
 
@@ -643,6 +652,47 @@ router.put('/intakes/:id', requireJournalWriter, async (req: CircleRequest, res:
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Update intake error:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    } finally {
+        client.release();
+    }
+});
+
+// "Morgens alle genommen": confirm several intakes at once (one block of the
+// day). Body { intake_ids: string[] }. Only open intakes (pending, missed) are
+// confirmed; taken or skipped ones stay as they are. Stock drops per intake
+// exactly like a single confirmation (applyIntakeStatus).
+router.post('/intakes/confirm', requireRole(...INTAKE_CONFIRMER_ROLES), async (req: CircleRequest, res: Response) => {
+    const ids = Array.isArray(req.body?.intake_ids)
+        ? [...new Set((req.body.intake_ids as unknown[]).filter((id): id is string => typeof id === 'string'))].slice(0, 50)
+        : [];
+    if (ids.length === 0) {
+        return res.status(400).json({ success: false, error: 'intake_ids required' });
+    }
+
+    const client = await getClient();
+    try {
+        await client.query('BEGIN');
+        const userResult = await client.query('SELECT name FROM users WHERE id = $1', [req.userId]);
+        const authorName = userResult.rows[0]?.name ?? 'Aidant';
+
+        let confirmed = 0;
+        for (const id of ids) {
+            const intake = await fetchIntakeForUpdate(client, id, req.circleId!);
+            if (!intake || intake.status === 'taken' || intake.status === 'skipped') continue;
+            await applyIntakeStatus(client, intake, 'taken', { userId: req.userId, name: authorName }, intakeSourceFor(req));
+            confirmed += 1;
+        }
+        await client.query('COMMIT');
+
+        if (confirmed > 0) {
+            await broadcastToCircle(req.circleId!, { type: 'update', entity: 'intakes', action: 'updated' });
+            await broadcastToCircle(req.circleId!, { type: 'update', entity: 'journal', action: 'updated' });
+        }
+        res.json({ success: true, data: { confirmed } });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Confirm intakes error:', error);
         res.status(500).json({ success: false, error: 'Internal server error' });
     } finally {
         client.release();
