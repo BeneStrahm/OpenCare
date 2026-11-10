@@ -22,7 +22,9 @@
         "smoke:api": "bash ./scripts/smoke-api.sh",
         "install:all": "npm install && cd client && npm install && cd ../server && npm install && cd ../shared && npm install",
         "test": "vitest run",
-        "test:watch": "vitest"
+        "test:watch": "vitest",
+        "precheck": "node scripts/precheck.mjs",
+        "precheck:fast": "node scripts/precheck.mjs --schnell"
     },
     "devDependencies": {
         "concurrently": "^8.2.2",
