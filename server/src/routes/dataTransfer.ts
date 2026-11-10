@@ -445,12 +445,13 @@ router.post('/import', async (req: CircleRequest, res: Response) => {
             }
             await insert('tasks',
                 ['circle_id', 'title', 'description', 'category', 'is_completed', 'due_date', 'frequency', 'priority',
-                    'assigned_to', 'completed_at', 'completed_by', 'created_at', 'updated_at'],
+                    'assigned_to', 'assigned_names', 'completed_at', 'completed_by', 'created_at', 'updated_at'],
                 [circleId, row.title, textOrNull(row.description),
                     typeof row.category === 'string' && row.category ? row.category : 'other',
                     boolOr(row.is_completed, false), row.due_date ?? null,
                     textOrNull(row.frequency), textOrNull(row.priority),
                     JSON.stringify(filterMemberIds(row.assigned_to)),
+                    JSON.stringify(cleanGuests(row.assigned_names)),
                     row.completed_at ?? null, await userOrNull(row.completed_by),
                     tsOrNow(row.created_at), tsOrNow(row.updated_at)]
             );

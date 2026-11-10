@@ -332,6 +332,7 @@ CREATE TABLE tasks (
     frequency VARCHAR(50),
     priority VARCHAR(50),
     assigned_to JSONB DEFAULT '[]'::jsonb,
+    assigned_names JSONB NOT NULL DEFAULT '[]'::jsonb,
     completed_at TIMESTAMP,
     completed_by UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

@@ -245,6 +245,8 @@ export const runMigrations = async () => {
         `ALTER TABLE events ALTER COLUMN companion_needed DROP NOT NULL;`,
         `ALTER TABLE events ALTER COLUMN companion_needed DROP DEFAULT;`,
         `ALTER TABLE events ADD COLUMN IF NOT EXISTS travel_needed BOOLEAN;`,
+        // Fork: Aufgaben auch an Personen ohne Konto (freie Namen).
+        `ALTER TABLE tasks ADD COLUMN IF NOT EXISTS assigned_names JSONB NOT NULL DEFAULT '[]'::jsonb;`,
         // Stock de medicaments et seuil de renouvellement.
         `ALTER TABLE medications ADD COLUMN IF NOT EXISTS stock_quantity NUMERIC(8, 2);`,
         `ALTER TABLE medications ADD COLUMN IF NOT EXISTS stock_alert_threshold NUMERIC(8, 2);`,
