@@ -46,11 +46,21 @@
       "caregiver": "confirmada por un cuidador",
       "kiosk": "confirmada en el modo Kiosco",
       "phone": "confirmada en el teléfono",
-      "link": "confirmada mediante un enlace de cuidador"
+      "link": "confirmada mediante un enlace de cuidador",
+      "self": "confirmada por la persona cuidada"
     },
     "lowStockTitle": "Quedan pocas existencias",
     "lowStockHint": "Introduzca las nuevas existencias en la pestaña «Existencias».",
-    "takeAt": "{{amount}} a las {{time}}"
+    "takeAt": "{{amount}} a las {{time}}",
+    "allTaken": {
+      "morning": "Todo tomado por la mañana",
+      "noon": "Todo tomado al mediodía",
+      "evening": "Todo tomado por la tarde",
+      "night": "Todo tomado al acostarse"
+    },
+    "allTakenQuestion": "¿Ha tomado todos estos medicamentos?",
+    "allTakenYes": "Sí, todo tomado",
+    "allTakenNo": "No"
   },
   "treatments": {
     "add": "Añadir un tratamiento",
@@ -98,15 +108,11 @@
     "start": "Controlar el stock",
     "manage": "Modificar el stock",
     "dialogTitle": "Stock de {{name}}",
-    "dialogDescription": "Indique lo que queda y el umbral de alerta, en la unidad de una toma.",
+    "dialogDescription": "Indique lo que queda, en la unidad de una toma. El stock baja solo con cada toma confirmada.",
     "quantity": "Reserva",
     "quantityPlaceholder": "Ej.: 30",
-    "threshold": "Avisar a partir de",
-    "thresholdPlaceholder": "Ej.: 7",
-    "hint": "Deje un campo vacío para no controlar ese valor. El stock baja solo con cada toma confirmada.",
     "stopTracking": "Dejar de controlar el stock",
     "invalid": "Indique un número entre 0 y 100000, o deje el campo vacío.",
-    "thresholdHint": "Cuando la reserva baje a esta cantidad, la familia y los administradores reciben un aviso.",
     "table": {
       "medication": "Medicamento",
       "strength": "Concentración",
@@ -223,7 +229,8 @@
     "photo": "No se puede procesar la foto.",
     "photoTooLarge": "La foto sigue siendo demasiado grande después de comprimirla (1,5 MB máximo).",
     "logPrn": "No se puede anotar esta toma.",
-    "saveStock": "No se puede guardar el stock."
+    "saveStock": "No se puede guardar el stock.",
+    "confirmAll": "No se pudieron guardar las tomas. Inténtelo de nuevo."
   },
   "restricted": {
     "title": "Acceso restringido",

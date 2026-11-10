@@ -46,11 +46,21 @@
       "caregiver": "bestätigt von einer Pflegeperson",
       "kiosk": "bestätigt in der Tablet-Ansicht",
       "phone": "bestätigt am Telefon",
-      "link": "bestätigt über einen Link für Betreuungspersonen"
+      "link": "bestätigt über einen Link für Betreuungspersonen",
+      "self": "bestätigt von der betreuten Person"
     },
     "lowStockTitle": "Vorrat geht zur Neige",
     "lowStockHint": "Neuen Vorrat tragen Sie im Reiter „Vorrat“ ein.",
-    "takeAt": "{{amount}} um {{time}}"
+    "takeAt": "{{amount}} um {{time}}",
+    "allTaken": {
+      "morning": "Morgens alle genommen",
+      "noon": "Mittags alle genommen",
+      "evening": "Abends alle genommen",
+      "night": "Zur Nacht alle genommen"
+    },
+    "allTakenQuestion": "Haben Sie diese Medikamente alle genommen?",
+    "allTakenYes": "Ja, alle genommen",
+    "allTakenNo": "Nein"
   },
   "treatments": {
     "add": "Medikament hinzufügen",
@@ -98,15 +108,11 @@
     "start": "Vorrat verfolgen",
     "manage": "Vorrat bearbeiten",
     "dialogTitle": "Vorrat von {{name}}",
-    "dialogDescription": "Tragen Sie ein, wie viel noch da ist und ab wann gewarnt werden soll, in der Einheit einer Einnahme.",
+    "dialogDescription": "Tragen Sie ein, wie viel noch da ist, in der Einheit einer Einnahme. Der Vorrat sinkt mit jeder bestätigten Einnahme von selbst.",
     "quantity": "Vorrat",
     "quantityPlaceholder": "z. B. 30",
-    "threshold": "Erinnern ab",
-    "thresholdPlaceholder": "z. B. 7",
-    "hint": "Lassen Sie ein Feld leer, um diesen Wert nicht mehr zu verfolgen. Der Vorrat sinkt mit jeder bestätigten Einnahme von selbst.",
     "stopTracking": "Vorrat nicht mehr verfolgen",
     "invalid": "Geben Sie eine Zahl zwischen 0 und 100000 ein oder lassen Sie das Feld leer.",
-    "thresholdHint": "Fällt der Vorrat auf diesen Wert, bekommen Familie und Admins einmal eine Erinnerung.",
     "table": {
       "medication": "Medikament",
       "strength": "Stärke",
@@ -223,7 +229,8 @@
     "photo": "Das Foto konnte nicht verarbeitet werden.",
     "photoTooLarge": "Das Foto ist auch nach dem Verkleinern noch zu groß (höchstens 1,5 MB).",
     "logPrn": "Diese Einnahme konnte nicht eingetragen werden.",
-    "saveStock": "Der Vorrat konnte nicht gespeichert werden."
+    "saveStock": "Der Vorrat konnte nicht gespeichert werden.",
+    "confirmAll": "Die Einnahmen konnten nicht eingetragen werden. Bitte versuchen Sie es noch einmal."
   },
   "restricted": {
     "title": "Eingeschränkter Zugriff",

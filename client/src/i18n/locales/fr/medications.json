@@ -46,11 +46,21 @@
       "caregiver": "confirmé par un aidant",
       "kiosk": "confirmé sur le kiosk",
       "phone": "confirmé sur le téléphone",
-      "link": "confirmé via un lien intervenant"
+      "link": "confirmé via un lien intervenant",
+      "self": "confirmé par la personne aidée"
     },
     "lowStockTitle": "Stock bientôt épuisé",
     "lowStockHint": "Saisissez le nouveau stock dans l’onglet « Stock ».",
-    "takeAt": "{{amount}} à {{time}}"
+    "takeAt": "{{amount}} à {{time}}",
+    "allTaken": {
+      "morning": "Tout pris ce matin",
+      "noon": "Tout pris ce midi",
+      "evening": "Tout pris ce soir",
+      "night": "Tout pris au coucher"
+    },
+    "allTakenQuestion": "Avez-vous pris tous ces médicaments ?",
+    "allTakenYes": "Oui, tout pris",
+    "allTakenNo": "Non"
   },
   "treatments": {
     "add": "Ajouter un traitement",
@@ -98,15 +108,11 @@
     "start": "Suivre le stock",
     "manage": "Modifier le stock",
     "dialogTitle": "Stock de {{name}}",
-    "dialogDescription": "Indiquez ce qu'il reste et le seuil d'alerte, dans l'unité d'une prise.",
+    "dialogDescription": "Indiquez ce qu'il reste, dans l'unité d'une prise. Le stock diminue tout seul à chaque prise confirmée.",
     "quantity": "Réserve",
     "quantityPlaceholder": "Ex. 30",
-    "threshold": "Rappeler à partir de",
-    "thresholdPlaceholder": "Ex. 7",
-    "hint": "Laissez un champ vide pour ne pas suivre cette valeur. Le stock diminue tout seul à chaque prise confirmée.",
     "stopTracking": "Ne plus suivre le stock",
     "invalid": "Indiquez un nombre entre 0 et 100000, ou laissez le champ vide.",
-    "thresholdHint": "Quand la réserve descend à cette quantité, la famille et les admins reçoivent un rappel.",
     "table": {
       "medication": "Médicament",
       "strength": "Dosage",
@@ -223,7 +229,8 @@
     "photo": "Impossible de traiter la photo.",
     "photoTooLarge": "La photo reste trop volumineuse après compression (1,5 Mo maximum).",
     "logPrn": "Impossible de noter cette prise.",
-    "saveStock": "Impossible d'enregistrer le stock."
+    "saveStock": "Impossible d'enregistrer le stock.",
+    "confirmAll": "Les prises n'ont pas pu être enregistrées. Veuillez réessayer."
   },
   "restricted": {
     "title": "Accès réservé",
