@@ -121,3 +121,6 @@ coverage/
 .claude/settings.local.json
 Thumbs.db
 desktop.ini
+
+# Server-Doku, nur lokal (beschreibt den Aufbau des Servers)
+HOSTING-IONOS.md
