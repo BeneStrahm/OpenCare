@@ -45,7 +45,7 @@ export const Dialog: React.FC<DialogProps> = ({
                                 </DialogPrimitive.Description>
                             )}
                         </div>
-                        <DialogPrimitive.Close className="rounded-input p-1 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground">
+                        <DialogPrimitive.Close className="-mr-2 inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-input text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground">
                             <X className="h-5 w-5" />
                             <span className="sr-only">{t('actions.close')}</span>
                         </DialogPrimitive.Close>

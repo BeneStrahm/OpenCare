@@ -54,9 +54,9 @@ describe('Fahrt und Teilnehmende', () => {
         expect(shiftClock('00:10', -15)).toBe('23:55');
     });
     it('wählt Mitglieder über den Namen, sonst freier Name, ohne Doppelte', () => {
-        const members = [{ id: 'm1', name: 'Sabine' }];
+        const members = [{ id: 'm1', name: 'Ida' }];
         const empty = { member_ids: [] as string[], guests: [] as string[] };
-        expect(addParticipant(empty, ' sabine ', members)).toEqual({ member_ids: ['m1'], guests: [] });
+        expect(addParticipant(empty, ' ida ', members)).toEqual({ member_ids: ['m1'], guests: [] });
         const withGuest = addParticipant(empty, 'Herr  Meier', members);
         expect(withGuest).toEqual({ member_ids: [], guests: ['Herr Meier'] });
         expect(addParticipant(withGuest, 'herr meier', members)).toBe(withGuest);

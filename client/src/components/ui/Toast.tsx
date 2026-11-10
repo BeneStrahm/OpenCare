@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import * as ToastPrimitive from '@radix-ui/react-toast';
 import { X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface ToastItem {
     id: string;
@@ -17,6 +18,7 @@ interface ToastContextType {
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
 export const AppToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const { t } = useTranslation('common');
     const [toasts, setToasts] = useState<ToastItem[]>([]);
 
     const showToast = useCallback((toast: Omit<ToastItem, 'id'>) => {
@@ -41,7 +43,7 @@ export const AppToastProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                         onOpenChange={(open: boolean) => {
                             if (!open) removeToast(toast.id);
                         }}
-                        duration={4000}
+                        duration={9000}
                         className="group pointer-events-auto grid w-full max-w-sm grid-cols-[1fr_auto] items-start gap-3 rounded-card border border-border bg-card p-4 shadow-surface-hover animate-slide-up"
                     >
                         <div>
@@ -66,7 +68,7 @@ export const AppToastProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                                 </ToastPrimitive.Action>
                             ) : null}
 
-                            <ToastPrimitive.Close className="rounded-input p-1 text-muted-foreground hover:bg-surface-2 hover:text-foreground">
+                            <ToastPrimitive.Close aria-label={t('actions.close')} className="inline-flex h-12 w-12 items-center justify-center rounded-input text-muted-foreground hover:bg-surface-2 hover:text-foreground">
                                 <X className="h-4 w-4" />
                             </ToastPrimitive.Close>
                         </div>
