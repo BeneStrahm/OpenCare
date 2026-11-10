@@ -4,7 +4,7 @@ set -u
 A=http://localhost:3001
 ok(){ echo "OK   $1"; }; bad(){ echo "FAIL $1"; FAILS=$((FAILS+1)); }; FAILS=0
 EMAIL="e2e$RANDOM@example.org"
-TOKEN=$(curl -s -X POST $A/api/auth/register -H 'Content-Type: application/json' -d "{\"email\":\"$EMAIL\",\"password\":\"Sehr-sicher-123!\",\"name\":\"Thomas\"}" | jq -r '.data.token')
+TOKEN=$(curl -s -X POST $A/api/auth/register -H 'Content-Type: application/json' -d "{\"email\":\"$EMAIL\",\"password\":\"Sehr-sicher-123!\",\"name\":\"Thomas Muster\"}" | jq -r '.data.token')
 H=(-H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -H 'Accept-Language: de')
 CID=$(curl -s -X POST $A/api/circles "${H[@]}" -d '{"recipient_first_name":"Erika","recipient_last_name":"Muster"}' | jq -r '.data.circle.id')
 sudo -n -u postgres psql -q opencare -c "update users set language='de' where email='$EMAIL'"
@@ -58,7 +58,7 @@ grep '"ollama"' /home/claude/e2e/mocks.log | tail -1 | jq -e '.user | contains("
 n=$(curl -s $A/api/notifications "${H[@]}" | jq '[.data[]? | select(.type=="consultation")] | length'); [ "${n:-0}" -ge 1 ] && ok "Benachrichtigung" || bad "Benachrichtigung $n"
 
 # Freigabe
-curl -s -X POST $A/api/consultations/$ID/summary/approve "${H[@]}" -d '{}' | jq -e '.data.summary_status=="approved" and .data.approved_by_name=="Thomas"' >/dev/null && ok "freigegeben" || bad "Freigabe"
+curl -s -X POST $A/api/consultations/$ID/summary/approve "${H[@]}" -d '{}' | jq -e '.data.summary_status=="approved" and .data.approved_by_name=="Thomas Muster"' >/dev/null && ok "freigegeben" || bad "Freigabe"
 curl -s $A/api/consultations/$ID "${H[@]}" | jq -e '.data.questions[0].answer=="Vermutlich vom Blutdruck." and .data.questions[1].answer==null' >/dev/null && ok "Antwort übernommen" || bad "Antwort"
 echo $D | jq -e '.data.consultation.summary.appointments[0].date=="2026-11-24" and .data.consultation.summary.appointments[0].time==null and .data.consultation.summary.family_notes[0]=="Ramipril jetzt 2,5 mg statt 5 mg."' >/dev/null && ok "Vorschläge Termin/Notiz" || bad "Vorschläge"
 nt=$(curl -s "$A/api/tasks" "${H[@]}" | jq '.data|length'); [ "$nt" = 0 ] && ok "nichts automatisch angelegt" || bad "auto-Aufgaben $nt"

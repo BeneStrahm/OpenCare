@@ -45,7 +45,6 @@ export const toDisplayValue = (type: VitalType, metric: number, system: UnitSyst
     if (system !== 'imperial') return metric;
     if (type === 'weight') return metric * LB_PER_KG;
     if (type === 'temperature') return metric * 9 / 5 + 32;
-    if (type === 'glucose') return metric * MGDL_PER_GL;
     return metric;
 };
 
@@ -55,7 +54,6 @@ export const toStorageValue = (type: VitalType, shown: number, system: UnitSyste
     if (system !== 'imperial') return shown;
     if (type === 'weight') return shown / LB_PER_KG;
     if (type === 'temperature') return (shown - 32) * 5 / 9;
-    if (type === 'glucose') return shown / MGDL_PER_GL;
     return shown;
 };
 
@@ -64,7 +62,7 @@ export const toStorageValue = (type: VitalType, shown: number, system: UnitSyste
  * mg/dL plus grossier qu'un g/L : afficher "104.00 mg/dL" ne renseigne
  * personne, et "58 kg" cache une perte de poids de 400 grammes.
  */
-export const decimalsFor = (type: VitalType, system: UnitSystem): number => {
+export const decimalsFor = (type: VitalType, _system: UnitSystem): number => {
     if (type === 'bp' || type === 'pain' || type === 'mood') return 0;
     if (type === 'temperature') return 1;
     if (type === 'glucose') return 0;

@@ -41,7 +41,6 @@ export const toDisplayValue = (type: VitalType, metric: number, system: UnitSyst
     if (system !== 'imperial') return metric;
     if (type === 'weight') return metric * LB_PER_KG;
     if (type === 'temperature') return metric * 9 / 5 + 32;
-    if (type === 'glucose') return metric * MGDL_PER_GL;
     return metric;
 };
 

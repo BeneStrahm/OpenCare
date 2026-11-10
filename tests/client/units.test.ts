@@ -64,8 +64,8 @@ describe('conversions', () => {
         }
     });
 
-    it('ne touche a rien en metrique', () => {
-        for (const type of TYPES) {
+    it('ne touche a rien en metrique (ausser Blutzucker, immer mg/dL)', () => {
+        for (const type of TYPES.filter((type) => type !== 'glucose')) {
             expect(toDisplayValue(type, 42.5, 'metric'), type).toBe(42.5);
             expect(toStorageValue(type, 42.5, 'metric'), type).toBe(42.5);
         }

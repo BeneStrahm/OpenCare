@@ -83,8 +83,11 @@ export const requireRole = (...roles: CircleRole[]) => {
 /** Roles allowed to write journal entries (everyone except recipient, see above). */
 export const JOURNAL_WRITER_ROLES: CircleRole[] = ['admin', 'family', 'professional', 'neighbor'];
 
-/** Roles allowed to confirm medication intakes. recipient may only mark them taken (see above). */
-export const INTAKE_CONFIRMER_ROLES: CircleRole[] = [...JOURNAL_WRITER_ROLES, 'recipient'];
+/**
+ * Roles allowed to confirm medication intakes. recipient may only mark them taken (see above).
+ * neighbor ("Freunde") is left out: it reads no health data, so it confirms no intakes either.
+ */
+export const INTAKE_CONFIRMER_ROLES: CircleRole[] = ['admin', 'family', 'professional', 'recipient'];
 
 /** Roles allowed to manage circle content (calendar, tasks, documents...). */
 export const CONTENT_WRITER_ROLES: CircleRole[] = ['admin', 'family'];

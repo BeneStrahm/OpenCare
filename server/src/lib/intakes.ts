@@ -205,6 +205,40 @@ export async function applyIntakeStatus(
     return result.rows[0];
 }
 
+/** Wer bestaetigt: die betreute Person selbst ('self') oder eine Pflegeperson. */
+export const intakeSourceForRole = (role: string | undefined): IntakeSource =>
+    role === 'recipient' ? 'self' : 'caregiver';
+
+/** IDs aus dem Body von POST /intakes/confirm: nur Texte, ohne Doppel, hoechstens 50. */
+export const parseConfirmIntakeIds = (raw: unknown): string[] =>
+    Array.isArray(raw)
+        ? [...new Set(raw.filter((id): id is string => typeof id === 'string'))].slice(0, 50)
+        : [];
+
+/**
+ * Markiert mehrere Einnahmen als genommen (Taste "alle genommen").
+ * Bereits genommene oder ausgelassene Einnahmen bleiben, wie sie sind, und
+ * unbekannte IDs werden uebergangen: doppeltes Bestaetigen legt keinen
+ * zweiten Journaleintrag an. Laeuft in der Transaktion des Aufrufers.
+ * Gibt die Anzahl der neu bestaetigten Einnahmen zurueck.
+ */
+export async function confirmIntakesTaken(
+    client: PoolClient,
+    circleId: string,
+    ids: string[],
+    author: { userId?: string; name: string },
+    source: IntakeSource
+): Promise<number> {
+    let confirmed = 0;
+    for (const id of ids) {
+        const intake = await fetchIntakeForUpdate(client, id, circleId);
+        if (!intake || intake.status === 'taken' || intake.status === 'skipped') continue;
+        await applyIntakeStatus(client, intake, 'taken', author, source);
+        confirmed += 1;
+    }
+    return confirmed;
+}
+
 export interface PatientIntakeRow {
     id: string;
     due_at: string;

@@ -16,8 +16,11 @@ import {
 import { broadcastToCircle } from '../lib/broadcaster';
 import {
     applyIntakeStatus,
+    confirmIntakesTaken,
     fetchIntakeForUpdate,
     generateIntakes,
+    intakeSourceForRole,
+    parseConfirmIntakeIds,
     IntakeSource,
     markMissed,
     toDateString,
@@ -203,8 +206,7 @@ const fetchMedicationWithSchedules = async (client: PoolClient, medicationId: st
 // the kiosk and the patient phone).
 
 /** Wer bestaetigt: die betreute Person selbst ('self') oder eine Pflegeperson. */
-const intakeSourceFor = (req: CircleRequest): IntakeSource =>
-    req.circleRole === 'recipient' ? 'self' : 'caregiver';
+const intakeSourceFor = (req: CircleRequest): IntakeSource => intakeSourceForRole(req.circleRole);
 
 // ============================================================
 // Magic link (no account): confirm an intake through a caregiver link.
@@ -663,9 +665,7 @@ router.put('/intakes/:id', requireRole(...INTAKE_CONFIRMER_ROLES), async (req: C
 // confirmed; taken or skipped ones stay as they are. Stock drops per intake
 // exactly like a single confirmation (applyIntakeStatus).
 router.post('/intakes/confirm', requireRole(...INTAKE_CONFIRMER_ROLES), async (req: CircleRequest, res: Response) => {
-    const ids = Array.isArray(req.body?.intake_ids)
-        ? [...new Set((req.body.intake_ids as unknown[]).filter((id): id is string => typeof id === 'string'))].slice(0, 50)
-        : [];
+    const ids = parseConfirmIntakeIds(req.body?.intake_ids);
     if (ids.length === 0) {
         return res.status(400).json({ success: false, error: 'intake_ids required' });
     }
@@ -676,13 +676,9 @@ router.post('/intakes/confirm', requireRole(...INTAKE_CONFIRMER_ROLES), async (r
         const userResult = await client.query('SELECT name FROM users WHERE id = $1', [req.userId]);
         const authorName = userResult.rows[0]?.name ?? 'Aidant';
 
-        let confirmed = 0;
-        for (const id of ids) {
-            const intake = await fetchIntakeForUpdate(client, id, req.circleId!);
-            if (!intake || intake.status === 'taken' || intake.status === 'skipped') continue;
-            await applyIntakeStatus(client, intake, 'taken', { userId: req.userId, name: authorName }, intakeSourceFor(req));
-            confirmed += 1;
-        }
+        const confirmed = await confirmIntakesTaken(
+            client, req.circleId!, ids, { userId: req.userId, name: authorName }, intakeSourceFor(req)
+        );
         await client.query('COMMIT');
 
         if (confirmed > 0) {
