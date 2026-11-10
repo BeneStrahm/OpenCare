@@ -57,7 +57,7 @@ function buildEventTexts(event: EventRow, kind: '30min' | '1hour', language: str
         if (lang === 'de') {
             return {
                 title: `⏰ Abfahrt: ${event.title}`,
-                body: `${kind === '30min' ? 'In 30 Minuten' : 'In 1 Stunde'} losfahren · Abfahrt ${departure} Uhr · Termin ${timeStr} Uhr${event.location ? ` · ${event.location}` : ''}${driver ? ` · Fährt: ${driver}` : ''}`,
+                body: `${kind === '30min' ? 'In 30 Minuten' : 'In 1 Stunde'} losfahren · Abfahrt ${departure} Uhr · Termin ${timeStr} Uhr${event.location ? ` · ${event.location}` : ''}${driver ? ` · Fahrdienst: ${driver}` : ''}`,
             };
         }
         if (lang === 'es') {

@@ -64,10 +64,6 @@
     "notes": "Notes (optional)",
     "notesPlaceholder": "Instructions, things to bring…",
     "start": "Start",
-    "reminderDefaultOn": "Reminder 60 minutes before. Change it under \"More details\".",
-    "reminderDefaultOff": "No reminder 60 minutes before.",
-    "moreDetails": "More details (end, repeat, reminders, notes …)",
-    "lessDetails": "Hide more details",
     "participantsHint": "Pick someone from the circle or your contacts, or type a name.",
     "personPlaceholder": "Enter a name",
     "addPerson": "Add",
@@ -86,9 +82,12 @@
     "addTravelTo": "Add outbound trip",
     "addTravelBack": "Add return trip",
     "driver": "Who is driving?",
-    "reminderDepartureOn": "Reminder 60 minutes before departure. Change it under “More details”.",
     "reminder30Departure": "30 minutes before departure",
-    "reminder1hDeparture": "1 hour before departure"
+    "reminder1hDeparture": "1 hour before departure",
+    "sectionBasics": "Details",
+    "sectionMore": "More details",
+    "conflictTitle": "Heads up: something is already scheduled at this time.",
+    "conflictHint": "You can still save the event."
   },
   "confirmDelete": "Delete this event?",
   "deleteRecurringHint": "All of its occurrences will be deleted.",
@@ -132,9 +131,10 @@
     "feed": "Unable to generate the iCal link."
   },
   "card": {
-    "travelTo": "Outbound {{from}} to {{to}}",
-    "travelBack": "Return {{from}} to {{to}}",
-    "driver": "Driver: {{name}}"
+    "travelTo": "Outbound {{time}}",
+    "travelBack": "Return {{time}}",
+    "driver": "Driver: {{name}}",
+    "driverMissing": "Driver: not yet assigned"
   },
   "prevWeek": "Previous week",
   "nextWeek": "Next week",
@@ -143,10 +143,10 @@
   "week": {
     "noEvents": "No events",
     "openDay": "Open day view",
-    "withTravel": "With travel"
+    "withTravel": "With travel",
+    "noDriver": "Driver not yet assigned"
   },
   "day": {
-    "empty": "No events on this day.",
-    "backToWeek": "Back to week"
+    "empty": "No events on this day."
   }
 }

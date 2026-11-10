@@ -64,10 +64,6 @@
     "notes": "Notes (facultatif)",
     "notesPlaceholder": "Consignes, choses à apporter…",
     "start": "Début",
-    "reminderDefaultOn": "Rappel 60 minutes avant. À modifier dans « Plus de détails ».",
-    "reminderDefaultOff": "Pas de rappel 60 minutes avant.",
-    "moreDetails": "Plus de détails (fin, répétition, rappels, notes …)",
-    "lessDetails": "Masquer les détails",
     "participantsHint": "Choisissez dans le cercle ou les contacts, ou tapez un nom.",
     "personPlaceholder": "Saisir un nom",
     "addPerson": "Ajouter",
@@ -86,9 +82,12 @@
     "addTravelTo": "Ajouter l'aller",
     "addTravelBack": "Ajouter le retour",
     "driver": "Qui conduit ?",
-    "reminderDepartureOn": "Rappel 60 minutes avant le départ. À modifier dans « Plus de détails ».",
     "reminder30Departure": "30 minutes avant le départ",
-    "reminder1hDeparture": "1 heure avant le départ"
+    "reminder1hDeparture": "1 heure avant le départ",
+    "sectionBasics": "Informations",
+    "sectionMore": "Plus de détails",
+    "conflictTitle": "Attention : un autre événement est déjà prévu à ce moment.",
+    "conflictHint": "Vous pouvez quand même l'enregistrer."
   },
   "confirmDelete": "Supprimer cet événement ?",
   "deleteRecurringHint": "Toutes ses occurrences seront supprimées.",
@@ -132,9 +131,10 @@
     "feed": "Impossible de générer le lien iCal."
   },
   "card": {
-    "travelTo": "Aller {{from}} à {{to}}",
-    "travelBack": "Retour {{from}} à {{to}}",
-    "driver": "Conduit : {{name}}"
+    "travelTo": "Aller {{time}}",
+    "travelBack": "Retour {{time}}",
+    "driver": "Conducteur : {{name}}",
+    "driverMissing": "Conducteur : à définir"
   },
   "prevWeek": "Semaine précédente",
   "nextWeek": "Semaine suivante",
@@ -143,10 +143,10 @@
   "week": {
     "noEvents": "Aucun événement",
     "openDay": "Ouvrir la vue du jour",
-    "withTravel": "Avec trajet"
+    "withTravel": "Avec trajet",
+    "noDriver": "Conducteur à définir"
   },
   "day": {
-    "empty": "Aucun événement ce jour-là.",
-    "backToWeek": "Retour à la semaine"
+    "empty": "Aucun événement ce jour-là."
   }
 }

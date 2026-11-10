@@ -4,6 +4,8 @@ import {
     Plus, ChevronLeft, ChevronRight, MapPin, Clock, Users, Repeat,
     Trash2, Edit2, Copy, Check, CalendarPlus, RefreshCw, CalendarDays, List, Bell,
     CalendarClock, CalendarOff, Undo2, Car, Minus, X, CalendarRange, CalendarCheck,
+    ChevronDown, ClipboardList, Tag, SlidersHorizontal, AlertTriangle, AlertCircle,
+    type LucideIcon,
 } from 'lucide-react';
 import {
     format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
@@ -21,8 +23,9 @@ import { useWebSocketUpdates } from '../hooks/useWebSocketUpdates';
 import { dateLocale, formatClock } from '../i18n/format';
 import {
     NEW_EVENT_DEFAULTS, NEW_EVENT_TRAVEL_MINUTES, TRAVEL_MAX_MINUTES, TRAVEL_MIN_MINUTES,
-    addParticipant, hasExtraDetails, longDatePattern, shiftClock, stepTravel,
+    addParticipant, findConflicts, hasExtraDetails, longDatePattern, shiftClock, stepTravel,
 } from '../lib/calendarForm';
+import { PersonCombobox } from '../components/calendar/PersonCombobox';
 
 // ─── Domain types ─────────────────────────────────────────────────────────────
 
@@ -163,7 +166,7 @@ const Switch: React.FC<{ checked: boolean; onChange: (value: boolean) => void; l
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className="flex min-h-[44px] items-center gap-3 rounded-input px-1 text-left"
+        className="flex min-h-[48px] items-center gap-3 rounded-input px-1 text-left"
     >
         <span
             className={cn(
@@ -178,13 +181,61 @@ const Switch: React.FC<{ checked: boolean; onChange: (value: boolean) => void; l
                 )}
             />
         </span>
-        <span className="text-caption text-foreground">{label}</span>
+        <span className="text-body text-foreground">{label}</span>
     </button>
 );
 
 const CategoryDot: React.FC<{ category: EventCategory; className?: string }> = ({ category, className }) => (
     <span className={cn('inline-block h-2 w-2 shrink-0 rounded-full', CATEGORY_DOT[category], className)} aria-hidden="true" />
 );
+
+/** Abschnitt im Terminformular: Überschrift mit Symbol, wahlweise einklappbar. */
+const FormSection: React.FC<{
+    id: string;
+    icon: LucideIcon;
+    title: string;
+    /** Kurzinfo neben der Überschrift, solange der Abschnitt zu ist. */
+    summary?: string;
+    open?: boolean;
+    onToggle?: () => void;
+    children: React.ReactNode;
+}> = ({ id, icon: Icon, title, summary, open = true, onToggle, children }) => {
+    const titleContent = (
+        <>
+            <Icon className="h-6 w-6 shrink-0 text-primary" aria-hidden="true" />
+            <span className="min-w-0 flex-1">
+                {title}
+                {onToggle && !open && summary && (
+                    <span className="block text-body font-normal text-muted-foreground">{summary}</span>
+                )}
+            </span>
+        </>
+    );
+    return (
+        <section aria-labelledby={`${id}-title`} className="border-t border-border pt-4 first-of-type:border-t-0 first-of-type:pt-0">
+            <h3 id={`${id}-title`} className="text-h2 text-foreground">
+                {onToggle ? (
+                    <button
+                        type="button"
+                        aria-expanded={open}
+                        aria-controls={`${id}-body`}
+                        onClick={onToggle}
+                        className="flex min-h-[48px] w-full items-center gap-3 rounded-input text-left transition-colors duration-fast hover:bg-surface-2/60"
+                    >
+                        {titleContent}
+                        <ChevronDown
+                            className={cn('h-6 w-6 shrink-0 text-muted-foreground transition-transform duration-fast', open && 'rotate-180')}
+                            aria-hidden="true"
+                        />
+                    </button>
+                ) : (
+                    <span className="flex min-h-[48px] items-center gap-3">{titleContent}</span>
+                )}
+            </h3>
+            {open && <div id={`${id}-body`} className="mt-3 space-y-4">{children}</div>}
+        </section>
+    );
+};
 
 // ─── Form state ───────────────────────────────────────────────────────────────
 
@@ -211,14 +262,15 @@ interface EventForm {
 
 const emptyForm = (): EventForm => ({
     title: '',
-    category: 'visit',
+    category: 'other',
     date: format(new Date(), 'yyyy-MM-dd'),
     startTime: '09:00',
     location: '',
     member_ids: [],
     guests: [],
-    travelTo: NEW_EVENT_TRAVEL_MINUTES,
-    travelBack: NEW_EVENT_TRAVEL_MINUTES,
+    // Fork: Standard ist ohne Fahrt.
+    travelTo: null,
+    travelBack: null,
     driverTo: '',
     driverBack: '',
     driverBackEdited: false,
@@ -233,80 +285,6 @@ const emptyForm = (): EventForm => ({
 // ─── Tages- und Wochenansicht (Fork) ──────────────────────────────────────────
 
 type CalendarView = 'day' | 'week' | 'month' | 'list';
-
-/** Höhe einer Stunde in der Tagesansicht. 15 Minuten Fahrt = 24 px, genug für eine Textzeile. */
-const DAY_HOUR_PX = 96;
-/** Sichtbarer Bereich mindestens 8 bis 18 Uhr, er wächst mit frühen oder späten Terminen. */
-const DAY_FIRST_HOUR = 8;
-const DAY_LAST_HOUR = 18;
-/** Termin ohne Ende oder sehr kurzer Termin: mindestens 30 Minuten hoch (48 px, gut antippbar). */
-const DAY_MIN_EVENT_MINUTES = 30;
-
-/** "YYYY-MM-DDTHH:mm:ss" -> Minuten seit Mitternacht. */
-const minutesOf = (value: string): number => Number(value.slice(11, 13)) * 60 + Number(value.slice(14, 16));
-
-interface DayBlock {
-    occ: EventOccurrence;
-    /** Minuten seit Mitternacht: Beginn der Hinfahrt bzw. Ende der Rückfahrt. */
-    from: number;
-    to: number;
-    travelTo: number;
-    eventMinutes: number;
-    travelBack: number;
-    lane: number;
-    lanes: number;
-}
-
-/** Termine eines Tages mit Fahrzeit untereinander legen; Überschneidungen kommen nebeneinander. */
-const layoutDay = (list: EventOccurrence[]): DayBlock[] => {
-    const blocks: DayBlock[] = [...list]
-        .sort((a, b) => a.start_time.localeCompare(b.start_time))
-        .map((occ) => {
-            const start = minutesOf(occ.start_time);
-            let end = start;
-            if (occ.end_time) {
-                end = occ.end_time.slice(0, 10) === occ.start_time.slice(0, 10) ? minutesOf(occ.end_time) : 24 * 60;
-            }
-            const travelTo = Math.min(occ.travel_to_minutes ?? 0, start);
-            const eventMinutes = Math.min(Math.max(end - start, DAY_MIN_EVENT_MINUTES), 24 * 60 - start);
-            const travelBack = Math.min(occ.travel_back_minutes ?? 0, 24 * 60 - start - eventMinutes);
-            return {
-                occ,
-                from: start - travelTo,
-                to: start + eventMinutes + travelBack,
-                travelTo,
-                eventMinutes,
-                travelBack,
-                lane: 0,
-                lanes: 1,
-            };
-        })
-        .sort((a, b) => a.from - b.from || a.to - b.to);
-
-    let cluster: DayBlock[] = [];
-    let laneEnds: number[] = [];
-    let clusterEnd = -1;
-    const closeCluster = () => {
-        for (const block of cluster) block.lanes = laneEnds.length;
-        cluster = [];
-        laneEnds = [];
-    };
-    for (const block of blocks) {
-        if (cluster.length > 0 && block.from >= clusterEnd) closeCluster();
-        let lane = laneEnds.findIndex((laneEnd) => laneEnd <= block.from);
-        if (lane === -1) {
-            lane = laneEnds.length;
-            laneEnds.push(block.to);
-        } else {
-            laneEnds[lane] = block.to;
-        }
-        block.lane = lane;
-        cluster.push(block);
-        clusterEnd = Math.max(clusterEnd, block.to);
-    }
-    closeCluster();
-    return blocks;
-};
 
 /** Überschrift der Wochenansicht, z. B. "9. – 15. Nov. 2026". */
 const weekRangeLabel = (start: Date, end: Date, lang: string): string => {
@@ -339,8 +317,12 @@ const Calendar: React.FC = () => {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editingRecurring, setEditingRecurring] = useState(false);
     const [formData, setFormData] = useState<EventForm>(emptyForm());
-    // "Weitere Angaben" im Formular: neu zugeklappt, beim Bearbeiten offen, wenn etwas drin steht.
+    // Einklappbare Abschnitte: neu zugeklappt, beim Bearbeiten offen, wenn etwas drin steht.
     const [showMore, setShowMore] = useState(false);
+    const [showPeople, setShowPeople] = useState(false);
+    const [showTravel, setShowTravel] = useState(false);
+    // Termine rund um das gewählte Datum, für den Hinweis auf Überschneidungen.
+    const [formDayEvents, setFormDayEvents] = useState<EventOccurrence[]>([]);
     const [saving, setSaving] = useState(false);
 
     // Occurrence isolee d'une serie : deplacement ponctuel, sans toucher a la regle.
@@ -458,6 +440,41 @@ const Calendar: React.FC = () => {
 
     useWebSocketUpdates('events', () => { void loadEvents(); });
 
+    // Termine um das Datum im Formular laden (auch außerhalb des angezeigten Monats).
+    // Eine Woche Rand, weil einzeln verschobene Wiederholungen bis 7 Tage wandern.
+    useEffect(() => {
+        if (!dialogOpen || !activeCircle || !/^\d{4}-\d{2}-\d{2}$/.test(formData.date)) {
+            setFormDayEvents([]);
+            return;
+        }
+        let cancelled = false;
+        const day = parseISO(formData.date);
+        const from = format(subDays(day, MOVE_MAX_DAYS), 'yyyy-MM-dd');
+        const to = format(addDays(day, MOVE_MAX_DAYS), 'yyyy-MM-dd');
+        api.get<{ success: boolean; data: EventOccurrence[] }>(`/api/events?from=${from}&to=${to}`)
+            .then((response) => {
+                if (!cancelled && response.success) setFormDayEvents(response.data);
+            })
+            .catch((err) => {
+                console.error('Failed to load events for conflict check:', err);
+                if (!cancelled) setFormDayEvents([]);
+            });
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [dialogOpen, formData.date, activeCircle?.id]);
+
+    const conflicts = useMemo(() => {
+        if (!formData.startTime || !/^\d{4}-\d{2}-\d{2}$/.test(formData.date)) return [];
+        const candidate = {
+            start_time: `${formData.date}T${formData.startTime}:00`,
+            end_time: formData.endTime && formData.endTime > formData.startTime ? `${formData.date}T${formData.endTime}:00` : null,
+            travel_to_minutes: formData.travelTo,
+            travel_back_minutes: formData.travelBack,
+        };
+        return findConflicts(candidate, formDayEvents, editingId)
+            .sort((a, b) => a.start_time.localeCompare(b.start_time));
+    }, [formData.date, formData.startTime, formData.endTime, formData.travelTo, formData.travelBack, formDayEvents, editingId]);
+
     // ── Derived ───────────────────────────────────────────────────────────────
     const occurrencesByDay = useMemo(() => {
         const map = new Map<string, EventOccurrence[]>();
@@ -488,9 +505,16 @@ const Calendar: React.FC = () => {
     const openCreate = (date?: Date) => {
         setEditingId(null);
         setEditingRecurring(false);
-        setFormData({ ...emptyForm(), date: format(date ?? new Date(), 'yyyy-MM-dd') });
+        // Standard „Sonstige“; Fachkräfte dürfen nur Pflege-Kategorien, für sie bleibt es „Besuch“.
+        setFormData({
+            ...emptyForm(),
+            category: categoryChoices.includes('other') ? 'other' : categoryChoices[0],
+            date: format(date ?? new Date(), 'yyyy-MM-dd'),
+        });
         setPersonInput('');
         setShowMore(false);
+        setShowPeople(false);
+        setShowTravel(false);
         setError('');
         setDialogOpen(true);
     };
@@ -522,6 +546,8 @@ const Calendar: React.FC = () => {
         setPersonInput('');
         // Ort und Teilnehmende stehen jetzt außerhalb von „Weitere Angaben“.
         setShowMore(hasExtraDetails({ ...form, location: '', member_ids: [] }));
+        setShowPeople(form.member_ids.length > 0 || form.guests.length > 0);
+        setShowTravel(form.travelTo !== null || form.travelBack !== null);
         setError('');
         setDialogOpen(true);
     };
@@ -678,6 +704,17 @@ const Calendar: React.FC = () => {
         setPersonInput('');
     };
 
+    const pickPerson = (name: string) => {
+        setFormData((prev) => ({ ...prev, ...addParticipant(prev, name, members) }));
+        setPersonInput('');
+    };
+
+    /** Schon eingetragene Namen, damit sie nicht noch einmal vorgeschlagen werden. */
+    const selectedPersonNames = [
+        ...formData.member_ids.map((id) => members.find((m) => m.id === id)?.name ?? ''),
+        ...formData.guests,
+    ].filter(Boolean);
+
     const removeMember = (memberId: string) => {
         setFormData((prev) => ({ ...prev, member_ids: prev.member_ids.filter((id) => id !== memberId) }));
     };
@@ -754,25 +791,25 @@ const Calendar: React.FC = () => {
             lines.push({
                 key: 'to',
                 text: t('calendar:card.travelTo', {
-                    from: clockAt(day, shiftClock(timeOf(occ.start_time), -occ.travel_to_minutes)),
-                    to: formatClock(occ.start_time),
+                    time: clockAt(day, shiftClock(timeOf(occ.start_time), -occ.travel_to_minutes)),
                 }),
-                driver: occ.driver_to || '',
+                driver: (occ.driver_to || '').trim(),
             });
         }
         if (occ.travel_back_minutes) {
             const base = occ.end_time || occ.start_time;
             lines.push({
                 key: 'back',
-                text: t('calendar:card.travelBack', {
-                    from: formatClock(base),
-                    to: clockAt(base.slice(0, 10), shiftClock(timeOf(base), occ.travel_back_minutes)),
-                }),
-                driver: occ.driver_back || '',
+                text: t('calendar:card.travelBack', { time: formatClock(base) }),
+                driver: (occ.driver_back || '').trim(),
             });
         }
         return lines;
     };
+
+    /** true, wenn eine Fahrt eingetragen ist, aber noch niemand fährt. */
+    const travelWithoutDriver = (occ: EventOccurrence): boolean =>
+        travelLines(occ).some((line) => !line.driver);
 
     /** Namen aller Teilnehmenden: Mitglieder des Kreises und frei eingetragene. */
     const participantNames = (occ: EventOccurrence): string[] => [
@@ -780,25 +817,77 @@ const Calendar: React.FC = () => {
         ...(occ.guests ?? []),
     ];
 
-    /** Fahrzeit heller hinterlegt, mit Auto-Symbol und Fahrer. */
+    /** Hin- und Rückfahrt wie die übrigen Angaben. Ohne Fahrdienst hellrot markiert. */
     const renderTravel = (occ: EventOccurrence) => {
         const lines = travelLines(occ);
         if (lines.length === 0) return null;
         return (
-            <span className="mt-1.5 block space-y-1">
+            <>
                 {lines.map((line) => (
                     <span
                         key={line.key}
-                        className="flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-input bg-surface-2 px-2.5 py-1.5 text-caption text-muted-foreground"
+                        className={cn(
+                            'mt-1 flex items-start gap-2 text-body',
+                            line.driver ? 'text-muted-foreground' : 'rounded-input border border-danger/40 bg-danger/10 px-2 py-1 text-danger'
+                        )}
                     >
-                        <Car className="h-4 w-4 shrink-0" aria-hidden="true" />
-                        <span>{line.text}</span>
-                        {line.driver && <span>· {t('calendar:card.driver', { name: line.driver })}</span>}
+                        {line.driver
+                            ? <Car className="mt-1 h-4 w-4 shrink-0" aria-hidden="true" />
+                            : <AlertCircle className="mt-1 h-4 w-4 shrink-0" aria-hidden="true" />}
+                        <span>
+                            {line.text} · {line.driver
+                                ? t('calendar:card.driver', { name: line.driver })
+                                : t('calendar:card.driverMissing')}
+                        </span>
                     </span>
                 ))}
-            </span>
+            </>
         );
     };
+
+    /** Terminkarte für Liste und Tagesansicht. */
+    const renderEventCard = (occ: EventOccurrence) => (
+        <button
+            type="button"
+            key={`${occ.id}-${occ.occurrence_date}-${occ.start_time}`}
+            onClick={() => setSelected(occ)}
+            className="flex w-full min-h-[56px] items-start gap-3 px-4 py-3 text-left transition-colors duration-fast hover:bg-surface-2/60"
+        >
+            <CategoryDot category={occ.category} className="mt-2 h-3 w-3" />
+            <span className="min-w-0 flex-1">
+                <span className="block text-body font-semibold tabular-nums text-foreground">{occurrenceTimeRange(occ)}</span>
+                <span className="block text-body font-medium text-foreground">{occ.title}</span>
+                <span className="block text-body text-muted-foreground">
+                    {t(`calendar:categories.${occ.category}`)}
+                </span>
+                {occ.location && (
+                    <span className="mt-1 flex items-start gap-2 text-body text-muted-foreground">
+                        <MapPin className="mt-1 h-4 w-4 shrink-0" aria-hidden="true" />
+                        <span>{occ.location}</span>
+                    </span>
+                )}
+                {participantNames(occ).length > 0 && (
+                    <span className="mt-1 flex items-start gap-2 text-body text-muted-foreground">
+                        <Users className="mt-1 h-4 w-4 shrink-0" aria-hidden="true" />
+                        <span>{participantNames(occ).join(', ')}</span>
+                    </span>
+                )}
+                {renderTravel(occ)}
+                {occ.notes && (
+                    <span className="mt-1 block whitespace-pre-wrap text-body text-foreground">{occ.notes}</span>
+                )}
+            </span>
+            {isMovedOccurrence(occ) && (
+                <CalendarClock
+                    className="mt-1 h-5 w-5 shrink-0 text-muted-foreground"
+                    aria-label={t('calendar:occurrence.movedBadge')}
+                />
+            )}
+            {occ.is_recurring && (
+                <Repeat className="mt-1 h-5 w-5 shrink-0 text-muted-foreground" aria-label={t('calendar:recurring')} />
+            )}
+        </button>
+    );
 
     /** Eine Fahrt im Formular: Dauer in 15-Minuten-Schritten, Fahrer, Entfernen. */
     const renderTravelRow = (kind: 'to' | 'back') => {
@@ -827,13 +916,17 @@ const Calendar: React.FC = () => {
             ? t('calendar:form.travelToTime', { time: clockAt(formData.date, shiftClock(startClock, -minutes)) })
             : t('calendar:form.travelBackTime', { time: clockAt(formData.date, shiftClock(endClock, minutes)) });
         const driverId = `event-driver-${kind}`;
+        const setDriver = (value: string) => {
+            if (kind === 'to') setDriverTo(value);
+            else setFormData((prev) => ({ ...prev, driverBack: value, driverBackEdited: true }));
+        };
 
         return (
             <div className="space-y-3 rounded-input border border-border bg-surface-2/60 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-body font-medium text-foreground">
                         {label}
-                        <span className="block text-caption font-normal text-muted-foreground">{timeText}</span>
+                        <span className="block text-body font-normal text-muted-foreground">{timeText}</span>
                     </p>
                     <Button
                         type="button"
@@ -872,21 +965,21 @@ const Calendar: React.FC = () => {
                         <Plus className="h-5 w-5" aria-hidden="true" />
                     </Button>
                 </div>
-                <Input
-                    id={driverId}
-                    label={t('calendar:form.driver')}
-                    value={kind === 'to' ? formData.driverTo : formData.driverBack}
-                    onChange={(e) => {
-                        const value = e.target.value;
-                        if (kind === 'to') setDriverTo(value);
-                        else setFormData((prev) => ({ ...prev, driverBack: value, driverBackEdited: true }));
-                    }}
-                    placeholder={t('calendar:form.personPlaceholder')}
-                    list="event-person-suggestions"
-                    autoComplete="off"
-                />
+                <div>
+                    <label htmlFor={driverId} className="mb-1.5 block text-label text-foreground">
+                        {t('calendar:form.driver')}
+                    </label>
+                    <PersonCombobox
+                        id={driverId}
+                        value={kind === 'to' ? formData.driverTo : formData.driverBack}
+                        onChange={setDriver}
+                        onPick={setDriver}
+                        options={personSuggestions}
+                        placeholder={t('calendar:form.personPlaceholder')}
+                    />
+                </div>
                 {kind === 'back' && !formData.endTime && (
-                    <p className="text-caption text-muted-foreground">{t('calendar:form.travelBackNoEnd')}</p>
+                    <p className="text-body text-muted-foreground">{t('calendar:form.travelBackNoEnd')}</p>
                 )}
             </div>
         );
@@ -960,7 +1053,7 @@ const Calendar: React.FC = () => {
                         </button>
                         <div className="flex-1 space-y-1.5 px-2 pb-2">
                             {dayOccurrences.length === 0 ? (
-                                <p className="px-1 py-1 text-caption text-muted-foreground">{t('calendar:week.noEvents')}</p>
+                                <p className="px-1 py-1 text-body text-muted-foreground">{t('calendar:week.noEvents')}</p>
                             ) : (
                                 dayOccurrences.map((occ) => (
                                     <button
@@ -972,16 +1065,24 @@ const Calendar: React.FC = () => {
                                             CATEGORY_CHIP[occ.category]
                                         )}
                                     >
-                                        <span className="flex items-center gap-1.5 text-caption tabular-nums text-muted-foreground">
+                                        <span className="flex items-center gap-1.5 text-caption font-medium tabular-nums text-foreground">
                                             <CategoryDot category={occ.category} />
                                             {occurrenceTimeRange(occ)}
                                         </span>
-                                        <span className="block text-caption font-medium text-foreground">{occ.title}</span>
+                                        <span className="block text-body font-medium text-foreground">{occ.title}</span>
                                         {(occ.travel_to_minutes || occ.travel_back_minutes) ? (
-                                            <span className="mt-0.5 flex items-center gap-1.5 text-caption text-muted-foreground">
-                                                <Car className="h-4 w-4 shrink-0" aria-hidden="true" />
-                                                {t('calendar:week.withTravel')}
-                                            </span>
+                                            travelWithoutDriver(occ) ? (
+                                                <span className="mt-1 flex items-center gap-1.5 rounded-input border border-danger/40 bg-danger/10 px-1.5 py-0.5 text-caption font-medium text-danger">
+                                                    <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                                    {t('calendar:week.withTravel')}
+                                                    <span className="sr-only">, {t('calendar:week.noDriver')}</span>
+                                                </span>
+                                            ) : (
+                                                <span className="mt-1 flex items-center gap-1.5 text-caption text-muted-foreground">
+                                                    <Car className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                                    {t('calendar:week.withTravel')}
+                                                </span>
+                                            )
                                         ) : null}
                                     </button>
                                 ))
@@ -993,121 +1094,27 @@ const Calendar: React.FC = () => {
         </div>
     );
 
-    /** Tag: Zeitleiste mit Stunden. Fahrzeit als heller Block vor und nach dem Termin. */
+    /** Tag: Terminkarten wie in der Liste, ohne leere Uhrzeiten. */
     const renderDayView = () => {
         const key = format(currentDate, 'yyyy-MM-dd');
-        const blocks = layoutDay(occurrencesByDay.get(key) ?? []);
-        const firstHour = Math.min(DAY_FIRST_HOUR, ...blocks.map((b) => Math.floor(b.from / 60)));
-        const lastHour = Math.min(24, Math.max(DAY_LAST_HOUR, ...blocks.map((b) => Math.ceil(b.to / 60))));
-        const px = (minutes: number) => (minutes / 60) * DAY_HOUR_PX;
-        const hours = Array.from({ length: lastHour - firstHour + 1 }, (_, i) => firstHour + i);
-
+        const dayOccurrences = [...(occurrencesByDay.get(key) ?? [])]
+            .sort((a, b) => a.start_time.localeCompare(b.start_time));
+        if (dayOccurrences.length === 0) {
+            return (
+                <div className="rounded-card border border-dashed border-border-strong px-6 py-6 text-center">
+                    <p className="text-body text-muted-foreground">{t('calendar:day.empty')}</p>
+                    {canCreate && (
+                        <Button variant="secondary" size="lg" className="mt-4" onClick={() => openCreate(currentDate)}>
+                            <Plus className="mr-2 h-5 w-5" aria-hidden="true" />
+                            {t('calendar:newEvent')}
+                        </Button>
+                    )}
+                </div>
+            );
+        }
         return (
-            <div className="space-y-4">
-                <div className="flex flex-wrap items-center gap-2">
-                    <Button variant="secondary" size="lg" onClick={() => setView('week')}>
-                        <CalendarRange className="mr-2 h-5 w-5" aria-hidden="true" />
-                        {t('calendar:day.backToWeek')}
-                    </Button>
-                </div>
-                {blocks.length === 0 && (
-                    <div className="rounded-card border border-dashed border-border-strong px-6 py-6 text-center">
-                        <p className="text-body text-muted-foreground">{t('calendar:day.empty')}</p>
-                        {canCreate && (
-                            <Button variant="secondary" size="lg" className="mt-4" onClick={() => openCreate(currentDate)}>
-                                <Plus className="mr-2 h-5 w-5" aria-hidden="true" />
-                                {t('calendar:newEvent')}
-                            </Button>
-                        )}
-                    </div>
-                )}
-                <div className="flex" style={{ height: px((lastHour - firstHour) * 60) + 12 }}>
-                    <div className="relative w-14 shrink-0" aria-hidden="true">
-                        {hours.map((hour) => (
-                            <span
-                                key={hour}
-                                className="absolute right-2 -translate-y-1/2 text-caption tabular-nums text-muted-foreground"
-                                style={{ top: px((hour - firstHour) * 60) + 6 }}
-                            >
-                                {clockAt(key, `${String(hour % 24).padStart(2, '0')}:00`)}
-                            </span>
-                        ))}
-                    </div>
-                    <div className="relative flex-1 border-l border-border" style={{ marginTop: 6 }}>
-                        {hours.map((hour) => (
-                            <div
-                                key={hour}
-                                className="absolute inset-x-0 border-t border-border"
-                                style={{ top: px((hour - firstHour) * 60) }}
-                                aria-hidden="true"
-                            />
-                        ))}
-                        {blocks.map((block) => {
-                            const { occ } = block;
-                            const travel = travelLines(occ);
-                            const toLine = travel.find((line) => line.key === 'to');
-                            const backLine = travel.find((line) => line.key === 'back');
-                            return (
-                                <button
-                                    type="button"
-                                    key={`${occ.id}-${occ.occurrence_date}-${occ.start_time}`}
-                                    onClick={() => setSelected(occ)}
-                                    className="absolute flex flex-col overflow-hidden rounded-input border border-border bg-card text-left shadow-sm transition-opacity duration-fast hover:opacity-90"
-                                    style={{
-                                        top: px(block.from - firstHour * 60),
-                                        height: px(block.to - block.from),
-                                        left: `calc(${(block.lane / block.lanes) * 100}% + 4px)`,
-                                        width: `calc(${100 / block.lanes}% - 8px)`,
-                                    }}
-                                >
-                                    {block.travelTo > 0 && toLine && (
-                                        <span
-                                            className="flex shrink-0 items-center gap-1.5 overflow-hidden border-b border-dashed border-border-strong bg-surface-2 px-2 text-caption text-muted-foreground"
-                                            style={{ height: px(block.travelTo) }}
-                                        >
-                                            <Car className="h-4 w-4 shrink-0" aria-hidden="true" />
-                                            <span className="truncate">
-                                                {toLine.text}
-                                                {toLine.driver ? ` · ${t('calendar:card.driver', { name: toLine.driver })}` : ''}
-                                            </span>
-                                        </span>
-                                    )}
-                                    <span
-                                        className={cn('block shrink-0 overflow-hidden px-2 py-1', CATEGORY_CHIP[occ.category])}
-                                        style={{ height: px(block.eventMinutes) }}
-                                    >
-                                        <span className="flex items-center gap-1.5 text-caption tabular-nums text-muted-foreground">
-                                            <CategoryDot category={occ.category} />
-                                            {occurrenceTimeRange(occ)}
-                                            {occ.is_recurring && (
-                                                <Repeat className="h-4 w-4 shrink-0" aria-label={t('calendar:recurring')} />
-                                            )}
-                                        </span>
-                                        <span className="block truncate text-body font-medium text-foreground">{occ.title}</span>
-                                        {occ.location && (
-                                            <span className="flex items-center gap-1.5 truncate text-caption text-muted-foreground">
-                                                <MapPin className="h-4 w-4 shrink-0" aria-hidden="true" />
-                                                <span className="truncate">{occ.location}</span>
-                                            </span>
-                                        )}
-                                    </span>
-                                    {block.travelBack > 0 && backLine && (
-                                        <span
-                                            className="flex shrink-0 items-center gap-1.5 overflow-hidden border-t border-dashed border-border-strong bg-surface-2 px-2 text-caption text-muted-foreground"
-                                            style={{ height: px(block.travelBack) }}
-                                        >
-                                            <Car className="h-4 w-4 shrink-0" aria-hidden="true" />
-                                            <span className="truncate">
-                                                {backLine.text}
-                                                {backLine.driver ? ` · ${t('calendar:card.driver', { name: backLine.driver })}` : ''}
-                                            </span>
-                                        </span>
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
+            <div className="divide-y divide-border overflow-hidden rounded-card border border-border bg-card">
+                {dayOccurrences.map(renderEventCard)}
             </div>
         );
     };
@@ -1142,7 +1149,7 @@ const Calendar: React.FC = () => {
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                    <div className="flex overflow-hidden rounded-input border border-border" role="group" aria-label={t('calendar:view.label')}>
+                    <div className="flex flex-wrap overflow-hidden rounded-input border border-border" role="group" aria-label={t('calendar:view.label')}>
                         {viewChoices.map((choice, index) => {
                             const Icon = choice.icon;
                             return (
@@ -1152,20 +1159,20 @@ const Calendar: React.FC = () => {
                                     onClick={() => setView(choice.key)}
                                     aria-pressed={view === choice.key}
                                     className={cn(
-                                        'flex min-h-[48px] items-center gap-1.5 px-3 text-caption font-medium transition-colors duration-fast',
+                                        'flex min-h-[48px] items-center gap-2 px-3 text-body font-medium transition-colors duration-fast',
                                         index > 0 && 'border-l border-border',
                                         view === choice.key ? 'bg-primary-soft text-primary' : 'bg-surface text-muted-foreground hover:text-foreground'
                                     )}
                                 >
-                                    <Icon className="h-4 w-4" aria-hidden="true" />
+                                    <Icon className="h-5 w-5" aria-hidden="true" />
                                     {choice.label}
                                 </button>
                             );
                         })}
                     </div>
                     {canCreate && (
-                        <Button onClick={() => openCreate(view === 'day' ? currentDate : undefined)}>
-                            <Plus className="mr-2 h-4 w-4" />
+                        <Button size="lg" onClick={() => openCreate(view === 'day' ? currentDate : undefined)}>
+                            <Plus className="mr-2 h-5 w-5" aria-hidden="true" />
                             {t('calendar:newEvent')}
                         </Button>
                     )}
@@ -1183,21 +1190,23 @@ const Calendar: React.FC = () => {
                             <Button
                                 variant="secondary"
                                 size="icon"
+                                className="h-12 w-12"
                                 aria-label={navLabels.prev}
                                 onClick={() => stepPeriod(-1)}
                             >
-                                <ChevronLeft className="h-4 w-4" />
+                                <ChevronLeft className="h-5 w-5" aria-hidden="true" />
                             </Button>
-                            <Button variant="secondary" size="sm" onClick={() => setCurrentDate(new Date())}>
+                            <Button variant="secondary" size="lg" onClick={() => setCurrentDate(new Date())}>
                                 {t('common:actions.today')}
                             </Button>
                             <Button
                                 variant="secondary"
                                 size="icon"
+                                className="h-12 w-12"
                                 aria-label={navLabels.next}
                                 onClick={() => stepPeriod(1)}
                             >
-                                <ChevronRight className="h-4 w-4" />
+                                <ChevronRight className="h-5 w-5" aria-hidden="true" />
                             </Button>
                         </div>
                     </div>
@@ -1205,7 +1214,7 @@ const Calendar: React.FC = () => {
                     {view === 'day' ? renderDayView() : view === 'week' ? renderWeekView() : view === 'month' ? (
                         <div className="grid grid-cols-7 gap-1.5">
                             {weekDays.map((day) => (
-                                <div key={day} className="py-2 text-center text-label font-semibold text-muted-foreground">
+                                <div key={day} className="py-2 text-center text-body font-semibold text-muted-foreground">
                                     {day}
                                 </div>
                             ))}
@@ -1218,22 +1227,29 @@ const Calendar: React.FC = () => {
                                 return (
                                     <div
                                         key={key}
-                                        onClick={() => canCreate && inMonth && openCreate(day)}
+                                        onClick={() => openDay(day)}
                                         className={cn(
-                                            'min-h-[92px] rounded-input border p-1.5 transition-colors duration-fast',
+                                            'min-h-[92px] cursor-pointer rounded-input border p-1.5 transition-colors duration-fast hover:bg-surface-2/60',
                                             inMonth ? 'bg-card' : 'bg-surface-2/60 opacity-60',
-                                            today ? 'border-primary' : 'border-border',
-                                            canCreate && inMonth && 'cursor-pointer hover:bg-surface-2/60'
+                                            today ? 'border-primary' : 'border-border'
                                         )}
                                     >
-                                        <span
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                openDay(day);
+                                            }}
                                             className={cn(
-                                                'mb-1 flex h-6 w-6 items-center justify-center rounded-full text-caption font-medium',
+                                                'mb-1 flex h-8 min-w-[2rem] items-center justify-center rounded-full px-1 text-body font-semibold tabular-nums',
                                                 today ? 'bg-primary text-primary-foreground' : inMonth ? 'text-foreground' : 'text-muted-foreground'
                                             )}
                                         >
                                             {format(day, 'd')}
-                                        </span>
+                                            <span className="sr-only">
+                                                {format(day, longDate(false), { locale: dateLocale() })}, {t('calendar:week.openDay')}
+                                            </span>
+                                        </button>
                                         <div className="space-y-1">
                                             {dayOccurrences.slice(0, 3).map((occ) => (
                                                 <button
@@ -1245,13 +1261,17 @@ const Calendar: React.FC = () => {
                                                     }}
                                                     title={isMovedOccurrence(occ) ? t('calendar:occurrence.movedBadge') : undefined}
                                                     className={cn(
-                                                        'flex w-full items-center gap-1 rounded px-1 py-0.5 text-left text-micro text-foreground transition-colors duration-fast hover:opacity-80',
-                                                        CATEGORY_CHIP[occ.category]
+                                                        'flex w-full items-center gap-1 rounded px-1 py-0.5 text-left text-caption text-foreground transition-colors duration-fast hover:opacity-80',
+                                                        CATEGORY_CHIP[occ.category],
+                                                        travelWithoutDriver(occ) && 'border border-danger/40'
                                                     )}
                                                 >
-                                                    <CategoryDot category={occ.category} className="h-1.5 w-1.5" />
+                                                    <CategoryDot category={occ.category} />
                                                     {isMovedOccurrence(occ) && (
-                                                        <CalendarClock className="h-2.5 w-2.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                                                        <CalendarClock className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                                                    )}
+                                                    {travelWithoutDriver(occ) && (
+                                                        <AlertCircle className="h-4 w-4 shrink-0 text-danger" aria-label={t('calendar:week.noDriver')} />
                                                     )}
                                                     <span className="truncate">
                                                         <span className="font-medium tabular-nums">{formatClock(occ.start_time)}</span> {occ.title}
@@ -1259,7 +1279,7 @@ const Calendar: React.FC = () => {
                                                 </button>
                                             ))}
                                             {dayOccurrences.length > 3 && (
-                                                <p className="text-center text-micro text-muted-foreground">
+                                                <p className="text-center text-caption text-muted-foreground">
                                                     {t('calendar:moreCount', { count: dayOccurrences.length - 3 })}
                                                 </p>
                                             )}
@@ -1274,8 +1294,8 @@ const Calendar: React.FC = () => {
                                 <div className="rounded-card border border-dashed border-border-strong px-6 py-10 text-center">
                                     <p className="text-body text-muted-foreground">{t('calendar:emptyMonth')}</p>
                                     {canCreate && (
-                                        <Button variant="secondary" size="sm" className="mt-4" onClick={() => openCreate()}>
-                                            <Plus className="mr-2 h-4 w-4" />
+                                        <Button variant="secondary" size="lg" className="mt-4" onClick={() => openCreate()}>
+                                            <Plus className="mr-2 h-5 w-5" aria-hidden="true" />
                                             {t('calendar:newEvent')}
                                         </Button>
                                     )}
@@ -1287,7 +1307,7 @@ const Calendar: React.FC = () => {
                                         <section key={dayKey}>
                                             <h3
                                                 className={cn(
-                                                    'mb-2 text-caption font-semibold capitalize',
+                                                    'mb-2 text-body font-semibold capitalize',
                                                     isToday(day) ? 'text-primary' : 'text-muted-foreground'
                                                 )}
                                             >
@@ -1295,50 +1315,9 @@ const Calendar: React.FC = () => {
                                                 {isToday(day) ? ` (${t('common:actions.today').toLowerCase()})` : ''}
                                             </h3>
                                             <div className="divide-y divide-border overflow-hidden rounded-card border border-border bg-card">
-                                                {(occurrencesByDay.get(dayKey) ?? []).map((occ) => (
-                                                    <button
-                                                        type="button"
-                                                        key={`${occ.id}-${occ.occurrence_date}-${occ.start_time}`}
-                                                        onClick={() => setSelected(occ)}
-                                                        className="flex w-full min-h-[56px] items-start gap-3 px-4 py-3 text-left transition-colors duration-fast hover:bg-surface-2/60"
-                                                    >
-                                                        <CategoryDot category={occ.category} />
-                                                        <span className="w-[88px] shrink-0 pt-0.5 text-caption tabular-nums text-muted-foreground">
-                                                            {occurrenceTimeRange(occ)}
-                                                        </span>
-                                                        <span className="min-w-0 flex-1">
-                                                            <span className="block text-body font-medium text-foreground">{occ.title}</span>
-                                                            <span className="block text-caption text-muted-foreground">
-                                                                {t(`calendar:categories.${occ.category}`)}
-                                                            </span>
-                                                            {occ.location && (
-                                                                <span className="mt-0.5 flex items-start gap-1.5 text-caption text-muted-foreground">
-                                                                    <MapPin className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                                                                    <span>{occ.location}</span>
-                                                                </span>
-                                                            )}
-                                                            {participantNames(occ).length > 0 && (
-                                                                <span className="mt-0.5 flex items-start gap-1.5 text-caption text-muted-foreground">
-                                                                    <Users className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                                                                    <span>{participantNames(occ).join(', ')}</span>
-                                                                </span>
-                                                            )}
-                                                            {renderTravel(occ)}
-                                                            {occ.notes && (
-                                                                <span className="mt-1 block whitespace-pre-wrap text-caption text-foreground">{occ.notes}</span>
-                                                            )}
-                                                        </span>
-                                                        {isMovedOccurrence(occ) && (
-                                                            <CalendarClock
-                                                                className="h-4 w-4 shrink-0 text-muted-foreground"
-                                                                aria-label={t('calendar:occurrence.movedBadge')}
-                                                            />
-                                                        )}
-                                                        {occ.is_recurring && (
-                                                            <Repeat className="h-4 w-4 shrink-0 text-muted-foreground" aria-label={t('calendar:recurring')} />
-                                                        )}
-                                                    </button>
-                                                ))}
+                                                {[...(occurrencesByDay.get(dayKey) ?? [])]
+                                                    .sort((x, y) => x.start_time.localeCompare(y.start_time))
+                                                    .map(renderEventCard)}
                                             </div>
                                         </section>
                                     );
@@ -1350,7 +1329,7 @@ const Calendar: React.FC = () => {
                     {/* Legend */}
                     <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-4">
                         {CATEGORIES.map((category) => (
-                            <span key={category} className="flex items-center gap-1.5 text-micro text-muted-foreground">
+                            <span key={category} className="flex items-center gap-2 text-caption text-muted-foreground">
                                 <CategoryDot category={category} />
                                 {t(`calendar:categories.${category}`)}
                             </span>
@@ -1362,10 +1341,10 @@ const Calendar: React.FC = () => {
             {/* Discreet iCal feed section */}
             <section className="rounded-card border border-border bg-surface-2/40 p-4">
                 <div className="flex items-start gap-3">
-                    <CalendarPlus className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <CalendarPlus className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
                     <div className="min-w-0 flex-1">
-                        <h2 className="text-caption font-semibold text-foreground">{t('calendar:feed.title')}</h2>
-                        <p className="mt-0.5 text-micro text-muted-foreground">{t('calendar:feed.description')}</p>
+                        <h2 className="text-body font-semibold text-foreground">{t('calendar:feed.title')}</h2>
+                        <p className="mt-0.5 text-caption text-muted-foreground">{t('calendar:feed.description')}</p>
 
                         {feedToken ? (
                             <div className="mt-3 space-y-2">
@@ -1375,16 +1354,16 @@ const Calendar: React.FC = () => {
                                         value={feedUrl}
                                         onFocus={(e) => e.target.select()}
                                         aria-label={t('calendar:feed.linkLabel')}
-                                        className="min-w-0 flex-1 rounded-input border border-input bg-surface px-3 py-2 text-micro text-foreground"
+                                        className="min-h-[48px] min-w-0 flex-1 rounded-input border border-input bg-surface px-3 py-2 text-caption text-foreground"
                                     />
-                                    <Button variant="secondary" size="icon" onClick={copyFeedUrl} aria-label={t('calendar:feed.copy')}>
-                                        {feedCopied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
+                                    <Button variant="secondary" size="icon" className="h-12 w-12" onClick={copyFeedUrl} aria-label={t('calendar:feed.copy')}>
+                                        {feedCopied ? <Check className="h-5 w-5 text-success" /> : <Copy className="h-5 w-5" />}
                                     </Button>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-3">
                                     <a
                                         href={feedWebcalUrl}
-                                        className="text-micro font-medium text-primary underline-offset-4 hover:underline"
+                                        className="flex min-h-[48px] items-center text-caption font-medium text-primary underline underline-offset-4"
                                     >
                                         {t('calendar:feed.subscribe')}
                                     </a>
@@ -1392,16 +1371,16 @@ const Calendar: React.FC = () => {
                                         type="button"
                                         onClick={generateFeedToken}
                                         disabled={feedBusy}
-                                        className="flex items-center gap-1 text-micro text-muted-foreground hover:text-foreground disabled:opacity-50"
+                                        className="flex min-h-[48px] items-center gap-2 text-caption text-muted-foreground hover:text-foreground disabled:opacity-50"
                                     >
-                                        <RefreshCw className="h-3 w-3" />
+                                        <RefreshCw className="h-4 w-4" aria-hidden="true" />
                                         {t('calendar:feed.regenerate')}
                                     </button>
                                 </div>
-                                <p className="text-micro text-muted-foreground">{t('calendar:feed.privateNote')}</p>
+                                <p className="text-caption text-muted-foreground">{t('calendar:feed.privateNote')}</p>
                             </div>
                         ) : (
-                            <Button variant="secondary" size="sm" className="mt-3" onClick={generateFeedToken} disabled={feedBusy}>
+                            <Button variant="secondary" size="lg" className="mt-3" onClick={generateFeedToken} disabled={feedBusy}>
                                 {t('calendar:feed.generate')}
                             </Button>
                         )}
@@ -1419,47 +1398,47 @@ const Calendar: React.FC = () => {
                 {selected && (
                     <div className="space-y-4">
                         {error && (
-                            <div className="rounded-input border border-danger/30 bg-danger/10 px-3 py-2 text-caption text-danger">
+                            <div className="rounded-input border border-danger/30 bg-danger/10 px-3 py-2 text-body text-danger">
                                 {error}
                             </div>
                         )}
-                        <div className="flex items-center gap-2 text-caption text-foreground">
-                            <CategoryDot category={selected.category} />
+                        <div className="flex items-center gap-2 text-body text-foreground">
+                            <CategoryDot category={selected.category} className="h-3 w-3" />
                             <span className="capitalize">
                                 {format(parseISO(selected.start_time), longDate(true), { locale: dateLocale() })}
                             </span>
                         </div>
-                        <div className="flex items-center gap-2 text-caption text-muted-foreground">
-                            <Clock className="h-4 w-4" />
+                        <div className="flex items-center gap-2 text-body text-muted-foreground">
+                            <Clock className="h-5 w-5 shrink-0" aria-hidden="true" />
                             {occurrenceTimeRange(selected)}
                             {selected.is_recurring && (
                                 <span className="flex items-center gap-1">
-                                    <Repeat className="h-3.5 w-3.5" />
+                                    <Repeat className="h-5 w-5" aria-hidden="true" />
                                     {t('calendar:recurring')}
                                 </span>
                             )}
                         </div>
                         {isMovedOccurrence(selected) && (
-                            <p className="rounded-input bg-info/10 px-3 py-2 text-micro text-foreground">
+                            <p className="rounded-input bg-info/10 px-3 py-2 text-caption text-foreground">
                                 {t('calendar:occurrence.movedFrom', {
                                     date: format(parseISO(selected.occurrence_date), longDate(false), { locale: dateLocale() }),
                                 })}
                             </p>
                         )}
                         {selected.location && (
-                            <div className="flex items-center gap-2 text-caption text-muted-foreground">
-                                <MapPin className="h-4 w-4" />
+                            <div className="flex items-center gap-2 text-body text-muted-foreground">
+                                <MapPin className="h-5 w-5 shrink-0" aria-hidden="true" />
                                 {selected.location}
                             </div>
                         )}
                         {participantNames(selected).length > 0 && (
-                            <div className="flex items-start gap-2 text-caption text-muted-foreground">
-                                <Users className="mt-0.5 h-4 w-4 shrink-0" />
+                            <div className="flex items-start gap-2 text-body text-muted-foreground">
+                                <Users className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
                                 <span className="flex flex-wrap gap-1.5">
                                     {(selected.members_data ?? []).map((member) => (
                                         <span
                                             key={member.id}
-                                            className="inline-flex items-center gap-1.5 rounded-pill border border-border bg-surface-2 px-2.5 py-0.5 text-micro text-foreground"
+                                            className="inline-flex items-center gap-1.5 rounded-pill border border-border bg-surface-2 px-3 py-1 text-body text-foreground"
                                         >
                                             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: member.color }} />
                                             {member.name}
@@ -1468,7 +1447,7 @@ const Calendar: React.FC = () => {
                                     {(selected.guests ?? []).map((name) => (
                                         <span
                                             key={`g-${name}`}
-                                            className="inline-flex items-center rounded-pill border border-border bg-surface-2 px-2.5 py-0.5 text-micro text-foreground"
+                                            className="inline-flex items-center rounded-pill border border-border bg-surface-2 px-3 py-1 text-body text-foreground"
                                         >
                                             {name}
                                         </span>
@@ -1478,8 +1457,8 @@ const Calendar: React.FC = () => {
                         )}
                         {renderTravel(selected)}
                         {(selected.reminder_30min || selected.reminder_1hour) && (
-                            <div className="flex items-center gap-2 text-caption text-muted-foreground">
-                                <Bell className="h-4 w-4" />
+                            <div className="flex items-center gap-2 text-body text-muted-foreground">
+                                <Bell className="h-5 w-5 shrink-0" aria-hidden="true" />
                                 {[
                                     selected.reminder_30min
                                         ? t(selected.travel_to_minutes ? 'calendar:form.reminder30Departure' : 'calendar:form.reminder30')
@@ -1491,45 +1470,45 @@ const Calendar: React.FC = () => {
                             </div>
                         )}
                         {selected.notes && (
-                            <p className="whitespace-pre-wrap rounded-input bg-surface-2/60 p-3 text-caption text-foreground">
+                            <p className="whitespace-pre-wrap rounded-input bg-surface-2/60 p-3 text-body text-foreground">
                                 {selected.notes}
                             </p>
                         )}
                         {canManage(selected) && selected.is_recurring && (
                             <div className="border-t border-border pt-4">
-                                <p className="mb-2 text-label font-medium text-foreground">
+                                <p className="mb-2 text-body font-semibold text-foreground">
                                     {t('calendar:occurrence.sectionTitle')}
                                 </p>
-                                <p className="mb-2 text-micro text-muted-foreground">
+                                <p className="mb-2 text-caption text-muted-foreground">
                                     {t('calendar:occurrence.sectionHint')}
                                 </p>
                                 <div className="flex flex-wrap gap-2">
                                     <Button
                                         variant="secondary"
-                                        size="sm"
+                                        size="lg"
                                         disabled={occurrenceBusy}
                                         onClick={() => openMove(selected)}
                                     >
-                                        <CalendarClock className="mr-2 h-4 w-4" />
+                                        <CalendarClock className="mr-2 h-5 w-5" aria-hidden="true" />
                                         {t('calendar:occurrence.move')}
                                     </Button>
                                     <Button
                                         variant="secondary"
-                                        size="sm"
+                                        size="lg"
                                         disabled={occurrenceBusy}
                                         onClick={() => void skipOccurrence(selected)}
                                     >
-                                        <CalendarOff className="mr-2 h-4 w-4" />
+                                        <CalendarOff className="mr-2 h-5 w-5" aria-hidden="true" />
                                         {t('calendar:occurrence.skip')}
                                     </Button>
                                     {isMovedOccurrence(selected) && (
                                         <Button
                                             variant="ghost"
-                                            size="sm"
+                                            size="lg"
                                             disabled={occurrenceBusy}
                                             onClick={() => void restoreOccurrence(selected)}
                                         >
-                                            <Undo2 className="mr-2 h-4 w-4" />
+                                            <Undo2 className="mr-2 h-5 w-5" aria-hidden="true" />
                                             {t('calendar:occurrence.restore')}
                                         </Button>
                                     )}
@@ -1539,22 +1518,22 @@ const Calendar: React.FC = () => {
                         {canManage(selected) && (
                             <div className="border-t border-border pt-4">
                                 {selected.is_recurring && (
-                                    <p className="mb-2 text-label font-medium text-foreground">
+                                    <p className="mb-2 text-body font-semibold text-foreground">
                                         {t('calendar:occurrence.seriesTitle')}
                                     </p>
                                 )}
                                 <div className="flex justify-end gap-2">
                                     <Button
                                         variant="ghost"
-                                        size="sm"
+                                        size="lg"
                                         className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                                         onClick={() => void handleDelete(selected)}
                                     >
-                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        <Trash2 className="mr-2 h-5 w-5" aria-hidden="true" />
                                         {t('common:actions.delete')}
                                     </Button>
-                                    <Button variant="secondary" size="sm" onClick={() => openEdit(selected)}>
-                                        <Edit2 className="mr-2 h-4 w-4" />
+                                    <Button variant="secondary" size="lg" onClick={() => openEdit(selected)}>
+                                        <Edit2 className="mr-2 h-5 w-5" aria-hidden="true" />
                                         {t('common:actions.edit')}
                                     </Button>
                                 </div>
@@ -1583,7 +1562,7 @@ const Calendar: React.FC = () => {
                                 {error}
                             </div>
                         )}
-                        <p className="text-caption text-muted-foreground">
+                        <p className="text-body text-muted-foreground">
                             {t('calendar:occurrence.moveDescription')}
                         </p>
                         <div className="grid grid-cols-1 gap-3 rounded-input border border-border bg-surface-2/40 p-3 sm:grid-cols-2">
@@ -1601,15 +1580,15 @@ const Calendar: React.FC = () => {
                                 onChange={setMoveTime}
                             />
                         </div>
-                        <p className="text-micro text-muted-foreground">
+                        <p className="text-caption text-muted-foreground">
                             {t('calendar:occurrence.moveLimit', { days: MOVE_MAX_DAYS })}
                             {moveTarget.end_time ? ` ${t('calendar:occurrence.keepsDuration')}` : ''}
                         </p>
                         <div className="flex justify-end gap-3 pt-2">
-                            <Button type="button" variant="secondary" onClick={() => setMoveTarget(null)}>
+                            <Button type="button" variant="secondary" size="lg" onClick={() => setMoveTarget(null)}>
                                 {t('common:actions.cancel')}
                             </Button>
-                            <Button type="submit" disabled={occurrenceBusy}>
+                            <Button type="submit" size="lg" disabled={occurrenceBusy}>
                                 {t('calendar:occurrence.moveConfirm')}
                             </Button>
                         </div>
@@ -1630,7 +1609,7 @@ const Calendar: React.FC = () => {
                 title={editingId ? t('calendar:dialog.editTitle') : t('calendar:dialog.createTitle')}
                 description={t('calendar:dialog.description')}
             >
-                <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+                <form onSubmit={handleSubmit} className="space-y-4" noValidate>
                     <div role="alert" aria-live="assertive">
                         {error && (
                             <div className="rounded-input border border-danger/30 bg-danger/10 px-3 py-2 text-body text-danger">
@@ -1644,27 +1623,22 @@ const Calendar: React.FC = () => {
                         </p>
                     )}
 
-                    {/* 1. Name */}
-                    <Input
-                        label={t('calendar:form.title')}
-                        value={formData.title}
-                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                        required
-                        placeholder={t('calendar:form.titlePlaceholder')}
-                    />
-
-                    {/* Ort direkt unter dem Titel */}
-                    <Input
-                        id="event-location"
-                        label={t('calendar:form.location')}
-                        value={formData.location}
-                        onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                        placeholder={t('calendar:form.locationPlaceholder')}
-                    />
-
-                    {/* 2. Beginn: Datum und Uhrzeit */}
-                    <fieldset className="rounded-input border border-border bg-surface-2/40 p-3">
-                        <legend className="px-1 text-label font-medium text-foreground">{t('calendar:form.start')}</legend>
+                    {/* Angaben: Titel, Ort, Beginn */}
+                    <FormSection id="event-section-basics" icon={ClipboardList} title={t('calendar:form.sectionBasics')}>
+                        <Input
+                            label={t('calendar:form.title')}
+                            value={formData.title}
+                            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                            required
+                            placeholder={t('calendar:form.titlePlaceholder')}
+                        />
+                        <Input
+                            id="event-location"
+                            label={t('calendar:form.location')}
+                            value={formData.location}
+                            onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                            placeholder={t('calendar:form.locationPlaceholder')}
+                        />
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <DatePicker
                                 label={t('calendar:form.date')}
@@ -1678,20 +1652,29 @@ const Calendar: React.FC = () => {
                                 onChange={(value) => setFormData({ ...formData, startTime: value })}
                             />
                         </div>
-                        <p className="mt-3 flex items-center gap-2 text-caption text-muted-foreground">
-                            <Bell className="h-4 w-4 shrink-0" aria-hidden="true" />
-                            {!formData.reminder_1hour
-                                ? t('calendar:form.reminderDefaultOff')
-                                : formData.travelTo !== null
-                                    ? t('calendar:form.reminderDepartureOn')
-                                    : t('calendar:form.reminderDefaultOn')}
-                        </p>
-                    </fieldset>
+                        <div role="status" aria-live="polite">
+                            {conflicts.length > 0 && (
+                                <div className="flex items-start gap-3 rounded-input border border-warning/50 bg-warning/10 px-3 py-3 text-body text-foreground">
+                                    <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+                                    <div className="min-w-0">
+                                        <p className="font-medium">{t('calendar:form.conflictTitle')}</p>
+                                        <ul className="mt-1 space-y-0.5">
+                                            {conflicts.map((occ) => (
+                                                <li key={`${occ.id}-${occ.occurrence_date}-${occ.start_time}`}>
+                                                    <span className="tabular-nums">{occurrenceTimeRange(occ)}</span>: {occ.title}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                        <p className="mt-1 text-muted-foreground">{t('calendar:form.conflictHint')}</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </FormSection>
 
-                    {/* 3. Kategorie: grosse Auswahl mit Text */}
-                    <fieldset>
-                        <legend className="mb-2 text-label font-medium text-foreground">{t('calendar:form.category')}</legend>
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {/* Kategorie: grosse Auswahl mit Text */}
+                    <FormSection id="event-section-category" icon={Tag} title={t('calendar:form.category')}>
+                        <div role="radiogroup" aria-labelledby="event-section-category-title" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                             {categoryChoices.map((category) => {
                                 const active = formData.category === category;
                                 return (
@@ -1713,23 +1696,27 @@ const Calendar: React.FC = () => {
                                         />
                                         <CategoryDot category={category} className="h-3 w-3" />
                                         <span>{t(`calendar:categories.${category}`)}</span>
-                                        {active && <Check className="ml-auto h-4 w-4 text-primary" aria-hidden="true" />}
+                                        {active && <Check className="ml-auto h-5 w-5 text-primary" aria-hidden="true" />}
                                     </label>
                                 );
                             })}
                         </div>
-                    </fieldset>
+                    </FormSection>
 
-                    {/* 4. Teilnehmende: Vorschläge aus Kreis und Kontakten, freie Namen erlaubt */}
-                    <div>
-                        <label htmlFor="event-person-input" className="mb-1.5 block text-label font-medium text-foreground">
-                            {t('calendar:form.participants')}
-                        </label>
-                        <p id="event-person-hint" className="mb-2 text-caption text-muted-foreground">
+                    {/* Teilnehmende: Vorschläge aus Kreis und Kontakten, freie Namen erlaubt */}
+                    <FormSection
+                        id="event-section-people"
+                        icon={Users}
+                        title={t('calendar:form.participants')}
+                        summary={[...formData.member_ids.map((id) => members.find((m) => m.id === id)?.name).filter(Boolean), ...formData.guests].join(', ')}
+                        open={showPeople}
+                        onToggle={() => setShowPeople((v) => !v)}
+                    >
+                        <p id="event-person-hint" className="text-body text-muted-foreground">
                             {t('calendar:form.participantsHint')}
                         </p>
                         {(formData.member_ids.length > 0 || formData.guests.length > 0) && (
-                            <ul className="mb-3 flex flex-wrap gap-2">
+                            <ul className="flex flex-wrap gap-2">
                                 {formData.member_ids.map((id) => {
                                     const member = members.find((m) => m.id === id);
                                     if (!member) return null;
@@ -1741,7 +1728,7 @@ const Calendar: React.FC = () => {
                                                 type="button"
                                                 onClick={() => removeMember(id)}
                                                 aria-label={t('calendar:form.removePerson', { name: member.name })}
-                                                className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-surface hover:text-foreground"
+                                                className="flex h-12 w-12 items-center justify-center rounded-full text-muted-foreground hover:bg-surface hover:text-foreground"
                                             >
                                                 <X className="h-5 w-5" aria-hidden="true" />
                                             </button>
@@ -1755,7 +1742,7 @@ const Calendar: React.FC = () => {
                                             type="button"
                                             onClick={() => removeGuest(name)}
                                             aria-label={t('calendar:form.removePerson', { name })}
-                                            className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-surface hover:text-foreground"
+                                            className="flex h-12 w-12 items-center justify-center rounded-full text-muted-foreground hover:bg-surface hover:text-foreground"
                                         >
                                             <X className="h-5 w-5" aria-hidden="true" />
                                         </button>
@@ -1763,168 +1750,155 @@ const Calendar: React.FC = () => {
                                 ))}
                             </ul>
                         )}
-                        <div className="flex gap-2">
-                            <input
-                                id="event-person-input"
-                                value={personInput}
-                                onChange={(e) => setPersonInput(e.target.value)}
-                                onKeyDown={(e) => {
-                                    // Enter fügt hinzu, statt das Formular abzuschicken.
-                                    if (e.key === 'Enter') {
-                                        e.preventDefault();
-                                        addPerson();
-                                    }
-                                }}
-                                placeholder={t('calendar:form.personPlaceholder')}
-                                list="event-person-suggestions"
-                                autoComplete="off"
-                                aria-describedby="event-person-hint"
-                                className="input-nexus min-w-0 flex-1"
-                            />
-                            <Button type="button" variant="secondary" size="lg" onClick={addPerson} disabled={!personInput.trim()}>
-                                <Plus className="mr-2 h-5 w-5" aria-hidden="true" />
-                                {t('calendar:form.addPerson')}
-                            </Button>
+                        <div>
+                            <label htmlFor="event-person-input" className="sr-only">{t('calendar:form.personPlaceholder')}</label>
+                            <div className="flex items-start gap-2">
+                                <PersonCombobox
+                                    id="event-person-input"
+                                    value={personInput}
+                                    onChange={setPersonInput}
+                                    onPick={pickPerson}
+                                    onEnter={addPerson}
+                                    options={personSuggestions}
+                                    exclude={selectedPersonNames}
+                                    placeholder={t('calendar:form.personPlaceholder')}
+                                    describedBy="event-person-hint"
+                                />
+                                <Button type="button" variant="secondary" size="lg" onClick={addPerson} disabled={!personInput.trim()}>
+                                    <Plus className="mr-2 h-5 w-5" aria-hidden="true" />
+                                    {t('calendar:form.addPerson')}
+                                </Button>
+                            </div>
                         </div>
-                    </div>
+                    </FormSection>
 
-                    {/* 5. Fahrt: Hin- und Rückfahrt, je einzeln entfernbar */}
-                    <fieldset className="space-y-3">
-                        <legend className="mb-2 flex items-center gap-2 text-label font-medium text-foreground">
-                            <Car className="h-5 w-5" aria-hidden="true" />
-                            {t('calendar:form.travel')}
-                        </legend>
+                    {/* Fahrt: Hin- und Rückfahrt, je einzeln entfernbar */}
+                    <FormSection
+                        id="event-section-travel"
+                        icon={Car}
+                        title={t('calendar:form.travel')}
+                        summary={[
+                            formData.travelTo !== null ? t('calendar:form.travelTo') : null,
+                            formData.travelBack !== null ? t('calendar:form.travelBack') : null,
+                        ].filter(Boolean).join(', ')}
+                        open={showTravel}
+                        onToggle={() => setShowTravel((v) => !v)}
+                    >
                         {renderTravelRow('to')}
                         {renderTravelRow('back')}
-                    </fieldset>
+                    </FormSection>
 
-                    <datalist id="event-person-suggestions">
-                        {personSuggestions.map((person) => (
-                            <option key={person.key} value={person.name}>{person.hint}</option>
-                        ))}
-                    </datalist>
-
-                    {/* Alles Weitere aufklappbar */}
-                    <div>
-                        <Button
-                            type="button"
-                            variant="secondary"
-                            className="w-full justify-between"
-                            aria-expanded={showMore}
-                            aria-controls="event-more-details"
-                            onClick={() => setShowMore((v) => !v)}
-                        >
-                            <span>{showMore ? t('calendar:form.lessDetails') : t('calendar:form.moreDetails')}</span>
-                            <ChevronRight className={cn('h-5 w-5 transition-transform duration-fast', showMore && 'rotate-90')} aria-hidden="true" />
-                        </Button>
-                    </div>
-
-                    {showMore && (
-                    <div id="event-more-details" className="space-y-4">
-                    <DatePicker
-                        label={t('calendar:form.endTime')}
-                        type="time"
-                        value={formData.endTime}
-                        onChange={(value) => setFormData({ ...formData, endTime: value })}
-                    />
-
-                    {/* Simple recurrence */}
-                    <div className="rounded-input border border-border bg-surface-2/40 p-3">
-                        <label className="mb-1.5 block text-caption font-medium text-foreground">
-                            {t('calendar:form.repeat')}
-                        </label>
-                        <Select
-                            value={formData.recurrence.freq}
-                            onValueChange={(value) =>
-                                setFormData({
-                                    ...formData,
-                                    recurrence: { ...formData.recurrence, freq: value as RecurrenceForm['freq'] },
-                                })
-                            }
-                            options={[
-                                { value: '', label: t('calendar:form.repeatNone') },
-                                { value: 'DAILY', label: t('calendar:form.repeatDaily') },
-                                { value: 'WEEKLY', label: t('calendar:form.repeatWeekly') },
-                                { value: 'MONTHLY', label: t('calendar:form.repeatMonthly') },
-                            ]}
+                    {/* Weitere Angaben: Ende, Wiederholung, Erinnerungen, Notizen */}
+                    <FormSection
+                        id="event-section-more"
+                        icon={SlidersHorizontal}
+                        title={t('calendar:form.sectionMore')}
+                        open={showMore}
+                        onToggle={() => setShowMore((v) => !v)}
+                    >
+                        <DatePicker
+                            label={t('calendar:form.endTime')}
+                            type="time"
+                            value={formData.endTime}
+                            onChange={(value) => setFormData({ ...formData, endTime: value })}
                         />
-                        {formData.recurrence.freq === 'WEEKLY' && (
-                            <div className="mt-3">
-                                <p className="mb-1.5 text-micro text-muted-foreground">{t('calendar:form.repeatDays')}</p>
-                                <div className="flex flex-wrap gap-1.5">
-                                    {orderedIsoDays(weekStart).map((isoDay) => {
-                                        const index = isoDay - 1;
-                                        const code = RRULE_DAY_CODES[index];
-                                        const active = formData.recurrence.byDays.includes(code);
-                                        return (
-                                            <button
-                                                type="button"
-                                                key={code}
-                                                onClick={() => toggleByDay(code)}
-                                                aria-pressed={active}
-                                                aria-label={(t('common:days', { returnObjects: true }) as string[])[index]}
-                                                className={cn(
-                                                    'h-11 w-11 rounded-input border text-caption font-medium transition-colors duration-fast',
-                                                    active
-                                                        ? 'border-primary bg-primary-soft text-primary'
-                                                        : 'border-border bg-surface text-muted-foreground hover:border-border-strong'
-                                                )}
-                                            >
-                                                {dayLetters[index]}
-                                            </button>
-                                        );
-                                    })}
+
+                        {/* Simple recurrence */}
+                        <div className="rounded-input border border-border bg-surface-2/40 p-3">
+                            <label className="mb-1.5 block text-label text-foreground">
+                                {t('calendar:form.repeat')}
+                            </label>
+                            <Select
+                                value={formData.recurrence.freq}
+                                onValueChange={(value) =>
+                                    setFormData({
+                                        ...formData,
+                                        recurrence: { ...formData.recurrence, freq: value as RecurrenceForm['freq'] },
+                                    })
+                                }
+                                options={[
+                                    { value: '', label: t('calendar:form.repeatNone') },
+                                    { value: 'DAILY', label: t('calendar:form.repeatDaily') },
+                                    { value: 'WEEKLY', label: t('calendar:form.repeatWeekly') },
+                                    { value: 'MONTHLY', label: t('calendar:form.repeatMonthly') },
+                                ]}
+                            />
+                            {formData.recurrence.freq === 'WEEKLY' && (
+                                <div className="mt-3">
+                                    <p className="mb-1.5 text-caption text-muted-foreground">{t('calendar:form.repeatDays')}</p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {orderedIsoDays(weekStart).map((isoDay) => {
+                                            const index = isoDay - 1;
+                                            const code = RRULE_DAY_CODES[index];
+                                            const active = formData.recurrence.byDays.includes(code);
+                                            return (
+                                                <button
+                                                    type="button"
+                                                    key={code}
+                                                    onClick={() => toggleByDay(code)}
+                                                    aria-pressed={active}
+                                                    aria-label={(t('common:days', { returnObjects: true }) as string[])[index]}
+                                                    className={cn(
+                                                        'h-12 w-12 rounded-input border text-body font-medium transition-colors duration-fast',
+                                                        active
+                                                            ? 'border-primary bg-primary-soft text-primary'
+                                                            : 'border-border bg-surface text-muted-foreground hover:border-border-strong'
+                                                    )}
+                                                >
+                                                    {dayLetters[index]}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
-                            </div>
-                        )}
-                        {formData.recurrence.freq !== '' && (
-                            <div className="mt-3">
-                                <DatePicker
-                                    label={t('calendar:form.repeatUntil')}
-                                    value={formData.recurrence.until}
-                                    min={formData.date}
-                                    onChange={(value) =>
-                                        setFormData({
-                                            ...formData,
-                                            recurrence: { ...formData.recurrence, until: value },
-                                        })
-                                    }
+                            )}
+                            {formData.recurrence.freq !== '' && (
+                                <div className="mt-3">
+                                    <DatePicker
+                                        label={t('calendar:form.repeatUntil')}
+                                        value={formData.recurrence.until}
+                                        min={formData.date}
+                                        onChange={(value) =>
+                                            setFormData({
+                                                ...formData,
+                                                recurrence: { ...formData.recurrence, until: value },
+                                            })
+                                        }
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        <div>
+                            <p className="mb-1 text-label text-foreground">{t('calendar:form.reminders')}</p>
+                            <div className="flex flex-wrap gap-x-6">
+                                <Switch
+                                    checked={formData.reminder_30min}
+                                    onChange={(value) => setFormData({ ...formData, reminder_30min: value })}
+                                    label={t('calendar:form.reminder30')}
+                                />
+                                <Switch
+                                    checked={formData.reminder_1hour}
+                                    onChange={(value) => setFormData({ ...formData, reminder_1hour: value })}
+                                    label={t('calendar:form.reminder1h')}
                                 />
                             </div>
-                        )}
-                    </div>
-
-                    <div>
-                        <p className="mb-1 text-label font-medium text-foreground">{t('calendar:form.reminders')}</p>
-                        <div className="flex flex-wrap gap-x-6">
-                            <Switch
-                                checked={formData.reminder_30min}
-                                onChange={(value) => setFormData({ ...formData, reminder_30min: value })}
-                                label={t('calendar:form.reminder30')}
-                            />
-                            <Switch
-                                checked={formData.reminder_1hour}
-                                onChange={(value) => setFormData({ ...formData, reminder_1hour: value })}
-                                label={t('calendar:form.reminder1h')}
-                            />
                         </div>
-                    </div>
 
-                    <Textarea
-                        label={t('calendar:form.notes')}
-                        value={formData.notes}
-                        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                        placeholder={t('calendar:form.notesPlaceholder')}
-                        rows={2}
-                    />
-                    </div>
-                    )}
+                        <Textarea
+                            label={t('calendar:form.notes')}
+                            value={formData.notes}
+                            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                            placeholder={t('calendar:form.notesPlaceholder')}
+                            rows={2}
+                        />
+                    </FormSection>
 
                     <div className="flex justify-end gap-3 pt-2">
-                        <Button type="button" variant="secondary" onClick={() => setDialogOpen(false)}>
+                        <Button type="button" variant="secondary" size="lg" onClick={() => setDialogOpen(false)}>
                             {t('common:actions.cancel')}
                         </Button>
-                        <Button type="submit" disabled={saving}>
+                        <Button type="submit" size="lg" disabled={saving}>
                             {editingId ? t('common:actions.save') : t('common:actions.create')}
                         </Button>
                     </div>

@@ -64,10 +64,6 @@
     "notes": "Notizen (optional)",
     "notesPlaceholder": "Hinweise, was mitzunehmen ist…",
     "start": "Beginn",
-    "reminderDefaultOn": "Erinnerung 60 Minuten vorher. Ändern unter „Weitere Angaben“.",
-    "reminderDefaultOff": "Keine Erinnerung 60 Minuten vorher.",
-    "moreDetails": "Weitere Angaben (Ende, Wiederholung, Erinnerungen, Notizen …)",
-    "lessDetails": "Weitere Angaben ausblenden",
     "participantsHint": "Aus dem Kreis oder den Kontakten wählen oder einen Namen eintippen.",
     "personPlaceholder": "Name eingeben",
     "addPerson": "Hinzufügen",
@@ -86,9 +82,12 @@
     "addTravelTo": "Hinfahrt hinzufügen",
     "addTravelBack": "Rückfahrt hinzufügen",
     "driver": "Wer fährt?",
-    "reminderDepartureOn": "Erinnerung 60 Minuten vor der Abfahrt. Ändern unter „Weitere Angaben“.",
     "reminder30Departure": "30 Minuten vor der Abfahrt",
-    "reminder1hDeparture": "1 Stunde vor der Abfahrt"
+    "reminder1hDeparture": "1 Stunde vor der Abfahrt",
+    "sectionBasics": "Angaben",
+    "sectionMore": "Weitere Angaben",
+    "conflictTitle": "Achtung: Zur gleichen Zeit ist schon etwas eingetragen.",
+    "conflictHint": "Sie können den Termin trotzdem speichern."
   },
   "confirmDelete": "Diesen Termin löschen?",
   "deleteRecurringHint": "Alle Wiederholungen werden gelöscht.",
@@ -132,9 +131,10 @@
     "feed": "Der iCal-Link konnte nicht erstellt werden."
   },
   "card": {
-    "travelTo": "Hinfahrt {{from}} bis {{to}} Uhr",
-    "travelBack": "Rückfahrt {{from}} bis {{to}} Uhr",
-    "driver": "Fährt: {{name}}"
+    "travelTo": "Hinfahrt {{time}} Uhr",
+    "travelBack": "Rückfahrt {{time}} Uhr",
+    "driver": "Fahrdienst: {{name}}",
+    "driverMissing": "Fahrdienst: noch offen"
   },
   "prevWeek": "Vorherige Woche",
   "nextWeek": "Nächste Woche",
@@ -143,10 +143,10 @@
   "week": {
     "noEvents": "Keine Termine",
     "openDay": "Tagesansicht öffnen",
-    "withTravel": "Mit Fahrt"
+    "withTravel": "Mit Fahrt",
+    "noDriver": "Fahrdienst noch offen"
   },
   "day": {
-    "empty": "Keine Termine an diesem Tag.",
-    "backToWeek": "Zur Woche"
+    "empty": "Keine Termine an diesem Tag."
   }
 }

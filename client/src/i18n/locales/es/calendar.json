@@ -64,10 +64,6 @@
     "notes": "Notas (opcional)",
     "notesPlaceholder": "Indicaciones, cosas que llevar…",
     "start": "Inicio",
-    "reminderDefaultOn": "Recordatorio 60 minutos antes. Cámbialo en «Más detalles».",
-    "reminderDefaultOff": "Sin recordatorio 60 minutos antes.",
-    "moreDetails": "Más detalles (fin, repetición, recordatorios, notas …)",
-    "lessDetails": "Ocultar detalles",
     "participantsHint": "Elija del círculo o de los contactos, o escriba un nombre.",
     "personPlaceholder": "Escribir un nombre",
     "addPerson": "Añadir",
@@ -86,9 +82,12 @@
     "addTravelTo": "Añadir la ida",
     "addTravelBack": "Añadir la vuelta",
     "driver": "¿Quién conduce?",
-    "reminderDepartureOn": "Recordatorio 60 minutos antes de la salida. Cambiar en «Más detalles».",
     "reminder30Departure": "30 minutos antes de la salida",
-    "reminder1hDeparture": "1 hora antes de la salida"
+    "reminder1hDeparture": "1 hora antes de la salida",
+    "sectionBasics": "Datos",
+    "sectionMore": "Más detalles",
+    "conflictTitle": "Atención: ya hay algo previsto a esta hora.",
+    "conflictHint": "Puede guardarlo de todos modos."
   },
   "confirmDelete": "¿Eliminar este evento?",
   "deleteRecurringHint": "Se eliminarán todas las fechas de la serie.",
@@ -132,9 +131,10 @@
     "feed": "No se puede generar el enlace iCal."
   },
   "card": {
-    "travelTo": "Ida {{from}} a {{to}}",
-    "travelBack": "Vuelta {{from}} a {{to}}",
-    "driver": "Conduce: {{name}}"
+    "travelTo": "Ida {{time}}",
+    "travelBack": "Vuelta {{time}}",
+    "driver": "Conductor: {{name}}",
+    "driverMissing": "Conductor: sin asignar"
   },
   "prevWeek": "Semana anterior",
   "nextWeek": "Semana siguiente",
@@ -143,10 +143,10 @@
   "week": {
     "noEvents": "Ningún evento",
     "openDay": "Abrir vista del día",
-    "withTravel": "Con trayecto"
+    "withTravel": "Con trayecto",
+    "noDriver": "Conductor sin asignar"
   },
   "day": {
-    "empty": "Ningún evento este día.",
-    "backToWeek": "Volver a la semana"
+    "empty": "Ningún evento este día."
   }
 }

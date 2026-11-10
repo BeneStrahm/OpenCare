@@ -7,7 +7,7 @@ export const NEW_EVENT_DEFAULTS = {
     reminder_1hour: true,
 } as const;
 
-/** Fork: Neue Termine bekommen Hin- und Rückfahrt mit je 30 Minuten. */
+/** Fork: Neue Termine sind ohne Fahrt. Eine hinzugefügte Fahrt beginnt mit 30 Minuten. */
 export const NEW_EVENT_TRAVEL_MINUTES = 30;
 export const TRAVEL_STEP_MINUTES = 15;
 export const TRAVEL_MIN_MINUTES = 15;
@@ -92,4 +92,44 @@ export function longDatePattern(lang: string, withYear: boolean): string {
     if (l === 'de') return withYear ? 'EEEE, d. MMMM yyyy' : 'EEEE, d. MMMM';
     if (l === 'en') return withYear ? 'EEEE, MMMM d, yyyy' : 'EEEE, MMMM d';
     return withYear ? 'EEEE d MMMM yyyy' : 'EEEE d MMMM';
+}
+
+/** Termin oder Formular mit Zeiten, wie sie die API liefert ("YYYY-MM-DDTHH:mm:ss"). */
+export interface TimeSlot {
+    id?: string;
+    start_time: string;
+    end_time: string | null;
+    travel_to_minutes?: number | null;
+    travel_back_minutes?: number | null;
+}
+
+/** Termin ohne Ende zählt für die Konfliktprüfung als 30 Minuten. */
+export const CONFLICT_DEFAULT_MINUTES = 30;
+
+const minutesOfDay = (value: string): number => Number(value.slice(11, 13)) * 60 + Number(value.slice(14, 16));
+
+/** Belegte Zeit eines Termins in Minuten seit Mitternacht, mit Hin- und Rückfahrt. */
+export function busyRange(slot: TimeSlot): [number, number] {
+    const start = minutesOfDay(slot.start_time);
+    let end = start + CONFLICT_DEFAULT_MINUTES;
+    if (slot.end_time) {
+        if (slot.end_time.slice(0, 10) !== slot.start_time.slice(0, 10)) end = 24 * 60;
+        else if (minutesOfDay(slot.end_time) > start) end = minutesOfDay(slot.end_time);
+    }
+    return [start - (slot.travel_to_minutes ?? 0), end + (slot.travel_back_minutes ?? 0)];
+}
+
+/**
+ * Termine am selben Tag, die sich mit dem neuen Termin überschneiden (Fahrzeit
+ * eingerechnet). Der gerade bearbeitete Termin (ignoreId) zählt nicht.
+ */
+export function findConflicts<T extends TimeSlot>(candidate: TimeSlot, others: T[], ignoreId?: string | null): T[] {
+    const day = candidate.start_time.slice(0, 10);
+    const [from, to] = busyRange(candidate);
+    return others.filter((other) => {
+        if (ignoreId && other.id === ignoreId) return false;
+        if (other.start_time.slice(0, 10) !== day) return false;
+        const [otherFrom, otherTo] = busyRange(other);
+        return from < otherTo && otherFrom < to;
+    });
 }
