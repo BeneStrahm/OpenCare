@@ -43,6 +43,7 @@
     "addExpense": "Add an expense"
   },
   "circle": {
+    "team": "Team {{name}}",
     "create": "Care for another person",
     "householdWith": "Household with {{names}}"
   },

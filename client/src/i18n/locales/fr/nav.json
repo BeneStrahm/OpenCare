@@ -43,6 +43,7 @@
     "addExpense": "Ajouter un frais"
   },
   "circle": {
+    "team": "Équipe de {{name}}",
     "create": "Suivre un autre proche",
     "householdWith": "Foyer avec {{names}}"
   },

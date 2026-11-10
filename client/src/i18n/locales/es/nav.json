@@ -43,6 +43,7 @@
     "addExpense": "Añadir un gasto"
   },
   "circle": {
+    "team": "Equipo de {{name}}",
     "create": "Acompañar a otro familiar",
     "householdWith": "Hogar con {{names}}"
   },

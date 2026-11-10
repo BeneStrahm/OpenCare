@@ -62,8 +62,7 @@ export const CircleSwitcher: React.FC<{ onNavigate?: () => void }> = ({ onNaviga
             >
                 <Avatar photo={activeCircle.recipient_photo_url} name={recipientName} />
                 <div className="min-w-0 flex-1">
-                    <p className="truncate text-caption font-semibold text-foreground">{recipientName}</p>
-                    <p className="truncate text-micro text-muted-foreground">{t(`roles.${activeCircle.role}`)}</p>
+                    <p className="truncate text-caption font-semibold text-foreground">{t('circle.team', { name: recipientName })}</p>
                 </div>
                 <ChevronDown className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-fast', open && 'rotate-180')} />
             </button>
