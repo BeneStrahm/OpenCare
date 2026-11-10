@@ -5,7 +5,7 @@ import { circleMiddleware, requireAdmin, CircleRequest } from '../middleware/cir
 import { broadcastToCircle } from '../lib/broadcaster';
 import { FILE_DATA_URL_REGEX, IMAGE_DATA_URL_REGEX, cleanImportedAttachments } from '../lib/dataUrls';
 import { cleanAidType } from '../lib/circleSettings';
-import { cleanGuests, cleanPersonName, cleanTravelMinutes } from '../lib/eventExtras';
+import { cleanFlag, cleanGuests, cleanPersonName, cleanTakeAlong, cleanTravelMinutes } from '../lib/eventExtras';
 
 /**
  * Per-circle export/import (admin only).
@@ -389,7 +389,7 @@ router.post('/import', async (req: CircleRequest, res: Response) => {
                     oneOf(row.status, INTAKE_STATUSES, 'pending'),
                     await userOrNull(row.confirmed_by_user), row.confirmed_at ?? null,
                     mapOrNull(journalMap, row.journal_entry_id), tsOrNow(row.created_at),
-                    oneOfOrNull(row.confirmed_source, ['caregiver', 'kiosk', 'phone', 'link']),
+                    oneOfOrNull(row.confirmed_source, ['caregiver', 'kiosk', 'phone', 'link', 'self']),
                     Number.isFinite(Number(row.quantity)) && Number(row.quantity) > 0 ? Number(row.quantity) : null,
                     textOrNull(row.unit)]
             );
@@ -421,6 +421,7 @@ router.post('/import', async (req: CircleRequest, res: Response) => {
             await insert('events',
                 ['circle_id', 'title', 'description', 'category', 'start_time', 'end_time', 'location', 'rrule',
                     'member_ids', 'guests', 'travel_to_minutes', 'travel_back_minutes', 'driver_to', 'driver_back',
+                    'take_along', 'companion_needed', 'travel_needed',
                     'reminder_30min', 'reminder_1hour', 'notes', 'created_by', 'created_at', 'updated_at'],
                 [circleId, row.title, textOrNull(row.description), oneOf(row.category, EVENT_CATEGORIES, 'other'),
                     row.start_time, row.end_time ?? null, textOrNull(row.location), textOrNull(row.rrule),
@@ -428,6 +429,7 @@ router.post('/import', async (req: CircleRequest, res: Response) => {
                     JSON.stringify(cleanGuests(row.guests)),
                     cleanTravelMinutes(row.travel_to_minutes), cleanTravelMinutes(row.travel_back_minutes),
                     cleanPersonName(row.driver_to), cleanPersonName(row.driver_back),
+                    cleanTakeAlong(row.take_along), cleanFlag(row.companion_needed), cleanFlag(row.travel_needed),
                     boolOr(row.reminder_30min, false), boolOr(row.reminder_1hour, false),
                     textOrNull(row.notes), await userOrNull(row.created_by),
                     tsOrNow(row.created_at), tsOrNow(row.updated_at)]

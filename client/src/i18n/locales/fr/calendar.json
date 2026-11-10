@@ -64,7 +64,6 @@
     "notes": "Notes (facultatif)",
     "notesPlaceholder": "Consignes, choses à apporter…",
     "start": "Début",
-    "participantsHint": "Choisissez dans le cercle ou les contacts, ou tapez un nom.",
     "personPlaceholder": "Saisir un nom",
     "addPerson": "Ajouter",
     "removePerson": "Retirer {{name}}",
@@ -87,7 +86,13 @@
     "sectionBasics": "Informations",
     "sectionMore": "Plus de détails",
     "conflictTitle": "Attention : un autre événement est déjà prévu à ce moment.",
-    "conflictHint": "Vous pouvez quand même l'enregistrer."
+    "conflictHint": "Vous pouvez quand même l'enregistrer.",
+    "takeAlong": "À emporter",
+    "takeAlongPlaceholder": "p. ex. carte vitale, plan de médication, lunettes",
+    "companionNeeded": "Quelqu’un doit accompagner",
+    "companionMissing": "Encore ouvert : qui accompagne ?",
+    "travelNeeded": "Quelqu’un doit conduire",
+    "driverMissing": "Encore ouvert : qui conduit ?"
   },
   "confirmDelete": "Supprimer cet événement ?",
   "deleteRecurringHint": "Toutes ses occurrences seront supprimées.",
@@ -134,7 +139,9 @@
     "travelTo": "Aller {{time}}",
     "travelBack": "Retour {{time}}",
     "driver": "Conducteur : {{name}}",
-    "driverMissing": "Conducteur : à définir"
+    "driverMissing": "Conducteur : à définir",
+    "takeAlong": "À emporter : {{text}}",
+    "companionMissing": "Accompagnement : encore ouvert"
   },
   "prevWeek": "Semaine précédente",
   "nextWeek": "Semaine suivante",
@@ -144,7 +151,8 @@
     "noEvents": "Aucun événement",
     "openDay": "Ouvrir la vue du jour",
     "withTravel": "Avec trajet",
-    "noDriver": "Conducteur à définir"
+    "noDriver": "Conducteur à définir",
+    "noCompanion": "Accompagnement à trouver"
   },
   "day": {
     "empty": "Aucun événement ce jour-là."

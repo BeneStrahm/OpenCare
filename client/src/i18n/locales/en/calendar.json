@@ -64,7 +64,6 @@
     "notes": "Notes (optional)",
     "notesPlaceholder": "Instructions, things to bring…",
     "start": "Start",
-    "participantsHint": "Pick someone from the circle or your contacts, or type a name.",
     "personPlaceholder": "Enter a name",
     "addPerson": "Add",
     "removePerson": "Remove {{name}}",
@@ -87,7 +86,13 @@
     "sectionBasics": "Details",
     "sectionMore": "More details",
     "conflictTitle": "Heads up: something is already scheduled at this time.",
-    "conflictHint": "You can still save the event."
+    "conflictHint": "You can still save the event.",
+    "takeAlong": "Bring along",
+    "takeAlongPlaceholder": "e.g. insurance card, medication plan, glasses",
+    "companionNeeded": "Someone needs to come along",
+    "companionMissing": "Still open: who is coming along?",
+    "travelNeeded": "Someone needs to drive",
+    "driverMissing": "Still open: who is driving?"
   },
   "confirmDelete": "Delete this event?",
   "deleteRecurringHint": "All of its occurrences will be deleted.",
@@ -134,7 +139,9 @@
     "travelTo": "Outbound {{time}}",
     "travelBack": "Return {{time}}",
     "driver": "Driver: {{name}}",
-    "driverMissing": "Driver: not yet assigned"
+    "driverMissing": "Driver: not yet assigned",
+    "takeAlong": "Bring along: {{text}}",
+    "companionMissing": "Companion: still open"
   },
   "prevWeek": "Previous week",
   "nextWeek": "Next week",
@@ -144,7 +151,8 @@
     "noEvents": "No events",
     "openDay": "Open day view",
     "withTravel": "With travel",
-    "noDriver": "Driver not yet assigned"
+    "noDriver": "Driver not yet assigned",
+    "noCompanion": "Companion still open"
   },
   "day": {
     "empty": "No events on this day."

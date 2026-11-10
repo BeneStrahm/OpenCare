@@ -4,7 +4,7 @@ import {
     Plus, ChevronLeft, ChevronRight, MapPin, Clock, Users, Repeat,
     Trash2, Edit2, Copy, Check, CalendarPlus, RefreshCw, CalendarDays, List, Bell,
     CalendarClock, CalendarOff, Undo2, Car, Minus, X, CalendarRange, CalendarCheck,
-    ChevronDown, ClipboardList, Tag, SlidersHorizontal, AlertTriangle, AlertCircle,
+    ChevronDown, ClipboardList, Tag, SlidersHorizontal, AlertTriangle, AlertCircle, Backpack,
     type LucideIcon,
 } from 'lucide-react';
 import {
@@ -77,6 +77,14 @@ interface EventOccurrence {
     travel_back_minutes?: number | null;
     driver_to?: string | null;
     driver_back?: string | null;
+    /** Fork: Was mitzunehmen ist (freier Text). */
+    take_along?: string | null;
+    /**
+     * Fork: Kästchen „Jemand muss mitkommen“ / „Jemand muss fahren“. Abgehakt bleiben die Daten
+     * gespeichert, gelten aber als nicht aktiv. null = älterer Termin: aktiv, wenn Daten da sind.
+     */
+    companion_needed?: boolean | null;
+    travel_needed?: boolean | null;
     reminder_30min: boolean;
     reminder_1hour: boolean;
     notes?: string | null;
@@ -185,11 +193,23 @@ const Switch: React.FC<{ checked: boolean; onChange: (value: boolean) => void; l
     </button>
 );
 
+/** Gleiche Regel wie isCompanionActive im Server (eventExtras.ts). */
+const isCompanionActive = (occ: EventOccurrence): boolean =>
+    occ.companion_needed ?? ((occ.member_ids ?? []).length > 0 || (occ.guests ?? []).length > 0);
+
+/** Gleiche Regel wie isTravelActive im Server (eventExtras.ts). */
+const isTravelActive = (occ: EventOccurrence): boolean =>
+    occ.travel_needed ?? (occ.travel_to_minutes != null || occ.travel_back_minutes != null);
+
 const CategoryDot: React.FC<{ category: EventCategory; className?: string }> = ({ category, className }) => (
     <span className={cn('inline-block h-2 w-2 shrink-0 rounded-full', CATEGORY_DOT[category], className)} aria-hidden="true" />
 );
 
-/** Abschnitt im Terminformular: Überschrift mit Symbol, wahlweise einklappbar. */
+/**
+ * Abschnitt im Terminformular: Überschrift mit Symbol.
+ * Wahlweise einklappbar (onToggle) oder mit Kästchen zum Ankreuzen (onCheckedChange):
+ * angekreuzt klappt der Abschnitt auf. `alert` färbt ihn rot, solange etwas offen ist.
+ */
 const FormSection: React.FC<{
     id: string;
     icon: LucideIcon;
@@ -198,8 +218,13 @@ const FormSection: React.FC<{
     summary?: string;
     open?: boolean;
     onToggle?: () => void;
+    /** Text neben dem Kästchen, z. B. „Jemand muss mitkommen“. */
+    checkLabel?: string;
+    onCheckedChange?: (checked: boolean) => void;
+    /** Hinweis in Rot, z. B. „Noch offen: Wer fährt?“. */
+    alert?: string;
     children: React.ReactNode;
-}> = ({ id, icon: Icon, title, summary, open = true, onToggle, children }) => {
+}> = ({ id, icon: Icon, title, summary, open = true, onToggle, checkLabel, onCheckedChange, alert, children }) => {
     const titleContent = (
         <>
             <Icon className="h-6 w-6 shrink-0 text-primary" aria-hidden="true" />
@@ -211,6 +236,46 @@ const FormSection: React.FC<{
             </span>
         </>
     );
+    const body = open && (
+        <div id={`${id}-body`} className="mt-3 space-y-4">
+            {alert && (
+                <p id={`${id}-alert`} className="flex items-start gap-2 text-body font-medium text-danger">
+                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+                    {alert}
+                </p>
+            )}
+            {children}
+        </div>
+    );
+
+    if (onCheckedChange) {
+        return (
+            <section
+                aria-labelledby={`${id}-title`}
+                className={cn(
+                    'border-t border-border pt-4 first-of-type:border-t-0 first-of-type:pt-0',
+                    alert && open && 'rounded-input border border-danger/40 bg-danger/10 p-3 first-of-type:border-t first-of-type:p-3'
+                )}
+            >
+                <h3 id={`${id}-title`} className="text-h2 text-foreground">
+                    <span className="flex min-h-[48px] items-center gap-3">{titleContent}</span>
+                </h3>
+                <label className="mt-1 flex min-h-[48px] cursor-pointer items-center gap-3 rounded-input text-body text-foreground">
+                    <input
+                        type="checkbox"
+                        checked={open}
+                        onChange={(e) => onCheckedChange(e.target.checked)}
+                        aria-controls={`${id}-body`}
+                        aria-describedby={alert && open ? `${id}-alert` : undefined}
+                        className="h-6 w-6 shrink-0 cursor-pointer accent-primary"
+                    />
+                    {checkLabel}
+                </label>
+                {body}
+            </section>
+        );
+    }
+
     return (
         <section aria-labelledby={`${id}-title`} className="border-t border-border pt-4 first-of-type:border-t-0 first-of-type:pt-0">
             <h3 id={`${id}-title`} className="text-h2 text-foreground">
@@ -232,7 +297,7 @@ const FormSection: React.FC<{
                     <span className="flex min-h-[48px] items-center gap-3">{titleContent}</span>
                 )}
             </h3>
-            {open && <div id={`${id}-body`} className="mt-3 space-y-4">{children}</div>}
+            {body}
         </section>
     );
 };
@@ -255,6 +320,12 @@ interface EventForm {
     /** true, sobald der Fahrer der Rückfahrt von Hand geändert wurde. */
     driverBackEdited: boolean;
     notes: string;
+    /** Fork: Was mitzunehmen ist. */
+    takeAlong: string;
+    /** Fork: Kästchen „Jemand muss mitkommen“. */
+    companionNeeded: boolean;
+    /** Fork: Kästchen „Jemand muss fahren“. Aus = keine Fahrt speichern. */
+    travelNeeded: boolean;
     reminder_30min: boolean;
     reminder_1hour: boolean;
     recurrence: RecurrenceForm;
@@ -275,6 +346,9 @@ const emptyForm = (): EventForm => ({
     driverBack: '',
     driverBackEdited: false,
     notes: '',
+    takeAlong: '',
+    companionNeeded: false,
+    travelNeeded: false,
     ...NEW_EVENT_DEFAULTS,
     recurrence: { freq: '', byDays: [], until: '' },
 });
@@ -319,8 +393,7 @@ const Calendar: React.FC = () => {
     const [formData, setFormData] = useState<EventForm>(emptyForm());
     // Einklappbare Abschnitte: neu zugeklappt, beim Bearbeiten offen, wenn etwas drin steht.
     const [showMore, setShowMore] = useState(false);
-    const [showPeople, setShowPeople] = useState(false);
-    const [showTravel, setShowTravel] = useState(false);
+    const [showTakeAlong, setShowTakeAlong] = useState(false);
     // Termine rund um das gewählte Datum, für den Hinweis auf Überschneidungen.
     const [formDayEvents, setFormDayEvents] = useState<EventOccurrence[]>([]);
     const [saving, setSaving] = useState(false);
@@ -468,12 +541,12 @@ const Calendar: React.FC = () => {
         const candidate = {
             start_time: `${formData.date}T${formData.startTime}:00`,
             end_time: formData.endTime && formData.endTime > formData.startTime ? `${formData.date}T${formData.endTime}:00` : null,
-            travel_to_minutes: formData.travelTo,
-            travel_back_minutes: formData.travelBack,
+            travel_to_minutes: formData.travelNeeded ? formData.travelTo : null,
+            travel_back_minutes: formData.travelNeeded ? formData.travelBack : null,
         };
         return findConflicts(candidate, formDayEvents, editingId)
             .sort((a, b) => a.start_time.localeCompare(b.start_time));
-    }, [formData.date, formData.startTime, formData.endTime, formData.travelTo, formData.travelBack, formDayEvents, editingId]);
+    }, [formData.date, formData.startTime, formData.endTime, formData.travelTo, formData.travelBack, formData.travelNeeded, formDayEvents, editingId]);
 
     // ── Derived ───────────────────────────────────────────────────────────────
     const occurrencesByDay = useMemo(() => {
@@ -513,8 +586,7 @@ const Calendar: React.FC = () => {
         });
         setPersonInput('');
         setShowMore(false);
-        setShowPeople(false);
-        setShowTravel(false);
+        setShowTakeAlong(false);
         setError('');
         setDialogOpen(true);
     };
@@ -538,6 +610,9 @@ const Calendar: React.FC = () => {
             driverBack: occ.driver_back || '',
             driverBackEdited: (occ.driver_back || '') !== (occ.driver_to || ''),
             notes: occ.notes || '',
+            takeAlong: occ.take_along || '',
+            companionNeeded: isCompanionActive(occ),
+            travelNeeded: isTravelActive(occ),
             reminder_30min: occ.reminder_30min,
             reminder_1hour: occ.reminder_1hour,
             recurrence: parseRRuleToForm(occ.rrule),
@@ -546,8 +621,7 @@ const Calendar: React.FC = () => {
         setPersonInput('');
         // Ort und Teilnehmende stehen jetzt außerhalb von „Weitere Angaben“.
         setShowMore(hasExtraDetails({ ...form, location: '', member_ids: [] }));
-        setShowPeople(form.member_ids.length > 0 || form.guests.length > 0);
-        setShowTravel(form.travelTo !== null || form.travelBack !== null);
+        setShowTakeAlong(form.takeAlong.trim() !== '');
         setError('');
         setDialogOpen(true);
     };
@@ -570,7 +644,11 @@ const Calendar: React.FC = () => {
         }
 
         // Ein eingetippter, aber nicht hinzugefügter Name geht nicht verloren.
+        // Abgehakte Kästchen klappen nur ein: Teilnehmende und Fahrt bleiben gespeichert,
+        // gelten aber als nicht aktiv (keine Anzeige, keine Erinnerung vor der Abfahrt).
         const people = addParticipant(formData, personInput, members);
+        const travelTo = formData.travelTo;
+        const travelBack = formData.travelBack;
 
         const payload = {
             title: formData.title.trim(),
@@ -581,10 +659,13 @@ const Calendar: React.FC = () => {
             notes: formData.notes,
             member_ids: people.member_ids,
             guests: people.guests,
-            travel_to_minutes: formData.travelTo,
-            travel_back_minutes: formData.travelBack,
-            driver_to: formData.travelTo === null ? null : formData.driverTo,
-            driver_back: formData.travelBack === null ? null : formData.driverBack,
+            travel_to_minutes: travelTo,
+            travel_back_minutes: travelBack,
+            driver_to: travelTo === null ? null : formData.driverTo,
+            driver_back: travelBack === null ? null : formData.driverBack,
+            take_along: formData.takeAlong,
+            companion_needed: formData.companionNeeded,
+            travel_needed: formData.travelNeeded,
             reminder_30min: formData.reminder_30min,
             reminder_1hour: formData.reminder_1hour,
             rrule: buildRRule(formData.recurrence),
@@ -786,6 +867,8 @@ const Calendar: React.FC = () => {
     /** Hin- und Rückfahrt eines Termins als lesbare Zeilen (leer, wenn keine Fahrt). */
     const travelLines = (occ: EventOccurrence): { key: string; text: string; driver: string }[] => {
         const lines: { key: string; text: string; driver: string }[] = [];
+        // Abgehaktes Kästchen „Jemand muss fahren“: Fahrt bleibt gespeichert, wird aber nicht gezeigt.
+        if (!isTravelActive(occ)) return lines;
         const day = occ.start_time.slice(0, 10);
         if (occ.travel_to_minutes) {
             lines.push({
@@ -811,11 +894,36 @@ const Calendar: React.FC = () => {
     const travelWithoutDriver = (occ: EventOccurrence): boolean =>
         travelLines(occ).some((line) => !line.driver);
 
-    /** Namen aller Teilnehmenden: Mitglieder des Kreises und frei eingetragene. */
-    const participantNames = (occ: EventOccurrence): string[] => [
-        ...(occ.members_data ?? []).map((m) => m.name),
-        ...(occ.guests ?? []),
-    ];
+    /** Namen aller Teilnehmenden (Mitglieder und frei eingetragene), leer bei abgehaktem Kästchen. */
+    const participantNames = (occ: EventOccurrence): string[] => isCompanionActive(occ)
+        ? [...(occ.members_data ?? []).map((m) => m.name), ...(occ.guests ?? [])]
+        : [];
+
+    /** true, wenn jemand mitkommen muss, aber noch niemand eingetragen ist. */
+    const companionMissing = (occ: EventOccurrence): boolean =>
+        isCompanionActive(occ) && participantNames(occ).length === 0;
+
+    /** Etwas ist noch offen: Fahrdienst oder Begleitung. */
+    const hasOpenIssue = (occ: EventOccurrence): boolean =>
+        travelWithoutDriver(occ) || companionMissing(occ);
+
+    /** Mitnehmen und offene Begleitung, für Karte und Detailansicht. */
+    const renderTakeAlongAndCompanion = (occ: EventOccurrence) => (
+        <>
+            {companionMissing(occ) && (
+                <span className="mt-1 flex items-start gap-2 rounded-input border border-danger/40 bg-danger/10 px-2 py-1 text-body text-danger">
+                    <AlertCircle className="mt-1 h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span>{t('calendar:card.companionMissing')}</span>
+                </span>
+            )}
+            {occ.take_along && (
+                <span className="mt-1 flex items-start gap-2 text-body text-muted-foreground">
+                    <Backpack className="mt-1 h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span className="whitespace-pre-wrap">{t('calendar:card.takeAlong', { text: occ.take_along })}</span>
+                </span>
+            )}
+        </>
+    );
 
     /** Hin- und Rückfahrt wie die übrigen Angaben. Ohne Fahrdienst hellrot markiert. */
     const renderTravel = (occ: EventOccurrence) => {
@@ -873,6 +981,7 @@ const Calendar: React.FC = () => {
                     </span>
                 )}
                 {renderTravel(occ)}
+                {renderTakeAlongAndCompanion(occ)}
                 {occ.notes && (
                     <span className="mt-1 block whitespace-pre-wrap text-body text-foreground">{occ.notes}</span>
                 )}
@@ -1070,7 +1179,7 @@ const Calendar: React.FC = () => {
                                             {occurrenceTimeRange(occ)}
                                         </span>
                                         <span className="block text-body font-medium text-foreground">{occ.title}</span>
-                                        {(occ.travel_to_minutes || occ.travel_back_minutes) ? (
+                                        {travelLines(occ).length > 0 ? (
                                             travelWithoutDriver(occ) ? (
                                                 <span className="mt-1 flex items-center gap-1.5 rounded-input border border-danger/40 bg-danger/10 px-1.5 py-0.5 text-caption font-medium text-danger">
                                                     <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -1084,6 +1193,12 @@ const Calendar: React.FC = () => {
                                                 </span>
                                             )
                                         ) : null}
+                                        {companionMissing(occ) && (
+                                            <span className="mt-1 flex items-center gap-1.5 rounded-input border border-danger/40 bg-danger/10 px-1.5 py-0.5 text-caption font-medium text-danger">
+                                                <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                                {t('calendar:week.noCompanion')}
+                                            </span>
+                                        )}
                                     </button>
                                 ))
                             )}
@@ -1263,15 +1378,21 @@ const Calendar: React.FC = () => {
                                                     className={cn(
                                                         'flex w-full items-center gap-1 rounded px-1 py-0.5 text-left text-caption text-foreground transition-colors duration-fast hover:opacity-80',
                                                         CATEGORY_CHIP[occ.category],
-                                                        travelWithoutDriver(occ) && 'border border-danger/40'
+                                                        hasOpenIssue(occ) && 'border border-danger/40'
                                                     )}
                                                 >
                                                     <CategoryDot category={occ.category} />
                                                     {isMovedOccurrence(occ) && (
                                                         <CalendarClock className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                                                     )}
-                                                    {travelWithoutDriver(occ) && (
-                                                        <AlertCircle className="h-4 w-4 shrink-0 text-danger" aria-label={t('calendar:week.noDriver')} />
+                                                    {hasOpenIssue(occ) && (
+                                                        <AlertCircle
+                                                            className="h-4 w-4 shrink-0 text-danger"
+                                                            aria-label={[
+                                                                travelWithoutDriver(occ) ? t('calendar:week.noDriver') : null,
+                                                                companionMissing(occ) ? t('calendar:week.noCompanion') : null,
+                                                            ].filter(Boolean).join(', ')}
+                                                        />
                                                     )}
                                                     <span className="truncate">
                                                         <span className="font-medium tabular-nums">{formatClock(occ.start_time)}</span> {occ.title}
@@ -1456,15 +1577,16 @@ const Calendar: React.FC = () => {
                             </div>
                         )}
                         {renderTravel(selected)}
+                        {renderTakeAlongAndCompanion(selected)}
                         {(selected.reminder_30min || selected.reminder_1hour) && (
                             <div className="flex items-center gap-2 text-body text-muted-foreground">
                                 <Bell className="h-5 w-5 shrink-0" aria-hidden="true" />
                                 {[
                                     selected.reminder_30min
-                                        ? t(selected.travel_to_minutes ? 'calendar:form.reminder30Departure' : 'calendar:form.reminder30')
+                                        ? t(travelLines(selected).some((line) => line.key === 'to') ? 'calendar:form.reminder30Departure' : 'calendar:form.reminder30')
                                         : null,
                                     selected.reminder_1hour
-                                        ? t(selected.travel_to_minutes ? 'calendar:form.reminder1hDeparture' : 'calendar:form.reminder1h')
+                                        ? t(travelLines(selected).some((line) => line.key === 'to') ? 'calendar:form.reminder1hDeparture' : 'calendar:form.reminder1h')
                                         : null,
                                 ].filter(Boolean).join(' · ')}
                             </div>
@@ -1695,26 +1817,45 @@ const Calendar: React.FC = () => {
                                             className="sr-only"
                                         />
                                         <CategoryDot category={category} className="h-3 w-3" />
-                                        <span>{t(`calendar:categories.${category}`)}</span>
-                                        {active && <Check className="ml-auto h-5 w-5 text-primary" aria-hidden="true" />}
+                                        {/* Kein Umbruch mitten im Wort (globales word-break hier aufheben). */}
+                                        <span className="min-w-0 flex-1 [overflow-wrap:normal] [word-break:normal]">{t(`calendar:categories.${category}`)}</span>
+                                        {active && <Check className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />}
                                     </label>
                                 );
                             })}
                         </div>
                     </FormSection>
 
-                    {/* Teilnehmende: Vorschläge aus Kreis und Kontakten, freie Namen erlaubt */}
+                    {/* Mitnehmen: freier Text, einklappbar */}
+                    <FormSection
+                        id="event-section-take-along"
+                        icon={Backpack}
+                        title={t('calendar:form.takeAlong')}
+                        summary={formData.takeAlong.trim()}
+                        open={showTakeAlong}
+                        onToggle={() => setShowTakeAlong((v) => !v)}
+                    >
+                        <Textarea
+                            aria-labelledby="event-section-take-along-title"
+                            value={formData.takeAlong}
+                            onChange={(e) => setFormData({ ...formData, takeAlong: e.target.value })}
+                            placeholder={t('calendar:form.takeAlongPlaceholder')}
+                            rows={3}
+                        />
+                    </FormSection>
+
+                    {/* Teilnehmende: Kästchen „Jemand muss mitkommen“, rot solange niemand eingetragen ist */}
                     <FormSection
                         id="event-section-people"
                         icon={Users}
                         title={t('calendar:form.participants')}
-                        summary={[...formData.member_ids.map((id) => members.find((m) => m.id === id)?.name).filter(Boolean), ...formData.guests].join(', ')}
-                        open={showPeople}
-                        onToggle={() => setShowPeople((v) => !v)}
+                        checkLabel={t('calendar:form.companionNeeded')}
+                        open={formData.companionNeeded}
+                        onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, companionNeeded: checked }))}
+                        alert={formData.member_ids.length === 0 && formData.guests.length === 0
+                            ? t('calendar:form.companionMissing')
+                            : undefined}
                     >
-                        <p id="event-person-hint" className="text-body text-muted-foreground">
-                            {t('calendar:form.participantsHint')}
-                        </p>
                         {(formData.member_ids.length > 0 || formData.guests.length > 0) && (
                             <ul className="flex flex-wrap gap-2">
                                 {formData.member_ids.map((id) => {
@@ -1762,7 +1903,6 @@ const Calendar: React.FC = () => {
                                     options={personSuggestions}
                                     exclude={selectedPersonNames}
                                     placeholder={t('calendar:form.personPlaceholder')}
-                                    describedBy="event-person-hint"
                                 />
                                 <Button type="button" variant="secondary" size="lg" onClick={addPerson} disabled={!personInput.trim()}>
                                     <Plus className="mr-2 h-5 w-5" aria-hidden="true" />
@@ -1777,12 +1917,21 @@ const Calendar: React.FC = () => {
                         id="event-section-travel"
                         icon={Car}
                         title={t('calendar:form.travel')}
-                        summary={[
-                            formData.travelTo !== null ? t('calendar:form.travelTo') : null,
-                            formData.travelBack !== null ? t('calendar:form.travelBack') : null,
-                        ].filter(Boolean).join(', ')}
-                        open={showTravel}
-                        onToggle={() => setShowTravel((v) => !v)}
+                        checkLabel={t('calendar:form.travelNeeded')}
+                        open={formData.travelNeeded}
+                        onCheckedChange={(checked) => setFormData((prev) => ({
+                            ...prev,
+                            travelNeeded: checked,
+                            // Beim ersten Ankreuzen Hin- und Rückfahrt mit Standarddauer vorschlagen.
+                            ...(checked && prev.travelTo === null && prev.travelBack === null
+                                ? { travelTo: NEW_EVENT_TRAVEL_MINUTES, travelBack: NEW_EVENT_TRAVEL_MINUTES }
+                                : {}),
+                        }))}
+                        alert={(formData.travelTo === null && formData.travelBack === null)
+                            || (formData.travelTo !== null && !formData.driverTo.trim())
+                            || (formData.travelBack !== null && !formData.driverBack.trim())
+                            ? t('calendar:form.driverMissing')
+                            : undefined}
                     >
                         {renderTravelRow('to')}
                         {renderTravelRow('back')}

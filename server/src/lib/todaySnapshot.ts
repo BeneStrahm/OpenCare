@@ -2,6 +2,7 @@ import { query } from '../db';
 import { ensureTodayIntakes, splitForPatient, INTAKE_DISPLAY_COLUMNS, INTAKE_DISPLAY_FROM, PatientIntakeRow, PatientMedicationView } from './intakes';
 import { VISIT_COLUMNS, VisitRow } from './visits';
 import { expandEventOccurrences, toLocalISO } from '../routes/events';
+import { activeMemberIds } from './eventExtras';
 
 /**
  * Instantane de la journee du proche : ce que le mode Kiosk affiche
@@ -117,7 +118,8 @@ export async function loadTodaySnapshot(circleId: string, now: Date = new Date()
     const eventsToday: TodayEvent[] = [];
     for (const event of eventsResult.rows as any[]) {
         for (const occ of expandEventOccurrences(event, dayStart, dayEnd)) {
-            const memberIds: string[] = Array.isArray(event.member_ids) ? event.member_ids : [];
+            // Fork: Abgehaktes Kästchen „Jemand muss mitkommen“ -> niemand anzeigen.
+            const memberIds = activeMemberIds(event);
             eventsToday.push({
                 id: event.id,
                 title: event.title,

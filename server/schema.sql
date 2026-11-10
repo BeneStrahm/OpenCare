@@ -243,8 +243,9 @@ CREATE TABLE medication_intakes (
     confirmed_by_user UUID REFERENCES users(id) ON DELETE SET NULL,
     confirmed_by_link UUID REFERENCES caregiver_links(id) ON DELETE SET NULL,
     confirmed_at TIMESTAMP,
-    -- D'ou vient la confirmation: aidant (app), kiosk, telephone patient, lien magique
-    confirmed_source VARCHAR(20) CHECK (confirmed_source IN ('caregiver', 'kiosk', 'phone', 'link')),
+    -- D'ou vient la confirmation: aidant (app), kiosk, telephone patient, lien magique,
+    -- self = die betreute Person selbst in der App (Rolle recipient)
+    confirmed_source VARCHAR(20) CHECK (confirmed_source IN ('caregiver', 'kiosk', 'phone', 'link', 'self')),
     -- Escalade (lib/escalation) : rappel patient, aidants principaux, aidants de relais
     reminded_patient_at TIMESTAMP,
     escalated_primary_at TIMESTAMP,
@@ -301,6 +302,13 @@ CREATE TABLE events (
     travel_back_minutes SMALLINT,
     driver_to TEXT,
     driver_back TEXT,
+    -- Fork: Was mitzunehmen ist (freier Text).
+    take_along TEXT,
+    -- Fork: Kästchen „Jemand muss mitkommen“ / „Jemand muss fahren“. Abgehakt bleiben Teilnehmende
+    -- und Fahrt gespeichert, gelten aber als nicht aktiv (keine Anzeige, keine Erinnerung).
+    -- NULL = älterer Termin ohne Kästchen: aktiv, wenn Daten eingetragen sind (eventExtras.ts).
+    companion_needed BOOLEAN,
+    travel_needed BOOLEAN,
     reminder_30min BOOLEAN DEFAULT FALSE,
     reminder_1hour BOOLEAN DEFAULT FALSE,
     notes TEXT,

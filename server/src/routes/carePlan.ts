@@ -4,6 +4,7 @@ import { authMiddleware } from '../middleware/auth';
 import { circleMiddleware, requireContentWriter, CircleRequest } from '../middleware/circle';
 import { broadcastToCircle } from '../lib/broadcaster';
 import { expandEventOccurrences, toLocalISO } from './events';
+import { activeMemberIds } from '../lib/eventExtras';
 import { loadCarePlan, saveCarePlan, sanitizeSections } from '../lib/carePlan';
 
 // Plan de soins : une page qui rassemble ce qu'il faut savoir pour prendre
@@ -84,7 +85,8 @@ router.get('/', async (req: CircleRequest, res: Response) => {
             for (const occ of expandEventOccurrences(event, from, to)) {
                 const bucket = byDate.get(dayKey(occ.start));
                 if (!bucket) continue;
-                const memberIds: string[] = Array.isArray(event.member_ids) ? event.member_ids : [];
+                // Fork: Abgehaktes Kästchen „Jemand muss mitkommen“ -> niemand anzeigen.
+                const memberIds = activeMemberIds(event);
                 bucket.push({
                     id: event.id,
                     title: event.title,

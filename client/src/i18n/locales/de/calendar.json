@@ -62,9 +62,8 @@
     "reminder30": "30 Minuten vorher",
     "reminder1h": "1 Stunde vorher",
     "notes": "Notizen (optional)",
-    "notesPlaceholder": "Hinweise, was mitzunehmen ist…",
+    "notesPlaceholder": "Hinweise…",
     "start": "Beginn",
-    "participantsHint": "Aus dem Kreis oder den Kontakten wählen oder einen Namen eintippen.",
     "personPlaceholder": "Name eingeben",
     "addPerson": "Hinzufügen",
     "removePerson": "{{name}} entfernen",
@@ -87,7 +86,13 @@
     "sectionBasics": "Angaben",
     "sectionMore": "Weitere Angaben",
     "conflictTitle": "Achtung: Zur gleichen Zeit ist schon etwas eingetragen.",
-    "conflictHint": "Sie können den Termin trotzdem speichern."
+    "conflictHint": "Sie können den Termin trotzdem speichern.",
+    "takeAlong": "Mitnehmen",
+    "takeAlongPlaceholder": "z. B. Versichertenkarte, Medikamentenplan, Brille",
+    "companionNeeded": "Jemand muss mitkommen",
+    "companionMissing": "Noch offen: Wer kommt mit?",
+    "travelNeeded": "Jemand muss fahren",
+    "driverMissing": "Noch offen: Wer fährt?"
   },
   "confirmDelete": "Diesen Termin löschen?",
   "deleteRecurringHint": "Alle Wiederholungen werden gelöscht.",
@@ -134,7 +139,9 @@
     "travelTo": "Hinfahrt {{time}} Uhr",
     "travelBack": "Rückfahrt {{time}} Uhr",
     "driver": "Fahrdienst: {{name}}",
-    "driverMissing": "Fahrdienst: noch offen"
+    "driverMissing": "Fahrdienst: noch offen",
+    "takeAlong": "Mitnehmen: {{text}}",
+    "companionMissing": "Begleitung: noch offen"
   },
   "prevWeek": "Vorherige Woche",
   "nextWeek": "Nächste Woche",
@@ -144,7 +151,8 @@
     "noEvents": "Keine Termine",
     "openDay": "Tagesansicht öffnen",
     "withTravel": "Mit Fahrt",
-    "noDriver": "Fahrdienst noch offen"
+    "noDriver": "Fahrdienst noch offen",
+    "noCompanion": "Begleitung noch offen"
   },
   "day": {
     "empty": "Keine Termine an diesem Tag."

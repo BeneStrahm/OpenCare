@@ -178,10 +178,16 @@ export const runMigrations = async () => {
         `ALTER TABLE medication_intakes ADD COLUMN IF NOT EXISTS confirmed_source VARCHAR(20);`,
         `ALTER TABLE medication_intakes ADD COLUMN IF NOT EXISTS quantity NUMERIC(6,2);`,
         `ALTER TABLE medication_intakes ADD COLUMN IF NOT EXISTS unit VARCHAR(20);`,
+        // Quelle 'self' (betreute Person bestaetigt selbst): Regel bei Bedarf neu anlegen.
         `DO $$ BEGIN
-            IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'medication_intakes_confirmed_source_check') THEN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint
+                WHERE conname = 'medication_intakes_confirmed_source_check'
+                  AND pg_get_constraintdef(oid) LIKE '%self%'
+            ) THEN
+                ALTER TABLE medication_intakes DROP CONSTRAINT IF EXISTS medication_intakes_confirmed_source_check;
                 ALTER TABLE medication_intakes ADD CONSTRAINT medication_intakes_confirmed_source_check
-                    CHECK (confirmed_source IN ('caregiver', 'kiosk', 'phone', 'link'));
+                    CHECK (confirmed_source IN ('caregiver', 'kiosk', 'phone', 'link', 'self'));
             END IF;
         END $$;`,
         `UPDATE medication_intakes i SET quantity = s.quantity, unit = s.unit
@@ -233,6 +239,12 @@ export const runMigrations = async () => {
         `ALTER TABLE events ADD COLUMN IF NOT EXISTS travel_back_minutes SMALLINT;`,
         `ALTER TABLE events ADD COLUMN IF NOT EXISTS driver_to TEXT;`,
         `ALTER TABLE events ADD COLUMN IF NOT EXISTS driver_back TEXT;`,
+        // Fork: Mitnehmen (freier Text) und Begleitung nötig.
+        `ALTER TABLE events ADD COLUMN IF NOT EXISTS take_along TEXT;`,
+        `ALTER TABLE events ADD COLUMN IF NOT EXISTS companion_needed BOOLEAN;`,
+        `ALTER TABLE events ALTER COLUMN companion_needed DROP NOT NULL;`,
+        `ALTER TABLE events ALTER COLUMN companion_needed DROP DEFAULT;`,
+        `ALTER TABLE events ADD COLUMN IF NOT EXISTS travel_needed BOOLEAN;`,
         // Stock de medicaments et seuil de renouvellement.
         `ALTER TABLE medications ADD COLUMN IF NOT EXISTS stock_quantity NUMERIC(8, 2);`,
         `ALTER TABLE medications ADD COLUMN IF NOT EXISTS stock_alert_threshold NUMERIC(8, 2);`,

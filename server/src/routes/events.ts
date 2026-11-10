@@ -3,7 +3,7 @@ import { query } from '../db';
 import { authMiddleware } from '../middleware/auth';
 import { circleMiddleware, CircleRequest, CircleRole } from '../middleware/circle';
 import { toNullIfEmpty } from '../lib/normalize';
-import { cleanGuests, cleanPersonName, cleanTravelMinutes, isInvalidTravelMinutes } from '../lib/eventExtras';
+import { cleanFlag, cleanGuests, cleanPersonName, cleanTakeAlong, cleanTravelMinutes, isInvalidTravelMinutes } from '../lib/eventExtras';
 import { broadcastToCircle } from '../lib/broadcaster';
 import { langFromRequest, t } from '../lib/i18n';
 
@@ -476,6 +476,7 @@ router.post('/', async (req: CircleRequest, res: Response) => {
             title, description, category, start_time, end_time,
             location, rrule, member_ids, reminder_30min, reminder_1hour, notes,
             guests, travel_to_minutes, travel_back_minutes, driver_to, driver_back,
+            take_along, companion_needed, travel_needed,
         } = req.body;
 
         const cleanedTitle = typeof title === 'string' ? title.trim() : '';
@@ -521,9 +522,10 @@ router.post('/', async (req: CircleRequest, res: Response) => {
         const result = await query(
             `INSERT INTO events (circle_id, title, description, category, start_time, end_time,
                                  location, rrule, member_ids, reminder_30min, reminder_1hour, notes, created_by,
-                                 guests, travel_to_minutes, travel_back_minutes, driver_to, driver_back)
+                                 guests, travel_to_minutes, travel_back_minutes, driver_to, driver_back,
+                                 take_along, companion_needed, travel_needed)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13,
-                     $14::jsonb, $15, $16, $17, $18)
+                     $14::jsonb, $15, $16, $17, $18, $19, $20, $21)
              RETURNING *`,
             [
                 req.circleId,
@@ -546,6 +548,9 @@ router.post('/', async (req: CircleRequest, res: Response) => {
                 // Fahrer nur, wenn es die Fahrt auch gibt.
                 cleanTravelMinutes(travel_to_minutes) === null ? null : cleanPersonName(driver_to),
                 cleanTravelMinutes(travel_back_minutes) === null ? null : cleanPersonName(driver_back),
+                cleanTakeAlong(take_along),
+                cleanFlag(companion_needed),
+                cleanFlag(travel_needed),
             ]
         );
 
@@ -576,6 +581,7 @@ router.put('/:id', async (req: CircleRequest, res: Response) => {
             title, description, category, start_time, end_time,
             location, rrule, member_ids, reminder_30min, reminder_1hour, notes,
             guests, travel_to_minutes, travel_back_minutes, driver_to, driver_back,
+            take_along, companion_needed, travel_needed,
         } = req.body;
 
         if (isInvalidTravelMinutes(travel_to_minutes) || isInvalidTravelMinutes(travel_back_minutes)) {
@@ -654,6 +660,9 @@ router.put('/:id', async (req: CircleRequest, res: Response) => {
         if (reminder_1hour !== undefined) pushUpdate('reminder_1hour', Boolean(reminder_1hour));
 
         if (guests !== undefined) pushUpdate('guests', JSON.stringify(cleanGuests(guests)), '::jsonb');
+        if (take_along !== undefined) pushUpdate('take_along', cleanTakeAlong(take_along));
+        if (companion_needed !== undefined) pushUpdate('companion_needed', cleanFlag(companion_needed));
+        if (travel_needed !== undefined) pushUpdate('travel_needed', cleanFlag(travel_needed));
         // Fahrt und Fahrer gehören zusammen: ohne Fahrt wird auch der Fahrer gelöscht.
         if (travel_to_minutes !== undefined) {
             const minutes = cleanTravelMinutes(travel_to_minutes);

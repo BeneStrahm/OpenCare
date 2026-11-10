@@ -7,6 +7,7 @@ import { checkLowStock } from './stockAlerts';
 import { backupCheckEnabled, checkBackupStatus } from './backupAlerts';
 import logger from './logger';
 import { pickLang } from './i18n';
+import { TRAVEL_ACTIVE_SQL } from './eventExtras';
 
 // Rappels planifiés du cercle de soin:
 //  - rappels d'événements (events.reminder_30min / reminder_1hour), notifiés
@@ -144,10 +145,14 @@ async function processEventWindow(
     const type = flagColumn; // notification type mirrors the flag name
     const { rows } = await query(
         // Fork: Mit Hinfahrt zählt die Abfahrt (Beginn minus Fahrzeit), sonst der Beginn.
-        `SELECT e.id, e.circle_id, e.title, e.start_time, e.location, e.travel_to_minutes, e.driver_to
+        // Fahrt mit abgehaktem Kästchen „Jemand muss fahren“ zählt nicht.
+        `SELECT e.id, e.circle_id, e.title, e.start_time, e.location,
+                CASE WHEN ${TRAVEL_ACTIVE_SQL} THEN e.travel_to_minutes END AS travel_to_minutes,
+                CASE WHEN ${TRAVEL_ACTIVE_SQL} THEN e.driver_to END AS driver_to
          FROM events e
          WHERE e.${flagColumn} = true
-           AND (e.start_time - make_interval(mins => COALESCE(e.travel_to_minutes, 0)::int)) BETWEEN $1 AND $2`,
+           AND (e.start_time - make_interval(mins => (CASE WHEN ${TRAVEL_ACTIVE_SQL}
+                THEN COALESCE(e.travel_to_minutes, 0) ELSE 0 END)::int)) BETWEEN $1 AND $2`,
         [toLocalNaive(windowStart), toLocalNaive(windowEnd)]
     );
 
