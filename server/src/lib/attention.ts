@@ -170,6 +170,8 @@ export async function loadAttention(circleId: string, includeHealth: boolean, no
                      OR (th.max_value IS NOT NULL AND v.value > th.max_value)
                      OR (v.value2 IS NOT NULL AND th.min_value2 IS NOT NULL AND v.value2 < th.min_value2)
                      OR (v.value2 IS NOT NULL AND th.max_value2 IS NOT NULL AND v.value2 > th.max_value2)
+                     OR (v.pulse IS NOT NULL AND th.min_pulse IS NOT NULL AND v.pulse < th.min_pulse)
+                     OR (v.pulse IS NOT NULL AND th.max_pulse IS NOT NULL AND v.pulse > th.max_pulse)
                    )
                  ORDER BY v.measured_at DESC
                  LIMIT 20`,

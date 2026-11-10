@@ -319,8 +319,8 @@ router.post('/import', async (req: CircleRequest, res: Response) => {
                 continue;
             }
             await insert('vitals',
-                ['circle_id', 'type', 'value', 'value2', 'unit', 'measured_at', 'journal_entry_id', 'recorded_by_user', 'notes', 'created_at'],
-                [circleId, row.type, value, numberOrNull(row.value2), textOrNull(row.unit),
+                ['circle_id', 'type', 'value', 'value2', 'pulse', 'unit', 'measured_at', 'journal_entry_id', 'recorded_by_user', 'notes', 'created_at'],
+                [circleId, row.type, value, numberOrNull(row.value2), numberOrNull(row.pulse), textOrNull(row.unit),
                     row.measured_at ?? tsOrNow(row.created_at),
                     mapOrNull(journalMap, row.journal_entry_id),
                     await userOrNull(row.recorded_by_user),

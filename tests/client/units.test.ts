@@ -16,7 +16,7 @@ describe('unites affichees', () => {
     it('donne les unites metriques par defaut', () => {
         expect(displayUnit('weight', 'metric')).toBe('kg');
         expect(displayUnit('temperature', 'metric')).toBe('°C');
-        expect(displayUnit('glucose', 'metric')).toBe('g/L');
+        expect(displayUnit('glucose', 'metric')).toBe('mg/dL');
         expect(displayUnit('bp', 'metric')).toBe('mmHg');
     });
 
@@ -30,9 +30,13 @@ describe('unites affichees', () => {
     });
 
     it('enregistre toujours dans l unite metrique', () => {
-        for (const type of TYPES) {
+        for (const type of TYPES.filter((type) => type !== 'glucose')) {
             expect(storageUnit(type), type).toBe(displayUnit(type, 'metric'));
         }
+        // Blutzucker: Anzeige in mg/dL, gespeichert in g/L.
+        expect(storageUnit('glucose')).toBe('g/L');
+        expect(toDisplayValue('glucose', 1.04, 'metric')).toBeCloseTo(104, 6);
+        expect(toStorageValue('glucose', 104, 'metric')).toBeCloseTo(1.04, 6);
     });
 });
 
@@ -79,7 +83,7 @@ describe('conversions', () => {
 
 describe('mise en forme', () => {
     it('arrondit a ce qui se lit, pas a ce qui se calcule', () => {
-        expect(decimalsFor('glucose', 'metric')).toBe(2);
+        expect(decimalsFor('glucose', 'metric')).toBe(0);
         expect(decimalsFor('glucose', 'imperial')).toBe(0);
         expect(decimalsFor('bp', 'metric')).toBe(0);
         expect(formatValue('glucose', 1.04, 'imperial', 'en')).toBe('104');
@@ -97,7 +101,7 @@ describe('mise en forme', () => {
 
     it('prepare un champ de saisie sans trainee de decimales', () => {
         expect(toInputValue('weight', 68.0388554, 'imperial')).toBe('150');
-        expect(toInputValue('glucose', 1.04, 'metric')).toBe('1.04');
+        expect(toInputValue('glucose', 1.04, 'metric')).toBe('104');
         expect(toInputValue('weight', null, 'imperial')).toBe('');
         expect(toInputValue('weight', Number.NaN, 'metric')).toBe('');
     });

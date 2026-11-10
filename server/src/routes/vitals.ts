@@ -106,7 +106,18 @@ interface ThresholdRow {
     max_value: number | null;
     min_value2: number | null;
     max_value2: number | null;
+    min_pulse?: number | null;
+    max_pulse?: number | null;
 }
+
+const THRESHOLD_COLUMNS = 'type, min_value, max_value, min_value2, max_value2, min_pulse, max_pulse';
+
+/** Puls nur beim Blutdruck: leer ist erlaubt, sonst eine Zahl groesser 0. */
+const parsePulse = (raw: unknown): number | null | 'invalid' => {
+    if (raw === undefined || raw === null || raw === '') return null;
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : 'invalid';
+};
 
 /** Libelles serveur des constantes, pour le texte des notifications. */
 const VITAL_LABELS: Record<string, Record<Lang, string>> = {
@@ -128,13 +139,18 @@ const num = (raw: unknown): number | null => {
 export const outOfRange = (
     threshold: ThresholdRow,
     value: number,
-    value2: number | null
+    value2: number | null,
+    pulse: number | null = null
 ): 'low' | 'high' | null => {
     if (threshold.min_value !== null && value < Number(threshold.min_value)) return 'low';
     if (threshold.max_value !== null && value > Number(threshold.max_value)) return 'high';
     if (value2 !== null) {
         if (threshold.min_value2 !== null && value2 < Number(threshold.min_value2)) return 'low';
         if (threshold.max_value2 !== null && value2 > Number(threshold.max_value2)) return 'high';
+    }
+    if (pulse !== null) {
+        if (threshold.min_pulse != null && pulse < Number(threshold.min_pulse)) return 'low';
+        if (threshold.max_pulse != null && pulse > Number(threshold.max_pulse)) return 'high';
     }
     return null;
 };
@@ -146,7 +162,8 @@ export async function notifyOutOfRange(
     value: number,
     value2: number | null,
     direction: 'low' | 'high',
-    vitalId: string
+    vitalId: string,
+    pulse: number | null = null
 ): Promise<void> {
     const [{ rows: members }, { rows: recipientRows }, settings] = await Promise.all([
         query(
@@ -161,9 +178,14 @@ export async function notifyOutOfRange(
     const who = (recipientRows[0]?.first_name as string | undefined)?.trim() ?? '';
     // La mesure est stockee en metrique : on la lit dans le systeme du cercle, avec
     // son unite ("150 lb", pas "68.04"), et les nombres dans la langue de chacun.
-    const readingFor = (language: string): string => (isVitalType(type)
-        ? formatVital(type, value, value2, settings.unit_system, numberLocale(language))
-        : (value2 !== null ? `${value}/${value2}` : String(value)));
+    const readingFor = (language: string): string => {
+        const base = isVitalType(type)
+            ? formatVital(type, value, value2, settings.unit_system, numberLocale(language))
+            : (value2 !== null ? `${value}/${value2}` : String(value));
+        if (pulse === null) return base;
+        const word = pick(pickLang(language), { fr: 'pouls', en: 'pulse', es: 'pulso', de: 'Puls' });
+        return `${base}, ${word} ${pulse.toLocaleString(numberLocale(language))}/min`;
+    };
 
     await Promise.all((members as Array<{ user_id: string; language: string }>).map((member) => {
         const lang = pickLang(member.language);
@@ -199,7 +221,7 @@ export async function notifyOutOfRange(
 router.get('/thresholds', async (req: CircleRequest, res: Response) => {
     try {
         const result = await query(
-            'SELECT type, min_value, max_value, min_value2, max_value2 FROM vital_thresholds WHERE circle_id = $1 ORDER BY type',
+            `SELECT ${THRESHOLD_COLUMNS} FROM vital_thresholds WHERE circle_id = $1 ORDER BY type`,
             [req.circleId]
         );
         res.json({ success: true, data: result.rows });
@@ -219,30 +241,39 @@ router.put('/thresholds', requireRole('admin', 'family'), async (req: CircleRequ
         if (!VITAL_TYPES.includes(type)) {
             return res.status(400).json({ success: false, error: t(lang, 'vitals.thresholdType') });
         }
-        const bounds = ['min_value', 'max_value', 'min_value2', 'max_value2'].map((key) => num(req.body?.[key]));
+        const bounds = ['min_value', 'max_value', 'min_value2', 'max_value2', 'min_pulse', 'max_pulse'].map((key) =>
+            num(req.body?.[key])
+        );
         if (bounds.some((b) => Number.isNaN(b))) {
             return res.status(400).json({ success: false, error: t(lang, 'vitals.thresholdInvalid') });
         }
         const [minV, maxV, minV2, maxV2] = bounds;
-        if ((minV !== null && maxV !== null && minV >= maxV) || (minV2 !== null && maxV2 !== null && minV2 >= maxV2)) {
+        // Puls-Bereich gibt es nur beim Blutdruck.
+        const [minP, maxP] = type === 'bp' ? [bounds[4], bounds[5]] : [null, null];
+        if (
+            (minV !== null && maxV !== null && minV >= maxV) ||
+            (minV2 !== null && maxV2 !== null && minV2 >= maxV2) ||
+            (minP !== null && maxP !== null && minP >= maxP)
+        ) {
             return res.status(400).json({ success: false, error: t(lang, 'vitals.thresholdInvalid') });
         }
 
-        if (bounds.every((b) => b === null)) {
+        if ([minV, maxV, minV2, maxV2, minP, maxP].every((b) => b === null)) {
             await query('DELETE FROM vital_thresholds WHERE circle_id = $1 AND type = $2', [req.circleId, type]);
             await broadcastToCircle(req.circleId!, { type: 'update', entity: 'vitals', action: 'updated' });
             return res.json({ success: true, data: null });
         }
 
         const result = await query(
-            `INSERT INTO vital_thresholds (circle_id, type, min_value, max_value, min_value2, max_value2)
-             VALUES ($1, $2, $3, $4, $5, $6)
+            `INSERT INTO vital_thresholds (circle_id, type, min_value, max_value, min_value2, max_value2, min_pulse, max_pulse)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
              ON CONFLICT (circle_id, type) DO UPDATE
                SET min_value = EXCLUDED.min_value, max_value = EXCLUDED.max_value,
                    min_value2 = EXCLUDED.min_value2, max_value2 = EXCLUDED.max_value2,
+                   min_pulse = EXCLUDED.min_pulse, max_pulse = EXCLUDED.max_pulse,
                    updated_at = CURRENT_TIMESTAMP
-             RETURNING type, min_value, max_value, min_value2, max_value2`,
-            [req.circleId, type, minV, maxV, minV2, maxV2]
+             RETURNING ${THRESHOLD_COLUMNS}`,
+            [req.circleId, type, minV, maxV, minV2, maxV2, minP, maxP]
         );
         await broadcastToCircle(req.circleId!, { type: 'update', entity: 'vitals', action: 'updated' });
         res.json({ success: true, data: result.rows[0] });
@@ -254,11 +285,16 @@ router.put('/thresholds', requireRole('admin', 'family'), async (req: CircleRequ
 
 router.post('/', requireHealthWriter, async (req: CircleRequest, res: Response) => {
     try {
-        const { type, value, value2, unit, measured_at, notes } = req.body;
+        const { type, value, value2, pulse, unit, measured_at, notes } = req.body;
 
         if (typeof type !== 'string' || !VITAL_TYPES.includes(type)) {
             return res.status(400).json({ success: false, error: 'Invalid vital type' });
         }
+        const parsedPulse = parsePulse(pulse);
+        if (parsedPulse === 'invalid') {
+            return res.status(400).json({ success: false, error: 'Invalid pulse' });
+        }
+        const numPulse = type === 'bp' ? parsedPulse : null;
         // Fork: nur ausgewaehlte Messwerte duerfen erfasst werden.
         if (!isVitalTypeEnabled(await loadCircleSettings(req.circleId!), type)) {
             return res.status(403).json({ success: false, error: 'FEATURE_DISABLED' });
@@ -286,8 +322,8 @@ router.post('/', requireHealthWriter, async (req: CircleRequest, res: Response) 
         }
 
         const result = await query(
-            `INSERT INTO vitals (circle_id, type, value, value2, unit, measured_at, recorded_by_user, notes)
-             VALUES ($1, $2, $3, $4, $5, COALESCE($6, CURRENT_TIMESTAMP), $7, $8)
+            `INSERT INTO vitals (circle_id, type, value, value2, pulse, unit, measured_at, recorded_by_user, notes)
+             VALUES ($1, $2, $3, $4, $9, $5, COALESCE($6, CURRENT_TIMESTAMP), $7, $8)
              RETURNING *`,
             [
                 req.circleId,
@@ -298,6 +334,7 @@ router.post('/', requireHealthWriter, async (req: CircleRequest, res: Response) 
                 measuredAt,
                 req.userId,
                 typeof notes === 'string' && notes.trim() ? notes.trim() : null,
+                numPulse,
             ]
         );
 
@@ -305,14 +342,14 @@ router.post('/', requireHealthWriter, async (req: CircleRequest, res: Response) 
 
         // Hors de la plage fixee par la famille : on previent, sans bloquer la reponse.
         const thresholdResult = await query(
-            'SELECT type, min_value, max_value, min_value2, max_value2 FROM vital_thresholds WHERE circle_id = $1 AND type = $2',
+            `SELECT ${THRESHOLD_COLUMNS} FROM vital_thresholds WHERE circle_id = $1 AND type = $2`,
             [req.circleId, type]
         );
         const threshold = thresholdResult.rows[0] as ThresholdRow | undefined;
         if (threshold) {
-            const direction = outOfRange(threshold, numValue, numValue2);
+            const direction = outOfRange(threshold, numValue, numValue2, numPulse);
             if (direction) {
-                await notifyOutOfRange(req.circleId!, type, numValue, numValue2, direction, result.rows[0].id);
+                await notifyOutOfRange(req.circleId!, type, numValue, numValue2, direction, result.rows[0].id, numPulse);
             }
         }
 
@@ -338,7 +375,7 @@ router.put('/:id', async (req: CircleRequest, res: Response) => {
             return res.status(403).json({ success: false, error: 'Insufficient role' });
         }
 
-        const { type, value, value2, unit, measured_at, notes } = req.body;
+        const { type, value, value2, pulse, unit, measured_at, notes } = req.body;
         const fields: string[] = [];
         const values: unknown[] = [];
         let idx = 1;
@@ -375,6 +412,15 @@ router.put('/:id', async (req: CircleRequest, res: Response) => {
                 fields.push(`value2 = $${idx++}`);
                 values.push(numValue2);
             }
+        }
+
+        if (pulse !== undefined) {
+            const parsedPulse = parsePulse(pulse);
+            if (parsedPulse === 'invalid') {
+                return res.status(400).json({ success: false, error: 'Invalid pulse' });
+            }
+            fields.push(`pulse = $${idx++}`);
+            values.push(parsedPulse);
         }
 
         if (unit !== undefined) {

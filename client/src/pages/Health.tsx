@@ -53,6 +53,8 @@ interface Vital {
     type: VitalType;
     value: number | string;
     value2: number | string | null;
+    /** Puls pro Minute, nur beim Blutdruck. */
+    pulse?: number | string | null;
     unit: string | null;
     measured_at: string;
     recorded_by_user: string | null;
@@ -66,6 +68,8 @@ interface VitalThreshold {
     max_value: number | string | null;
     min_value2: number | string | null;
     max_value2: number | string | null;
+    min_pulse?: number | string | null;
+    max_pulse?: number | string | null;
 }
 
 /** Les memes bornes, normalisees en nombres pour les comparaisons. */
@@ -74,6 +78,8 @@ interface VitalRange {
     max: number | null;
     min2: number | null;
     max2: number | null;
+    minP: number | null;
+    maxP: number | null;
 }
 
 /** Saisie en cours des bornes, gardee en chaines pour accepter la virgule. */
@@ -82,6 +88,8 @@ interface ThresholdDraft {
     max: string;
     min2: string;
     max2: string;
+    minP: string;
+    maxP: string;
 }
 
 const VITAL_TYPES: VitalType[] = ['weight', 'bp', 'pain', 'mood', 'temperature', 'glucose'];
@@ -126,12 +134,12 @@ const readUnitSystem = (settings: unknown): UnitSystem => {
 };
 
 const emptyDrafts = (): Record<VitalType, ThresholdDraft> => ({
-    weight: { min: '', max: '', min2: '', max2: '' },
-    bp: { min: '', max: '', min2: '', max2: '' },
-    pain: { min: '', max: '', min2: '', max2: '' },
-    mood: { min: '', max: '', min2: '', max2: '' },
-    temperature: { min: '', max: '', min2: '', max2: '' },
-    glucose: { min: '', max: '', min2: '', max2: '' },
+    weight: { min: '', max: '', min2: '', max2: '', minP: '', maxP: '' },
+    bp: { min: '', max: '', min2: '', max2: '', minP: '', maxP: '' },
+    pain: { min: '', max: '', min2: '', max2: '', minP: '', maxP: '' },
+    mood: { min: '', max: '', min2: '', max2: '', minP: '', maxP: '' },
+    temperature: { min: '', max: '', min2: '', max2: '', minP: '', maxP: '' },
+    glucose: { min: '', max: '', min2: '', max2: '', minP: '', maxP: '' },
 });
 
 /** Couleur d'un jeton CSS (triplet RGB) résolue pour les attributs SVG de recharts. */
@@ -174,6 +182,7 @@ const Health: React.FC = () => {
     const [formType, setFormType] = useState<VitalType>(firstType);
     const [formValue, setFormValue] = useState('');
     const [formValue2, setFormValue2] = useState('');
+    const [formPulse, setFormPulse] = useState('');
     const [formMeasuredAt, setFormMeasuredAt] = useState(() => toLocalInputValue(new Date()));
     const [formNotes, setFormNotes] = useState('');
     const [saving, setSaving] = useState(false);
@@ -250,6 +259,7 @@ const Health: React.FC = () => {
         setFormType('bp');
         setFormValue('');
         setFormValue2('');
+        setFormPulse('');
         setFormMeasuredAt(toLocalInputValue(new Date()));
         setFormNotes('');
         setDialogOpen(true);
@@ -272,6 +282,15 @@ const Health: React.FC = () => {
                 return;
             }
         }
+        // Puls ist freiwillig, aber wenn eingetragen, eine Zahl groesser 0.
+        let pulse: number | null = null;
+        if (formType === 'bp' && formPulse.trim()) {
+            pulse = parseLocaleNumber(formPulse);
+            if (!Number.isFinite(pulse) || pulse <= 0) {
+                setError(t('health:errors.pulseInvalid'));
+                return;
+            }
+        }
 
         setSaving(true);
         setError('');
@@ -284,6 +303,7 @@ const Health: React.FC = () => {
                 value2: value2 === null ? null : toStorageValue(formType, value2, unitSystem),
                 unit: storageUnit(formType),
             };
+            if (pulse !== null) payload.pulse = pulse;
             if (formMeasuredAt) payload.measured_at = new Date(formMeasuredAt).toISOString();
             if (formNotes.trim()) payload.notes = formNotes.trim();
 
@@ -324,6 +344,8 @@ const Health: React.FC = () => {
                 max: toBound(row.max_value),
                 min2: toBound(row.min_value2),
                 max2: toBound(row.max_value2),
+                minP: toBound(row.min_pulse),
+                maxP: toBound(row.max_pulse),
             });
         }
         return map;
@@ -340,6 +362,9 @@ const Health: React.FC = () => {
                 max: toInputValue(type, range.max, unitSystem),
                 min2: toInputValue(type, range.min2, unitSystem),
                 max2: toInputValue(type, range.max2, unitSystem),
+                // Puls hat keine Einheitenumrechnung.
+                minP: range.minP === null ? '' : formatNumber(range.minP),
+                maxP: range.maxP === null ? '' : formatNumber(range.maxP),
             };
         });
         setDrafts(next);
@@ -355,7 +380,7 @@ const Health: React.FC = () => {
 
         const draft = drafts[type];
         // Un champ vide vaut « pas de borne »: le serveur retire la plage quand tout est vide.
-        const bounds = [draft.min, draft.max, draft.min2, draft.max2].map((raw) =>
+        const bounds = [draft.min, draft.max, draft.min2, draft.max2, draft.minP, draft.maxP].map((raw) =>
             raw.trim() ? parseLocaleNumber(raw) : null
         );
         if (bounds.some((bound) => bound !== null && !Number.isFinite(bound))) {
@@ -364,9 +389,10 @@ const Health: React.FC = () => {
         }
         // Les plages sont comparees a des mesures metriques: on les convertit
         // avant l'envoi, jamais a la lecture.
-        const [minValue, maxValue, minValue2, maxValue2] = bounds.map((bound) =>
-            bound === null ? null : toStorageValue(type, bound, unitSystem)
-        );
+        const [minValue, maxValue, minValue2, maxValue2] = bounds
+            .slice(0, 4)
+            .map((bound) => (bound === null ? null : toStorageValue(type, bound, unitSystem)));
+        const [minPulse, maxPulse] = bounds.slice(4);
 
         setSavingType(type);
         setError('');
@@ -378,6 +404,8 @@ const Health: React.FC = () => {
                 // Seule la tension porte une seconde valeur, la diastolique.
                 min_value2: type === 'bp' ? minValue2 : null,
                 max_value2: type === 'bp' ? maxValue2 : null,
+                min_pulse: type === 'bp' ? minPulse : null,
+                max_pulse: type === 'bp' ? maxPulse : null,
             });
             showToast({ title: t('health:toasts.thresholdSaved') });
             await refreshAll(false);
@@ -401,12 +429,26 @@ const Health: React.FC = () => {
         if (vital.type !== 'bp') return false;
 
         const value2 = toBound(vital.value2);
-        if (value2 === null) return false;
-        if (range.min2 !== null && value2 < range.min2) return true;
-        return range.max2 !== null && value2 > range.max2;
+        if (value2 !== null) {
+            if (range.min2 !== null && value2 < range.min2) return true;
+            if (range.max2 !== null && value2 > range.max2) return true;
+        }
+        const pulse = toBound(vital.pulse);
+        if (pulse === null) return false;
+        if (range.minP !== null && pulse < range.minP) return true;
+        return range.maxP !== null && pulse > range.maxP;
     };
 
-    const rangeLabel = (type: VitalType, min: number | null, max: number | null): string => {
+    const rangeLabel = (type: VitalType, min: number | null, max: number | null, pulse = false): string => {
+        if (pulse) {
+            const unit = t('health:pulseUnit');
+            if (min !== null && max !== null) {
+                return t('health:thresholds.between', { min: formatNumber(min), max: formatNumber(max), unit });
+            }
+            if (min !== null) return t('health:thresholds.minOnly', { min: formatNumber(min), unit });
+            if (max !== null) return t('health:thresholds.maxOnly', { max: formatNumber(max), unit });
+            return t('health:thresholds.none');
+        }
         const unit = displayUnit(type, unitSystem);
         // Les bornes viennent du serveur en metrique: elles se lisent converties.
         const shown = (bound: number) =>
@@ -429,7 +471,11 @@ const Health: React.FC = () => {
         const value = Number(vital.value);
         const raw2 = vital.value2 !== null && vital.value2 !== undefined ? Number(vital.value2) : null;
         const value2 = raw2 !== null && Number.isFinite(raw2) ? raw2 : null;
-        return formatVital(vital.type, value, value2, unitSystem, intlLocale());
+        const text = formatVital(vital.type, value, value2, unitSystem, intlLocale());
+        const pulse = toBound(vital.pulse);
+        return vital.type === 'bp' && pulse !== null
+            ? `${text} · ${t('health:pulseShort', { value: formatNumber(pulse) })}`
+            : text;
     };
 
     // L'infobulle lit un point de la courbe, deja converti: on l'habille de son
@@ -462,10 +508,23 @@ const Health: React.FC = () => {
                         raw2 !== null && Number.isFinite(raw2)
                             ? toDisplayValue(vital.type, raw2, unitSystem)
                             : null,
+                    pulse: toBound(vital.pulse),
                 };
             }),
         [series, unitSystem]
     );
+
+    // Tabelle: gleiche Auswahl wie der Verlauf, neueste Messung zuerst.
+    const tableRows = useMemo(() => [...series].reverse(), [series]);
+
+    const shownNumber = (type: VitalType, raw: number | string | null): string => {
+        if (raw === null || raw === undefined) return '–';
+        const value = Number(raw);
+        if (!Number.isFinite(value)) return '–';
+        return formatNumber(toDisplayValue(type, value, unitSystem), {
+            maximumFractionDigits: decimalsFor(type, unitSystem),
+        });
+    };
 
     // La couleur seule ne suffit pas: le repere porte aussi un texte lu par les lecteurs d'ecran.
     const outOfRangeTag = (
@@ -478,6 +537,26 @@ const Health: React.FC = () => {
 
     const primaryColor = themeColor('--primary', '#3e6b54');
     const borderColor = themeColor('--border', '#e7e4df');
+    const pulseColor = themeColor('--info', '#44617c');
+    const hasPulse = chartType === 'bp' && chartData.some((row) => row.pulse !== null);
+
+    // Jeder Messpunkt als Kreuz: auch ohne Farbe erkennbar, auch bei dicht liegenden Punkten.
+    const crossDot = (color: string) => (props: { cx?: number | null; cy?: number | null; index?: number; dataKey?: unknown }) => {
+        const { cx, cy, index } = props;
+        const key = `cross-${String(props.dataKey)}-${index ?? 0}`;
+        if (typeof cx !== 'number' || typeof cy !== 'number') return <g key={key} />;
+        const s = 4;
+        return (
+            <path
+                key={key}
+                d={`M${cx - s},${cy - s}L${cx + s},${cy + s}M${cx - s},${cy + s}L${cx + s},${cy - s}`}
+                stroke={color}
+                strokeWidth={2}
+                strokeLinecap="round"
+                fill="none"
+            />
+        );
+    };
 
     // Données de santé: accès refusé au rôle voisin (matrice de la SPEC).
     if (myRole === 'neighbor') {
@@ -574,6 +653,116 @@ const Health: React.FC = () => {
                 </div>
             )}
 
+            {/* Messwerte als Tabelle, folgt der Auswahl im Verlauf */}
+            <ChartCard
+                title={t('health:table.title')}
+            >
+                {tableRows.length === 0 ? (
+                    <p className="py-6 text-center text-body text-muted-foreground">{t('health:chart.empty')}</p>
+                ) : (
+                    <>
+                        <div className="max-h-[480px] overflow-auto rounded-card border border-border-strong">
+                            <table className="w-full border-collapse text-left text-body">
+                                <caption className="sr-only">
+                                    {t('health:table.caption', { type: t(`health:vitalTypes.${chartType}`) })}
+                                </caption>
+                                <thead className="sticky top-0 z-10 bg-muted">
+                                    <tr>
+                                        <th scope="col" className="whitespace-nowrap px-3 py-3 text-caption font-semibold text-foreground">
+                                            {t('health:table.date')}
+                                        </th>
+                                        <th scope="col" className="whitespace-nowrap px-3 py-3 text-caption font-semibold text-foreground">
+                                            {t('health:table.time')}
+                                        </th>
+                                        {chartType === 'bp' ? (
+                                            <>
+                                                <th scope="col" className="whitespace-nowrap px-3 py-3 text-right text-caption font-semibold text-foreground">
+                                                    {t('health:chart.systolic')} ({displayUnit('bp', unitSystem)})
+                                                </th>
+                                                <th scope="col" className="whitespace-nowrap px-3 py-3 text-right text-caption font-semibold text-foreground">
+                                                    {t('health:chart.diastolic')} ({displayUnit('bp', unitSystem)})
+                                                </th>
+                                                <th scope="col" className="whitespace-nowrap px-3 py-3 text-right text-caption font-semibold text-foreground">
+                                                    {t('health:chart.pulse')} ({t('health:pulseUnit')})
+                                                </th>
+                                            </>
+                                        ) : (
+                                            <th scope="col" className="whitespace-nowrap px-3 py-3 text-right text-caption font-semibold text-foreground">
+                                                {t('health:table.value')} ({displayUnit(chartType, unitSystem)})
+                                            </th>
+                                        )}
+                                        <th scope="col" className="px-3 py-3 text-caption font-semibold text-foreground">
+                                            {t('health:table.notes')}
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {tableRows.map((vital) => {
+                                        const when = new Date(vital.measured_at);
+                                        const outOfRange = isOutOfRange(vital);
+                                        return (
+                                            <tr
+                                                key={vital.id}
+                                                className={cn('border-t border-border', outOfRange && 'bg-warning/5')}
+                                            >
+                                                <td className="whitespace-nowrap px-3 py-3">
+                                                    {when.toLocaleDateString(intlLocale(), {
+                                                        weekday: 'short',
+                                                        day: 'numeric',
+                                                        month: 'short',
+                                                        year: 'numeric',
+                                                    })}
+                                                </td>
+                                                <td className="whitespace-nowrap px-3 py-3">
+                                                    {when.toLocaleTimeString(intlLocale(), {
+                                                        hour: '2-digit',
+                                                        minute: '2-digit',
+                                                    })}
+                                                </td>
+                                                <td
+                                                    className={cn(
+                                                        'whitespace-nowrap px-3 py-3 text-right font-semibold tabular-nums',
+                                                        outOfRange ? 'text-warning' : 'text-foreground'
+                                                    )}
+                                                >
+                                                    {shownNumber(vital.type, vital.value)}
+                                                </td>
+                                                {chartType === 'bp' ? (
+                                                    <td
+                                                        className={cn(
+                                                            'whitespace-nowrap px-3 py-3 text-right font-semibold tabular-nums',
+                                                            outOfRange ? 'text-warning' : 'text-foreground'
+                                                        )}
+                                                    >
+                                                        {shownNumber(vital.type, vital.value2)}
+                                                    </td>
+                                                ) : null}
+                                                {chartType === 'bp' ? (
+                                                    <td
+                                                        className={cn(
+                                                            'whitespace-nowrap px-3 py-3 text-right font-semibold tabular-nums',
+                                                            outOfRange ? 'text-warning' : 'text-foreground'
+                                                        )}
+                                                    >
+                                                        {toBound(vital.pulse) === null ? '–' : formatNumber(toBound(vital.pulse)!)}
+                                                    </td>
+                                                ) : null}
+                                                <td className="min-w-[10rem] px-3 py-3 text-muted-foreground">
+                                                    <span className="flex flex-wrap items-center gap-2">
+                                                        {outOfRange ? outOfRangeTag : null}
+                                                        {vital.notes ? <span>{vital.notes}</span> : null}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </>
+                )}
+            </ChartCard>
+
             {/* Courbe dans le temps */}
             <ChartCard
                 title={t('health:chart.title')}
@@ -642,31 +831,51 @@ const Health: React.FC = () => {
                                     labelFormatter={(value) =>
                                         format(new Date(Number(value)), 'd MMM yyyy HH:mm', { locale: dateLocale() })
                                     }
-                                    formatter={(value) => formatShown(chartType, Number(value))}
+                                    formatter={(value, name) =>
+                                        name === t('health:chart.pulse')
+                                            ? `${formatNumber(Number(value))} ${t('health:pulseUnit')}`
+                                            : formatShown(chartType, Number(value))
+                                    }
                                     contentStyle={{ fontSize: 12, borderRadius: 8 }}
                                 />
                                 {chartType === 'bp' && <Legend wrapperStyle={{ fontSize: 12 }} />}
                                 <Line
-                                    type="monotone"
+                                    type="linear"
                                     dataKey="value"
                                     name={chartType === 'bp' ? t('health:chart.systolic') : t(`health:vitalTypes.${chartType}`)}
                                     stroke={primaryColor}
                                     strokeWidth={2}
-                                    dot={false}
-                                    activeDot={{ r: 4 }}
+                                    dot={crossDot(primaryColor)}
+                                    activeDot={{ r: 5 }}
                                     connectNulls
+                                    isAnimationActive={false}
                                 />
                                 {chartType === 'bp' && (
                                     <Line
-                                        type="monotone"
+                                        type="linear"
                                         dataKey="value2"
                                         name={t('health:chart.diastolic')}
                                         stroke={primaryColor}
                                         strokeWidth={2}
                                         strokeDasharray="5 4"
-                                        dot={false}
-                                        activeDot={{ r: 4 }}
+                                        dot={crossDot(primaryColor)}
+                                        activeDot={{ r: 5 }}
                                         connectNulls
+                                        isAnimationActive={false}
+                                    />
+                                )}
+                                {hasPulse && (
+                                    <Line
+                                        type="linear"
+                                        dataKey="pulse"
+                                        name={t('health:chart.pulse')}
+                                        stroke={pulseColor}
+                                        strokeWidth={2}
+                                        strokeDasharray="2 4"
+                                        dot={crossDot(pulseColor)}
+                                        activeDot={{ r: 5 }}
+                                        connectNulls
+                                        isAnimationActive={false}
                                     />
                                 )}
                             </LineChart>
@@ -773,6 +982,10 @@ const Health: React.FC = () => {
                                                 {t('health:thresholds.diastolicPrefix')}{' '}
                                                 {rangeLabel(type, range?.min2 ?? null, range?.max2 ?? null)}
                                             </p>
+                                            <p>
+                                                {t('health:thresholds.pulsePrefix')}{' '}
+                                                {rangeLabel(type, range?.minP ?? null, range?.maxP ?? null, true)}
+                                            </p>
                                         </>
                                     ) : (
                                         <p>{rangeLabel(type, range?.min ?? null, range?.max ?? null)}</p>
@@ -826,6 +1039,26 @@ const Health: React.FC = () => {
                                                     inputMode="decimal"
                                                     value={draft.max2}
                                                     onChange={(e) => updateDraft(type, 'max2', e.target.value)}
+                                                />
+                                            </div>
+                                        )}
+                                        {type === 'bp' && (
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <Input
+                                                    id={`threshold-${type}-minP`}
+                                                    label={t('health:thresholds.minPulseLabel')}
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    value={draft.minP}
+                                                    onChange={(e) => updateDraft(type, 'minP', e.target.value)}
+                                                />
+                                                <Input
+                                                    id={`threshold-${type}-maxP`}
+                                                    label={t('health:thresholds.maxPulseLabel')}
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    value={draft.maxP}
+                                                    onChange={(e) => updateDraft(type, 'maxP', e.target.value)}
                                                 />
                                             </div>
                                         )}
@@ -894,6 +1127,15 @@ const Health: React.FC = () => {
                             />
                         )}
                     </div>
+                    {formType === 'bp' && (
+                        <Input
+                            label={`${t('health:form.pulseLabel')} (${t('health:pulseUnit')})`}
+                            type="text"
+                            inputMode="numeric"
+                            value={formPulse}
+                            onChange={(e) => setFormPulse(e.target.value)}
+                        />
+                    )}
                     <Input
                         label={t('health:form.dateLabel')}
                         type="datetime-local"

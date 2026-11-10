@@ -352,6 +352,10 @@ export const runMigrations = async () => {
         // un des quatre types francais.
         `ALTER TABLE aid_records DROP CONSTRAINT IF EXISTS aid_records_type_check;`,
         `ALTER TABLE aid_records ALTER COLUMN type TYPE VARCHAR(40);`,
+        // Fork: Puls bei der Blutdruckmessung, mit eigenem Normalbereich
+        `ALTER TABLE vitals ADD COLUMN IF NOT EXISTS pulse NUMERIC(8, 2);`,
+        `ALTER TABLE vital_thresholds ADD COLUMN IF NOT EXISTS min_pulse NUMERIC(8, 2);`,
+        `ALTER TABLE vital_thresholds ADD COLUMN IF NOT EXISTS max_pulse NUMERIC(8, 2);`,
         // Fork: einmalige Erinnerung bei niedrigem Vorrat (lib/stockAlerts.ts)
         `ALTER TABLE medications ADD COLUMN IF NOT EXISTS stock_alert_sent_at TIMESTAMP;`,
         // Fork: Meldung bei fehlgeschlagener Sicherung (lib/backupAlerts.ts), eine Zeile

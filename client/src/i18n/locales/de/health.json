@@ -11,7 +11,7 @@
   },
   "chart": {
     "title": "Verlauf",
-    "subtitle": "Kurve über den gewählten Zeitraum",
+    "subtitle": "Linie über den gewählten Zeitraum, jedes Kreuz ist eine Messung",
     "empty": "Keine Messungen in diesem Zeitraum.",
     "systolic": "Systolisch",
     "diastolic": "Diastolisch",
@@ -19,7 +19,8 @@
       "30": "30 Tage",
       "90": "90 Tage",
       "365": "1 Jahr"
-    }
+    },
+    "pulse": "Puls"
   },
   "recent": {
     "title": "Neueste Messungen",
@@ -44,7 +45,10 @@
     "unitHint": "Grenzen in {{unit}}.",
     "clearHint": "Leeren Sie die Felder, um den Bereich zu entfernen.",
     "outOfRange": "Außerhalb des Bereichs",
-    "outOfRangeLabel": "Messung außerhalb des Normalbereichs"
+    "outOfRangeLabel": "Messung außerhalb des Normalbereichs",
+    "pulsePrefix": "Puls:",
+    "minPulseLabel": "Puls Minimum",
+    "maxPulseLabel": "Puls Maximum"
   },
   "vitalTypes": {
     "weight": "Gewicht",
@@ -62,7 +66,8 @@
     "systolicLabel": "Systolisch",
     "diastolicLabel": "Diastolisch",
     "dateLabel": "Datum und Uhrzeit",
-    "notesLabel": "Notizen (optional)"
+    "notesLabel": "Notizen (optional)",
+    "pulseLabel": "Puls (freiwillig)"
   },
   "actions": {
     "delete": "Messung löschen"
@@ -79,10 +84,22 @@
     "delete": "Die Messung konnte nicht gelöscht werden.",
     "valueRequired": "Bitte geben Sie einen gültigen Zahlenwert ein.",
     "threshold": "Der Normalbereich konnte nicht gespeichert werden.",
-    "thresholdInvalid": "Bitte geben Sie gültige Zahlen als Grenzen ein."
+    "thresholdInvalid": "Bitte geben Sie gültige Zahlen als Grenzen ein.",
+    "pulseInvalid": "Bitte geben Sie den Puls als Zahl ein oder lassen Sie das Feld leer."
   },
   "restricted": {
     "title": "Eingeschränkter Zugriff",
     "description": "Die Gesundheitswerte sind für Familie und Fachkräfte des Kreises sichtbar."
-  }
+  },
+  "table": {
+    "title": "Messwerte als Tabelle",
+    "caption": "Messungen {{type}}, neueste zuerst",
+    "date": "Datum",
+    "time": "Uhrzeit",
+    "value": "Wert",
+    "notes": "Notiz",
+    "pulse": "Puls"
+  },
+  "pulseUnit": "/min",
+  "pulseShort": "Puls {{value}}/min"
 }

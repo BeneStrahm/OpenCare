@@ -19,7 +19,8 @@
       "30": "30 días",
       "90": "90 días",
       "365": "1 año"
-    }
+    },
+    "pulse": "Pulso"
   },
   "recent": {
     "title": "Mediciones recientes",
@@ -44,7 +45,10 @@
     "unitHint": "Límites en {{unit}}.",
     "clearHint": "Vacíe los campos para quitar el rango.",
     "outOfRange": "Fuera de rango",
-    "outOfRangeLabel": "Medición fuera del rango normal"
+    "outOfRangeLabel": "Medición fuera del rango normal",
+    "pulsePrefix": "Pulso:",
+    "minPulseLabel": "Pulso mínimo",
+    "maxPulseLabel": "Pulso máximo"
   },
   "vitalTypes": {
     "weight": "Peso",
@@ -62,7 +66,8 @@
     "systolicLabel": "Sistólica",
     "diastolicLabel": "Diastólica",
     "dateLabel": "Fecha y hora",
-    "notesLabel": "Notas (opcional)"
+    "notesLabel": "Notas (opcional)",
+    "pulseLabel": "Pulso (opcional)"
   },
   "actions": {
     "delete": "Eliminar la medición"
@@ -79,10 +84,22 @@
     "delete": "No se puede eliminar la medición.",
     "valueRequired": "Escriba un valor numérico válido.",
     "threshold": "No se puede guardar el rango normal.",
-    "thresholdInvalid": "Escriba unos límites numéricos válidos."
+    "thresholdInvalid": "Escriba unos límites numéricos válidos.",
+    "pulseInvalid": "Introduzca el pulso como número o deje el campo vacío."
   },
   "restricted": {
     "title": "Acceso restringido",
     "description": "El seguimiento de salud de su familiar lo ven la familia y los profesionales del círculo."
-  }
+  },
+  "table": {
+    "title": "Mediciones en tabla",
+    "caption": "Mediciones de {{type}}, las más recientes primero",
+    "date": "Fecha",
+    "time": "Hora",
+    "value": "Valor",
+    "notes": "Nota",
+    "pulse": "Pulso"
+  },
+  "pulseUnit": "/min",
+  "pulseShort": "Pulso {{value}}/min"
 }

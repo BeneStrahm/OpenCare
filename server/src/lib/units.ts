@@ -22,21 +22,22 @@ export const isVitalType = (value: unknown): value is VitalType =>
     typeof value === 'string' && VITAL_TYPES.includes(value);
 
 export const displayUnit = (type: VitalType, system: UnitSystem): string => {
+    // Fork: Blutzucker immer in mg/dL (in Deutschland ueblich), gespeichert bleibt g/L.
+    if (type === 'glucose') return 'mg/dL';
     if (system === 'imperial') {
         if (type === 'weight') return 'lb';
         if (type === 'temperature') return '°F';
-        if (type === 'glucose') return 'mg/dL';
     }
     switch (type) {
         case 'weight': return 'kg';
         case 'temperature': return '°C';
-        case 'glucose': return 'g/L';
         case 'bp': return 'mmHg';
         default: return '/10';
     }
 };
 
 export const toDisplayValue = (type: VitalType, metric: number, system: UnitSystem): number => {
+    if (type === 'glucose') return metric * MGDL_PER_GL;
     if (system !== 'imperial') return metric;
     if (type === 'weight') return metric * LB_PER_KG;
     if (type === 'temperature') return metric * 9 / 5 + 32;
@@ -47,7 +48,7 @@ export const toDisplayValue = (type: VitalType, metric: number, system: UnitSyst
 export const decimalsFor = (type: VitalType, system: UnitSystem): number => {
     if (type === 'bp' || type === 'pain' || type === 'mood') return 0;
     if (type === 'temperature') return 1;
-    if (type === 'glucose') return system === 'imperial' ? 0 : 2;
+    if (type === 'glucose') return 0;
     return 1;
 };
 

@@ -22,25 +22,26 @@ const MGDL_PER_GL = 100;
 
 /** Unite affichee, par type et par systeme. */
 export const displayUnit = (type: VitalType, system: UnitSystem): string => {
+    // Fork: Blutzucker immer in mg/dL (in Deutschland ueblich), gespeichert bleibt g/L.
+    if (type === 'glucose') return 'mg/dL';
     if (system === 'imperial') {
         if (type === 'weight') return 'lb';
         if (type === 'temperature') return '°F';
-        if (type === 'glucose') return 'mg/dL';
     }
     switch (type) {
         case 'weight': return 'kg';
         case 'temperature': return '°C';
-        case 'glucose': return 'g/L';
         case 'bp': return 'mmHg';
         default: return '/10';
     }
 };
 
 /** L'unite dans laquelle la mesure est enregistree, quelle que soit la saisie. */
-export const storageUnit = (type: VitalType): string => displayUnit(type, 'metric');
+export const storageUnit = (type: VitalType): string => (type === 'glucose' ? 'g/L' : displayUnit(type, 'metric'));
 
 /** Une valeur stockee, telle qu'on la montre dans le systeme choisi. */
 export const toDisplayValue = (type: VitalType, metric: number, system: UnitSystem): number => {
+    if (type === 'glucose') return metric * MGDL_PER_GL;
     if (system !== 'imperial') return metric;
     if (type === 'weight') return metric * LB_PER_KG;
     if (type === 'temperature') return metric * 9 / 5 + 32;
@@ -50,6 +51,7 @@ export const toDisplayValue = (type: VitalType, metric: number, system: UnitSyst
 
 /** Une valeur saisie par l'utilisateur, ramenee a ce qu'on enregistre. */
 export const toStorageValue = (type: VitalType, shown: number, system: UnitSystem): number => {
+    if (type === 'glucose') return shown / MGDL_PER_GL;
     if (system !== 'imperial') return shown;
     if (type === 'weight') return shown / LB_PER_KG;
     if (type === 'temperature') return (shown - 32) * 5 / 9;
@@ -65,7 +67,7 @@ export const toStorageValue = (type: VitalType, shown: number, system: UnitSyste
 export const decimalsFor = (type: VitalType, system: UnitSystem): number => {
     if (type === 'bp' || type === 'pain' || type === 'mood') return 0;
     if (type === 'temperature') return 1;
-    if (type === 'glucose') return system === 'imperial' ? 0 : 2;
+    if (type === 'glucose') return 0;
     return 1;
 };
 
