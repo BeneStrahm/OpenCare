@@ -149,7 +149,7 @@
     "items": {
       "emergency": "Emergency sheet",
       "meds": "Medications",
-      "health": "Enter a health value",
+      "health": "Readings",
       "visitors": "Who is coming today",
       "appointments": "Appointments today",
       "contacts": "Who I can call",
