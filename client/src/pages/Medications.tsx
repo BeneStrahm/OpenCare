@@ -304,6 +304,7 @@ const Medications: React.FC = () => {
     const [medications, setMedications] = useState<Medication[]>([]);
     const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
     const [showArchived, setShowArchived] = useState(false);
+    const [sortBy, setSortBy] = useState<'name' | 'time'>('name');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
@@ -1073,6 +1074,17 @@ const Medications: React.FC = () => {
             .join(', ');
     };
 
+    /** Sortierung im Medikamentenplan: nach Name oder nach der frühesten Uhrzeit (Bei Bedarf zuletzt). */
+    const firstTime = (med: Medication): string =>
+        med.prn || med.schedules.length === 0
+            ? '99:99'
+            : med.schedules.map((s) => s.time_of_day).sort()[0];
+    const sortedMedications = [...medications].sort((a, b) => {
+        const byName = a.name.localeCompare(b.name, intlLocale(), { sensitivity: 'base' });
+        if (sortBy === 'time') return firstTime(a).localeCompare(firstTime(b)) || byName;
+        return byName;
+    });
+
     const treatmentsSection = (
         <div className="space-y-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1085,12 +1097,25 @@ const Medications: React.FC = () => {
                     />
                     {t('medications:treatments.showArchived')}
                 </label>
-                {canWriteContent && (
-                    <Button onClick={openCreateMed}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        {t('medications:treatments.add')}
-                    </Button>
-                )}
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <div className="sm:w-48">
+                        <Select
+                            value={sortBy}
+                            onValueChange={(value) => setSortBy(value === 'time' ? 'time' : 'name')}
+                            ariaLabel={t('medications:treatments.sortBy')}
+                            options={[
+                                { value: 'name', label: t('medications:treatments.sortName') },
+                                { value: 'time', label: t('medications:treatments.sortTime') },
+                            ]}
+                        />
+                    </div>
+                    {canWriteContent && (
+                        <Button onClick={openCreateMed}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            {t('medications:treatments.add')}
+                        </Button>
+                    )}
+                </div>
             </div>
 
             {medications.length === 0 ? (
@@ -1105,7 +1130,7 @@ const Medications: React.FC = () => {
                 </Card>
             ) : (
                 <ul className="space-y-3">
-                    {medications.map((med) => {
+                    {sortedMedications.map((med) => {
                         const details = [
                             med.with_food ? t(`medications:withFood.${med.with_food}`) : null,
                             med.instructions,
@@ -1121,9 +1146,17 @@ const Medications: React.FC = () => {
                                     <CardContent className="space-y-4 p-4 sm:p-5">
                                         <div className="flex items-start gap-3">
                                             <div className="min-w-0 flex-1">
-                                                <h3 className="text-h1 text-foreground">{med.name}</h3>
-                                                {subline.length > 0 && (
-                                                    <p className="text-body text-muted-foreground">{subline.join(' · ')}</p>
+                                                <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                                                    <h3 className="text-h1 text-foreground">{med.name}</h3>
+                                                    {subline.length > 0 && (
+                                                        <p className="text-body text-muted-foreground">{subline.join(' · ')}</p>
+                                                    )}
+                                                </div>
+                                                {details.length > 0 && (
+                                                    <p className="mt-1 text-body text-foreground">
+                                                        <span className="font-semibold">{t('medications:treatments.notes')}</span>{' '}
+                                                        {details.join(' · ')}
+                                                    </p>
                                                 )}
                                                 {(med.prn || !med.active) && (
                                                     <p className="mt-1 flex flex-wrap gap-1">
@@ -1180,7 +1213,7 @@ const Medications: React.FC = () => {
                                                 {MOMENTS.map((moment) => {
                                                     const cell = momentCell(med, moment);
                                                     return (
-                                                        <div key={moment} className="bg-surface px-1 py-2">
+                                                        <div key={moment} className="bg-surface px-1 py-3">
                                                             <dt className="text-caption font-medium text-muted-foreground">
                                                                 {t(`medications:moments.${moment}`)}
                                                             </dt>
@@ -1191,12 +1224,6 @@ const Medications: React.FC = () => {
                                                     );
                                                 })}
                                             </dl>
-                                        )}
-                                        {details.length > 0 && (
-                                            <p className="text-body text-foreground">
-                                                <span className="font-semibold">{t('medications:treatments.notes')}</span>{' '}
-                                                {details.join(' · ')}
-                                            </p>
                                         )}
                                     </CardContent>
                                 </Card>
