@@ -81,7 +81,7 @@
     "role": "Rolle",
     "firstName": "Vorname",
     "lastName": "Nachname",
-    "usernameHint": "Vorname und Nachname ergeben den Benutzernamen, mit dem sich die Person anmeldet.",
+    "usernameHint": "Vorname und Nachname ergeben ohne Leerzeichen den Benutzernamen, mit dem sich die Person anmeldet, zum Beispiel ErikaMustermann.",
     "duration": "Gültigkeit des Links",
     "days_7": "7 Tage",
     "days_14": "14 Tage",
@@ -93,7 +93,7 @@
     "copied": "Einladungslink kopiert",
     "copyGuide": "Text kopieren",
     "guideCopied": "Anleitung mit Link und Benutzername kopiert",
-    "guideText": "So kommen Sie in die Pflege-App:\n\n1. Öffnen Sie diesen Link: {{link}}\n2. Wählen Sie ein Passwort. Bewahren Sie es gut auf.\n3. Melden Sie sich mit Ihrem Benutzernamen und dem Passwort an. Ihr Benutzername: {{username}}\n4. Legen Sie die App auf den Startbildschirm: Öffnen Sie im Browser das Menü und wählen Sie „Zum Startbildschirm hinzufügen“.\n5. Passwort vergessen? Wenden Sie sich an den Administrator, der Sie eingeladen hat. Sie bekommen dann einen neuen Link.",
+    "guideText": "So kommen Sie in die Pflege-App:\n\n1. Öffnen Sie diesen Link: {{link}}\n2. Wählen Sie ein Passwort. Bewahren Sie es gut auf.\n3. Melden Sie sich mit Ihrem Benutzernamen und dem Passwort an. Ihr Benutzername: {{username}} (ohne Leerzeichen, Groß- und Kleinschreibung ist egal)\n4. Legen Sie die App auf den Startbildschirm: Öffnen Sie im Browser das Menü und wählen Sie „Zum Startbildschirm hinzufügen“.\n5. Passwort vergessen? Wenden Sie sich an den Administrator, der Sie eingeladen hat. Sie bekommen dann einen neuen Link.",
     "revoke": "Widerrufen",
     "revoked": "Einladung widerrufen"
   },

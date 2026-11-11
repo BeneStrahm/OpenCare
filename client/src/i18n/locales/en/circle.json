@@ -81,7 +81,7 @@
     "role": "Role",
     "firstName": "First name",
     "lastName": "Last name",
-    "usernameHint": "First and last name make up the username the person signs in with.",
+    "usernameHint": "First and last name without spaces make up the username the person signs in with, for example JaneSmith.",
     "duration": "Link validity",
     "days_7": "7 days",
     "days_14": "14 days",
@@ -93,7 +93,7 @@
     "copied": "Invitation link copied",
     "copyGuide": "Copy text",
     "guideCopied": "Instructions with link and username copied",
-    "guideText": "How to get into the care app:\n\n1. Open this link: {{link}}\n2. Choose a password. Keep it in a safe place.\n3. Sign in with your username and password. Your username: {{username}}\n4. Put the app on your home screen: open the browser menu and choose \"Add to Home screen\".\n5. Forgot your password? Contact the administrator who invited you. You will get a new link.",
+    "guideText": "How to get into the care app:\n\n1. Open this link: {{link}}\n2. Choose a password. Keep it in a safe place.\n3. Sign in with your username and password. Your username: {{username}} (no spaces, upper and lower case do not matter)\n4. Put the app on your home screen: open the browser menu and choose \"Add to Home screen\".\n5. Forgot your password? Contact the administrator who invited you. You will get a new link.",
     "revoke": "Revoke",
     "revoked": "Invitation revoked"
   },

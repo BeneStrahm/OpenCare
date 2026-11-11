@@ -3,12 +3,12 @@
 set -u
 A=http://localhost:3001
 ok(){ echo "OK   $1"; }; bad(){ echo "FAIL $1"; FAILS=$((FAILS+1)); }; FAILS=0
-# Erstes Konto auf leerem Server (E18: Benutzername = Vorname Nachname)
+# Erstes Konto auf leerem Server (E18: Benutzername = VornameNachname)
 LAST="Muster$RANDOM"
 TOKEN=$(curl -s -X POST $A/api/auth/register -H 'Content-Type: application/json' -d "{\"firstName\":\"Thomas\",\"lastName\":\"$LAST\",\"password\":\"Sehr-sicher-123!\"}" | jq -r '.data.token')
 H=(-H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -H 'Accept-Language: de')
 CID=$(curl -s -X POST $A/api/circles "${H[@]}" -d '{"recipient_first_name":"Erika","recipient_last_name":"Muster"}' | jq -r '.data.circle.id')
-sudo -n -u postgres psql -q opencare -c "update users set language='de' where username='Thomas $LAST'"
+sudo -n -u postgres psql -q opencare -c "update users set language='de' where username='Thomas$LAST'"
 H+=(-H "X-Circle-Id: $CID")
 [ "$CID" != null ] && ok "Kreis angelegt" || bad "Kreis"
 curl -s -X POST $A/api/medications "${H[@]}" -d '{"name":"Ramipril","dosage":"5 mg","prescriber":"Dr. Özdemir"}' >/dev/null

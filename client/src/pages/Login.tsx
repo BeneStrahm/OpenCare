@@ -22,7 +22,7 @@ interface InviteInfo {
 const MIN_PASSWORD_LENGTH = 10;
 
 /**
- * Anmeldung (E18): Benutzername (Vorname Nachname) und Passwort.
+ * Anmeldung (E18): Benutzername (VornameNachname) und Passwort.
  * Drei Ansichten:
  *  - login: Benutzername und Passwort;
  *  - invite: Einladungslink, Benutzername steht fest, die Person waehlt nur ihr Passwort;

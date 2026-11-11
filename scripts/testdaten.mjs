@@ -10,7 +10,7 @@ if (!/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(API)) {
 }
 
 const PASSWORT = 'Testpasswort-123';
-// Anmeldung mit Benutzername = Vorname Nachname (E18)
+// Anmeldung mit Benutzername = VornameNachname ohne Leerzeichen (E18)
 const KONTEN = [
     { rolle: 'admin', vorname: 'Thomas', nachname: 'Muster' },
     { rolle: 'family', vorname: 'Sabine', nachname: 'Muster' },
@@ -18,7 +18,7 @@ const KONTEN = [
     { rolle: 'neighbor', vorname: 'Karl', nachname: 'Nachbar' },
     { rolle: 'recipient', vorname: 'Erika', nachname: 'Muster' },
 ];
-const benutzername = (k) => `${k.vorname} ${k.nachname}`;
+const benutzername = (k) => `${k.vorname}${k.nachname}`.replace(/\s+/g, '');
 
 async function call(method, path, body, token, circle) {
     const headers = { 'Content-Type': 'application/json', 'Accept-Language': 'de' };

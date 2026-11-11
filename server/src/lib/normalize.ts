@@ -11,23 +11,26 @@ export const toNullIfEmpty = <T>(value: T | null | undefined): T | null => {
 };
 
 /**
- * Benutzername (E18): Vorname und Nachname, vom Admin beim Einladen gesetzt.
- * Leerraum wird zusammengefasst, damit "Erika  Muster" und "Erika Muster" dasselbe
- * Konto sind. Gross- und Kleinschreibung zaehlt nicht: verglichen wird in SQL
- * immer mit LOWER(username) (eindeutiger Index idx_users_username_lower).
+ * Benutzername (E18): Vorname und Nachname ohne Leerzeichen zusammengeschrieben
+ * ("Erika Muster" ergibt "ErikaMuster", "Anna Maria" ergibt "AnnaMaria").
+ * Bindestriche, Umlaute und ß bleiben. Jeder Leerraum faellt weg, auch bei der
+ * Anmeldung: "Erika Muster" findet also ebenfalls "ErikaMuster".
+ * Gross- und Kleinschreibung zaehlt nicht: verglichen wird in SQL immer mit
+ * LOWER(username) (eindeutiger Index idx_users_username_lower). Gespeichert und
+ * angezeigt wird die Schreibweise aus der Einladung.
  */
 export const normalizeUsername = (value: string): string =>
-    value.normalize('NFC').replace(/\s+/g, ' ').trim();
+    value.normalize('NFC').replace(/\s+/g, '');
 
 export const MAX_NAME_PART_LENGTH = 100;
 
-/** Benutzername aus Vor- und Nachname, oder null wenn ein Teil fehlt oder zu lang ist. */
+/** Benutzername aus Vor- und Nachname (VornameNachname), oder null wenn ein Teil fehlt oder zu lang ist. */
 export const buildUsername = (firstName: unknown, lastName: unknown): string | null => {
     if (typeof firstName !== 'string' || typeof lastName !== 'string') return null;
     const first = normalizeUsername(firstName);
     const last = normalizeUsername(lastName);
     if (!first || !last || first.length > MAX_NAME_PART_LENGTH || last.length > MAX_NAME_PART_LENGTH) return null;
-    return `${first} ${last}`;
+    return `${first}${last}`;
 };
 
 export const serializeStringArray = (value: unknown): string | null => {

@@ -3,7 +3,7 @@
     "Beispiel fuer die Voreinrichtung (Launch-Plan Block F). Alle Namen und Werte sind erfunden.",
     "Zum Ausfuellen kopieren und als voreinrichtung.json speichern. Die ausgefuellte Datei enthaelt Gesundheitsdaten: nicht ins Repo, nicht per Mail oder Cloud verschicken.",
     "Felder, die Sie nicht brauchen, leer lassen (\"\") oder ganz loeschen. Eintraege einer Liste mit Komma trennen, nach dem letzten kein Komma.",
-    "Keine Passwoerter und keine E-Mail-Adressen. Der Benutzername ist immer Vorname und Nachname. Jede Person bekommt einen Einladungslink und waehlt dort nur ihr Passwort.",
+    "Keine Passwoerter und keine E-Mail-Adressen. Der Benutzername ist immer Vorname und Nachname ohne Leerzeichen, z. B. ErikaMuster. Jede Person bekommt einen Einladungslink und waehlt dort nur ihr Passwort.",
     "Pruefen und Anlegen: siehe server/src/scripts/voreinrichtung.ts (Befehle oben in der Datei)."
   ],
   "betreute_person": {

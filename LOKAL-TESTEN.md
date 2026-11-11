@@ -99,16 +99,16 @@ Beenden mit Strg+C. Die Datenbank läuft weiter, anhalten mit `docker compose st
 
 ### Testkonten (fiktiv)
 
-Anmeldung mit Benutzername (Vorname und Nachname, Groß- und Kleinschreibung egal).
+Anmeldung mit Benutzername (Vorname und Nachname ohne Leerzeichen, Groß- und Kleinschreibung egal).
 Passwort für alle: `Testpasswort-123`
 
 | Rolle | Benutzername |
 | --- | --- |
-| Administrator | Thomas Muster |
-| Familie | Sabine Muster |
-| Fachkraft | Petra Sonnenschein |
-| Freunde | Karl Nachbar |
-| Betreute Person | Erika Muster |
+| Administrator | ThomasMuster |
+| Familie | SabineMuster |
+| Fachkraft | PetraSonnenschein |
+| Freunde | KarlNachbar |
+| Betreute Person | ErikaMuster |
 
 Lokale Datenbank aus der Zeit vor den Benutzernamen: einmal mit `docker compose down -v`
 löschen, danach legt `npm run precheck` die Testkonten neu an.

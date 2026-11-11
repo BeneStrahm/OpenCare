@@ -1059,7 +1059,7 @@ async function route(method: string, path: string, q: Record<string, string>, bo
     if (path === '/api/invites' && method === 'POST') {
         const invite = {
             id: uid(), circle_id: c.id, token: 'demo-invite-' + uid().slice(0, 8),
-            invitee_username: `${String(body.first_name ?? '').trim()} ${String(body.last_name ?? '').trim()}`.trim(),
+            invitee_username: `${String(body.first_name ?? '')}${String(body.last_name ?? '')}`.replace(/\s+/g, ''),
             role: typeof body.role === 'string' ? body.role : 'family',
             status: 'pending',
             expires_at: toLocalISO(new Date(Date.now() + (num(body.expires_in_days) || 7) * 86400000)),

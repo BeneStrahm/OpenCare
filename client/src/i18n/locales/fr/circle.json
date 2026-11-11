@@ -81,7 +81,7 @@
     "role": "Rôle",
     "firstName": "Prénom",
     "lastName": "Nom",
-    "usernameHint": "Le prénom et le nom forment le nom d'utilisateur avec lequel la personne se connecte.",
+    "usernameHint": "Le prénom et le nom sans espace forment le nom d'utilisateur avec lequel la personne se connecte, par exemple MarieDupont.",
     "duration": "Validité du lien",
     "days_7": "7 jours",
     "days_14": "14 jours",
@@ -93,7 +93,7 @@
     "copied": "Lien d'invitation copié",
     "copyGuide": "Copier le texte",
     "guideCopied": "Instructions avec le lien et le nom d'utilisateur copiées",
-    "guideText": "Comment accéder à l'application de soins :\n\n1. Ouvrez ce lien : {{link}}\n2. Choisissez un mot de passe. Conservez-le en lieu sûr.\n3. Connectez-vous avec votre nom d'utilisateur et votre mot de passe. Votre nom d'utilisateur : {{username}}\n4. Placez l'application sur l'écran d'accueil : ouvrez le menu du navigateur et choisissez « Ajouter à l'écran d'accueil ».\n5. Mot de passe oublié ? Adressez-vous à l'administrateur qui vous a invité. Vous recevrez un nouveau lien.",
+    "guideText": "Comment accéder à l'application de soins :\n\n1. Ouvrez ce lien : {{link}}\n2. Choisissez un mot de passe. Conservez-le en lieu sûr.\n3. Connectez-vous avec votre nom d'utilisateur et votre mot de passe. Votre nom d'utilisateur : {{username}} (sans espace, majuscules et minuscules n'ont pas d'importance)\n4. Placez l'application sur l'écran d'accueil : ouvrez le menu du navigateur et choisissez « Ajouter à l'écran d'accueil ».\n5. Mot de passe oublié ? Adressez-vous à l'administrateur qui vous a invité. Vous recevrez un nouveau lien.",
     "revoke": "Révoquer",
     "revoked": "Invitation révoquée"
   },

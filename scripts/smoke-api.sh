@@ -7,7 +7,7 @@ set -euo pipefail
 
 API_BASE="${API_BASE:-http://localhost:3001}"
 RUN_ID="${RUN_ID:-$(date +%s)-$RANDOM}"
-# Benutzername = Vorname Nachname (E18). Das erste Konto geht nur auf einem leeren Server.
+# Benutzername = VornameNachname ohne Leerzeichen (E18). Das erste Konto geht nur auf einem leeren Server.
 PASSWORD="${SMOKE_PASSWORD:-SmokeTest123!}"
 FIRST_NAME="Smoke"
 LAST_NAME="${RUN_ID}"
@@ -231,7 +231,7 @@ echo "$ask" | jq -e '.data.source == "fallback" and .data.flagged == false' >/de
 # Role neighbor : aucune donnee de sante, sur aucune route (synthese, journal,
 # tableau de bord), et pas le jeton de la fiche urgence en direct. L'admin, lui,
 # voit les entrees de sante : sans elles, le filtre ne prouverait rien.
-NUSER="Voisin ${RUN_ID}"
+NUSER="Voisin${RUN_ID}"
 invite=$(request POST "/api/invites" "{\"role\":\"neighbor\",\"first_name\":\"Voisin\",\"last_name\":\"$RUN_ID\"}")
 invite_token=$(echo "$invite" | jq -r '.data.token')
 # Gleicher Name ein zweites Mal: einfache Meldung statt zweiter Einladung.

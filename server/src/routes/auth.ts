@@ -148,7 +148,7 @@ router.post('/register', async (req, res) => {
     }
 });
 
-// Anmelden mit Benutzername (Vorname Nachname) und Passwort.
+// Anmelden mit Benutzername (VornameNachname, ohne Leerzeichen und Gross-/Kleinschreibung) und Passwort.
 router.post('/login', async (req, res) => {
     const lang = langFromRequest(req);
     try {

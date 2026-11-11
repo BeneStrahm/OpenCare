@@ -81,7 +81,7 @@
     "role": "Rol",
     "firstName": "Nombre",
     "lastName": "Apellido",
-    "usernameHint": "El nombre y el apellido forman el nombre de usuario con el que la persona inicia sesión.",
+    "usernameHint": "El nombre y el apellido sin espacios forman el nombre de usuario con el que la persona inicia sesión, por ejemplo AnaGarcía.",
     "duration": "Validez del enlace",
     "days_7": "7 días",
     "days_14": "14 días",
@@ -93,7 +93,7 @@
     "copied": "Enlace de invitación copiado",
     "copyGuide": "Copiar el texto",
     "guideCopied": "Instrucciones con enlace y nombre de usuario copiadas",
-    "guideText": "Cómo entrar en la aplicación de cuidados:\n\n1. Abra este enlace: {{link}}\n2. Elija una contraseña. Guárdela en un lugar seguro.\n3. Inicie sesión con su nombre de usuario y su contraseña. Su nombre de usuario: {{username}}\n4. Ponga la aplicación en la pantalla de inicio: abra el menú del navegador y elija «Añadir a pantalla de inicio».\n5. ¿Ha olvidado la contraseña? Diríjase al administrador que le invitó. Recibirá un enlace nuevo.",
+    "guideText": "Cómo entrar en la aplicación de cuidados:\n\n1. Abra este enlace: {{link}}\n2. Elija una contraseña. Guárdela en un lugar seguro.\n3. Inicie sesión con su nombre de usuario y su contraseña. Su nombre de usuario: {{username}} (sin espacios, da igual si usa mayúsculas o minúsculas)\n4. Ponga la aplicación en la pantalla de inicio: abra el menú del navegador y elija «Añadir a pantalla de inicio».\n5. ¿Ha olvidado la contraseña? Diríjase al administrador que le invitó. Recibirá un enlace nuevo.",
     "revoke": "Revocar",
     "revoked": "Invitación revocada"
   },
