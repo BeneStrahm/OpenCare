@@ -21,9 +21,13 @@ const RECIPIENT_FIELDS = `id, circle_id, first_name, last_name, birth_date, phot
 // docs/SPEC.md lui refuse les donnees medicales et administratives.
 const RECIPIENT_FIELDS_MINIMAL = 'id, circle_id, first_name, last_name, photo_url, created_at, updated_at';
 
-// Die betreute Person selbst (recipient) sieht wie in der einfachen Ansicht nur Name und Foto.
+// Die betreute Person selbst (recipient) sieht dazu nur die eigene Adresse und Telefonnummer
+// (Block L1, Fenster "Meine Informationen"), keine medizinischen Angaben.
+const RECIPIENT_FIELDS_OWN = 'id, circle_id, first_name, last_name, photo_url, address, phone, created_at, updated_at';
+
 const recipientFieldsFor = (role: string | undefined) =>
-    role === 'neighbor' || role === 'recipient' ? RECIPIENT_FIELDS_MINIMAL : RECIPIENT_FIELDS;
+    role === 'recipient' ? RECIPIENT_FIELDS_OWN
+        : role === 'neighbor' ? RECIPIENT_FIELDS_MINIMAL : RECIPIENT_FIELDS;
 
 // List the circles of the logged-in user, with their role and the recipient identity
 router.get('/', async (req: AuthRequest, res: Response) => {

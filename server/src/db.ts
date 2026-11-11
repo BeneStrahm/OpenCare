@@ -450,6 +450,12 @@ export const runMigrations = async () => {
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
         );`,
         `CREATE INDEX IF NOT EXISTS idx_view_photos_circle ON view_photos(circle_id, created_at);`,
+        // Fork, Block L2: Farbe des Medikaments in der einfachen Ansicht
+        // (Kennung aus MEDICATION_COLOR_IDS, server/src/lib/viewColors.ts; NULL = keine Farbe).
+        `ALTER TABLE medications ADD COLUMN IF NOT EXISTS view_color VARCHAR(20);`,
+        // Fork, Block L4: wer wann abgehakt hat (10 Minuten Rueckgaengig fuer die betreute Person).
+        `ALTER TABLE shopping_items ADD COLUMN IF NOT EXISTS checked_by UUID REFERENCES users(id) ON DELETE SET NULL;`,
+        `ALTER TABLE shopping_items ADD COLUMN IF NOT EXISTS checked_at TIMESTAMP;`,
     ];
 
     for (const migration of migrations) {

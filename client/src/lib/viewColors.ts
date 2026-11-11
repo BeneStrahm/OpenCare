@@ -40,6 +40,19 @@ export function viewColorOf(id: string | null | undefined): ViewColor {
     return VIEW_COLORS.find((c) => c.id === id) ?? DEFAULT_VIEW_COLOR;
 }
 
+/**
+ * Block L2 (E21): Farbe pro Medikament, eingestellt im Medikamentenplan
+ * (medications.view_color, Kennungen auch in server/src/lib/viewColors.ts).
+ * In der einfachen Ansicht bekommt die Karte des Medikaments die helle Flaeche
+ * (soft) und einen Rand in strong. Ohne Gruen, das dort nur "Genommen" bedeutet.
+ */
+export const MEDICATION_COLORS: readonly ViewColor[] = VIEW_COLORS.filter((c) => c.id !== 'green');
+
+/** Farbe eines Medikaments; leer oder unbekannt -> keine Farbe (neutrale Karte). */
+export function medicationColorOf(id: string | null | undefined): ViewColor | null {
+    return MEDICATION_COLORS.find((c) => c.id === id) ?? null;
+}
+
 /** Relative Leuchtdichte nach WCAG 2.1. */
 function luminance(hex: string): number {
     const value = hex.replace('#', '');

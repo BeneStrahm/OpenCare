@@ -86,6 +86,7 @@ export const INTAKE_DISPLAY_COLUMNS = `
     COALESCE(i.unit, s.unit) AS unit,
     m.name AS medication_name, m.dosage AS medication_dosage, m.dosage,
     m.form, m.photo_url, m.instructions, m.with_food, m.reason, m.appearance, m.active_ingredient, m.prn,
+    m.view_color AS medication_color,
     s.label AS schedule_label, COALESCE(s.time_fixed, TRUE) AS time_fixed`;
 
 export const INTAKE_DISPLAY_FROM = `

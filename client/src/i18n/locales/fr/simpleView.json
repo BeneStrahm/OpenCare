@@ -14,7 +14,9 @@
     "queued": "Enregistré sans internet. Ce sera envoyé dès qu'internet reviendra.",
     "error": "Cela n'a pas marché. Réessayez, s'il vous plaît.",
     "undone": "Annulé.",
-    "undoExpired": "Ce n'est plus possible d'annuler. Prévenez vos proches, s'il vous plaît."
+    "undoExpired": "Ce n'est plus possible d'annuler. Prévenez vos proches, s'il vous plaît.",
+    "at": "À {{time}}",
+    "allTakenAt": "Tout pris à {{time}}"
   },
   "visitors": {
     "title": "Qui vient aujourd'hui",
@@ -137,6 +139,68 @@
     "error": {
       "empty": "Veuillez saisir un nombre.",
       "invalid": "Ce nombre ne convient pas. Veuillez vérifier la mesure et la saisir à nouveau."
-    }
+    },
+    "choose": "Que voulez-vous noter ?"
+  },
+  "window": {
+    "close": "Fermer"
+  },
+  "tiles": {
+    "label": "Rubriques",
+    "meds": "Médicaments",
+    "visits_one": "{{count}} visite aujourd'hui",
+    "visits_other": "{{count}} visites aujourd'hui",
+    "appointments_one": "{{count}} rendez-vous aujourd'hui",
+    "appointments_other": "{{count}} rendez-vous aujourd'hui",
+    "doctor": "Consultation",
+    "later": "Bientôt disponible",
+    "shopping": "Liste de courses",
+    "shoppingOpen_one": "{{count}} article restant",
+    "shoppingOpen_other": "{{count}} articles restants"
+  },
+  "info": {
+    "title": "Mes informations",
+    "name": "Mon nom",
+    "address": "Mon adresse",
+    "phone": "Mon téléphone",
+    "contacts": "Les personnes que je peux appeler",
+    "empty": "Aucune information renseignée pour l'instant."
+  },
+  "event": {
+    "new": "Nouveau rendez-vous",
+    "saved": "Le rendez-vous est enregistré.",
+    "entered": "Nouveau rendez-vous : {{title}}, {{when}}",
+    "when": "{{day}} à {{time}}",
+    "label": {
+      "title": "Quel est ce rendez-vous ?",
+      "date": "Quel jour ?",
+      "time": "À quelle heure ?"
+    },
+    "error": {
+      "title": "Veuillez écrire de quel rendez-vous il s'agit.",
+      "date": "Veuillez choisir un jour à partir d'aujourd'hui.",
+      "time": "Veuillez choisir une heure."
+    },
+    "time": "Heure",
+    "place": "Lieu",
+    "travelTo": "Aller",
+    "travelBack": "Retour",
+    "companion": "Vous accompagne",
+    "takeAlong": "À emporter"
+  },
+  "shopping": {
+    "label": "Que faut-il ajouter à la liste ?",
+    "add": "Ajouter",
+    "error": "Veuillez écrire ce qu'il faut ajouter à la liste.",
+    "open": "Encore à acheter",
+    "done": "Déjà fait",
+    "empty": "La liste est vide.",
+    "check": "Cocher",
+    "addQuestion": "Ajouter à la liste ?",
+    "addYes": "Oui, ajouter",
+    "checkQuestion": "Est-ce fait ?",
+    "checkYes": "Oui, cocher",
+    "added": "C'est sur la liste.",
+    "checked": "Coché, très bien !"
   }
 }

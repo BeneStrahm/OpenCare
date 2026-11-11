@@ -14,7 +14,9 @@
     "queued": "Guardado sin internet. Se enviará en cuanto vuelva internet.",
     "error": "No ha funcionado. Inténtelo de nuevo, por favor.",
     "undone": "Deshecho.",
-    "undoExpired": "Ya no se puede deshacer. Avise a su familia, por favor."
+    "undoExpired": "Ya no se puede deshacer. Avise a su familia, por favor.",
+    "at": "A las {{time}}",
+    "allTakenAt": "Todo tomado a las {{time}}"
   },
   "visitors": {
     "title": "Quién viene hoy",
@@ -137,6 +139,68 @@
     "error": {
       "empty": "Por favor, escriba un número.",
       "invalid": "Este número no parece correcto. Por favor, revise la medición y escríbala de nuevo."
-    }
+    },
+    "choose": "¿Qué quiere anotar?"
+  },
+  "window": {
+    "close": "Cerrar"
+  },
+  "tiles": {
+    "label": "Secciones",
+    "meds": "Medicamentos",
+    "visits_one": "Hoy {{count}} visita",
+    "visits_other": "Hoy {{count}} visitas",
+    "appointments_one": "Hoy {{count}} cita",
+    "appointments_other": "Hoy {{count}} citas",
+    "doctor": "Consulta médica",
+    "later": "Próximamente",
+    "shopping": "Lista de la compra",
+    "shoppingOpen_one": "{{count}} cosa pendiente",
+    "shoppingOpen_other": "{{count}} cosas pendientes"
+  },
+  "info": {
+    "title": "Mi información",
+    "name": "Mi nombre",
+    "address": "Mi dirección",
+    "phone": "Mi teléfono",
+    "contacts": "Personas a las que puedo llamar",
+    "empty": "Todavía no hay ninguna información."
+  },
+  "event": {
+    "new": "Nueva cita",
+    "saved": "La cita está guardada.",
+    "entered": "Nueva cita: {{title}}, {{when}}",
+    "when": "{{day}} a las {{time}}",
+    "label": {
+      "title": "¿Qué cita es?",
+      "date": "¿Qué día?",
+      "time": "¿A qué hora?"
+    },
+    "error": {
+      "title": "Escriba qué cita es, por favor.",
+      "date": "Elija un día a partir de hoy, por favor.",
+      "time": "Elija una hora, por favor."
+    },
+    "time": "Hora",
+    "place": "Lugar",
+    "travelTo": "Ida",
+    "travelBack": "Vuelta",
+    "companion": "Le acompaña",
+    "takeAlong": "Llevar"
+  },
+  "shopping": {
+    "label": "¿Qué hay que añadir a la lista?",
+    "add": "Añadir",
+    "error": "Escriba qué hay que añadir a la lista, por favor.",
+    "open": "Todavía por comprar",
+    "done": "Ya hecho",
+    "empty": "La lista está vacía.",
+    "check": "Marcar",
+    "addQuestion": "¿Añadir a la lista?",
+    "addYes": "Sí, añadir",
+    "checkQuestion": "¿Ya está hecho?",
+    "checkYes": "Sí, marcar",
+    "added": "Ya está en la lista.",
+    "checked": "Marcado, ¡muy bien!"
   }
 }

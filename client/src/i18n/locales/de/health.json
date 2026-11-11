@@ -1,6 +1,6 @@
 {
   "title": "Gesundheit",
-  "subtitle": "Messwerte und ihr Verlauf",
+  "subtitle": "Gesundheitswerte und ihr Verlauf",
   "loading": "Gesundheitsdaten werden geladen...",
   "addMeasure": "Neue Messung",
   "latest": {
@@ -28,7 +28,7 @@
   },
   "thresholds": {
     "title": "Normalbereiche",
-    "description": "Legen Sie für jeden Messwert den üblichen Bereich fest. Eine Messung außerhalb davon benachrichtigt die Pflegenden.",
+    "description": "Legen Sie für jeden Gesundheitswert den üblichen Bereich fest. Eine Messung außerhalb davon benachrichtigt die Pflegenden.",
     "readOnly": "Normalbereiche werden von Administratoren und Familie festgelegt.",
     "none": "Kein Bereich festgelegt",
     "between": "Von {{min}} bis {{max}} {{unit}}",
@@ -61,7 +61,7 @@
   "form": {
     "title": "Neue Messung",
     "description": "Die Messung ist für den ganzen Kreis sichtbar.",
-    "typeLabel": "Art des Messwerts",
+    "typeLabel": "Art des Gesundheitswerts",
     "valueLabel": "Wert",
     "systolicLabel": "Systolisch",
     "diastolicLabel": "Diastolisch",
@@ -92,7 +92,7 @@
     "description": "Die Gesundheitswerte sind für Familie und Fachkräfte des Kreises sichtbar."
   },
   "table": {
-    "title": "Messwerte als Tabelle",
+    "title": "Gesundheitswerte als Tabelle",
     "caption": "Messungen {{type}}, neueste zuerst",
     "date": "Datum",
     "time": "Uhrzeit",

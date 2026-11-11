@@ -114,6 +114,7 @@ export const MESSAGES: Record<Lang, Record<string, string>> = {
         'medications.unitInvalid': 'Unité de prise invalide',
         'medications.prnBoolean': 'prn doit être un booléen',
         'medications.withFoodInvalid': 'with_food invalide (with, without ou any)',
+        'medications.colorInvalid': 'Couleur invalide',
 
         'expenses.splitsRequired': 'splits est requis pour une répartition personnalisée',
         'expenses.splitsInvalidMember': 'splits contient un membre invalide',
@@ -245,6 +246,7 @@ export const MESSAGES: Record<Lang, Record<string, string>> = {
         'medications.unitInvalid': 'Invalid dose unit',
         'medications.prnBoolean': 'prn must be a boolean',
         'medications.withFoodInvalid': 'Invalid with_food (with, without or any)',
+        'medications.colorInvalid': 'Invalid colour',
 
         'expenses.splitsRequired': 'splits is required for a custom split',
         'expenses.splitsInvalidMember': 'splits contains an invalid member',
@@ -377,6 +379,7 @@ export const MESSAGES: Record<Lang, Record<string, string>> = {
         'medications.unitInvalid': 'Unidad de toma no válida',
         'medications.prnBoolean': 'prn debe ser un booleano',
         'medications.withFoodInvalid': 'with_food no válido (with, without o any)',
+        'medications.colorInvalid': 'Color no válido',
 
         'expenses.splitsRequired': 'splits es obligatorio para un reparto personalizado',
         'expenses.splitsInvalidMember': 'splits contiene un miembro no válido',
@@ -459,7 +462,7 @@ export const MESSAGES: Record<Lang, Record<string, string>> = {
         'medications.stockInvalid': 'Ungültige Vorratsmenge.',
         'medications.stockRequired': 'Bitte geben Sie einen Vorrat oder einen Schwellenwert an.',
         'vitals.thresholdInvalid': 'Ungültiger Schwellenwert: Das Minimum muss unter dem Maximum liegen.',
-        'vitals.thresholdType': 'Unbekannter Messwert.',
+        'vitals.thresholdType': 'Unbekannter Gesundheitswert.',
         'vitals.reminderTime': 'Bitte geben Sie eine gültige Uhrzeit ein, zum Beispiel 07:30.',
         'events.no_occurrence': 'An diesem Datum findet kein Termin statt.',
         'events.move_too_far': 'Ein einzelner Termin kann höchstens um {{days}} Tage verschoben werden.',
@@ -508,6 +511,7 @@ export const MESSAGES: Record<Lang, Record<string, string>> = {
         'medications.unitInvalid': 'Ungültige Einheit',
         'medications.prnBoolean': 'prn muss ein Wahrheitswert sein',
         'medications.withFoodInvalid': 'Ungültiger Wert für with_food (with, without oder any)',
+        'medications.colorInvalid': 'Diese Farbe gibt es nicht. Bitte wählen Sie eine Farbe aus der Liste.',
 
         'expenses.splitsRequired': 'splits ist für eine individuelle Aufteilung erforderlich',
         'expenses.splitsInvalidMember': 'splits enthält ein ungültiges Mitglied',

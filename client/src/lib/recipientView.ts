@@ -53,6 +53,56 @@ export function momentOf(hour: number): Moment {
     return 'night';
 }
 
+/**
+ * Block L2 (E21): Karten der Medikamente in der einfachen Ansicht. Eine Karte pro
+ * Tageszeit (Einnahme ohne feste Uhrzeit) und eine pro fester Uhrzeit.
+ * Sortiert nach der Uhrzeit; Tageszeiten stehen an ihrer Standardzeit (08, 12, 18, 22 Uhr).
+ */
+export type IntakeGroup =
+    | { key: string; kind: 'moment'; moment: Moment; sort: number }
+    | { key: string; kind: 'fixed'; time: string; sort: number };
+
+const MOMENT_MINUTES: Record<Moment, number> = { morning: 8 * 60, noon: 12 * 60, evening: 18 * 60, night: 22 * 60 };
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+export function intakeGroupOf(due: Date | null, timeFixed: boolean | undefined): IntakeGroup {
+    if (!due || timeFixed === false) {
+        const moment = momentOf(due ? due.getHours() : 12);
+        return { key: `moment:${moment}`, kind: 'moment', moment, sort: MOMENT_MINUTES[moment] };
+    }
+    const time = `${pad2(due.getHours())}:${pad2(due.getMinutes())}`;
+    return { key: `fixed:${time}`, kind: 'fixed', time, sort: due.getHours() * 60 + due.getMinutes() };
+}
+
+interface GroupableIntake {
+    due_at: string;
+    time_fixed?: boolean;
+    prn?: boolean;
+    medication_name?: string;
+}
+
+/** Einnahmen in Karten aufteilen. Bedarfsmedikamente (prn) zeigt die einfache Ansicht nie. */
+export function groupIntakes<T extends GroupableIntake>(
+    intakes: readonly T[],
+    toDate: (value: string) => Date | null
+): Array<{ group: IntakeGroup; items: T[] }> {
+    const groups = new Map<string, { group: IntakeGroup; items: T[] }>();
+    for (const intake of intakes) {
+        if (intake.prn) continue;
+        const group = intakeGroupOf(toDate(intake.due_at), intake.time_fixed);
+        const entry = groups.get(group.key) ?? { group, items: [] };
+        entry.items.push(intake);
+        groups.set(group.key, entry);
+    }
+    const list = [...groups.values()];
+    for (const entry of list) {
+        entry.items.sort((a, b) => a.due_at.localeCompare(b.due_at) || (a.medication_name ?? '').localeCompare(b.medication_name ?? ''));
+    }
+    // Bei gleicher Zeit steht die Tageszeit vor der festen Uhrzeit.
+    return list.sort((a, b) => a.group.sort - b.group.sort || (a.group.kind === 'moment' ? -1 : 1));
+}
+
 interface EventFlags {
     member_ids?: unknown[] | null;
     guests?: unknown[] | null;
@@ -134,4 +184,36 @@ export function parseRecipientVital(
     const { min, max } = RECIPIENT_VITAL_LIMITS[type];
     if (!Number.isFinite(stored) || stored < min || stored > max) return { ok: false, error: 'invalid' };
     return { ok: true, shown, stored };
+}
+
+// ── Block L3 (E21): Termin selbst anlegen ──
+
+/** Gleiche Grenzen wie parseRecipientEvent in server/src/middleware/circle.ts. */
+export const RECIPIENT_EVENT_TITLE_MAX = 120;
+export const RECIPIENT_EVENT_MAX_YEARS = 2;
+
+export type RecipientEventInput =
+    | { ok: true; title: string; start_time: string }
+    | { ok: false; error: 'title' | 'date' | 'time' };
+
+/**
+ * Eingabe pruefen: Titel, Tag ("YYYY-MM-DD") und Uhrzeit ("HH:MM"), ab heute bis
+ * RECIPIENT_EVENT_MAX_YEARS Jahre voraus. start_time geht so an POST /api/events.
+ */
+export function parseRecipientEventForm(title: string, day: string, time: string, now: Date = new Date()): RecipientEventInput {
+    const cleanTitle = title.trim().replace(/\s+/g, ' ');
+    if (!cleanTitle || cleanTitle.length > RECIPIENT_EVENT_TITLE_MAX) return { ok: false, error: 'title' };
+    const dayMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day.trim());
+    if (!dayMatch) return { ok: false, error: 'date' };
+    const [year, month, date] = dayMatch.slice(1).map(Number);
+    const startOfDay = new Date(year, month - 1, date);
+    if (startOfDay.getFullYear() !== year || startOfDay.getMonth() !== month - 1 || startOfDay.getDate() !== date) {
+        return { ok: false, error: 'date' };
+    }
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const latest = new Date(today.getFullYear() + RECIPIENT_EVENT_MAX_YEARS, today.getMonth(), today.getDate());
+    if (startOfDay.getTime() < today.getTime() || startOfDay.getTime() > latest.getTime()) return { ok: false, error: 'date' };
+    const timeMatch = /^(\d{2}):(\d{2})$/.exec(time.trim());
+    if (!timeMatch || Number(timeMatch[1]) > 23 || Number(timeMatch[2]) > 59) return { ok: false, error: 'time' };
+    return { ok: true, title: cleanTitle, start_time: `${day.trim()}T${time.trim()}` };
 }

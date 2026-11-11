@@ -11,7 +11,7 @@
         "removePhoto": "Foto entfernen",
         "publish": "Veröffentlichen",
         "publishing": "Wird veröffentlicht...",
-        "vitalTypeLabel": "Art des Messwerts",
+        "vitalTypeLabel": "Art des Gesundheitswerts",
         "valueWithUnit": "Wert ({{unit}})",
         "systolicLabel": "Systolisch",
         "diastolicLabel": "Diastolisch",
@@ -20,7 +20,7 @@
     "types": {
         "visit": "Besuch",
         "note": "Notiz",
-        "vital": "Messwert",
+        "vital": "Gesundheitswert",
         "medication": "Medikament",
         "incident": "Vorfall",
         "mood": "Stimmung"

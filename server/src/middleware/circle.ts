@@ -24,6 +24,14 @@ export const CIRCLE_ROLES: CircleRole[] = ['admin', 'family', 'professional', 'n
  *   POST /api/vitals). Nur diese zwei Werte, immer mit der Zeit "jetzt", ohne
  *   Notiz. Einen eigenen Eintrag darf sie RECIPIENT_UNDO_MINUTES lang loeschen
  *   (recipientVitalUndoMsLeft), aendern nicht. Andere Messwerte liest sie nicht.
+ *   Block L3 (E21): legt selbst einen Termin an, nur Titel und Beginn, Kategorie
+ *   "Sonstige", ohne Serie und ohne Teilnehmende (parseRecipientEvent). Den eigenen
+ *   neuen Termin darf sie RECIPIENT_UNDO_MINUTES lang loeschen
+ *   (recipientEventUndoMsLeft), andere Termine nie aendern oder loeschen.
+ *   Block L4 (E21): Einkaufsliste lesen, etwas hinzufuegen (nur den Namen,
+ *   parseRecipientShoppingName) und abhaken. Den eigenen neuen Eintrag darf sie
+ *   RECIPIENT_UNDO_MINUTES lang loeschen, das eigene Abhaken so lange zuruecknehmen
+ *   (recipientShoppingUndo). Sonst nichts an der Einkaufsliste.
  * - eigenes Konto (Profil, Sprache, Benachrichtigungen) unter /api/auth und
  *   /api/notifications haengt an keinem Kreis und bleibt unberuehrt.
  */
@@ -60,6 +68,17 @@ export const RECIPIENT_ALLOWED_REQUESTS: Array<{ method: 'GET' | 'POST' | 'PUT' 
     { method: 'POST', path: /^\/api\/vitals$/ },
     { method: 'GET', path: /^\/api\/vitals\/mine\/undoable$/ },
     { method: 'DELETE', path: new RegExp(`^/api/vitals/${SEGMENT}$`) },
+    // Block L3: eigenen Termin anlegen und 10 Minuten rueckgaengig machen.
+    // Die Route prueft Felder, Urheber und Zeit (routes/events.ts).
+    { method: 'POST', path: /^\/api\/events$/ },
+    { method: 'GET', path: /^\/api\/events\/mine\/undoable$/ },
+    { method: 'DELETE', path: new RegExp(`^/api/events/${SEGMENT}$`) },
+    // Block L4: Einkaufsliste lesen, hinzufuegen, abhaken, 10 Minuten rueckgaengig.
+    // Die Route prueft Felder, Urheber und Zeit (routes/shopping.ts).
+    { method: 'GET', path: /^\/api\/shopping$/ },
+    { method: 'POST', path: /^\/api\/shopping$/ },
+    { method: 'PUT', path: new RegExp(`^/api/shopping/${SEGMENT}$`) },
+    { method: 'DELETE', path: new RegExp(`^/api/shopping/${SEGMENT}$`) },
     // "Fragen Sie mich": nur die festen Fragen, Antwort ohne KI aus den eigenen Daten
     // (FIXED_QUESTIONS in routes/companion.ts). Keine freie Eingabe.
     { method: 'GET', path: /^\/api\/companion\/answer\/(medications|visitors|appointments|week|date|contacts)$/ },
@@ -132,6 +151,104 @@ export function recipientVitalUndoMsLeft(vital: VitalEntryInfo, userId: string |
     return Math.max(0, RECIPIENT_UNDO_MS - age);
 }
 
+// ── Block L3 (E21): Termin selbst anlegen ──
+
+/** Laengster Titel eines Termins der betreuten Person. */
+export const RECIPIENT_EVENT_TITLE_MAX = 120;
+
+/** So weit voraus darf die betreute Person einen Termin anlegen. */
+export const RECIPIENT_EVENT_MAX_YEARS = 2;
+
+/**
+ * Eingabe der betreuten Person fuer einen neuen Termin: nur Titel und Beginn
+ * ("YYYY-MM-DDTHH:MM", Ortszeit), ab heute bis RECIPIENT_EVENT_MAX_YEARS Jahre voraus.
+ * Alles andere im Body wird nicht beachtet. Ungueltig -> null.
+ */
+export function parseRecipientEvent(body: unknown, now: Date = new Date()): { title: string; start_time: string } | null {
+    const input = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
+    const title = typeof input.title === 'string' ? input.title.trim().replace(/\s+/g, ' ') : '';
+    if (!title || title.length > RECIPIENT_EVENT_TITLE_MAX) return null;
+    const start = typeof input.start_time === 'string' ? input.start_time.trim() : '';
+    const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(start);
+    if (!match) return null;
+    const [year, month, day, hour, minute] = match.slice(1).map(Number);
+    const date = new Date(year, month - 1, day, hour, minute);
+    if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day
+        || date.getHours() !== hour || date.getMinutes() !== minute) return null;
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const latest = new Date(today.getFullYear() + RECIPIENT_EVENT_MAX_YEARS, today.getMonth(), today.getDate(), 23, 59);
+    if (date.getTime() < today.getTime() || date.getTime() > latest.getTime()) return null;
+    return { title, start_time: `${start}:00` };
+}
+
+/** Felder eines Termins, die fuer das Rueckgaengig der betreuten Person zaehlen. */
+export interface EventEntryInfo {
+    created_by?: string | null;
+    rrule?: string | null;
+    /** Alter des Termins in ms, auf dem Server berechnet (Datenbankzeit). */
+    created_age_ms?: number | string | null;
+}
+
+/**
+ * Restzeit in ms, in der recipient diesen Termin selbst loeschen darf: nur ein
+ * eigener Termin ohne Serie, hoechstens RECIPIENT_UNDO_MS alt. Sonst 0.
+ */
+export function recipientEventUndoMsLeft(event: EventEntryInfo, userId: string | undefined): number {
+    if (!userId || event.created_by !== userId || event.rrule) return 0;
+    if (event.created_age_ms === null || event.created_age_ms === undefined) return 0;
+    const age = Number(event.created_age_ms);
+    if (!Number.isFinite(age) || age < 0) return 0;
+    return Math.max(0, RECIPIENT_UNDO_MS - age);
+}
+
+// ── Block L4 (E21): Einkaufsliste ──
+
+/** Laengster Name eines Eintrags der betreuten Person. */
+export const RECIPIENT_SHOPPING_NAME_MAX = 100;
+
+/** Name eines neuen Eintrags der betreuten Person; leer oder zu lang -> null. */
+export function parseRecipientShoppingName(body: unknown): string | null {
+    const input = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
+    const name = typeof input.name === 'string' ? input.name.trim().replace(/\s+/g, ' ') : '';
+    return name && name.length <= RECIPIENT_SHOPPING_NAME_MAX ? name : null;
+}
+
+/** Felder eines Eintrags, die fuer das Rueckgaengig der betreuten Person zaehlen. */
+export interface ShoppingEntryInfo {
+    is_checked?: boolean | null;
+    added_by?: string | null;
+    checked_by?: string | null;
+    /** Alter in ms, auf dem Server berechnet (Datenbankzeit). */
+    created_age_ms?: number | string | null;
+    checked_age_ms?: number | string | null;
+}
+
+const undoLeft = (ageMs: number | string | null | undefined): number => {
+    if (ageMs === null || ageMs === undefined) return 0;
+    const age = Number(ageMs);
+    if (!Number.isFinite(age) || age < 0) return 0;
+    return Math.max(0, RECIPIENT_UNDO_MS - age);
+};
+
+/**
+ * Restzeiten in ms fuer die betreute Person: added = eigenen neuen Eintrag loeschen,
+ * checked = eigenes Abhaken zuruecknehmen. Jeweils hoechstens RECIPIENT_UNDO_MS.
+ */
+export function recipientShoppingUndo(item: ShoppingEntryInfo, userId: string | undefined): { added: number; checked: number } {
+    if (!userId) return { added: 0, checked: 0 };
+    return {
+        added: item.added_by === userId ? undoLeft(item.created_age_ms) : 0,
+        checked: item.is_checked && item.checked_by === userId ? undoLeft(item.checked_age_ms) : 0,
+    };
+}
+
+/** Darf recipient den Eintrag auf abgehakt (true) oder offen (false) setzen? */
+export function recipientMayCheckShopping(target: unknown, item: ShoppingEntryInfo, userId: string | undefined): boolean {
+    if (target === true) return !item.is_checked;
+    if (target === false) return recipientShoppingUndo(item, userId).checked > 0;
+    return false;
+}
+
 /** Roles allowed to read health data (vitals, medications, documents, digests). */
 export const HEALTH_READER_ROLES: CircleRole[] = ['admin', 'family', 'professional', 'recipient'];
 
@@ -201,6 +318,9 @@ export const requireRole = (...roles: CircleRole[]) => {
 
 /** Roles allowed to write journal entries (everyone except recipient, see above). */
 export const JOURNAL_WRITER_ROLES: CircleRole[] = ['admin', 'family', 'professional', 'neighbor'];
+
+/** Block L4: Einkaufsliste schreiben; recipient nur eingeschraenkt (routes/shopping.ts). */
+export const SHOPPING_WRITER_ROLES: CircleRole[] = [...JOURNAL_WRITER_ROLES, 'recipient'];
 
 /**
  * Roles allowed to confirm medication intakes. recipient may only mark them taken,

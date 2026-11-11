@@ -50,7 +50,7 @@
   "roleHints": {
     "admin": "Verwaltet Kreis, Mitglieder und Einladungen. Voller Zugriff.",
     "family": "Schreibt überall: Tagebuch, Profil, Kalender, Ausgaben.",
-    "professional": "Schreibt ins Tagebuch, in Messwerte und Medikamente.",
+    "professional": "Schreibt ins Tagebuch, in Gesundheitswerte und Medikamente.",
     "neighbor": "Schreibt einfache Notizen ins Tagebuch und sieht den Kalender.",
     "recipient": "Sieht alles außer Arztgesprächen und ändert nichts."
   },

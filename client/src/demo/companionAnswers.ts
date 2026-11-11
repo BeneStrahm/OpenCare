@@ -433,7 +433,7 @@ function answerVitalsLatest(f: CompanionFactsInput, lang: CompanionLang, questio
             fr: what ? `Aucune mesure de ${what.toLowerCase()} n'est enregistrée.` : "Aucune mesure n'est enregistrée.",
             en: what ? `No ${what.toLowerCase()} reading has been entered.` : 'No reading has been entered.',
             es: what ? `No hay ninguna medición de ${what.toLowerCase()} registrada.` : 'No hay ninguna medición registrada.',
-            de: what ? `Es ist kein Wert für ${what} eingetragen.` : 'Es sind keine Messwerte eingetragen.',
+            de: what ? `Es ist kein Wert für ${what} eingetragen.` : 'Es sind keine Gesundheitswerte eingetragen.',
         });
     }
     const items = list.map((v) => {

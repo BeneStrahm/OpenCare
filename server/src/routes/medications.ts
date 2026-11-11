@@ -31,6 +31,7 @@ import {
     CONFIRMED_AGE_MS_SQL,
 } from '../lib/intakes';
 import { langFromRequest, t, type Lang } from '../lib/i18n';
+import { MEDICATION_COLOR_IDS } from '../lib/viewColors';
 
 const router = Router();
 
@@ -148,12 +149,22 @@ const parseDateField = (raw: unknown, field: string, lang: Lang): { value?: stri
     return { value: raw };
 };
 
+interface MedicationExtras {
+    prn?: boolean;
+    with_food?: string | null;
+    reason?: string | null;
+    appearance?: string | null;
+    active_ingredient?: string | null;
+    /** Block L2: Farbe in der einfachen Ansicht */
+    view_color?: string | null;
+}
+
 /** Champs optionnels du medicament : { valeur } ou { error }. */
 const parseMedicationExtras = (body: Record<string, unknown>, lang: Lang): {
-    values?: { prn?: boolean; with_food?: string | null; reason?: string | null; appearance?: string | null; active_ingredient?: string | null };
+    values?: MedicationExtras;
     error?: string;
 } => {
-    const values: { prn?: boolean; with_food?: string | null; reason?: string | null; appearance?: string | null; active_ingredient?: string | null } = {};
+    const values: MedicationExtras = {};
     if ('prn' in body) {
         if (typeof body.prn !== 'boolean') return { error: t(lang, 'medications.prnBoolean') };
         values.prn = body.prn;
@@ -173,6 +184,13 @@ const parseMedicationExtras = (body: Record<string, unknown>, lang: Lang): {
     if ('active_ingredient' in body) {
         const raw = body.active_ingredient;
         values.active_ingredient = typeof raw === 'string' && raw.trim() ? raw.trim().slice(0, 255) : null;
+    }
+    // Block L2: Farbe in der einfachen Ansicht, nur aus der festen Liste (ohne Gruen).
+    if ('view_color' in body) {
+        const raw = body.view_color;
+        if (raw === null || raw === '' || raw === undefined) values.view_color = null;
+        else if (typeof raw === 'string' && MEDICATION_COLOR_IDS.includes(raw)) values.view_color = raw;
+        else return { error: t(lang, 'medications.colorInvalid') };
     }
     return { values };
 };
@@ -336,8 +354,8 @@ router.post('/', requireContentWriter, async (req: CircleRequest, res: Response)
 
         const medResult = await client.query(
             `INSERT INTO medications (circle_id, name, dosage, form, instructions, photo_url, prescriber, start_date, end_date,
-                                      prn, with_food, reason, appearance, active_ingredient)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                                      prn, with_food, reason, appearance, active_ingredient, view_color)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
              RETURNING id`,
             [
                 req.circleId,
@@ -354,6 +372,7 @@ router.post('/', requireContentWriter, async (req: CircleRequest, res: Response)
                 extras.values?.reason ?? null,
                 extras.values?.appearance ?? null,
                 extras.values?.active_ingredient ?? null,
+                extras.values?.view_color ?? null,
             ]
         );
         const medicationId = medResult.rows[0].id;

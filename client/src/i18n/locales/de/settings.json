@@ -61,7 +61,7 @@
     "recipient_stories": "Seite \"Wer ich bin\"",
     "journal_entries": "Tagebucheinträge",
     "journal_photos": "Tagebuchfotos",
-    "vitals": "Messwerte",
+    "vitals": "Gesundheitswerte",
     "medications": "Medikamente",
     "medication_schedules": "Einnahmepläne",
     "medication_intakes": "Einnahmen",
@@ -91,13 +91,13 @@
   },
   "units": {
     "title": "Einheiten",
-    "subtitle": "Wie Messwerte in diesem Kreis eingegeben und angezeigt werden.",
+    "subtitle": "Wie Gesundheitswerte in diesem Kreis eingegeben und angezeigt werden.",
     "metric": "Metrisch",
     "imperial": "Angloamerikanisch",
     "weight": "Gewicht in",
     "temperature": "Temperatur in",
     "glucose": "Blutzucker in",
-    "hint": "Messwerte bleiben metrisch gespeichert. Beim Umschalten wird der gesamte Verlauf auf dem Bildschirm umgerechnet, nichts geht verloren. Der Blutdruck bleibt immer in mmHg.",
+    "hint": "Gesundheitswerte bleiben metrisch gespeichert. Beim Umschalten wird der gesamte Verlauf auf dem Bildschirm umgerechnet, nichts geht verloren. Der Blutdruck bleibt immer in mmHg.",
     "error": "Die Einheiten konnten nicht gespeichert werden."
   },
   "weekStart": {
@@ -147,7 +147,7 @@
       "messages": "Nachrichten",
       "care_plan": "Pflegeplan",
       "medications": "Medikamente",
-      "health": "Gesundheit (Messwerte)",
+      "health": "Gesundheitswerte",
       "consultations": "Arztgespräche",
       "visitors": "Besuche",
       "tasks": "Aufgaben",
@@ -161,9 +161,9 @@
       "heatwave": "Hitzewarnung"
     },
     "vitals": {
-      "title": "Messwerte",
-      "subtitle": "Nur diese Messwerte werden erfasst und angezeigt.",
-      "hint": "Mindestens ein Messwert bleibt eingeschaltet.",
+      "title": "Gesundheitswerte",
+      "subtitle": "Nur diese Gesundheitswerte werden erfasst und angezeigt.",
+      "hint": "Mindestens ein Gesundheitswert bleibt eingeschaltet.",
       "items": {
         "weight": "Gewicht",
         "bp": "Blutdruck",

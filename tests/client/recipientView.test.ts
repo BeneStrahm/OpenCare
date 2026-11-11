@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
     chooseActiveCircleId, recipientCircleOf, recipientRedirect, RECIPIENT_VIEW_PATH,
-    isCompanionActive, isTravelActive, momentOf, localDay, FONT_SCALES,
+    isCompanionActive, isTravelActive, momentOf, localDay, FONT_SCALES, groupIntakes,
 } from '../../client/src/lib/recipientView';
 import * as serverRules from '../../server/src/lib/eventExtras';
 
@@ -96,5 +96,28 @@ describe('kleine Helfer', () => {
     it('Textgroessen: normal zuerst, alle groesser oder gleich 1', () => {
         expect(FONT_SCALES[0]).toBe(1);
         for (const scale of FONT_SCALES) expect(scale).toBeGreaterThanOrEqual(1);
+    });
+});
+
+// Block L2: Karten pro Tageszeit und pro fester Uhrzeit, ohne Bedarfsmedikamente.
+describe('Medikamente in Karten', () => {
+    const toDate = (value: string) => new Date(value);
+    const intake = (due: string, time_fixed: boolean, name: string, prn = false) => ({ due_at: due, time_fixed, prn, medication_name: name });
+
+    it('Tageszeit und feste Uhrzeit getrennt, nach Uhrzeit sortiert', () => {
+        const groups = groupIntakes([
+            intake('2026-11-12T18:00:00', false, 'C'),
+            intake('2026-11-12T08:00:00', false, 'B'),
+            intake('2026-11-12T09:30:00', true, 'D'),
+            intake('2026-11-12T08:00:00', false, 'A'),
+            intake('2026-11-12T08:00:00', true, 'E'),
+        ], toDate);
+        expect(groups.map((g) => g.group.key)).toEqual(['moment:morning', 'fixed:08:00', 'fixed:09:30', 'moment:evening']);
+        expect(groups[0].items.map((i) => i.medication_name)).toEqual(['A', 'B']);
+    });
+
+    it('Bedarfsmedikamente erscheinen nicht', () => {
+        const groups = groupIntakes([intake('2026-11-12T12:00:00', true, 'X', true)], toDate);
+        expect(groups).toEqual([]);
     });
 });

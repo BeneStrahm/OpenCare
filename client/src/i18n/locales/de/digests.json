@@ -9,7 +9,7 @@
   },
   "attentionPoints": "Worauf achten",
   "weakSignals": "Leise Anzeichen",
-  "empty": "Noch kein Rückblick vorhanden. Er wird jeden Sonntag um 18 Uhr aus Tagebuch, Messwerten und Medikamenten erstellt.",
+  "empty": "Noch kein Rückblick vorhanden. Er wird jeden Sonntag um 18 Uhr aus Tagebuch, Gesundheitswerten und Medikamenten erstellt.",
   "generateNow": "Jetzt erstellen",
   "generating": "Wird erstellt...",
   "history": "Vorherige Wochen",

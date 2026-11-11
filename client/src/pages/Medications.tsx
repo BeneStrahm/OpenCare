@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { cn } from '../lib/utils';
+import { MEDICATION_COLORS, medicationColorOf } from '../lib/viewColors';
 import { DEFAULT_UNIT_BY_FORM, MEDICATION_FORMS, MEDICATION_UNITS, formatAmount, safeQuantity, unitFor } from '../lib/medications';
 import { useCircle } from '../contexts/CircleContext';
 import { circleWeekStart, orderedIsoDays, sortIsoDays } from '../lib/weekStart';
@@ -75,6 +76,8 @@ interface Medication {
     appearance: string | null;
     /** Wirkstoff */
     active_ingredient: string | null;
+    /** Block L2: Farbe in der einfachen Ansicht (lib/viewColors.ts, MEDICATION_COLORS) */
+    view_color: string | null;
     /** Stock restant, dans l'unite d'une prise ; null = stock non suivi */
     stock_quantity: number | null;
     /** Sous ce seuil le stock est signale comme bas ; null = pas d'alerte */
@@ -282,6 +285,7 @@ const emptyMedForm = () => ({
     reason: '',
     appearance: '',
     active_ingredient: '',
+    view_color: '',
     schedules: [emptyScheduleRow()],
 });
 
@@ -297,7 +301,7 @@ const emptyRxForm = () => ({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 const Medications: React.FC = () => {
-    const { t } = useTranslation(['medications', 'common']);
+    const { t } = useTranslation(['medications', 'common', 'simpleView']);
     const { activeCircle, canWriteContent, canWriteJournal, myRole } = useCircle();
 
     const [intakes, setIntakes] = useState<Intake[]>([]);
@@ -854,6 +858,7 @@ const Medications: React.FC = () => {
             reason: med.reason || '',
             appearance: med.appearance || '',
             active_ingredient: med.active_ingredient || '',
+            view_color: medicationColorOf(med.view_color)?.id ?? '',
             schedules: med.schedules.map((s) => ({
                 time_of_day: s.time_of_day,
                 days_of_week: [...s.days_of_week],
@@ -958,6 +963,7 @@ const Medications: React.FC = () => {
             reason: medForm.reason.trim() || null,
             appearance: medForm.appearance.trim() || null,
             active_ingredient: medForm.active_ingredient.trim() || null,
+            view_color: medForm.view_color || null,
             schedules: rows.map((row) => ({
                 time_of_day: row.time_of_day,
                 days_of_week: row.days_of_week,
@@ -1642,6 +1648,39 @@ const Medications: React.FC = () => {
                             placeholder={t('medications:form.appearancePlaceholder')}
                         />
                     </div>
+                    {/* Block L2: Farbe der Karte in der einfachen Ansicht der betreuten Person */}
+                    <fieldset>
+                        <legend className="mb-1.5 block text-caption font-medium text-foreground">
+                            {t('medications:form.viewColor')}
+                        </legend>
+                        <p className="mb-2 text-caption text-muted-foreground">{t('medications:form.viewColorHint')}</p>
+                        <div className="flex flex-wrap gap-2">
+                            {[null, ...MEDICATION_COLORS].map((color) => {
+                                const id = color?.id ?? '';
+                                const selected = medForm.view_color === id;
+                                return (
+                                    <button
+                                        key={id || 'none'}
+                                        type="button"
+                                        aria-pressed={selected}
+                                        onClick={() => setMedForm({ ...medForm, view_color: id })}
+                                        className={cn(
+                                            'flex min-h-[48px] items-center gap-2 rounded-input border-2 px-3 text-body font-medium',
+                                            selected ? 'border-foreground bg-surface-2' : 'border-border bg-surface text-foreground hover:bg-surface-2'
+                                        )}
+                                    >
+                                        <span
+                                            className="h-6 w-6 shrink-0 rounded-full border border-border"
+                                            style={color ? { backgroundColor: color.soft, borderColor: color.strong, borderWidth: 3 } : undefined}
+                                            aria-hidden="true"
+                                        />
+                                        {color ? t(`simpleView:colors.${color.id}`) : t('medications:form.viewColorNone')}
+                                        {selected && <Check className="h-5 w-5 shrink-0" aria-hidden="true" />}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </fieldset>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
                             <label className="mb-1.5 block text-caption font-medium text-foreground">

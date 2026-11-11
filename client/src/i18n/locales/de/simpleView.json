@@ -14,7 +14,9 @@
     "queued": "Ohne Internet gespeichert. Es wird übertragen, sobald wieder Internet da ist.",
     "error": "Das hat nicht geklappt. Bitte versuchen Sie es noch einmal.",
     "undone": "Rückgängig gemacht.",
-    "undoExpired": "Rückgängig ist nicht mehr möglich. Bitte sagen Sie Ihren Angehörigen Bescheid."
+    "undoExpired": "Rückgängig ist nicht mehr möglich. Bitte sagen Sie Ihren Angehörigen Bescheid.",
+    "at": "Um {{time}}",
+    "allTakenAt": "Um {{time}} alle genommen"
   },
   "visitors": {
     "title": "Wer heute kommt",
@@ -114,7 +116,7 @@
     "slate": "Schiefergrau"
   },
   "measure": {
-    "title": "Messwerte eintragen",
+    "title": "Gesundheitswert eintragen",
     "now": "Jetzt eintragen",
     "button": {
       "glucose": "Blutzucker eintragen",
@@ -137,6 +139,68 @@
     "error": {
       "empty": "Bitte tippen Sie eine Zahl ein.",
       "invalid": "Diese Zahl passt nicht. Bitte prüfen Sie den Wert und tippen Sie ihn noch einmal ein."
-    }
+    },
+    "choose": "Was möchten Sie eintragen?"
+  },
+  "window": {
+    "close": "Schließen"
+  },
+  "tiles": {
+    "label": "Bereiche",
+    "meds": "Medikamente",
+    "visits_one": "Heute {{count}} Besuch",
+    "visits_other": "Heute {{count}} Besuche",
+    "appointments_one": "Heute {{count}} Termin",
+    "appointments_other": "Heute {{count}} Termine",
+    "doctor": "Arztgespräch",
+    "later": "Kommt später",
+    "shopping": "Einkaufsliste",
+    "shoppingOpen_one": "{{count}} Eintrag offen",
+    "shoppingOpen_other": "{{count}} Einträge offen"
+  },
+  "info": {
+    "title": "Meine Informationen",
+    "name": "Mein Name",
+    "address": "Meine Adresse",
+    "phone": "Meine Telefonnummer",
+    "contacts": "Wen ich anrufen kann",
+    "empty": "Noch keine Informationen eingetragen."
+  },
+  "event": {
+    "new": "Neuer Termin",
+    "saved": "Der Termin ist eingetragen.",
+    "entered": "Neuer Termin: {{title}}, {{when}}",
+    "when": "{{day}} um {{time}} Uhr",
+    "label": {
+      "title": "Was ist das für ein Termin?",
+      "date": "An welchem Tag?",
+      "time": "Um wie viel Uhr?"
+    },
+    "error": {
+      "title": "Bitte schreiben Sie, was das für ein Termin ist.",
+      "date": "Bitte wählen Sie einen Tag ab heute.",
+      "time": "Bitte wählen Sie eine Uhrzeit."
+    },
+    "time": "Uhrzeit",
+    "place": "Ort",
+    "travelTo": "Hinfahrt",
+    "travelBack": "Rückfahrt",
+    "companion": "Es kommt mit",
+    "takeAlong": "Mitnehmen"
+  },
+  "shopping": {
+    "label": "Was soll auf die Liste?",
+    "add": "Hinzufügen",
+    "error": "Bitte schreiben Sie, was auf die Liste soll.",
+    "open": "Noch zu besorgen",
+    "done": "Schon erledigt",
+    "empty": "Die Liste ist leer.",
+    "check": "Abhaken",
+    "addQuestion": "Auf die Liste setzen?",
+    "addYes": "Ja, hinzufügen",
+    "checkQuestion": "Ist das erledigt?",
+    "checkYes": "Ja, abhaken",
+    "added": "Steht jetzt auf der Liste.",
+    "checked": "Abgehakt, sehr gut!"
   }
 }

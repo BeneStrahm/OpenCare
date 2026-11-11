@@ -1,7 +1,9 @@
 import { Router, Response } from 'express';
 import { query } from '../db';
 import { authMiddleware } from '../middleware/auth';
-import { circleMiddleware, CircleRequest, CircleRole } from '../middleware/circle';
+import {
+    circleMiddleware, CircleRequest, CircleRole, RECIPIENT_UNDO_MS, parseRecipientEvent, recipientEventUndoMsLeft,
+} from '../middleware/circle';
 import { toNullIfEmpty } from '../lib/normalize';
 import { cleanFlag, cleanGuests, cleanPersonName, cleanTakeAlong, cleanTravelMinutes, isInvalidTravelMinutes } from '../lib/eventExtras';
 import { broadcastToCircle } from '../lib/broadcaster';
@@ -324,6 +326,8 @@ export const expandEventOccurrences = (
 const canWriteCategory = (role: CircleRole | undefined, category: EventCategory): boolean => {
     if (role === 'admin' || role === 'family') return true;
     if (role === 'professional') return PROFESSIONAL_CATEGORIES.includes(category);
+    // Block L3: die betreute Person legt nur Termine der Kategorie "Sonstige" an.
+    if (role === 'recipient') return category === 'other';
     return false;
 };
 
@@ -469,9 +473,48 @@ router.get('/upcoming', async (req: CircleRequest, res: Response) => {
     }
 });
 
+/** Alter eines Termins in ms, in der Datenbank berechnet (wie bei den Messwerten). */
+const CREATED_AGE_MS_SQL = 'EXTRACT(EPOCH FROM (LOCALTIMESTAMP - created_at)) * 1000';
+
+// Block L3: eigene neue Termine, die noch rueckgaengig gemacht werden koennen
+// (fuer die einfache Ansicht der betreuten Person; zeigt nur eigene Termine).
+router.get('/mine/undoable', async (req: CircleRequest, res: Response) => {
+    try {
+        const { rows } = await query(
+            `SELECT id, title, start_time, created_by, rrule, ${CREATED_AGE_MS_SQL} AS created_age_ms
+             FROM events
+             WHERE circle_id = $1 AND created_by = $2
+               AND created_at > LOCALTIMESTAMP - ($3 || ' milliseconds')::interval
+             ORDER BY created_at DESC`,
+            [req.circleId, req.userId, String(RECIPIENT_UNDO_MS)]
+        );
+        const data = rows
+            .map((row) => ({
+                id: row.id as string,
+                title: row.title as string,
+                start_time: row.start_time instanceof Date ? toLocalISO(row.start_time) : row.start_time,
+                undo_ms_left: recipientEventUndoMsLeft(row, req.userId),
+            }))
+            .filter((row) => row.undo_ms_left > 0);
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error('List undoable events error:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
+
 // Create an event
 router.post('/', async (req: CircleRequest, res: Response) => {
     try {
+        // Block L3: die betreute Person gibt nur Titel und Beginn an (middleware/circle.ts).
+        if (req.circleRole === 'recipient') {
+            const input = parseRecipientEvent(req.body);
+            if (!input) {
+                return res.status(400).json({ success: false, error: 'Invalid event' });
+            }
+            req.body = { title: input.title, start_time: input.start_time, category: 'other' };
+        }
+
         const {
             title, description, category, start_time, end_time,
             location, rrule, member_ids, reminder_30min, reminder_1hour, notes,
@@ -704,14 +747,20 @@ router.put('/:id', async (req: CircleRequest, res: Response) => {
 router.delete('/:id', async (req: CircleRequest, res: Response) => {
     try {
         const existingResult = await query(
-            'SELECT id, created_by, category FROM events WHERE id = $1 AND circle_id = $2',
+            `SELECT id, created_by, category, rrule, ${CREATED_AGE_MS_SQL} AS created_age_ms
+             FROM events WHERE id = $1 AND circle_id = $2`,
             [req.params.id, req.circleId]
         );
         const existing = existingResult.rows[0];
         if (!existing) {
             return res.status(404).json({ success: false, error: 'Event not found' });
         }
-        if (!canManageExisting(req, existing)) {
+        // Block L3: die betreute Person nur den eigenen neuen Termin, nur RECIPIENT_UNDO_MINUTES lang.
+        if (req.circleRole === 'recipient') {
+            if (recipientEventUndoMsLeft(existing, req.userId) <= 0) {
+                return res.status(403).json({ success: false, error: 'UNDO_EXPIRED' });
+            }
+        } else if (!canManageExisting(req, existing)) {
             return res.status(403).json({ success: false, error: 'Insufficient role' });
         }
 

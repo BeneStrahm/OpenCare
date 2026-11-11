@@ -193,7 +193,10 @@
     "schedulesRequiredError": "Ajoutez au moins un horaire ou choisissez « Si besoin ».",
     "moment": "Moment de la journée",
     "timeKind": "Quand",
-    "fixedTime": "Heure fixe"
+    "fixedTime": "Heure fixe",
+    "viewColor": "Couleur sur la tablette",
+    "viewColorHint": "Aide la personne aidée à reconnaître ce médicament dans sa vue.",
+    "viewColorNone": "Sans couleur"
   },
   "prescriptions": {
     "add": "Ajouter une ordonnance",

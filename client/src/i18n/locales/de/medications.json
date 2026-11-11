@@ -193,7 +193,10 @@
     "schedulesRequiredError": "Fügen Sie mindestens eine Einnahmezeit hinzu oder wählen Sie „Bei Bedarf“.",
     "moment": "Tageszeit",
     "timeKind": "Wann",
-    "fixedTime": "Feste Uhrzeit"
+    "fixedTime": "Feste Uhrzeit",
+    "viewColor": "Farbe auf dem Tablet",
+    "viewColorHint": "So erkennt die betreute Person das Medikament in ihrer Ansicht leichter.",
+    "viewColorNone": "Keine Farbe"
   },
   "prescriptions": {
     "add": "Rezept hinzufügen",

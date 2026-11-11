@@ -14,7 +14,9 @@
     "queued": "Saved without internet. It will be sent as soon as the internet is back.",
     "error": "That did not work. Please try again.",
     "undone": "Undone.",
-    "undoExpired": "It can no longer be undone. Please tell your family."
+    "undoExpired": "It can no longer be undone. Please tell your family.",
+    "at": "At {{time}}",
+    "allTakenAt": "All taken at {{time}}"
   },
   "visitors": {
     "title": "Who's coming today",
@@ -137,6 +139,68 @@
     "error": {
       "empty": "Please type in a number.",
       "invalid": "This number does not look right. Please check the reading and type it in again."
-    }
+    },
+    "choose": "What would you like to enter?"
+  },
+  "window": {
+    "close": "Close"
+  },
+  "tiles": {
+    "label": "Sections",
+    "meds": "Medicines",
+    "visits_one": "{{count}} visit today",
+    "visits_other": "{{count}} visits today",
+    "appointments_one": "{{count}} appointment today",
+    "appointments_other": "{{count}} appointments today",
+    "doctor": "Doctor's visit",
+    "later": "Coming later",
+    "shopping": "Shopping list",
+    "shoppingOpen_one": "{{count}} item left",
+    "shoppingOpen_other": "{{count}} items left"
+  },
+  "info": {
+    "title": "My information",
+    "name": "My name",
+    "address": "My address",
+    "phone": "My phone",
+    "contacts": "People I can call",
+    "empty": "No information filled in yet."
+  },
+  "event": {
+    "new": "New appointment",
+    "saved": "The appointment has been added.",
+    "entered": "New appointment: {{title}}, {{when}}",
+    "when": "{{day}} at {{time}}",
+    "label": {
+      "title": "What is the appointment?",
+      "date": "On which day?",
+      "time": "At what time?"
+    },
+    "error": {
+      "title": "Please write what the appointment is.",
+      "date": "Please choose a day from today onwards.",
+      "time": "Please choose a time."
+    },
+    "time": "Time",
+    "place": "Place",
+    "travelTo": "Getting there",
+    "travelBack": "Getting back",
+    "companion": "Coming with you",
+    "takeAlong": "Take along"
+  },
+  "shopping": {
+    "label": "What should go on the list?",
+    "add": "Add",
+    "error": "Please write what should go on the list.",
+    "open": "Still to get",
+    "done": "Already done",
+    "empty": "The list is empty.",
+    "check": "Tick off",
+    "addQuestion": "Add to the list?",
+    "addYes": "Yes, add",
+    "checkQuestion": "Is this done?",
+    "checkYes": "Yes, tick off",
+    "added": "It is on the list now.",
+    "checked": "Ticked off, well done!"
   }
 }

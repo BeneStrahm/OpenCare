@@ -1,6 +1,6 @@
 {
   "title": "Arzttermin vorbereiten",
-  "subtitle": "Mit einem Klick ein druckbares Dokument für den Arzt: wichtige Ereignisse, Verlauf der Messwerte, den Medikamentenplan und die Fragen der Familie.",
+  "subtitle": "Mit einem Klick ein druckbares Dokument für den Arzt: wichtige Ereignisse, Verlauf der Gesundheitswerte, den Medikamentenplan und die Fragen der Familie.",
   "noCircle": "Wählen Sie einen Kreis, um einen Termin vorzubereiten.",
   "error": "Das Dokument konnte nicht erstellt werden.",
   "controls": {
@@ -31,8 +31,8 @@
     "intakesSummary": "{{taken}} von {{scheduled}} geplanten Einnahmen bestätigt ({{percent}} %), {{skipped}} ausgelassen, {{missed}} verpasst.",
     "noIntakes": "Im Zeitraum war keine Einnahme geplant.",
     "missed": "Verpasste Einnahmen",
-    "vitals": "Messwerte",
-    "vitalsType": "Messwert",
+    "vitals": "Gesundheitswerte",
+    "vitalsType": "Gesundheitswert",
     "vitalsFirst": "Beginn des Zeitraums",
     "vitalsLast": "Letzte Messung",
     "vitalsTrend": "Verlauf",
@@ -43,7 +43,7 @@
       "down": "fallend",
       "stable": "gleichbleibend"
     },
-    "noVitals": "Im Zeitraum wurde kein Messwert erfasst.",
+    "noVitals": "Im Zeitraum wurde kein Gesundheitswert erfasst.",
     "highlights": "Wichtige Ereignisse",
     "noHighlights": "Keine wichtigen Ereignisse im Zeitraum.",
     "entryTypes": {

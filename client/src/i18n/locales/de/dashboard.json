@@ -46,7 +46,7 @@
     "empty": "Alles erledigt. Nichts offen."
   },
   "vitals": {
-    "title": "Messwerte",
+    "title": "Gesundheitswerte",
     "empty": "Noch keine Messungen.",
     "types": {
       "weight": "Gewicht",

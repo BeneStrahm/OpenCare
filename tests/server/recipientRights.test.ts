@@ -19,7 +19,13 @@ import {
     recipientMayAccess,
     recipientMayChangeIntake,
     recipientUndoMsLeft,
+    parseRecipientEvent,
+    recipientEventUndoMsLeft,
+    parseRecipientShoppingName,
+    recipientShoppingUndo,
+    recipientMayCheckShopping,
     requireAdmin,
+    SHOPPING_WRITER_ROLES,
     CIRCLE_ROLES,
     RECIPIENT_UNDO_MINUTES,
     RECIPIENT_UNDO_MS,
@@ -56,7 +62,9 @@ const BLOCKED: Array<[string, string]> = [
     ['GET', '/api/documents'],
     ['GET', '/api/vitals'],
     ['GET', '/api/tasks'],
-    ['GET', '/api/shopping'],
+    // Block L4: an der Einkaufsliste nur lesen, hinzufuegen, abhaken (kein Leeren, keine Unterpfade).
+    ['DELETE', '/api/shopping/checked/clear'],
+    ['PUT', '/api/shopping/eintrag-1/extra'],
     ['GET', '/api/expenses'],
     ['GET', '/api/messages'],
     ['GET', '/api/notes'],
@@ -82,9 +90,11 @@ const BLOCKED: Array<[string, string]> = [
     ['GET', '/api/medications/prescriptions'],
     ['POST', '/api/medications/med-1/intakes'],
     ['PUT', '/api/medications/med-1/stock'],
-    ['POST', '/api/events'],
+    // Block L3: Termine nur anlegen und den eigenen loeschen, nie aendern, keine Serien-Ausnahmen.
     ['PUT', '/api/events/termin-1'],
-    ['DELETE', '/api/events/termin-1'],
+    ['PUT', '/api/events/termin-1/occurrences/2026-11-12'],
+    ['DELETE', '/api/events/termin-1/occurrences/2026-11-12'],
+    ['GET', '/api/events/mine'],
     ['PUT', '/api/contacts/kontakt-1'],
     ['DELETE', '/api/visits/besuch-1'],
     ['PUT', '/api/heatwave'],
@@ -144,6 +154,15 @@ const ALLOWED: Array<[string, string]> = [
     ['GET', '/api/emergency/payload'],
     ['GET', '/api/view-photos'],
     ['GET', '/api/view-photos/foto-1'],
+    // Block L3: eigenen Termin anlegen und 10 Minuten rueckgaengig (Route prueft Felder, Urheber, Zeit)
+    ['POST', '/api/events'],
+    ['GET', '/api/events/mine/undoable'],
+    ['DELETE', '/api/events/termin-1'],
+    // Block L4: Einkaufsliste lesen, hinzufuegen, abhaken, eigenes rueckgaengig
+    ['GET', '/api/shopping'],
+    ['POST', '/api/shopping'],
+    ['PUT', '/api/shopping/eintrag-1'],
+    ['DELETE', '/api/shopping/eintrag-1'],
 ];
 
 describe('recipient: gesperrte Bereiche (403 auf dem Server)', () => {
@@ -245,5 +264,80 @@ describe('Kreisverwaltung nur fuer admin', () => {
                 role === 'admin' ? { role, status: 200, passed: true } : { role, status: 403, passed: false }
             );
         }
+    });
+});
+
+describe('Block L3: Termin der betreuten Person', () => {
+    const now = new Date(2026, 10, 11, 21, 0);
+
+    it('nimmt nur Titel und Beginn, ab heute bis 2 Jahre voraus', () => {
+        expect(parseRecipientEvent({ title: '  Friseur  ', start_time: '2026-11-12T10:30' }, now))
+            .toEqual({ title: 'Friseur', start_time: '2026-11-12T10:30:00' });
+        expect(parseRecipientEvent({ title: 'Heute frueh', start_time: '2026-11-11T08:00' }, now)?.start_time).toBe('2026-11-11T08:00:00');
+        expect(parseRecipientEvent({ title: 'Spaet', start_time: '2028-11-11T09:00' }, now)).not.toBeNull();
+    });
+
+    it('lehnt leere, zu lange und falsche Angaben ab', () => {
+        expect(parseRecipientEvent({ title: '', start_time: '2026-11-12T10:30' }, now)).toBeNull();
+        expect(parseRecipientEvent({ title: 'x'.repeat(121), start_time: '2026-11-12T10:30' }, now)).toBeNull();
+        expect(parseRecipientEvent({ title: 'Gestern', start_time: '2026-11-10T10:30' }, now)).toBeNull();
+        expect(parseRecipientEvent({ title: 'Zu weit', start_time: '2028-11-13T10:30' }, now)).toBeNull();
+        expect(parseRecipientEvent({ title: 'Kein Tag', start_time: '2026-02-30T10:30' }, now)).toBeNull();
+        expect(parseRecipientEvent({ title: 'Format', start_time: '12.11.2026 10:30' }, now)).toBeNull();
+        expect(parseRecipientEvent({ title: 'Ohne Zeit' }, now)).toBeNull();
+        expect(parseRecipientEvent(null, now)).toBeNull();
+    });
+
+    it('Rueckgaengig nur fuer den eigenen Termin ohne Serie, 10 Minuten', () => {
+        const own = (age: number | string | null) => ({ created_by: 'konto-1', rrule: null, created_age_ms: age });
+        expect(recipientEventUndoMsLeft(own(60_000), 'konto-1')).toBe(RECIPIENT_UNDO_MS - 60_000);
+        expect(recipientEventUndoMsLeft(own('1000.5'), 'konto-1')).toBeGreaterThan(0);
+        expect(recipientEventUndoMsLeft(own(RECIPIENT_UNDO_MS), 'konto-1')).toBe(0);
+        expect(recipientEventUndoMsLeft(own(null), 'konto-1')).toBe(0);
+        expect(recipientEventUndoMsLeft(own(-1), 'konto-1')).toBe(0);
+        expect(recipientEventUndoMsLeft({ ...own(1000), created_by: 'konto-2' }, 'konto-1')).toBe(0);
+        expect(recipientEventUndoMsLeft({ ...own(1000), rrule: 'FREQ=WEEKLY' }, 'konto-1')).toBe(0);
+        expect(recipientEventUndoMsLeft(own(1000), undefined)).toBe(0);
+    });
+});
+
+describe('Block L4: Einkaufsliste der betreuten Person', () => {
+    const item = (patch: Record<string, unknown> = {}) => ({
+        is_checked: false, added_by: 'konto-2', checked_by: null, created_age_ms: 60 * 60 * 1000, checked_age_ms: null, ...patch,
+    });
+
+    it('nimmt nur einen Namen', () => {
+        expect(parseRecipientShoppingName({ name: '  Milch   und Brot ', category: 'pharmacy', notes: 'x' })).toBe('Milch und Brot');
+        expect(parseRecipientShoppingName({ name: '   ' })).toBeNull();
+        expect(parseRecipientShoppingName({ name: 'x'.repeat(101) })).toBeNull();
+        expect(parseRecipientShoppingName({ name: 5 })).toBeNull();
+        expect(parseRecipientShoppingName(undefined)).toBeNull();
+    });
+
+    it('hakt offene Eintraege ab, auch fremde', () => {
+        expect(recipientMayCheckShopping(true, item(), 'konto-1')).toBe(true);
+        expect(recipientMayCheckShopping(true, item({ is_checked: true }), 'konto-1')).toBe(false);
+        expect(recipientMayCheckShopping('ja', item(), 'konto-1')).toBe(false);
+        expect(recipientMayCheckShopping(undefined, item(), 'konto-1')).toBe(false);
+    });
+
+    it('nimmt nur das eigene Abhaken zurueck, 10 Minuten', () => {
+        const checked = item({ is_checked: true, checked_by: 'konto-1', checked_age_ms: 30_000 });
+        expect(recipientMayCheckShopping(false, checked, 'konto-1')).toBe(true);
+        expect(recipientShoppingUndo(checked, 'konto-1').checked).toBe(RECIPIENT_UNDO_MS - 30_000);
+        expect(recipientMayCheckShopping(false, { ...checked, checked_age_ms: RECIPIENT_UNDO_MS }, 'konto-1')).toBe(false);
+        expect(recipientMayCheckShopping(false, { ...checked, checked_by: 'konto-2' }, 'konto-1')).toBe(false);
+        expect(recipientMayCheckShopping(false, { ...checked, is_checked: false }, 'konto-1')).toBe(false);
+    });
+
+    it('loescht nur den eigenen neuen Eintrag, 10 Minuten', () => {
+        expect(recipientShoppingUndo(item({ added_by: 'konto-1', created_age_ms: 1000 }), 'konto-1').added).toBe(RECIPIENT_UNDO_MS - 1000);
+        expect(recipientShoppingUndo(item({ added_by: 'konto-1', created_age_ms: RECIPIENT_UNDO_MS + 1 }), 'konto-1').added).toBe(0);
+        expect(recipientShoppingUndo(item({ created_age_ms: 1000 }), 'konto-1').added).toBe(0);
+        expect(recipientShoppingUndo(item({ added_by: 'konto-1', created_age_ms: 1000 }), undefined)).toEqual({ added: 0, checked: 0 });
+    });
+
+    it('alle fuenf Rollen schreiben an der Liste, recipient nur eingeschraenkt', () => {
+        expect([...SHOPPING_WRITER_ROLES].sort()).toEqual([...CIRCLE_ROLES].sort());
     });
 });

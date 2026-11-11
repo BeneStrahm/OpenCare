@@ -193,7 +193,10 @@
     "schedulesRequiredError": "Add at least one intake time or choose “As needed”.",
     "moment": "Time of day",
     "timeKind": "When",
-    "fixedTime": "Fixed time"
+    "fixedTime": "Fixed time",
+    "viewColor": "Colour on the tablet",
+    "viewColorHint": "Helps the person cared for recognise this medicine in their view.",
+    "viewColorNone": "No colour"
   },
   "prescriptions": {
     "add": "Add a prescription",
