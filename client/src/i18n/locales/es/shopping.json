@@ -12,7 +12,7 @@
   },
   "add": {
     "label": "Añadir un artículo",
-    "placeholder": "Añadir un artículo (ej.: compotas, pañuelos)…",
+    "placeholder": "Artículo, p. ej. compota",
     "noCategory": "Sin categoría"
   },
   "row": {

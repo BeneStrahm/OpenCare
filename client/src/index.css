@@ -24,9 +24,9 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-feature-settings: 'rlig' 1, 'calt' 1;
-    /* Prevent long unbreakable strings (emails, URLs, long words) from overflowing their card */
+    /* Lange Zeichenketten (E-Mails, Links) nur dann umbrechen, wenn sie sonst überlaufen.
+       Kein word-break: break-word, das zerschneidet Wörter auf Tasten und in schmalen Spalten. */
     overflow-wrap: break-word;
-    word-break: break-word;
   }
 
   /* Media never forces the layout wider than its container on small screens */

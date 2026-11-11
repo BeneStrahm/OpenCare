@@ -4,7 +4,6 @@ import { format, parseISO, endOfWeek, endOfMonth } from 'date-fns';
 import { Plus, Check, ClipboardList, Pencil, Trash2, Repeat, CalendarClock, Users, X, AlertCircle } from 'lucide-react';
 import { api } from '../lib/api';
 import { useCircle } from '../contexts/CircleContext';
-import { useAuth } from '../contexts/AuthContext';
 import { useWebSocketUpdates } from '../hooks/useWebSocketUpdates';
 import { dateLocale } from '../i18n/format';
 import { Button, Dialog, Input, Select, Textarea, DatePicker, Badge } from '../components/ui';
@@ -102,7 +101,6 @@ const MemberAvatar: React.FC<{ member: AssignedMember; className?: string }> = (
 const Tasks: React.FC = () => {
     const { t } = useTranslation(['tasks', 'common']);
     const { activeCircle, canWriteContent, canWriteJournal } = useCircle();
-    const { user } = useAuth();
 
     const [tasks, setTasks] = useState<Task[]>([]);
     const [members, setMembers] = useState<CircleMember[]>([]);
@@ -153,9 +151,6 @@ const Tasks: React.FC = () => {
             if (response.success) {
                 const list = response.data.members ?? [];
                 setMembers(list);
-                // Standard: nur die eigenen Aufgaben zeigen
-                const me = list.find((member) => member.user_id === user?.id);
-                if (me) setAssigneeFilter(me.id);
             }
         } catch (err) {
             console.error('Failed to load circle members:', err);

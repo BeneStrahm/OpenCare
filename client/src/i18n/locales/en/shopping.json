@@ -12,7 +12,7 @@
   },
   "add": {
     "label": "Add an item",
-    "placeholder": "Add an item (e.g. applesauce, tissues)…",
+    "placeholder": "Item, e.g. applesauce",
     "noCategory": "No category"
   },
   "row": {

@@ -12,7 +12,7 @@
   },
   "add": {
     "label": "Artikel hinzufügen",
-    "placeholder": "Artikel hinzufügen (z. B. Apfelmus, Taschentücher)…",
+    "placeholder": "Artikel, z. B. Apfelmus",
     "noCategory": "Keine Kategorie"
   },
   "row": {

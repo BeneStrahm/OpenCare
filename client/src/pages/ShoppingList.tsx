@@ -273,7 +273,12 @@ const ShoppingList: React.FC = () => {
                             ]}
                             className="w-44"
                         />
-                        <Button type="submit" disabled={adding || !newName.trim()} aria-label={t('common:actions.add')}>
+                        <Button
+                            type="submit"
+                            disabled={adding || !newName.trim()}
+                            aria-label={t('common:actions.add')}
+                            className="shrink-0 whitespace-nowrap"
+                        >
                             <Plus className="h-4 w-4 sm:mr-1.5" />
                             <span className="hidden sm:inline">{t('common:actions.add')}</span>
                         </Button>

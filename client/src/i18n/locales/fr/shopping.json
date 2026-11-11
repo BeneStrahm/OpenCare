@@ -12,7 +12,7 @@
   },
   "add": {
     "label": "Ajouter un article",
-    "placeholder": "Ajouter un article (ex : compotes, mouchoirs)…",
+    "placeholder": "Article, ex. compote",
     "noCategory": "Sans catégorie"
   },
   "row": {
