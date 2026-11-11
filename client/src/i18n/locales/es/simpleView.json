@@ -72,18 +72,11 @@
     "colorError": "No se ha podido guardar el color. Compruebe la conexión a Internet e inténtelo de nuevo."
   },
   "header": {
-    "settings": "Ajustes",
-    "logout": "Cerrar sesión"
+    "settings": "Ajustes"
   },
   "loadError": "No se ha podido cargar la información. Compruebe la conexión a internet.",
   "reload": "Volver a cargar",
   "ok": "Vale",
-  "logout": {
-    "title": "¿Quiere cerrar la sesión?",
-    "hint": "Después necesitará su contraseña para volver a entrar.",
-    "yes": "Sí, cerrar sesión",
-    "no": "No, quedarme aquí"
-  },
   "vitals": {
     "glucose": "Por favor, mida hoy su glucosa.",
     "weight": "Por favor, pésese hoy."
@@ -148,6 +141,7 @@
   "tiles": {
     "label": "Secciones",
     "meds": "Medicamentos",
+    "health": "Mediciones",
     "visits_one": "Hoy {{count}} visita",
     "visits_other": "Hoy {{count}} visitas",
     "appointments_one": "Hoy {{count}} cita",
@@ -202,5 +196,31 @@
     "checkYes": "Sí, marcar",
     "added": "Ya está en la lista.",
     "checked": "Marcado, ¡muy bien!"
+  },
+  "home": {
+    "take": "Tomado",
+    "takeOne": "{{name}}: tomado",
+    "skip": "Omitir",
+    "skipOne": "{{name}}: omitir",
+    "snooze": "Recordar más tarde",
+    "snoozeOne": "{{name}}: recordar más tarde",
+    "overdue": "Aún no tomado",
+    "skipTitle": "¿Seguro que quiere omitirlo?",
+    "skipYes": "Omitir",
+    "skipNo": "No, volver",
+    "skipped": "Omitido. Su familia recibirá un aviso.",
+    "skippedStatus": "Omitido",
+    "snoozed": "De acuerdo. Se lo recordaré a las {{time}}.",
+    "statusDue": "Para tomar",
+    "statusLater": "Aún no"
+  },
+  "medInfo": {
+    "when": "Toma",
+    "appearance": "Aspecto",
+    "reason": "Para qué"
+  },
+  "devClock": {
+    "label": "Reloj de prueba (solo pruebas locales)",
+    "reset": "Hora real"
   }
 }

@@ -17,9 +17,13 @@ export const CIRCLE_ROLES: CircleRole[] = ['admin', 'family', 'professional', 'n
  *   alles andere lehnt circleMiddleware mit 403 ab (Tagebuch, Arztgespraech,
  *   Dokumente, Gesundheitswerte, Aufgaben, Mitglieder- und Kreisverwaltung, Export ...).
  * - schreibt fast nichts. Ausnahmen: bestaetigt Einnahmen als "Genommen"
- *   (INTAKE_CONFIRMER_ROLES), einzeln oder pro Tageszeit; nicht auslassen,
- *   kein "Bei Bedarf". Eine eigene Bestaetigung (Quelle self) darf sie
- *   RECIPIENT_UNDO_MINUTES lang selbst zuruecksetzen (recipientMayChangeIntake).
+ *   (INTAKE_CONFIRMER_ROLES), einzeln oder pro Tageszeit; kein "Bei Bedarf".
+ *   Block M (E23): ueberspringt offene Einnahmen (einzeln oder pro Zeitraum,
+ *   die Familie bekommt einen Hinweis) und laesst sich spaeter erinnern
+ *   (recipientMaySnoozeIntake: RECIPIENT_SNOOZE_MINUTES, hoechstens
+ *   RECIPIENT_SNOOZE_MAX mal pro Einnahme, nicht bei fester Uhrzeit).
+ *   Eine eigene Bestaetigung oder ein eigenes Ueberspringen (Quelle self) darf sie
+ *   RECIPIENT_INTAKE_UNDO_SECONDS lang selbst zuruecksetzen (recipientMayChangeIntake).
  *   Block K (E20): traegt Blutzucker und Gewicht selbst ein (RECIPIENT_VITAL_TYPES,
  *   POST /api/vitals). Nur diese zwei Werte, immer mit der Zeit "jetzt", ohne
  *   Notiz. Einen eigenen Eintrag darf sie RECIPIENT_UNDO_MINUTES lang loeschen
@@ -40,6 +44,10 @@ export const CIRCLE_ROLES: CircleRole[] = ['admin', 'family', 'professional', 'n
 export const RECIPIENT_UNDO_MINUTES = 10;
 export const RECIPIENT_UNDO_MS = RECIPIENT_UNDO_MINUTES * 60 * 1000;
 
+/** Block M (E23): Rueckgaengig bei Einnahmen (genommen, uebersprungen) nur 30 Sekunden. */
+export const RECIPIENT_INTAKE_UNDO_SECONDS = 30;
+export const RECIPIENT_INTAKE_UNDO_MS = RECIPIENT_INTAKE_UNDO_SECONDS * 1000;
+
 const SEGMENT = '[^/]+';
 
 /**
@@ -54,6 +62,9 @@ export const RECIPIENT_ALLOWED_REQUESTS: Array<{ method: 'GET' | 'POST' | 'PUT' 
     { method: 'GET', path: /^\/api\/medications\/intakes$/ },
     { method: 'PUT', path: new RegExp(`^/api/medications/intakes/${SEGMENT}$`) },
     { method: 'POST', path: /^\/api\/medications\/intakes\/confirm$/ },
+    // Block M: ueberspringen und spaeter erinnern, mehrere auf einmal.
+    // Die Route prueft Status, Uhrzeit und Anzahl (routes/medications.ts).
+    { method: 'POST', path: /^\/api\/medications\/intakes\/(skip|snooze)$/ },
     { method: 'GET', path: /^\/api\/contacts$/ },
     { method: 'GET', path: /^\/api\/visits$/ },
     { method: 'GET', path: /^\/api\/heatwave$/ },
@@ -101,16 +112,17 @@ export interface IntakeConfirmationInfo {
 
 /**
  * Restzeit in ms, in der recipient diese Einnahme selbst zuruecksetzen darf:
- * nur die eigene Bestaetigung (Quelle self, eigenes Konto), hoechstens
- * RECIPIENT_UNDO_MS nach dem Bestaetigen. Sonst 0.
+ * nur die eigene Bestaetigung oder das eigene Ueberspringen (Quelle self,
+ * eigenes Konto), hoechstens RECIPIENT_INTAKE_UNDO_MS danach. Sonst 0.
  */
 export function recipientUndoMsLeft(intake: IntakeConfirmationInfo, userId: string | undefined): number {
-    if (intake.status !== 'taken' || intake.confirmed_source !== 'self') return 0;
+    if (intake.status !== 'taken' && intake.status !== 'skipped') return 0;
+    if (intake.confirmed_source !== 'self') return 0;
     if (!userId || intake.confirmed_by_user !== userId) return 0;
     if (intake.confirmed_age_ms === null || intake.confirmed_age_ms === undefined) return 0;
     const age = Number(intake.confirmed_age_ms);
     if (!Number.isFinite(age) || age < 0) return 0;
-    return Math.max(0, RECIPIENT_UNDO_MS - age);
+    return Math.max(0, RECIPIENT_INTAKE_UNDO_MS - age);
 }
 
 /** Darf recipient diese Einnahme auf den Status target setzen? */
@@ -119,9 +131,36 @@ export function recipientMayChangeIntake(
     intake: IntakeConfirmationInfo,
     userId: string | undefined
 ): boolean {
-    if (target === 'taken') return intake.status === 'pending' || intake.status === 'missed';
+    if (target === 'taken' || target === 'skipped') return intake.status === 'pending' || intake.status === 'missed';
     if (target === 'pending') return recipientUndoMsLeft(intake, userId) > 0;
     return false;
+}
+
+// ── Block M (E23): Spaeter erinnern ──
+
+/** Um so viele Minuten verschiebt "Spaeter erinnern" eine Einnahme. */
+export const RECIPIENT_SNOOZE_MINUTES = 30;
+
+/** So oft laesst sich eine Einnahme hoechstens verschieben. */
+export const RECIPIENT_SNOOZE_MAX = 2;
+
+/** Felder einer Einnahme, die fuer "Spaeter erinnern" zaehlen. */
+export interface IntakeSnoozeInfo {
+    status: string;
+    /** false = nur Tageszeit; true oder unbekannt = feste Uhrzeit */
+    time_fixed?: boolean | null;
+    snooze_count?: number | string | null;
+}
+
+/**
+ * Darf diese Einnahme verschoben werden? Nur offen (noch nicht als verpasst
+ * markiert), nur ohne feste Uhrzeit, hoechstens RECIPIENT_SNOOZE_MAX mal.
+ */
+export function recipientMaySnoozeIntake(intake: IntakeSnoozeInfo): boolean {
+    if (intake.status !== 'pending') return false;
+    if (intake.time_fixed !== false) return false;
+    const count = Number(intake.snooze_count ?? 0);
+    return Number.isFinite(count) && count >= 0 && count < RECIPIENT_SNOOZE_MAX;
 }
 
 /** Block K: diese Messwerte traegt die betreute Person selbst ein. */

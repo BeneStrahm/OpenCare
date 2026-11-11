@@ -30,11 +30,11 @@
       "pending": "Por tomar",
       "taken": "Tomada",
       "takenAt": "Tomada a las {{time}}",
-      "skipped": "No tomado",
+      "skipped": "Omitido",
       "missed": "No realizada"
     },
     "markTaken": "Tomada",
-    "markSkipped": "No tomado",
+    "markSkipped": "Omitir",
     "undo": "Deshacer",
     "take": "Tomar {{amount}}",
     "prnTitle": "Si hace falta",

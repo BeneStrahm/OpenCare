@@ -18,7 +18,11 @@ import {
     circleMiddleware,
     recipientMayAccess,
     recipientMayChangeIntake,
+    recipientMaySnoozeIntake,
     recipientUndoMsLeft,
+    RECIPIENT_SNOOZE_MINUTES,
+    RECIPIENT_SNOOZE_MAX,
+    INTAKE_CONFIRMER_ROLES,
     parseRecipientEvent,
     recipientEventUndoMsLeft,
     parseRecipientShoppingName,
@@ -29,6 +33,8 @@ import {
     CIRCLE_ROLES,
     RECIPIENT_UNDO_MINUTES,
     RECIPIENT_UNDO_MS,
+    RECIPIENT_INTAKE_UNDO_SECONDS,
+    RECIPIENT_INTAKE_UNDO_MS,
     type CircleRequest,
     type CircleRole,
 } from '../../server/src/middleware/circle';
@@ -90,6 +96,11 @@ const BLOCKED: Array<[string, string]> = [
     ['GET', '/api/medications/prescriptions'],
     ['POST', '/api/medications/med-1/intakes'],
     ['PUT', '/api/medications/med-1/stock'],
+    // Block M: nur ueberspringen und spaeter erinnern, keine Unterpfade, kein Lesen
+    ['POST', '/api/medications/intakes/skip/extra'],
+    ['GET', '/api/medications/intakes/snooze'],
+    ['POST', '/api/medications/intakes/snoozex'],
+    ['DELETE', '/api/medications/intakes/einnahme-1'],
     // Block L3: Termine nur anlegen und den eigenen loeschen, nie aendern, keine Serien-Ausnahmen.
     ['PUT', '/api/events/termin-1'],
     ['PUT', '/api/events/termin-1/occurrences/2026-11-12'],
@@ -140,6 +151,9 @@ const ALLOWED: Array<[string, string]> = [
     ['GET', '/api/medications/intakes?from=2026-11-10'],
     ['PUT', '/api/medications/intakes/einnahme-1'],
     ['POST', '/api/medications/intakes/confirm'],
+    // Block M: ueberspringen und spaeter erinnern (Route prueft Status, Uhrzeit, Anzahl)
+    ['POST', '/api/medications/intakes/skip'],
+    ['POST', '/api/medications/intakes/snooze'],
     ['GET', '/api/contacts'],
     ['GET', '/api/contacts/'],
     ['GET', '/api/visits'],
@@ -205,21 +219,25 @@ describe('Rueckgaengig der betreuten Person', () => {
     it('10 Minuten an einer Stelle', () => {
         expect(RECIPIENT_UNDO_MINUTES).toBe(10);
         expect(RECIPIENT_UNDO_MS).toBe(10 * 60 * 1000);
+        // Block M: bei Einnahmen nur 30 Sekunden
+        expect(RECIPIENT_INTAKE_UNDO_SECONDS).toBe(30);
+        expect(RECIPIENT_INTAKE_UNDO_MS).toBe(30 * 1000);
     });
 
-    it('erlaubt innerhalb von 10 Minuten', () => {
+    it('erlaubt bei Einnahmen innerhalb von 30 Sekunden', () => {
         expect(recipientMayChangeIntake('pending', own(0), 'konto-1')).toBe(true);
-        expect(recipientMayChangeIntake('pending', own(9 * 60 * 1000), 'konto-1')).toBe(true);
+        expect(recipientMayChangeIntake('pending', own(29_000), 'konto-1')).toBe(true);
+        expect(recipientMayChangeIntake('pending', own(31_000), 'konto-1')).toBe(false);
         // Aus der Datenbank kommt EXTRACT(...) als Text.
-        expect(recipientMayChangeIntake('pending', own('120000.5'), 'konto-1')).toBe(true);
-        expect(recipientUndoMsLeft(own(60_000), 'konto-1')).toBe(RECIPIENT_UNDO_MS - 60_000);
+        expect(recipientMayChangeIntake('pending', own('12000.5'), 'konto-1')).toBe(true);
+        expect(recipientUndoMsLeft(own(10_000), 'konto-1')).toBe(RECIPIENT_INTAKE_UNDO_MS - 10_000);
     });
 
-    it('lehnt nach 10 Minuten ab', () => {
-        expect(recipientMayChangeIntake('pending', own(RECIPIENT_UNDO_MS), 'konto-1')).toBe(false);
-        expect(recipientMayChangeIntake('pending', own(RECIPIENT_UNDO_MS + 1), 'konto-1')).toBe(false);
+    it('lehnt bei Einnahmen nach 30 Sekunden ab', () => {
+        expect(recipientMayChangeIntake('pending', own(RECIPIENT_INTAKE_UNDO_MS), 'konto-1')).toBe(false);
+        expect(recipientMayChangeIntake('pending', own(RECIPIENT_INTAKE_UNDO_MS + 1), 'konto-1')).toBe(false);
         expect(recipientMayChangeIntake('pending', own(60 * 60 * 1000), 'konto-1')).toBe(false);
-        expect(recipientUndoMsLeft(own(RECIPIENT_UNDO_MS + 1), 'konto-1')).toBe(0);
+        expect(recipientUndoMsLeft(own(RECIPIENT_INTAKE_UNDO_MS + 1), 'konto-1')).toBe(0);
     });
 
     it('nur eigene Bestaetigungen mit Quelle self', () => {
@@ -230,20 +248,69 @@ describe('Rueckgaengig der betreuten Person', () => {
         }
     });
 
-    it('nur genommene Einnahmen, mit gueltiger Zeit', () => {
-        expect(recipientMayChangeIntake('pending', { ...own(1000), status: 'skipped' }, 'konto-1')).toBe(false);
+    it('nur genommene oder uebersprungene Einnahmen, mit gueltiger Zeit', () => {
+        // Block M: das eigene Ueberspringen laesst sich 30 Sekunden zuruecknehmen.
+        expect(recipientMayChangeIntake('pending', { ...own(1000), status: 'skipped' }, 'konto-1')).toBe(true);
+        expect(recipientMayChangeIntake('pending', { ...own(RECIPIENT_INTAKE_UNDO_MS + 1), status: 'skipped' }, 'konto-1')).toBe(false);
+        expect(recipientMayChangeIntake('pending', { ...own(1000), status: 'skipped', confirmed_source: 'caregiver' }, 'konto-1')).toBe(false);
+        expect(recipientMayChangeIntake('pending', { ...own(1000), status: 'missed' }, 'konto-1')).toBe(false);
         expect(recipientMayChangeIntake('pending', { ...own(1000), status: 'pending' }, 'konto-1')).toBe(false);
         expect(recipientMayChangeIntake('pending', own(null), 'konto-1')).toBe(false);
         expect(recipientMayChangeIntake('pending', own(-5000), 'konto-1')).toBe(false);
         expect(recipientMayChangeIntake('pending', own('kaputt'), 'konto-1')).toBe(false);
     });
 
-    it('bestaetigt nur offene Einnahmen, laesst nichts aus', () => {
+    it('bestaetigt und ueberspringt nur offene Einnahmen (Block M)', () => {
         expect(recipientMayChangeIntake('taken', { status: 'pending' }, 'konto-1')).toBe(true);
         expect(recipientMayChangeIntake('taken', { status: 'missed' }, 'konto-1')).toBe(true);
         expect(recipientMayChangeIntake('taken', { status: 'taken' }, 'konto-1')).toBe(false);
         expect(recipientMayChangeIntake('taken', { status: 'skipped' }, 'konto-1')).toBe(false);
-        expect(recipientMayChangeIntake('skipped', { status: 'pending' }, 'konto-1')).toBe(false);
+        expect(recipientMayChangeIntake('skipped', { status: 'pending' }, 'konto-1')).toBe(true);
+        expect(recipientMayChangeIntake('skipped', { status: 'missed' }, 'konto-1')).toBe(true);
+        expect(recipientMayChangeIntake('skipped', { status: 'taken' }, 'konto-1')).toBe(false);
+        expect(recipientMayChangeIntake('skipped', { status: 'skipped' }, 'konto-1')).toBe(false);
+        expect(recipientMayChangeIntake('missed', { status: 'pending' }, 'konto-1')).toBe(false);
+    });
+});
+
+describe('Block M: Spaeter erinnern', () => {
+    const open = (extra: Record<string, unknown> = {}) => ({ status: 'pending', time_fixed: false, snooze_count: 0, ...extra });
+
+    it('30 Minuten, hoechstens zweimal, an einer Stelle', () => {
+        expect(RECIPIENT_SNOOZE_MINUTES).toBe(30);
+        expect(RECIPIENT_SNOOZE_MAX).toBe(2);
+    });
+
+    it('erlaubt bei Tageszeit, zweimal', () => {
+        expect(recipientMaySnoozeIntake(open())).toBe(true);
+        expect(recipientMaySnoozeIntake(open({ snooze_count: 1 }))).toBe(true);
+        // Aus der Datenbank kann die Zahl als Text kommen.
+        expect(recipientMaySnoozeIntake(open({ snooze_count: '1' }))).toBe(true);
+        expect(recipientMaySnoozeIntake(open({ snooze_count: null }))).toBe(true);
+    });
+
+    it('danach nicht mehr', () => {
+        expect(recipientMaySnoozeIntake(open({ snooze_count: 2 }))).toBe(false);
+        expect(recipientMaySnoozeIntake(open({ snooze_count: 3 }))).toBe(false);
+        expect(recipientMaySnoozeIntake(open({ snooze_count: 'kaputt' }))).toBe(false);
+        expect(recipientMaySnoozeIntake(open({ snooze_count: -1 }))).toBe(false);
+    });
+
+    it('nie bei fester Uhrzeit oder unbekannter Einnahmezeit', () => {
+        expect(recipientMaySnoozeIntake(open({ time_fixed: true }))).toBe(false);
+        expect(recipientMaySnoozeIntake(open({ time_fixed: null }))).toBe(false);
+        expect(recipientMaySnoozeIntake(open({ time_fixed: undefined }))).toBe(false);
+    });
+
+    it('nur offene Einnahmen, nicht verpasste', () => {
+        for (const status of ['taken', 'skipped', 'missed']) {
+            expect(recipientMaySnoozeIntake(open({ status })), status).toBe(false);
+        }
+    });
+
+    it('Einnahmen bestaetigen und ueberspringen alle ausser Freunde (neighbor)', () => {
+        expect([...INTAKE_CONFIRMER_ROLES].sort()).toEqual(['admin', 'family', 'professional', 'recipient']);
+        expect(INTAKE_CONFIRMER_ROLES).not.toContain('neighbor');
     });
 });
 

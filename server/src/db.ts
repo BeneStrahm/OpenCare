@@ -456,6 +456,9 @@ export const runMigrations = async () => {
         // Fork, Block L4: wer wann abgehakt hat (10 Minuten Rueckgaengig fuer die betreute Person).
         `ALTER TABLE shopping_items ADD COLUMN IF NOT EXISTS checked_by UUID REFERENCES users(id) ON DELETE SET NULL;`,
         `ALTER TABLE shopping_items ADD COLUMN IF NOT EXISTS checked_at TIMESTAMP;`,
+        // Fork, Block M (E23): "Spaeter erinnern" verschiebt eine Einnahme (hoechstens zweimal).
+        `ALTER TABLE medication_intakes ADD COLUMN IF NOT EXISTS snoozed_until TIMESTAMP;`,
+        `ALTER TABLE medication_intakes ADD COLUMN IF NOT EXISTS snooze_count SMALLINT NOT NULL DEFAULT 0;`,
     ];
 
     for (const migration of migrations) {

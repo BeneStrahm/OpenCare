@@ -103,6 +103,77 @@ export function groupIntakes<T extends GroupableIntake>(
     return list.sort((a, b) => a.group.sort - b.group.sort || (a.group.kind === 'moment' ? -1 : 1));
 }
 
+// ── Block M (E23): Medikamenten-Kachel auf der Startseite ──
+
+/** So lange vor der Einnahmezeit erscheint die Kachel. */
+export const HOME_MEDS_LEAD_MS = 30 * 60 * 1000;
+/** So lange nach der Einnahmezeit wechselt der Status auf "Noch nicht genommen" (rot). */
+export const HOME_MEDS_OVERDUE_MS = 30 * 60 * 1000;
+/**
+ * Nachholfrist: so lange nach der (verschobenen) Zeit steht eine offene Einnahme in der
+ * Kachel, danach verschwindet sie (Sicherheit: keine Morgentablette am Abend). Gleich wie
+ * MISSED_AFTER_MS in server/src/lib/intakes.ts: dann gilt sie als verpasst, die Familie klaert es.
+ */
+export const HOME_MEDS_HIDE_AFTER_MS = 4 * 60 * 60 * 1000;
+/** Gleich wie RECIPIENT_SNOOZE_MINUTES und RECIPIENT_SNOOZE_MAX in server/src/middleware/circle.ts. */
+export const SNOOZE_MINUTES = 30;
+export const SNOOZE_MAX = 2;
+
+export interface HomeIntake {
+    due_at: string;
+    status: 'pending' | 'taken' | 'skipped' | 'missed';
+    prn?: boolean;
+    time_fixed?: boolean;
+    snoozed_until?: string | null;
+    snooze_count?: number | string | null;
+}
+
+const isOpenIntake = (i: HomeIntake) => i.status === 'pending' || i.status === 'missed';
+
+/** Faellig ab: nach "Spaeter erinnern" die verschobene Zeit, sonst die geplante. */
+export function effectiveDue(intake: HomeIntake, toDate: (value: string) => Date | null): Date | null {
+    return (intake.snoozed_until ? toDate(intake.snoozed_until) : null) ?? toDate(intake.due_at);
+}
+
+/**
+ * Steht diese offene Einnahme jetzt in der Kachel? Ab 30 Minuten vor der Zeit bis
+ * 4 Stunden danach (HOME_MEDS_HIDE_AFTER_MS). Nach "Spaeter erinnern" erst wieder ab der
+ * verschobenen Zeit, die Frist laeuft dann ab dort. Bedarfsmedikamente nie.
+ */
+export function showOnHome(intake: HomeIntake, now: Date, toDate: (value: string) => Date | null): boolean {
+    // Die Uhr entscheidet, nicht der Status "missed" vom Server (gleiche Frist; so stimmt auch die Testuhr).
+    if (intake.prn || !isOpenIntake(intake)) return false;
+    const effective = effectiveDue(intake, toDate);
+    if (effective && now.getTime() >= effective.getTime() + HOME_MEDS_HIDE_AFTER_MS) return false;
+    if (intake.snoozed_until) {
+        const until = toDate(intake.snoozed_until);
+        if (until) return now.getTime() >= until.getTime();
+    }
+    const due = toDate(intake.due_at);
+    return Boolean(due) && now.getTime() >= (due as Date).getTime() - HOME_MEDS_LEAD_MS;
+}
+
+/** Offen und mehr als 30 Minuten ueber der (verschobenen) Zeit: hellroter Rahmen. */
+export function isOverdue(intake: HomeIntake, now: Date, toDate: (value: string) => Date | null): boolean {
+    if (!isOpenIntake(intake)) return false;
+    const due = effectiveDue(intake, toDate);
+    return Boolean(due) && now.getTime() > (due as Date).getTime() + HOME_MEDS_OVERDUE_MS;
+}
+
+/** "Spaeter erinnern" anbieten? Gleiche Regel wie recipientMaySnoozeIntake auf dem Server. */
+export function maySnooze(intake: HomeIntake): boolean {
+    if (intake.status !== 'pending' || intake.time_fixed !== false) return false;
+    const count = Number(intake.snooze_count ?? 0);
+    return Number.isFinite(count) && count >= 0 && count < SNOOZE_MAX;
+}
+
+/** Neue Erinnerungszeit nach "Spaeter erinnern": 30 Minuten ab jetzt oder ab der spaeteren Zeit. */
+export function snoozeTarget(intake: HomeIntake, now: Date, toDate: (value: string) => Date | null): Date {
+    const due = effectiveDue(intake, toDate);
+    const base = due && due.getTime() > now.getTime() ? due.getTime() : now.getTime();
+    return new Date(base + SNOOZE_MINUTES * 60 * 1000);
+}
+
 interface EventFlags {
     member_ids?: unknown[] | null;
     guests?: unknown[] | null;

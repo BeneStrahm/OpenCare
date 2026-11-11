@@ -255,6 +255,9 @@ CREATE TABLE medication_intakes (
     reminded_patient_at TIMESTAMP,
     escalated_primary_at TIMESTAMP,
     escalated_secondary_at TIMESTAMP,
+    -- Block M: "Spaeter erinnern" (neue Faelligkeit, Anzahl der Verschiebungen, hoechstens 2)
+    snoozed_until TIMESTAMP,
+    snooze_count SMALLINT NOT NULL DEFAULT 0,
     -- Quantite a prendre, copiee depuis l'horaire a la generation (survit a la re-edition des horaires)
     quantity NUMERIC(6,2),
     unit VARCHAR(20),

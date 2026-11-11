@@ -247,6 +247,60 @@ function helpTexts(rule: RuleRow, minutes: number, language: string): { title: s
     };
 }
 
+/**
+ * Block M (E23): Die betreute Person hat Einnahmen uebersprungen. Hinweis an
+ * Admins und Familie, unabhaengig von den Eskalationsregeln (gleiche
+ * Empfaenger wie bei Gesundheitswerten ausserhalb des Bereichs).
+ * Fehler beim Senden brechen nichts ab (createNotification protokolliert nur).
+ */
+export async function notifyIntakesSkipped(
+    circleId: string,
+    intakes: Array<{ id: string; medication_name: string; medication_dosage: string | null; due_at?: string | Date }>
+): Promise<void> {
+    if (intakes.length === 0) return;
+    const [{ rows: members }, { rows: recipientRows }] = await Promise.all([
+        query(
+            `SELECT cm.user_id, COALESCE(u.language, 'fr') AS language
+             FROM circle_members cm JOIN users u ON u.id = cm.user_id
+             WHERE cm.circle_id = $1 AND cm.role IN ('admin', 'family')`,
+            [circleId]
+        ),
+        query('SELECT first_name FROM care_recipients WHERE circle_id = $1', [circleId]),
+    ]);
+    const who = ((recipientRows[0]?.first_name as string | undefined) ?? '').trim();
+    await Promise.all((members as Array<{ user_id: string; language: string }>).map((member) => {
+        const lang = pickLang(member.language);
+        const list = intakes.map((i) => {
+            const label = i.medication_dosage ? `${i.medication_name} ${i.medication_dosage}` : i.medication_name;
+            const due = i.due_at ? fmtTime(i.due_at instanceof Date ? i.due_at.toISOString() : String(i.due_at), lang) : '';
+            return due ? `${label} (${due})` : label;
+        }).join(', ');
+        const title = pick(lang, {
+            fr: `Prise sautée${who ? ` par ${who}` : ''}`,
+            en: `Medication skipped${who ? ` by ${who}` : ''}`,
+            es: `Toma omitida${who ? ` por ${who}` : ''}`,
+            de: `Einnahme übersprungen${who ? ` von ${who}` : ''}`,
+        });
+        const message = pick(lang, {
+            fr: `${list} : marqué comme sauté sur la tablette. Vous pouvez vérifier si tout va bien.`,
+            en: `${list}: marked as skipped on the tablet. You may want to check that everything is fine.`,
+            es: `${list}: marcado como omitido en la tableta. Puede comprobar si todo va bien.`,
+            de: `${list}: auf dem Tablet als übersprungen eingetragen. Sie können nachfragen, ob alles in Ordnung ist.`,
+        });
+        return createNotification({
+            userId: member.user_id,
+            circleId,
+            title,
+            message,
+            type: 'intake_skipped',
+            relatedId: intakes[0].id,
+            url: '/medications',
+            tag: `intake-skipped-${circleId}`,
+        });
+    }));
+    logger.info('escalation.intakes_skipped', { circleId, intakes: intakes.length, recipients: members.length });
+}
+
 async function escalateIntakes(rule: RuleRow, level: 'primary' | 'secondary'): Promise<void> {
     const minutes = level === 'primary' ? rule.med_primary_min : rule.med_secondary_min;
     if (minutes <= 0) return;
@@ -256,7 +310,9 @@ async function escalateIntakes(rule: RuleRow, level: 'primary' | 'secondary'): P
         `UPDATE medication_intakes i SET ${column} = CURRENT_TIMESTAMP
          FROM medications m
          WHERE i.medication_id = m.id AND i.circle_id = $1 AND i.status = 'pending' AND i.${column} IS NULL
-           AND i.due_at <= NOW() - make_interval(mins => $2::int) AND i.due_at > NOW() - interval '${MISSED_AFTER}'
+           -- Block M: nach "Spaeter erinnern" ab der verschobenen Zeit
+           AND COALESCE(i.snoozed_until, i.due_at) <= NOW() - make_interval(mins => $2::int)
+           AND COALESCE(i.snoozed_until, i.due_at) > NOW() - interval '${MISSED_AFTER}'
          RETURNING i.id, i.due_at, m.name`,
         [rule.circle_id, minutes]
     );
@@ -287,7 +343,8 @@ async function remindPatient(rule: RuleRow): Promise<void> {
     const { rows } = await query(
         `UPDATE medication_intakes SET reminded_patient_at = CURRENT_TIMESTAMP
          WHERE circle_id = $1 AND status = 'pending' AND reminded_patient_at IS NULL
-           AND due_at <= NOW() - make_interval(mins => $2::int) AND due_at > NOW() - interval '${MISSED_AFTER}'
+           AND COALESCE(snoozed_until, due_at) <= NOW() - make_interval(mins => $2::int)
+           AND COALESCE(snoozed_until, due_at) > NOW() - interval '${MISSED_AFTER}'
          RETURNING id`,
         [rule.circle_id, rule.med_patient_min]
     );

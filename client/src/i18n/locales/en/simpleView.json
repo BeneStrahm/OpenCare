@@ -72,18 +72,11 @@
     "colorError": "The colour could not be saved. Please check the internet connection and try again."
   },
   "header": {
-    "settings": "Settings",
-    "logout": "Log out"
+    "settings": "Settings"
   },
   "loadError": "The information could not be loaded. Please check the internet connection.",
   "reload": "Reload",
   "ok": "OK",
-  "logout": {
-    "title": "Do you want to log out?",
-    "hint": "You will need your password to come back in.",
-    "yes": "Yes, log out",
-    "no": "No, stay here"
-  },
   "vitals": {
     "glucose": "Please measure your blood sugar today.",
     "weight": "Please weigh yourself today."
@@ -148,6 +141,7 @@
   "tiles": {
     "label": "Sections",
     "meds": "Medicines",
+    "health": "Readings",
     "visits_one": "{{count}} visit today",
     "visits_other": "{{count}} visits today",
     "appointments_one": "{{count}} appointment today",
@@ -202,5 +196,31 @@
     "checkYes": "Yes, tick off",
     "added": "It is on the list now.",
     "checked": "Ticked off, well done!"
+  },
+  "home": {
+    "take": "Taken",
+    "takeOne": "{{name}}: taken",
+    "skip": "Skip",
+    "skipOne": "{{name}}: skip",
+    "snooze": "Remind me later",
+    "snoozeOne": "{{name}}: remind me later",
+    "overdue": "Not taken yet",
+    "skipTitle": "Really skip?",
+    "skipYes": "Skip",
+    "skipNo": "No, go back",
+    "skipped": "Skipped. Your family will get a notice.",
+    "skippedStatus": "Skipped",
+    "snoozed": "All right. I will remind you again at {{time}}.",
+    "statusDue": "To take",
+    "statusLater": "Not due yet"
+  },
+  "medInfo": {
+    "when": "When to take",
+    "appearance": "Looks like",
+    "reason": "What for"
+  },
+  "devClock": {
+    "label": "Test clock (local testing only)",
+    "reset": "Real time"
   }
 }

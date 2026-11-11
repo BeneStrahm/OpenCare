@@ -9,7 +9,9 @@ import { query } from '../db';
  *   horaires (idempotent grace a la contrainte unique). La quantite et l'unite
  *   sont copiees depuis l'horaire pour survivre a une re-edition des horaires
  *   (la re-edition remplace les lignes et met schedule_id a NULL).
- * - markMissed : une prise en attente depuis plus de 4 h devient "manquee".
+ * - markMissed : une prise en attente depuis plus de 4 h devient "manquee"
+ *   (gerechnet ab der verschobenen Zeit, falls "Spaeter erinnern" gewaehlt wurde).
+ * - snoozeIntakes / skipIntakes : Block M (E23), Tasten der einfachen Ansicht.
  * - applyIntakeStatus : changement de statut + entree de journal, avec la
  *   source de confirmation (aidant, lien magique, la personne elle-meme ;
  *   kiosk et telephone restent pour les anciennes confirmations).
@@ -23,6 +25,16 @@ export type IntakeWriteStatus = 'taken' | 'skipped' | 'pending';
 /** Fenetre "a prendre maintenant" : de 30 min avant l'heure jusqu'au marquage "manque" (4 h apres). */
 export const DUE_NOW_BEFORE_MS = 30 * 60 * 1000;
 export const MISSED_AFTER_MS = 4 * 60 * 60 * 1000;
+
+/**
+ * Block M: Zeit, ab der eine Einnahme faellig ist. Nach "Spaeter erinnern" die
+ * verschobene Zeit (snoozed_until), sonst die geplante. Erinnerung, Hinweis an
+ * die Familie (lib/escalation.ts) und "verpasst" rechnen ab dieser Zeit.
+ */
+export const effectiveDueSql = (alias = ''): string => {
+    const p = alias ? `${alias}.` : '';
+    return `COALESCE(${p}snoozed_until, ${p}due_at)`;
+};
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -62,7 +74,7 @@ export async function markMissed(circleId: string): Promise<void> {
     await query(
         `UPDATE medication_intakes
          SET status = 'missed'
-         WHERE circle_id = $1 AND status = 'pending' AND due_at < NOW() - interval '4 hours'`,
+         WHERE circle_id = $1 AND status = 'pending' AND ${effectiveDueSql()} < NOW() - interval '4 hours'`,
         [circleId]
     );
 }
@@ -81,7 +93,7 @@ export async function ensureTodayIntakes(circleId: string): Promise<void> {
 export const INTAKE_DISPLAY_COLUMNS = `
     i.id, i.circle_id, i.medication_id, i.schedule_id, i.due_at, i.status,
     i.confirmed_by_user, i.confirmed_by_link, i.confirmed_at, i.confirmed_source,
-    i.journal_entry_id,
+    i.journal_entry_id, i.snoozed_until, COALESCE(i.snooze_count, 0) AS snooze_count,
     COALESCE(i.quantity, s.quantity, 1) AS quantity,
     COALESCE(i.unit, s.unit) AS unit,
     m.name AS medication_name, m.dosage AS medication_dosage, m.dosage,
@@ -109,6 +121,10 @@ export interface IntakeForUpdate {
     confirmed_source?: IntakeSource | null;
     confirmed_by_user?: string | null;
     confirmed_age_ms?: number | string | null;
+    /** Block M: geplante Zeit, Verschiebungen, Tageszeit oder feste Uhrzeit */
+    due_at?: string | Date;
+    snooze_count?: number | null;
+    time_fixed?: boolean | null;
 }
 
 /** Alter der Bestaetigung in ms, in der Datenbankzeit gerechnet (wie confirmed_at = NOW()). */
@@ -123,9 +139,12 @@ export async function fetchIntakeForUpdate(
         `SELECT i.id, i.circle_id, i.medication_id, i.journal_entry_id, i.status,
                 m.name AS medication_name, m.dosage AS medication_dosage,
                 i.quantity, i.unit, i.confirmed_source, i.confirmed_by_user,
-                ${CONFIRMED_AGE_MS_SQL} AS confirmed_age_ms
+                ${CONFIRMED_AGE_MS_SQL} AS confirmed_age_ms,
+                i.due_at, COALESCE(i.snooze_count, 0) AS snooze_count,
+                COALESCE(s.time_fixed, TRUE) AS time_fixed
          FROM medication_intakes i
          JOIN medications m ON m.id = i.medication_id
+         LEFT JOIN medication_schedules s ON s.id = i.schedule_id
          WHERE i.id = $1 AND i.circle_id = $2
          FOR UPDATE OF i`,
         [intakeId, circleId]
@@ -247,6 +266,62 @@ export async function confirmIntakesTaken(
         confirmed += 1;
     }
     return confirmed;
+}
+
+/**
+ * Block M: "Alle ueberspringen" bzw. einzeln ueberspringen. Nur offene
+ * Einnahmen (pending, missed); unbekannte, genommene oder schon
+ * uebersprungene IDs werden uebergangen. Laeuft in der Transaktion des
+ * Aufrufers. Gibt die uebersprungenen Einnahmen zurueck (fuer den Hinweis
+ * an die Familie).
+ */
+export async function skipIntakes(
+    client: PoolClient,
+    circleId: string,
+    ids: string[],
+    author: { userId?: string; name: string },
+    source: IntakeSource
+): Promise<IntakeForUpdate[]> {
+    const skipped: IntakeForUpdate[] = [];
+    for (const id of ids) {
+        const intake = await fetchIntakeForUpdate(client, id, circleId);
+        if (!intake || (intake.status !== 'pending' && intake.status !== 'missed')) continue;
+        await applyIntakeStatus(client, intake, 'skipped', author, source);
+        skipped.push(intake);
+    }
+    return skipped;
+}
+
+/**
+ * Block M: "Spaeter erinnern". Verschiebt jede erlaubte Einnahme um
+ * minutes Minuten ab jetzt bzw. ab der bisherigen Zeit, falls die spaeter
+ * liegt, und zaehlt mit. Die Erinnerung an die betreute Person kommt danach
+ * erneut, der Hinweis an die Familie rechnet ab der neuen Zeit (effectiveDueSql).
+ * may entscheidet, welche Einnahme verschoben werden darf (middleware/circle.ts).
+ * Gibt die Anzahl der verschobenen Einnahmen zurueck.
+ */
+export async function snoozeIntakes(
+    client: PoolClient,
+    circleId: string,
+    ids: string[],
+    minutes: number,
+    may: (intake: IntakeForUpdate) => boolean
+): Promise<number> {
+    let snoozed = 0;
+    for (const id of ids) {
+        const intake = await fetchIntakeForUpdate(client, id, circleId);
+        if (!intake || !may(intake)) continue;
+        await client.query(
+            `UPDATE medication_intakes
+             SET snoozed_until = GREATEST(LOCALTIMESTAMP, ${effectiveDueSql()}) + make_interval(mins => $2::int),
+                 snooze_count = COALESCE(snooze_count, 0) + 1,
+                 reminded_patient_at = NULL
+             WHERE id = $1`,
+            [intake.id, minutes]
+        );
+        snoozed += 1;
+    }
+    return snoozed;
 }
 
 export interface PatientIntakeRow {

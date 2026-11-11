@@ -72,18 +72,11 @@
     "colorError": "Die Farbe konnte nicht gespeichert werden. Bitte prüfen Sie die Internetverbindung und versuchen Sie es noch einmal."
   },
   "header": {
-    "settings": "Einstellungen",
-    "logout": "Abmelden"
+    "settings": "Einstellungen"
   },
   "loadError": "Die Angaben konnten nicht geladen werden. Bitte prüfen Sie die Internetverbindung.",
   "reload": "Neu laden",
   "ok": "OK",
-  "logout": {
-    "title": "Möchten Sie sich abmelden?",
-    "hint": "Danach brauchen Sie Ihr Passwort, um wieder hineinzukommen.",
-    "yes": "Ja, abmelden",
-    "no": "Nein, hierbleiben"
-  },
   "vitals": {
     "glucose": "Bitte messen Sie heute noch Ihren Blutzucker.",
     "weight": "Bitte wiegen Sie sich heute noch."
@@ -148,6 +141,7 @@
   "tiles": {
     "label": "Bereiche",
     "meds": "Medikamente",
+    "health": "Gesundheitswerte",
     "visits_one": "Heute {{count}} Besuch",
     "visits_other": "Heute {{count}} Besuche",
     "appointments_one": "Heute {{count}} Termin",
@@ -202,5 +196,31 @@
     "checkYes": "Ja, abhaken",
     "added": "Steht jetzt auf der Liste.",
     "checked": "Abgehakt, sehr gut!"
+  },
+  "home": {
+    "take": "Genommen",
+    "takeOne": "{{name}}: genommen",
+    "skip": "Überspringen",
+    "skipOne": "{{name}}: überspringen",
+    "snooze": "Später erinnern",
+    "snoozeOne": "{{name}}: später erinnern",
+    "overdue": "Noch nicht genommen",
+    "skipTitle": "Wirklich überspringen?",
+    "skipYes": "Überspringen",
+    "skipNo": "Nein, zurück",
+    "skipped": "Übersprungen. Ihre Familie bekommt einen Hinweis.",
+    "skippedStatus": "Übersprungen",
+    "snoozed": "Gut. Ich erinnere Sie um {{time}} noch einmal.",
+    "statusDue": "Einnehmen",
+    "statusLater": "Noch nicht fällig"
+  },
+  "medInfo": {
+    "when": "Einnahme",
+    "appearance": "Sieht aus wie",
+    "reason": "Wofür"
+  },
+  "devClock": {
+    "label": "Testuhr (nur beim lokalen Testen)",
+    "reset": "Echte Zeit"
   }
 }

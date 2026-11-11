@@ -10,12 +10,15 @@ import {
     HEALTH_READER_ROLES,
     INTAKE_CONFIRMER_ROLES,
     recipientMayChangeIntake,
+    recipientMaySnoozeIntake,
     recipientUndoMsLeft,
+    RECIPIENT_SNOOZE_MINUTES,
     caregiverLinkMiddleware,
     CircleRequest,
     CaregiverLinkRequest,
 } from '../middleware/circle';
 import { broadcastToCircle } from '../lib/broadcaster';
+import { notifyIntakesSkipped } from '../lib/escalation';
 import {
     applyIntakeStatus,
     confirmIntakesTaken,
@@ -23,6 +26,8 @@ import {
     generateIntakes,
     intakeSourceForRole,
     parseConfirmIntakeIds,
+    skipIntakes,
+    snoozeIntakes,
     IntakeSource,
     markMissed,
     toDateString,
@@ -643,8 +648,8 @@ router.get('/intakes', async (req: CircleRequest, res: Response) => {
     }
 });
 
-// Confirm, skip or reset an intake. recipient may only confirm ("taken") and undo her own
-// confirmation for RECIPIENT_UNDO_MINUTES (middleware/circle.ts).
+// Confirm, skip or reset an intake. recipient may confirm ("taken"), skip (Block M, the
+// family gets a notice) and undo her own choice for RECIPIENT_INTAKE_UNDO_SECONDS (middleware/circle.ts).
 router.put('/intakes/:id', requireRole(...INTAKE_CONFIRMER_ROLES), async (req: CircleRequest, res: Response) => {
     const lang = langFromRequest(req);
     const client = await getClient();
@@ -652,9 +657,6 @@ router.put('/intakes/:id', requireRole(...INTAKE_CONFIRMER_ROLES), async (req: C
         const { status } = req.body;
         if (!INTAKE_STATUSES.includes(status)) {
             return res.status(400).json({ success: false, error: t(lang, 'medications.statusInvalid') });
-        }
-        if (req.circleRole === 'recipient' && status !== 'taken' && status !== 'pending') {
-            return res.status(403).json({ success: false, error: 'Insufficient role' });
         }
 
         await client.query('BEGIN');
@@ -665,8 +667,8 @@ router.put('/intakes/:id', requireRole(...INTAKE_CONFIRMER_ROLES), async (req: C
             return res.status(404).json({ success: false, error: t(lang, 'medications.intakeNotFound') });
         }
 
-        // Betreute Person: nur offene Einnahmen bestaetigen, und nur die eigene
-        // Bestaetigung kurz danach zuruecksetzen (Regeln in middleware/circle.ts).
+        // Betreute Person: nur offene Einnahmen bestaetigen oder ueberspringen, und nur
+        // die eigene Wahl kurz danach zuruecksetzen (Regeln in middleware/circle.ts).
         if (req.circleRole === 'recipient' && !recipientMayChangeIntake(status, intake, req.userId)) {
             await client.query('ROLLBACK');
             const error = status === 'pending' ? t(lang, 'medications.undoExpired') : 'Insufficient role';
@@ -685,6 +687,10 @@ router.put('/intakes/:id', requireRole(...INTAKE_CONFIRMER_ROLES), async (req: C
 
         await broadcastToCircle(req.circleId!, { type: 'update', entity: 'intakes', action: 'updated' });
         await broadcastToCircle(req.circleId!, { type: 'update', entity: 'journal', action: 'updated' });
+        // Block M: Ueberspringt die betreute Person, bekommt die Familie einen Hinweis.
+        if (req.circleRole === 'recipient' && status === 'skipped') {
+            await notifyIntakesSkipped(req.circleId!, [intake]);
+        }
         res.json({ success: true, data: updated });
     } catch (error) {
         await client.query('ROLLBACK');
@@ -724,6 +730,72 @@ router.post('/intakes/confirm', requireRole(...INTAKE_CONFIRMER_ROLES), async (r
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Confirm intakes error:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    } finally {
+        client.release();
+    }
+});
+
+// Block M (E23): skip several intakes at once ("Alle ueberspringen" in the simple
+// view, also used for a single tablet). Body { intake_ids: string[] }. Only open
+// intakes (pending, missed) are skipped. When recipient skips, admins and family
+// get a notice (lib/escalation.ts notifyIntakesSkipped). Undo: PUT status pending.
+router.post('/intakes/skip', requireRole(...INTAKE_CONFIRMER_ROLES), async (req: CircleRequest, res: Response) => {
+    const ids = parseConfirmIntakeIds(req.body?.intake_ids);
+    if (ids.length === 0) {
+        return res.status(400).json({ success: false, error: 'intake_ids required' });
+    }
+
+    const client = await getClient();
+    try {
+        await client.query('BEGIN');
+        const userResult = await client.query('SELECT name FROM users WHERE id = $1', [req.userId]);
+        const authorName = userResult.rows[0]?.name ?? 'Aidant';
+
+        const skipped = await skipIntakes(
+            client, req.circleId!, ids, { userId: req.userId, name: authorName }, intakeSourceFor(req)
+        );
+        await client.query('COMMIT');
+
+        if (skipped.length > 0) {
+            await broadcastToCircle(req.circleId!, { type: 'update', entity: 'intakes', action: 'updated' });
+            await broadcastToCircle(req.circleId!, { type: 'update', entity: 'journal', action: 'updated' });
+            if (req.circleRole === 'recipient') await notifyIntakesSkipped(req.circleId!, skipped);
+        }
+        res.json({ success: true, data: { skipped: skipped.length } });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Skip intakes error:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    } finally {
+        client.release();
+    }
+});
+
+// Block M (E23): "Spaeter erinnern" in the simple view, only for recipient (the
+// other roles confirm on the Medications page). Body { intake_ids: string[] }.
+// Moves each allowed intake by RECIPIENT_SNOOZE_MINUTES (open, no fixed time,
+// at most RECIPIENT_SNOOZE_MAX times, middleware/circle.ts); others are left as
+// they are. The reminder and the family notice follow the new time.
+router.post('/intakes/snooze', requireRole('recipient'), async (req: CircleRequest, res: Response) => {
+    const ids = parseConfirmIntakeIds(req.body?.intake_ids);
+    if (ids.length === 0) {
+        return res.status(400).json({ success: false, error: 'intake_ids required' });
+    }
+
+    const client = await getClient();
+    try {
+        await client.query('BEGIN');
+        const snoozed = await snoozeIntakes(client, req.circleId!, ids, RECIPIENT_SNOOZE_MINUTES, recipientMaySnoozeIntake);
+        await client.query('COMMIT');
+
+        if (snoozed > 0) {
+            await broadcastToCircle(req.circleId!, { type: 'update', entity: 'intakes', action: 'updated' });
+        }
+        res.json({ success: true, data: { snoozed } });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Snooze intakes error:', error);
         res.status(500).json({ success: false, error: 'Internal server error' });
     } finally {
         client.release();

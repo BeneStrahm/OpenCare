@@ -30,11 +30,11 @@
       "pending": "À prendre",
       "taken": "Pris",
       "takenAt": "Pris à {{time}}",
-      "skipped": "Pas pris",
+      "skipped": "Sauté",
       "missed": "Manqué"
     },
     "markTaken": "Pris",
-    "markSkipped": "Pas pris",
+    "markSkipped": "Sauter",
     "undo": "Annuler",
     "take": "Prendre {{amount}}",
     "prnTitle": "Si besoin",
