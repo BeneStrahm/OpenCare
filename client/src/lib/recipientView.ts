@@ -96,3 +96,42 @@ export function saveFontScale(scale: number): void {
         localStorage.setItem(FONT_SCALE_KEY, String(scale));
     } catch { /* Speicher gesperrt: gilt dann nur bis zum Neuladen */ }
 }
+
+// ── Block K (E20): Blutzucker und Gewicht selbst eintragen ──
+
+/** Diese Messwerte traegt die betreute Person selbst ein (wie RECIPIENT_VITAL_TYPES im Server). */
+export const RECIPIENT_VITAL_TYPES = ['glucose', 'weight'] as const;
+export type RecipientVitalType = (typeof RECIPIENT_VITAL_TYPES)[number];
+
+/**
+ * Grenzen gegen Tippfehler, in der gespeicherten Einheit (Blutzucker g/L, Gewicht kg).
+ * Eigene Annahme, keine medizinische Vorgabe: was ausserhalb liegt, ist fast sicher vertippt.
+ * Blutzucker 20 bis 600 mg/dL, Gewicht 20 bis 250 kg.
+ */
+export const RECIPIENT_VITAL_LIMITS: Record<RecipientVitalType, { min: number; max: number }> = {
+    glucose: { min: 0.2, max: 6 },
+    weight: { min: 20, max: 250 },
+};
+
+export type RecipientVitalInput =
+    | { ok: true; shown: number; stored: number }
+    | { ok: false; error: 'empty' | 'invalid' };
+
+/**
+ * Eingabe pruefen: Komma oder Punkt als Dezimalzeichen, Leerzeichen egal.
+ * toStorage rechnet die angezeigte Einheit in die gespeicherte um (lib/units.ts).
+ */
+export function parseRecipientVital(
+    type: RecipientVitalType,
+    text: string,
+    toStorage: (shown: number) => number
+): RecipientVitalInput {
+    const clean = text.replace(/\s+/g, '').replace(',', '.');
+    if (!clean) return { ok: false, error: 'empty' };
+    if (!/^\d+(\.\d+)?$/.test(clean)) return { ok: false, error: 'invalid' };
+    const shown = Number(clean);
+    const stored = toStorage(shown);
+    const { min, max } = RECIPIENT_VITAL_LIMITS[type];
+    if (!Number.isFinite(stored) || stored < min || stored > max) return { ok: false, error: 'invalid' };
+    return { ok: true, shown, stored };
+}

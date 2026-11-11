@@ -112,5 +112,31 @@
     "terracotta": "Terracotta",
     "brown": "Brown",
     "slate": "Slate grey"
+  },
+  "measure": {
+    "title": "Enter readings",
+    "now": "Enter now",
+    "button": {
+      "glucose": "Enter blood sugar",
+      "weight": "Enter weight"
+    },
+    "label": {
+      "glucose": "Your blood sugar in {{unit}}",
+      "weight": "Your weight in {{unit}}"
+    },
+    "cancel": "Cancel",
+    "next": "Next",
+    "question": "Is this right?",
+    "change": "No, change it",
+    "save": "Yes, save",
+    "saved": "Saved, well done!",
+    "entered": {
+      "glucose": "Blood sugar entered: {{value}}",
+      "weight": "Weight entered: {{value}}"
+    },
+    "error": {
+      "empty": "Please type in a number.",
+      "invalid": "This number does not look right. Please check the reading and type it in again."
+    }
   }
 }

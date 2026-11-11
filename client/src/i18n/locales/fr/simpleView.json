@@ -112,5 +112,31 @@
     "terracotta": "Terre cuite",
     "brown": "Brun",
     "slate": "Gris ardoise"
+  },
+  "measure": {
+    "title": "Saisir les mesures",
+    "now": "Saisir maintenant",
+    "button": {
+      "glucose": "Saisir la glycémie",
+      "weight": "Saisir le poids"
+    },
+    "label": {
+      "glucose": "Votre glycémie en {{unit}}",
+      "weight": "Votre poids en {{unit}}"
+    },
+    "cancel": "Annuler",
+    "next": "Suivant",
+    "question": "Est-ce correct ?",
+    "change": "Non, modifier",
+    "save": "Oui, enregistrer",
+    "saved": "Enregistré, très bien !",
+    "entered": {
+      "glucose": "Glycémie saisie : {{value}}",
+      "weight": "Poids saisi : {{value}}"
+    },
+    "error": {
+      "empty": "Veuillez saisir un nombre.",
+      "invalid": "Ce nombre ne convient pas. Veuillez vérifier la mesure et la saisir à nouveau."
+    }
   }
 }

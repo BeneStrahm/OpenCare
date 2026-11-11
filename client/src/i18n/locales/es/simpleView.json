@@ -112,5 +112,31 @@
     "terracotta": "Terracota",
     "brown": "Marrón",
     "slate": "Gris pizarra"
+  },
+  "measure": {
+    "title": "Anotar mediciones",
+    "now": "Anotar ahora",
+    "button": {
+      "glucose": "Anotar glucemia",
+      "weight": "Anotar peso"
+    },
+    "label": {
+      "glucose": "Su glucemia en {{unit}}",
+      "weight": "Su peso en {{unit}}"
+    },
+    "cancel": "Cancelar",
+    "next": "Siguiente",
+    "question": "¿Es correcto?",
+    "change": "No, cambiar",
+    "save": "Sí, guardar",
+    "saved": "¡Guardado, muy bien!",
+    "entered": {
+      "glucose": "Glucemia anotada: {{value}}",
+      "weight": "Peso anotado: {{value}}"
+    },
+    "error": {
+      "empty": "Por favor, escriba un número.",
+      "invalid": "Este número no parece correcto. Por favor, revise la medición y escríbala de nuevo."
+    }
   }
 }

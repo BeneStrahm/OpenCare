@@ -1,7 +1,10 @@
-import { Router, Response } from 'express';
+import { Router, Response, NextFunction } from 'express';
 import { query } from '../db';
 import { authMiddleware } from '../middleware/auth';
-import { circleMiddleware, requireRole, CircleRequest, HEALTH_READER_ROLES } from '../middleware/circle';
+import {
+    circleMiddleware, requireRole, CircleRequest, HEALTH_READER_ROLES,
+    RECIPIENT_UNDO_MS, recipientMayRecordVital, recipientVitalUndoMsLeft,
+} from '../middleware/circle';
 import { broadcastToCircle } from '../lib/broadcaster';
 import { createNotification } from '../lib/notifications';
 import { langFromRequest, t, pick, pickLang, type Lang } from '../lib/i18n';
@@ -16,10 +19,28 @@ import {
 const router = Router();
 
 // Donnees de sante: la matrice de docs/SPEC.md exclut le role neighbor
-// (lecture pour recipient, ecriture pour admin/family/professional).
+// (ecriture pour admin/family/professional; recipient siehe middleware/circle.ts:
+// nur die freigegebenen Routen, schreibt nur Blutzucker und Gewicht, Block K).
 router.use(authMiddleware, circleMiddleware, requireRole(...HEALTH_READER_ROLES));
 
 const requireHealthWriter = requireRole('admin', 'family', 'professional');
+
+/** Alter eines Eintrags in ms, in der Datenbankzeit gerechnet (wie created_at). */
+const CREATED_AGE_MS_SQL = 'EXTRACT(EPOCH FROM (LOCALTIMESTAMP - created_at)) * 1000';
+
+/**
+ * Block K (E20): Schreiben wie bisher fuer admin, family, professional; dazu
+ * recipient, aber nur Blutzucker und Gewicht (RECIPIENT_VITAL_TYPES).
+ */
+const requireVitalWriter = (req: CircleRequest, res: Response, next: NextFunction) => {
+    if (req.circleRole === 'recipient') {
+        if (!recipientMayRecordVital(req.body?.type)) {
+            return res.status(403).json({ success: false, error: 'Insufficient role' });
+        }
+        return next();
+    }
+    return requireHealthWriter(req, res, next);
+};
 
 const VITAL_TYPES = ['weight', 'bp', 'pain', 'mood', 'temperature', 'glucose'];
 
@@ -99,7 +120,6 @@ router.get('/latest', async (req: CircleRequest, res: Response) => {
     }
 });
 
-// Record a measurement (every role except recipient)
 // ============================================================
 // Seuils d'alerte
 // ============================================================
@@ -333,9 +353,47 @@ router.put('/reminders', requireRole('admin', 'family'), async (req: CircleReque
     }
 });
 
-router.post('/', requireHealthWriter, async (req: CircleRequest, res: Response) => {
+// Block K: eigene Eintraege, die noch rueckgaengig gemacht werden koennen
+// (betreute Person, RECIPIENT_UNDO_MINUTES). Liefert nur eigene Werte.
+router.get('/mine/undoable', async (req: CircleRequest, res: Response) => {
     try {
-        const { type, value, value2, pulse, unit, measured_at, notes } = req.body;
+        const { rows } = await query(
+            `SELECT id, type, value, unit, measured_at, recorded_by_user, ${CREATED_AGE_MS_SQL} AS created_age_ms
+             FROM vitals
+             WHERE circle_id = $1 AND recorded_by_user = $2
+               AND type IN ('glucose', 'weight')
+               AND created_at > LOCALTIMESTAMP - ($3 || ' milliseconds')::interval
+             ORDER BY created_at DESC`,
+            [req.circleId, req.userId, String(RECIPIENT_UNDO_MS)]
+        );
+        const data = rows
+            .map((row) => ({
+                id: row.id as string,
+                type: row.type as string,
+                value: Number(row.value),
+                unit: row.unit as string | null,
+                measured_at: row.measured_at,
+                undo_ms_left: recipientVitalUndoMsLeft(row, req.userId),
+            }))
+            .filter((row) => row.undo_ms_left > 0);
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error('List undoable vitals error:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
+
+router.post('/', requireVitalWriter, async (req: CircleRequest, res: Response) => {
+    try {
+        const isRecipient = req.circleRole === 'recipient';
+        const { type, value } = req.body;
+        // Block K: Die betreute Person traegt nur einen Wert "jetzt" ein, ohne
+        // zweiten Wert, Puls, Zeit oder Notiz; die Einheit ist die gespeicherte.
+        const value2 = isRecipient ? undefined : req.body.value2;
+        const pulse = isRecipient ? undefined : req.body.pulse;
+        const measured_at = isRecipient ? undefined : req.body.measured_at;
+        const notes = isRecipient ? undefined : req.body.notes;
+        const unit = isRecipient ? (type === 'glucose' ? 'g/L' : 'kg') : req.body.unit;
 
         if (typeof type !== 'string' || !VITAL_TYPES.includes(type)) {
             return res.status(400).json({ success: false, error: 'Invalid vital type' });
@@ -352,6 +410,9 @@ router.post('/', requireHealthWriter, async (req: CircleRequest, res: Response) 
 
         const numValue = Number(value);
         if (value === undefined || value === null || value === '' || !Number.isFinite(numValue)) {
+            return res.status(400).json({ success: false, error: 'Invalid value' });
+        }
+        if (isRecipient && numValue <= 0) {
             return res.status(400).json({ success: false, error: 'Invalid value' });
         }
 
@@ -403,7 +464,11 @@ router.post('/', requireHealthWriter, async (req: CircleRequest, res: Response) 
             }
         }
 
-        res.json({ success: true, data: result.rows[0] });
+        const created = result.rows[0];
+        res.json({
+            success: true,
+            data: isRecipient ? { ...created, undo_ms_left: RECIPIENT_UNDO_MS } : created,
+        });
     } catch (error) {
         console.error('Create vital error:', error);
         res.status(500).json({ success: false, error: 'Internal server error' });
@@ -510,15 +575,20 @@ router.put('/:id', async (req: CircleRequest, res: Response) => {
     }
 });
 
-// Delete a measurement: its author or an admin
+// Delete a measurement: its author or an admin (recipient: own entry, 10 minutes)
 router.delete('/:id', async (req: CircleRequest, res: Response) => {
     try {
         const existing = await query(
-            'SELECT id, recorded_by_user FROM vitals WHERE id = $1 AND circle_id = $2',
+            `SELECT id, type, recorded_by_user, ${CREATED_AGE_MS_SQL} AS created_age_ms
+             FROM vitals WHERE id = $1 AND circle_id = $2`,
             [req.params.id, req.circleId]
         );
         if (existing.rows.length === 0) {
             return res.status(404).json({ success: false, error: 'Vital not found' });
+        }
+        // Block K: die betreute Person nur den eigenen Eintrag, nur RECIPIENT_UNDO_MINUTES lang.
+        if (req.circleRole === 'recipient' && recipientVitalUndoMsLeft(existing.rows[0], req.userId) <= 0) {
+            return res.status(403).json({ success: false, error: 'UNDO_EXPIRED' });
         }
         const isAuthor = existing.rows[0].recorded_by_user === req.userId;
         if (!isAuthor && req.circleRole !== 'admin') {

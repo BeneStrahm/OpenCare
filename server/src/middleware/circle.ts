@@ -16,10 +16,14 @@ export const CIRCLE_ROLES: CircleRole[] = ['admin', 'family', 'professional', 'n
  *   von "Fragen Sie mich". Erlaubt ist nur, was in RECIPIENT_ALLOWED_REQUESTS steht;
  *   alles andere lehnt circleMiddleware mit 403 ab (Tagebuch, Arztgespraech,
  *   Dokumente, Gesundheitswerte, Aufgaben, Mitglieder- und Kreisverwaltung, Export ...).
- * - schreibt nichts. Ausnahme: bestaetigt Einnahmen als "Genommen"
+ * - schreibt fast nichts. Ausnahmen: bestaetigt Einnahmen als "Genommen"
  *   (INTAKE_CONFIRMER_ROLES), einzeln oder pro Tageszeit; nicht auslassen,
  *   kein "Bei Bedarf". Eine eigene Bestaetigung (Quelle self) darf sie
  *   RECIPIENT_UNDO_MINUTES lang selbst zuruecksetzen (recipientMayChangeIntake).
+ *   Block K (E20): traegt Blutzucker und Gewicht selbst ein (RECIPIENT_VITAL_TYPES,
+ *   POST /api/vitals). Nur diese zwei Werte, immer mit der Zeit "jetzt", ohne
+ *   Notiz. Einen eigenen Eintrag darf sie RECIPIENT_UNDO_MINUTES lang loeschen
+ *   (recipientVitalUndoMsLeft), aendern nicht. Andere Messwerte liest sie nicht.
  * - eigenes Konto (Profil, Sprache, Benachrichtigungen) unter /api/auth und
  *   /api/notifications haengt an keinem Kreis und bleibt unberuehrt.
  */
@@ -35,7 +39,7 @@ const SEGMENT = '[^/]+';
  * Alles, was hier fehlt, ist gesperrt. Die Routen selbst filtern zusaetzlich,
  * was recipient sieht (Dashboard, Kontakte, Mitglieder) oder schreiben darf.
  */
-export const RECIPIENT_ALLOWED_REQUESTS: Array<{ method: 'GET' | 'POST' | 'PUT'; path: RegExp }> = [
+export const RECIPIENT_ALLOWED_REQUESTS: Array<{ method: 'GET' | 'POST' | 'PUT' | 'DELETE'; path: RegExp }> = [
     { method: 'GET', path: /^\/api\/dashboard(\/household)?$/ },
     { method: 'GET', path: new RegExp(`^/api/circles/${SEGMENT}(/recipient)?$`) },
     { method: 'GET', path: /^\/api\/events(\/upcoming)?$/ },
@@ -51,6 +55,11 @@ export const RECIPIENT_ALLOWED_REQUESTS: Array<{ method: 'GET' | 'POST' | 'PUT';
     { method: 'GET', path: new RegExp(`^/api/view-photos(/${SEGMENT})?$`) },
     // Block E: offene Messwert-Erinnerungen von heute (nur Art und Uhrzeit, keine Werte)
     { method: 'GET', path: /^\/api\/vitals\/reminders\/today$/ },
+    // Block K: Blutzucker und Gewicht selbst eintragen, eigene Eintraege 10 Minuten
+    // rueckgaengig machen. Die Route prueft Art, Urheber und Zeit (routes/vitals.ts).
+    { method: 'POST', path: /^\/api\/vitals$/ },
+    { method: 'GET', path: /^\/api\/vitals\/mine\/undoable$/ },
+    { method: 'DELETE', path: new RegExp(`^/api/vitals/${SEGMENT}$`) },
     // "Fragen Sie mich": nur die festen Fragen, Antwort ohne KI aus den eigenen Daten
     // (FIXED_QUESTIONS in routes/companion.ts). Keine freie Eingabe.
     { method: 'GET', path: /^\/api\/companion\/answer\/(medications|visitors|appointments|week|date|contacts)$/ },
@@ -94,6 +103,33 @@ export function recipientMayChangeIntake(
     if (target === 'taken') return intake.status === 'pending' || intake.status === 'missed';
     if (target === 'pending') return recipientUndoMsLeft(intake, userId) > 0;
     return false;
+}
+
+/** Block K: diese Messwerte traegt die betreute Person selbst ein. */
+export const RECIPIENT_VITAL_TYPES = ['glucose', 'weight'] as const;
+
+export const recipientMayRecordVital = (type: unknown): boolean =>
+    typeof type === 'string' && (RECIPIENT_VITAL_TYPES as readonly string[]).includes(type);
+
+/** Felder eines Messwerts, die fuer das Rueckgaengig der betreuten Person zaehlen. */
+export interface VitalEntryInfo {
+    type: string;
+    recorded_by_user?: string | null;
+    /** Alter des Eintrags in ms, auf dem Server berechnet (Datenbankzeit). */
+    created_age_ms?: number | string | null;
+}
+
+/**
+ * Restzeit in ms, in der recipient diesen Messwert selbst loeschen darf: nur ein
+ * eigener Eintrag (Blutzucker oder Gewicht), hoechstens RECIPIENT_UNDO_MS alt. Sonst 0.
+ */
+export function recipientVitalUndoMsLeft(vital: VitalEntryInfo, userId: string | undefined): number {
+    if (!recipientMayRecordVital(vital.type)) return 0;
+    if (!userId || vital.recorded_by_user !== userId) return 0;
+    if (vital.created_age_ms === null || vital.created_age_ms === undefined) return 0;
+    const age = Number(vital.created_age_ms);
+    if (!Number.isFinite(age) || age < 0) return 0;
+    return Math.max(0, RECIPIENT_UNDO_MS - age);
 }
 
 /** Roles allowed to read health data (vitals, medications, documents, digests). */

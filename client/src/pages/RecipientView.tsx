@@ -14,20 +14,21 @@ import { clockDate } from '../lib/clock';
 import { SUPPORTED_LANGUAGES, LANGUAGE_NAMES } from '../i18n';
 import { changeAppLanguage } from '../lib/language';
 import { formatAmount } from '../lib/medications';
-import { isFeatureEnabled, type FeatureId } from '../lib/features';
+import { enabledVitalTypes, isFeatureEnabled, type FeatureId } from '../lib/features';
+import { displayUnit, formatVital, toStorageValue } from '../lib/units';
 import { cn } from '../lib/utils';
 import { VIEW_COLORS, viewColorOf } from '../lib/viewColors';
 import {
-    FONT_SCALES, MOMENTS, RECIPIENT_QUESTIONS, isCompanionActive, isTravelActive, loadFontScale,
-    localDay, momentOf, saveFontScale, type Moment, type RecipientQuestion,
+    FONT_SCALES, MOMENTS, RECIPIENT_QUESTIONS, RECIPIENT_VITAL_TYPES, isCompanionActive, isTravelActive, loadFontScale,
+    localDay, momentOf, parseRecipientVital, saveFontScale, type Moment, type RecipientQuestion, type RecipientVitalType,
 } from '../lib/recipientView';
 
 // Einfache Ansicht der betreuten Person (Rolle recipient), Launch Block C.
 // Ersetzt die fruehere Tablet-Ansicht (Kiosk): gleiche ruhige Gestaltung (helle
 // Kacheln, grosse Schrift, Atkinson Hyperlegible), aber mit dem eigenen Konto und
 // nur ueber die normalen API-Routen, die middleware/circle.ts fuer recipient
-// freigibt. Schreiben kann sie nur eines: Einnahmen als genommen bestaetigen
-// (mit Rueckgaengig, 10 Minuten). Kein Menue, keine anderen Seiten (App.tsx).
+// freigibt. Schreiben kann sie nur: Einnahmen als genommen bestaetigen und
+// Blutzucker und Gewicht eintragen (Block K), beides mit Rueckgaengig, 10 Minuten. Kein Menue, keine anderen Seiten (App.tsx).
 // Palette fest und hell, wie zuvor im Kiosk: das dunkle Thema der App gilt hier nicht.
 // blue, blueDark und blueSoft ersetzt die gewaehlte Farbe (Block D, lib/viewColors.ts).
 const BASE = {
@@ -103,6 +104,10 @@ interface Contact { id: string; name: string; category: string; phone: string | 
 interface Heatwave { enabled: boolean; active: boolean; level: string | null }
 /** Block E: offene Messwert-Erinnerung von heute (GET /api/vitals/reminders/today) */
 interface OpenVitalReminder { type: 'glucose' | 'weight'; remind_time: string; note: string | null }
+/** Block K: eigener Eintrag, noch rueckgaengig zu machen (GET /api/vitals/mine/undoable) */
+interface OwnVital { id: string; type: RecipientVitalType; value: number; undo_ms_left: number; undo_until?: number }
+/** Block K: Eingabe eines Messwerts, erst Zahl, dann Rueckfrage */
+type VitalForm = { type: RecipientVitalType; step: 'enter' | 'confirm'; text: string; error: 'empty' | 'invalid' | null };
 
 type Notice = { kind: 'ok' | 'error' | 'queued'; text: string } | null;
 
@@ -192,6 +197,9 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     const [contacts, setContacts] = useState<Contact[]>([]);
     const [heat, setHeat] = useState<Heatwave | null>(null);
     const [openVitals, setOpenVitals] = useState<OpenVitalReminder[]>([]);
+    const [ownVitals, setOwnVitals] = useState<OwnVital[]>([]);
+    const [vitalForm, setVitalForm] = useState<VitalForm | null>(null);
+    const [vitalNotice, setVitalNotice] = useState<Notice>(null);
     const [loadError, setLoadError] = useState(false);
 
     const [busy, setBusy] = useState(false);
@@ -226,6 +234,10 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     const contactsOn = on('contacts');
     const heatOn = on('heatwave');
     const healthOn = on('health');
+    // Block K: nur die eingeschalteten von Blutzucker und Gewicht
+    const vitalTypesOn = enabledVitalTypes(settings);
+    const ownVitalTypes = healthOn ? RECIPIENT_VITAL_TYPES.filter((type) => vitalTypesOn.includes(type)) : [];
+    const unitSystem = settings?.unit_system === 'imperial' ? 'imperial' : 'metric';
 
     const language = (i18n.resolvedLanguage || i18n.language || 'de').split('-')[0];
     const voice = useLocalVoice(language);
@@ -249,6 +261,15 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
         })));
     }, []);
 
+    const loadOwnVitals = useCallback(async () => {
+        const res = await api.get<{ success: boolean; data: OwnVital[] }>('/api/vitals/mine/undoable');
+        const loadedAt = Date.now();
+        setOwnVitals((Array.isArray(res.data) ? res.data : []).map((v) => ({
+            ...v,
+            undo_until: v.undo_ms_left > 0 ? loadedAt + v.undo_ms_left : undefined,
+        })));
+    }, []);
+
     const load = useCallback(async () => {
         const jobs: Promise<unknown>[] = [];
         if (medsOn) jobs.push(loadIntakes());
@@ -267,10 +288,11 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
         if (healthOn) {
             jobs.push(api.get<{ success: boolean; data: OpenVitalReminder[] }>('/api/vitals/reminders/today')
                 .then((res) => setOpenVitals(Array.isArray(res.data) ? res.data : [])));
+            jobs.push(loadOwnVitals());
         }
         const results = await Promise.allSettled(jobs);
         setLoadError(results.some((r) => r.status === 'rejected'));
-    }, [medsOn, calendarOn, contactsOn, heatOn, healthOn, day, loadIntakes]);
+    }, [medsOn, calendarOn, contactsOn, heatOn, healthOn, day, loadIntakes, loadOwnVitals]);
 
     // Beim Start, bei neuem Tag, alle 5 Minuten und bei Aenderungen im Kreis.
     useEffect(() => {
@@ -360,14 +382,14 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     // Rueckgaengig verschwindet genau dann, wenn die vom Server genannte Zeit um ist.
     const [undoClock, setUndoClock] = useState(() => Date.now());
     useEffect(() => {
-        const next = intakes.reduce(
+        const next = [...intakes, ...ownVitals].reduce(
             (min, i) => (i.undo_until && i.undo_until > undoClock ? Math.min(min, i.undo_until) : min),
             Infinity
         );
         if (next === Infinity) return;
         const id = window.setTimeout(() => setUndoClock(Date.now()), Math.max(0, next - Date.now()) + 50);
         return () => window.clearTimeout(id);
-    }, [intakes, undoClock]);
+    }, [intakes, ownVitals, undoClock]);
     const canUndo = (i: Intake) => i.status === 'taken' && Boolean(i.undo_until && i.undo_until > undoClock);
 
     // Erfolgsmeldungen bleiben 10 s stehen, Fehler bis zum Schliessen.
@@ -376,6 +398,76 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
         const id = window.setTimeout(() => setNotice(null), 10_000);
         return () => window.clearTimeout(id);
     }, [notice]);
+    useEffect(() => {
+        if (!vitalNotice || vitalNotice.kind === 'error') return;
+        const id = window.setTimeout(() => setVitalNotice(null), 10_000);
+        return () => window.clearTimeout(id);
+    }, [vitalNotice]);
+
+    // ── Messwerte selbst eintragen (Block K) ──
+
+    const undoableVitals = ownVitals.filter((v) => v.undo_until && v.undo_until > undoClock);
+    const vitalUnit = (type: RecipientVitalType) => displayUnit(type, unitSystem);
+    const vitalText = (type: RecipientVitalType, stored: number) =>
+        formatVital(type, stored, null, unitSystem, intlLocale());
+
+    const openVitalForm = (type: RecipientVitalType) => {
+        setVitalNotice(null);
+        setVitalForm({ type, step: 'enter', text: '', error: null });
+    };
+
+    /** Zahl pruefen; stimmt sie, kommt die Rueckfrage. */
+    const checkVital = () => {
+        if (!vitalForm) return;
+        const parsed = parseRecipientVital(vitalForm.type, vitalForm.text, (shown) => toStorageValue(vitalForm.type, shown, unitSystem));
+        setVitalForm({ ...vitalForm, step: parsed.ok ? 'confirm' : 'enter', error: parsed.ok ? null : parsed.error });
+    };
+
+    const saveVital = async () => {
+        if (!vitalForm || busy) return;
+        const parsed = parseRecipientVital(vitalForm.type, vitalForm.text, (shown) => toStorageValue(vitalForm.type, shown, unitSystem));
+        if (!parsed.ok) {
+            setVitalForm({ ...vitalForm, step: 'enter', error: parsed.error });
+            return;
+        }
+        const type = vitalForm.type;
+        setBusy(true);
+        setVitalNotice(null);
+        try {
+            const res = await api.post<{ success: boolean; queued?: boolean }>('/api/vitals', { type, value: parsed.stored });
+            setVitalForm(null);
+            // Erinnerungszeile sofort weg; der Server sieht den Wert von heute ebenso.
+            setOpenVitals((prev) => prev.filter((r) => r.type !== type));
+            if (res.queued) {
+                setVitalNotice({ kind: 'queued', text: t('simpleView:meds.queued') });
+            } else {
+                setVitalNotice({ kind: 'ok', text: t('simpleView:measure.saved') });
+                await loadOwnVitals();
+            }
+        } catch {
+            setVitalNotice({ kind: 'error', text: t('simpleView:meds.error') });
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const undoVital = async (vital: OwnVital) => {
+        if (busy) return;
+        setBusy(true);
+        setVitalNotice(null);
+        try {
+            const res = await api.delete<{ success: boolean; queued?: boolean }>(`/api/vitals/${vital.id}`);
+            setOwnVitals((prev) => prev.filter((v) => v.id !== vital.id));
+            setVitalNotice({ kind: res.queued ? 'queued' : 'ok', text: res.queued ? t('simpleView:meds.queued') : t('simpleView:meds.undone') });
+            await load();
+        } catch {
+            // Nach Ablauf der 10 Minuten lehnt der Server ab (routes/vitals.ts).
+            setVitalNotice({ kind: 'error', text: t('simpleView:meds.undoExpired') });
+            void loadOwnVitals().catch(() => undefined);
+        } finally {
+            setBusy(false);
+        }
+    };
 
     // ── Einnahmen ──
 
@@ -629,19 +721,98 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                     </section>
                 )}
 
-                {/* Block E: freundliche Zeile, solange ein Messwert von heute fehlt */}
+                {/* Block E: freundliche Zeile, solange ein Messwert von heute fehlt; Block K: mit Taste zum Eintragen */}
                 {healthOn && dueVitals.map((r) => {
                     const Icon = r.type === 'glucose' ? Droplet : Scale;
                     return (
-                        <section key={r.type} className="flex items-center gap-4 rounded-3xl p-5" style={{ backgroundColor: C.blueSoft, border: `1px solid ${C.border}` }}>
-                            <Icon className="h-12 w-12 shrink-0" style={{ color: C.blue }} aria-hidden="true" />
-                            <p className="font-bold" style={fs(22)}>
-                                {t(`simpleView:vitals.${r.type}`)}
-                                {r.note ? ` (${r.note})` : ''}
-                            </p>
+                        <section key={r.type} className="flex flex-wrap items-center justify-between gap-4 rounded-3xl p-5" style={{ backgroundColor: C.blueSoft, border: `1px solid ${C.border}` }}>
+                            <div className="flex items-center gap-4">
+                                <Icon className="h-12 w-12 shrink-0" style={{ color: C.blue }} aria-hidden="true" />
+                                <p className="font-bold" style={fs(22)}>
+                                    {t(`simpleView:vitals.${r.type}`)}
+                                    {r.note ? ` (${r.note})` : ''}
+                                </p>
+                            </div>
+                            {(ownVitalTypes as readonly string[]).includes(r.type) && (
+                                <button
+                                    type="button"
+                                    onClick={() => openVitalForm(r.type)}
+                                    className="flex min-h-[64px] items-center gap-2 rounded-2xl px-5 font-bold text-white shadow-md"
+                                    style={{ ...fs(21), backgroundColor: C.blue }}
+                                >
+                                    <Icon className="h-7 w-7 shrink-0" aria-hidden="true" />
+                                    {t('simpleView:measure.now')}
+                                </button>
+                            )}
                         </section>
                     );
                 })}
+
+                {/* Block K: Blutzucker und Gewicht selbst eintragen, 10 Minuten Rueckgaengig */}
+                {ownVitalTypes.length > 0 && (
+                    <section className="rounded-3xl p-5 sm:p-6" style={{ backgroundColor: C.blueSoft, border: `1px solid ${C.border}` }} aria-labelledby="rv-measure">
+                        <h2 id="rv-measure" className="mb-4 flex items-center gap-3" style={sectionTitle(C.text)}>
+                            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white" style={{ backgroundColor: C.blue }}>
+                                <HeartPulse className="h-7 w-7" aria-hidden="true" />
+                            </span>
+                            {t('simpleView:measure.title')}
+                        </h2>
+
+                        {vitalNotice && (
+                            <div
+                                role={vitalNotice.kind === 'error' ? 'alert' : 'status'}
+                                className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4"
+                                style={{ backgroundColor: C.card, border: `2px solid ${vitalNotice.kind === 'error' ? C.red : C.green}` }}
+                            >
+                                <p className="font-bold" style={{ ...fs(21), color: vitalNotice.kind === 'error' ? C.red : C.text }}>{vitalNotice.text}</p>
+                                <button type="button" onClick={() => setVitalNotice(null)} className="min-h-[56px] min-w-[96px] rounded-2xl px-4 font-bold" style={secondaryButton}>
+                                    {t('simpleView:ok')}
+                                </button>
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            {ownVitalTypes.map((type) => {
+                                const Icon = type === 'glucose' ? Droplet : Scale;
+                                return (
+                                    <button
+                                        key={type}
+                                        type="button"
+                                        onClick={() => openVitalForm(type)}
+                                        disabled={busy}
+                                        className="flex min-h-[64px] items-center justify-center gap-3 rounded-2xl px-4 font-bold disabled:opacity-70"
+                                        style={secondaryButton}
+                                    >
+                                        <Icon className="h-7 w-7 shrink-0" style={{ color: C.blue }} aria-hidden="true" />
+                                        {t(`simpleView:measure.button.${type}`)}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {undoableVitals.length > 0 && (
+                            <ul className="mt-4 space-y-3">
+                                {undoableVitals.map((v) => (
+                                    <li key={v.id} className="space-y-3 rounded-2xl p-4" style={tile}>
+                                        <p className="flex items-center gap-2 font-bold" style={{ ...fs(21), color: C.green }}>
+                                            <Check className="h-7 w-7 shrink-0" strokeWidth={3} aria-hidden="true" />
+                                            {t(`simpleView:measure.entered.${v.type}`, { value: vitalText(v.type, v.value) })}
+                                        </p>
+                                        <div className="flex flex-wrap items-center gap-3">
+                                            <button type="button" onClick={() => void undoVital(v)} disabled={busy} className="flex min-h-[56px] items-center gap-2 rounded-2xl px-5 font-bold" style={secondaryButton}>
+                                                <RotateCcw className="h-6 w-6 shrink-0" aria-hidden="true" />
+                                                {t('medications:today.undo')}
+                                            </button>
+                                            <span style={{ ...fs(18), color: C.muted }}>
+                                                {t('simpleView:meds.undoHint', { time: clockOf(new Date(v.undo_until ?? Date.now())) })}
+                                            </span>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </section>
+                )}
 
                 {/* Medikamente heute: eine Taste pro Einnahme, wie in Medikamente > Heute */}
                 {medsOn && (
@@ -973,6 +1144,82 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                 {t('medications:today.allTakenYes')}
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Block K: Messwert eintragen, erst die Zahl, dann die Rueckfrage */}
+            {vitalForm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ lineHeight: 1.5, ['--k' as string]: String(fontScale) }} role="dialog" aria-modal="true" aria-labelledby="rv-measure-title">
+                    <div className="absolute inset-0 bg-black/40" aria-hidden="true" />
+                    <div className={cn(overlayBox, 'max-w-xl font-kiosk')} style={tile}>
+                        <h2 id="rv-measure-title" className="font-bold" style={fs(26)}>{t(`simpleView:measure.button.${vitalForm.type}`)}</h2>
+                        {vitalForm.step === 'enter' ? (
+                            <form
+                                className="mt-4"
+                                onSubmit={(e) => { e.preventDefault(); checkVital(); }}
+                                noValidate
+                            >
+                                <label htmlFor="rv-measure-input" className="block font-bold" style={fs(21)}>
+                                    {t(`simpleView:measure.label.${vitalForm.type}`, { unit: vitalUnit(vitalForm.type) })}
+                                </label>
+                                <div className="mt-2 flex items-center gap-3">
+                                    <input
+                                        id="rv-measure-input"
+                                        type="text"
+                                        inputMode="decimal"
+                                        autoComplete="off"
+                                        autoFocus
+                                        value={vitalForm.text}
+                                        onChange={(e) => setVitalForm({ ...vitalForm, text: e.target.value, error: null })}
+                                        aria-invalid={vitalForm.error ? true : undefined}
+                                        aria-describedby={vitalForm.error ? 'rv-measure-error' : undefined}
+                                        className="min-h-[72px] w-full min-w-0 rounded-2xl px-4 font-bold tabular-nums"
+                                        style={{ ...fs(32), backgroundColor: C.card, color: C.text, border: `2px solid ${vitalForm.error ? C.red : C.control}` }}
+                                    />
+                                    <span className="shrink-0 font-bold" style={fs(24)}>{vitalUnit(vitalForm.type)}</span>
+                                </div>
+                                {vitalForm.error && (
+                                    <p id="rv-measure-error" role="alert" className="mt-2 font-bold" style={{ ...fs(20), color: C.red }}>
+                                        {t(`simpleView:measure.error.${vitalForm.error}`)}
+                                    </p>
+                                )}
+                                <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                    <button type="button" onClick={() => setVitalForm(null)} className="min-h-[64px] rounded-2xl px-4 font-bold" style={secondaryButton}>
+                                        {t('simpleView:measure.cancel')}
+                                    </button>
+                                    <button type="submit" className="flex min-h-[64px] items-center justify-center gap-2 rounded-2xl px-4 font-bold text-white" style={{ ...fs(21), backgroundColor: C.blue }}>
+                                        <ChevronRight className="h-7 w-7 shrink-0" strokeWidth={3} aria-hidden="true" />
+                                        {t('simpleView:measure.next')}
+                                    </button>
+                                </div>
+                            </form>
+                        ) : (
+                            <div className="mt-4">
+                                <p style={fs(21)}>{t('simpleView:measure.question')}</p>
+                                <p className="mt-3 rounded-2xl p-4 text-center font-bold tabular-nums" style={{ ...fs(36), backgroundColor: C.blueSoft, color: C.blueDark }}>
+                                    {(() => {
+                                        const parsed = parseRecipientVital(vitalForm.type, vitalForm.text, (shown) => toStorageValue(vitalForm.type, shown, unitSystem));
+                                        return parsed.ok ? vitalText(vitalForm.type, parsed.stored) : vitalForm.text;
+                                    })()}
+                                </p>
+                                <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                    <button type="button" onClick={() => setVitalForm({ ...vitalForm, step: 'enter' })} className="min-h-[64px] rounded-2xl px-4 font-bold" style={secondaryButton}>
+                                        {t('simpleView:measure.change')}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        disabled={busy}
+                                        onClick={() => void saveVital()}
+                                        className="flex min-h-[64px] items-center justify-center gap-2 rounded-2xl px-4 font-bold text-white disabled:opacity-70"
+                                        style={{ ...fs(21), backgroundColor: C.green }}
+                                    >
+                                        <Check className="h-7 w-7 shrink-0" strokeWidth={3} aria-hidden="true" />
+                                        {t('simpleView:measure.save')}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

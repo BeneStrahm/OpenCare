@@ -112,5 +112,31 @@
     "terracotta": "Terrakotta",
     "brown": "Braun",
     "slate": "Schiefergrau"
+  },
+  "measure": {
+    "title": "Messwerte eintragen",
+    "now": "Jetzt eintragen",
+    "button": {
+      "glucose": "Blutzucker eintragen",
+      "weight": "Gewicht eintragen"
+    },
+    "label": {
+      "glucose": "Ihr Blutzucker in {{unit}}",
+      "weight": "Ihr Gewicht in {{unit}}"
+    },
+    "cancel": "Abbrechen",
+    "next": "Weiter",
+    "question": "Ist das richtig?",
+    "change": "Nein, ändern",
+    "save": "Ja, speichern",
+    "saved": "Gespeichert, sehr gut!",
+    "entered": {
+      "glucose": "Blutzucker eingetragen: {{value}}",
+      "weight": "Gewicht eingetragen: {{value}}"
+    },
+    "error": {
+      "empty": "Bitte tippen Sie eine Zahl ein.",
+      "invalid": "Diese Zahl passt nicht. Bitte prüfen Sie den Wert und tippen Sie ihn noch einmal ein."
+    }
   }
 }
