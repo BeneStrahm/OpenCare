@@ -7,6 +7,7 @@ import authRoutes from './routes/auth';
 import userSettingsRoutes from './routes/userSettings';
 import passwordResetRoutes from './routes/passwordReset';
 import visitsRoutes from './routes/visits';
+import viewPhotosRoutes from './routes/viewPhotos';
 import circlesRoutes from './routes/circles';
 import circleInvitesRoutes from './routes/circleInvites';
 import shoppingRoutes from './routes/shopping';
@@ -74,20 +75,6 @@ const registerRateLimiter = rateLimit({
     message: {
         success: false,
         error: 'Too many sign-up attempts. Please try again later.'
-    }
-});
-
-// Mot de passe oublie : compte aussi les succes (chaque demande peut declencher
-// un e-mail ou une notification aux admins), plafond bas par IP.
-const forgotPasswordRateLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000,
-    max: 5,
-    standardHeaders: true,
-    legacyHeaders: false,
-    skipSuccessfulRequests: false,
-    message: {
-        success: false,
-        error: 'Too many password reset requests. Please try again later.'
     }
 });
 
@@ -176,7 +163,6 @@ app.use('/api', (_req, res, next) => {
 });
 app.use('/api/auth/login', authRateLimiter);
 app.use('/api/auth/register', registerRateLimiter);
-app.use('/api/auth/forgot-password', forgotPasswordRateLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/auth', userSettingsRoutes);
 app.use('/api/auth', passwordResetRoutes);
@@ -195,6 +181,8 @@ app.use('/api/contacts', requireFeature('contacts'), contactsRoutes);
 app.use('/api/caregiver-links', caregiverLinksRoutes);
 app.use('/api/emergency', emergencyRoutes);
 app.use('/api/visits', requireFeature('visitors'), visitsRoutes);
+// Fork, Block D: Fotos fuer die einfache Ansicht der betreuten Person
+app.use('/api/view-photos', viewPhotosRoutes);
 app.use('/api/insights', insightsRoutes);
 app.use('/api/story', storyRoutes);
 app.use('/api/handover', handoverRoutes);

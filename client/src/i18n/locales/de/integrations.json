@@ -25,7 +25,6 @@
     "stock": "Vorrat",
     "calendar": "Kalender",
     "appointments": "Termine",
-    "photos": "Fotos",
     "voice": "Sprachtagebuch"
   },
   "presence": {
@@ -91,14 +90,6 @@
       "userPlaceholder": "ihr.benutzername",
       "passwordLabel": "Passwort (oder App-Passwort)",
       "passwordPlaceholder": "****"
-    },
-    "immich": {
-      "tagline": "Fotosammlung",
-      "description": "Zeigt zufällige Fotos aus Ihrer selbst gehosteten Immich-Sammlung als Hintergrund der Tablet-Ansicht.",
-      "urlLabel": "URL der Installation",
-      "urlPlaceholder": "https://immich.meinedomain.de",
-      "keyLabel": "API-Schlüssel",
-      "keyPlaceholder": "Aus Immich > Kontoeinstellungen > API-Schlüssel"
     },
     "whisper": {
       "name": "Spracherkennung (Whisper)",

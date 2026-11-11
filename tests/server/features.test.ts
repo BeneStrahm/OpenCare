@@ -1,15 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import {
     isFeatureEnabled, enabledVitalTypes, isVitalTypeEnabled, cleanFlags, cleanVitalTypes,
-    FEATURE_IDS,
+    FEATURE_IDS, RETIRED_FEATURES,
 } from '../../server/src/lib/features';
 import { publicSettings, validateSettingsPatch } from '../../server/src/lib/circleSettings';
 
 // Fork: Funktionen und Messwerte pro Kreis.
 
 describe('Standard: alles an', () => {
-    it('ohne Einstellungen sind alle Funktionen und Messwerte an', () => {
-        for (const id of FEATURE_IDS) expect(isFeatureEnabled({}, id)).toBe(true);
+    it('ohne Einstellungen sind alle Funktionen und Messwerte an, ausser stillgelegten', () => {
+        for (const id of FEATURE_IDS) expect(isFeatureEnabled({}, id)).toBe(!RETIRED_FEATURES.includes(id));
         expect(enabledVitalTypes(undefined)).toHaveLength(6);
     });
 
@@ -17,6 +17,11 @@ describe('Standard: alles an', () => {
         const settings = { features: { calendar: false, tasks: true } };
         expect(isFeatureEnabled(settings, 'calendar')).toBe(false);
         expect(isFeatureEnabled(settings, 'tasks')).toBe(true);
+    });
+
+    it('stillgelegte Funktionen bleiben aus, auch wenn sie gespeichert an sind', () => {
+        expect(RETIRED_FEATURES).toContain('visitors');
+        expect(isFeatureEnabled({ features: { visitors: true } }, 'visitors')).toBe(false);
     });
 });
 

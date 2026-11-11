@@ -10,6 +10,8 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     ({ className, label, error, id, ...props }, ref) => {
         const autoId = React.useId();
         const textareaId = id || autoId;
+        const errorId = `${textareaId}-error`;
+        const describedBy = [props['aria-describedby'], error ? errorId : null].filter(Boolean).join(' ') || undefined;
         return (
             <div className="w-full">
                 {label && (
@@ -26,8 +28,10 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
                     )}
                     ref={ref}
                     {...props}
+                    aria-invalid={error ? true : props['aria-invalid']}
+                    aria-describedby={describedBy}
                 />
-                {error && <p className="mt-1.5 text-micro text-destructive">{error}</p>}
+                {error && <p id={errorId} className="mt-1.5 text-micro text-destructive">{error}</p>}
             </div>
         );
     }

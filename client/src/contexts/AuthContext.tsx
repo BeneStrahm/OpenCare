@@ -1,26 +1,30 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { api } from '../lib/api';
+import { api, type RegisterOptions } from '../lib/api';
 import { applyServerLanguage } from '../lib/language';
 import i18n from '../i18n';
 import { clearRecordingsForCurrentUser, kick, pendingRecordingsForCurrentUser } from '../lib/consultationUploader';
 
 interface User {
     id: string;
-    email: string;
+    username: string;
     name: string;
     avatar_url?: string | null;
     language?: string;
+    /** Farbe der einfachen Ansicht (lib/viewColors.ts), null = Standard */
+    view_color?: string | null;
 }
 
 interface AuthContextType {
     user: User | null;
     loading: boolean;
-    login: (email: string, password: string) => Promise<void>;
-    register: (email: string, password: string, name: string, inviteToken?: string) => Promise<void>;
+    login: (username: string, password: string) => Promise<void>;
+    register: (password: string, options: RegisterOptions) => Promise<void>;
     refreshToken: () => Promise<void>;
     logout: () => void;
     isAuthenticated: boolean;
     updateProfile: (data: { name?: string; avatar_url?: string | null }) => Promise<void>;
+    /** Block D: Farbe der einfachen Ansicht am eigenen Konto speichern. */
+    updateViewColor: (color: string | null) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -90,8 +94,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         };
     }, []);
 
-    const login = async (email: string, password: string) => {
-        const response = await api.login(email, password);
+    const login = async (username: string, password: string) => {
+        const response = await api.login(username, password);
         if (response.success && response.user) {
             setUser(response.user);
             localStorage.setItem('user', JSON.stringify(response.user));
@@ -99,8 +103,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
-    const register = async (email: string, password: string, name: string, inviteToken?: string) => {
-        const response = await api.register(email, password, name, inviteToken);
+    const register = async (password: string, options: RegisterOptions) => {
+        const response = await api.register(password, options);
         if (response.success && response.user) {
             setUser(response.user);
             localStorage.setItem('user', JSON.stringify(response.user));
@@ -156,6 +160,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
+    const updateViewColor = async (color: string | null) => {
+        const response = await api.put<{ success: boolean; data: { user: User } }>('/api/auth/view-color', { color });
+        if (response.success && response.data?.user) {
+            setUser(response.data.user);
+            localStorage.setItem('user', JSON.stringify(response.data.user));
+        }
+    };
+
     return (
         <AuthContext.Provider
             value={{
@@ -167,6 +179,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 logout,
                 isAuthenticated: !!user,
                 updateProfile,
+                updateViewColor,
             }}
         >
             {children}

@@ -155,7 +155,7 @@ router.get('/:circleId', circleMiddleware, async (req: CircleRequest, res: Respo
             query(`SELECT ${recipientFieldsFor(req.circleRole)} FROM care_recipients WHERE circle_id = $1`, [req.circleId]),
             query(
                 `SELECT m.id, m.circle_id, m.user_id, m.role, m.color, m.created_at,
-                        u.name, u.email, u.avatar_url
+                        u.name, u.username, u.avatar_url
                  FROM circle_members m
                  JOIN users u ON u.id = m.user_id
                  WHERE m.circle_id = $1
@@ -173,9 +173,9 @@ router.get('/:circleId', circleMiddleware, async (req: CircleRequest, res: Respo
             data: {
                 circle: withPublicSettings(circleResult.rows[0]),
                 recipient: recipientResult.rows[0] ?? null,
-                // Betreute Person: Namen und Fotos wie in der einfachen Ansicht, ohne E-Mail-Adressen.
+                // Betreute Person: Namen und Fotos wie in der einfachen Ansicht, ohne Benutzernamen.
                 members: req.circleRole === 'recipient'
-                    ? membersResult.rows.map(({ email: _email, ...member }) => member)
+                    ? membersResult.rows.map(({ username: _username, ...member }) => member)
                     : membersResult.rows,
                 my_role: req.circleRole,
             },

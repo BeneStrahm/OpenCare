@@ -3,11 +3,12 @@
 set -u
 A=http://localhost:3001
 ok(){ echo "OK   $1"; }; bad(){ echo "FAIL $1"; FAILS=$((FAILS+1)); }; FAILS=0
-EMAIL="e2e$RANDOM@example.org"
-TOKEN=$(curl -s -X POST $A/api/auth/register -H 'Content-Type: application/json' -d "{\"email\":\"$EMAIL\",\"password\":\"Sehr-sicher-123!\",\"name\":\"Thomas Muster\"}" | jq -r '.data.token')
+# Erstes Konto auf leerem Server (E18: Benutzername = Vorname Nachname)
+LAST="Muster$RANDOM"
+TOKEN=$(curl -s -X POST $A/api/auth/register -H 'Content-Type: application/json' -d "{\"firstName\":\"Thomas\",\"lastName\":\"$LAST\",\"password\":\"Sehr-sicher-123!\"}" | jq -r '.data.token')
 H=(-H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -H 'Accept-Language: de')
 CID=$(curl -s -X POST $A/api/circles "${H[@]}" -d '{"recipient_first_name":"Erika","recipient_last_name":"Muster"}' | jq -r '.data.circle.id')
-sudo -n -u postgres psql -q opencare -c "update users set language='de' where email='$EMAIL'"
+sudo -n -u postgres psql -q opencare -c "update users set language='de' where username='Thomas $LAST'"
 H+=(-H "X-Circle-Id: $CID")
 [ "$CID" != null ] && ok "Kreis angelegt" || bad "Kreis"
 curl -s -X POST $A/api/medications "${H[@]}" -d '{"name":"Ramipril","dosage":"5 mg","prescriber":"Dr. Özdemir"}' >/dev/null
@@ -86,9 +87,8 @@ curl -s $A/api/consultations/$ID "${H[@]}" | jq -e '.data.recordings[0].error_co
 O=$(grep -c '"ollama"' /home/claude/e2e/mocks.log); [ "$O" = 2 ] && ok "keine Daten an Cloud" || bad "ollama count $O"
 
 # Rollen: Nachbar
-E2="n$RANDOM@example.org"; T2=$(curl -s -X POST $A/api/auth/register -H 'Content-Type: application/json' -d "{\"email\":\"$E2\",\"password\":\"Sehr-sicher-123!\",\"name\":\"Nachbar\"}" | jq -r .data.token)
-UID2=$(sudo -n -u postgres psql -tA opencare -c "select id from users where email='$E2'")
-sudo -n -u postgres psql -q opencare -c "insert into circle_members(circle_id,user_id,role) values ('$CID','$UID2','neighbor')"
+INV2=$(curl -s -X POST $A/api/invites "${H[@]}" -d "{\"role\":\"neighbor\",\"first_name\":\"Karl\",\"last_name\":\"Nachbar$RANDOM\"}" | jq -r .data.token)
+T2=$(curl -s -X POST $A/api/auth/register -H 'Content-Type: application/json' -d "{\"password\":\"Sehr-sicher-123!\",\"inviteToken\":\"$INV2\"}" | jq -r .data.token)
 c=$(curl -s -o /dev/null -w '%{http_code}' $A/api/consultations -H "Authorization: Bearer $T2" -H "X-Circle-Id: $CID"); [ "$c" = 403 ] && ok "Nachbar gesperrt" || bad "Nachbar $c"
 c=$(curl -s -o /dev/null -w '%{http_code}' -X POST $A/api/consultations/recordings -H "Authorization: Bearer $T2" -H "X-Circle-Id: $CID" -H 'Content-Type: application/json' -d '{}'); [ "$c" = 403 ] && ok "Nachbar keine Aufnahme" || bad "Nachbar rec $c"
 # Fremder Kreis

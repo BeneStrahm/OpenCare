@@ -102,16 +102,16 @@ const equalSplits = (amount: number, memberIds: string[]) =>
     memberIds.map((member_id) => ({ member_id, share: half(amount) }));
 
 export function createSeed(): DemoStore {
-    const marie = { id: 'u-marie', name: 'Marie Dupont', email: 'marie@demo.opencare.fr', avatar_url: null, language: 'fr' };
-    const paul = { id: 'u-paul', name: 'Paul Dupont', email: 'paul@demo.opencare.fr', avatar_url: null, language: 'fr' };
+    const marie = { id: 'u-marie', name: 'Marie Dupont', username: 'Marie Dupont', avatar_url: null, language: 'fr' };
+    const paul = { id: 'u-paul', name: 'Paul Dupont', username: 'Paul Dupont', avatar_url: null, language: 'fr' };
 
     const cmMarie = {
         id: 'cm-marie', circle_id: 'c-jeanne', user_id: 'u-marie', role: 'admin', color: '#2563EB',
-        created_at: dstr(-200), name: marie.name, email: marie.email, avatar_url: null,
+        created_at: dstr(-200), name: marie.name, username: marie.username, avatar_url: null,
     };
     const cmPaul = {
         id: 'cm-paul', circle_id: 'c-jeanne', user_id: 'u-paul', role: 'family', color: '#16A34A',
-        created_at: dstr(-195), name: paul.name, email: paul.email, avatar_url: null,
+        created_at: dstr(-195), name: paul.name, username: paul.username, avatar_url: null,
     };
 
     const sharingIds = [cmMarie.id, cmPaul.id];
@@ -512,12 +512,12 @@ export function createSeed(): DemoStore {
                 members: [cmMarie, cmPaul],
                 invites: [
                     {
-                        id: 'inv-1', circle_id: 'c-jeanne', token: 'demo-invite-sophie', invitee_email: 'sophie@exemple.fr',
+                        id: 'inv-1', circle_id: 'c-jeanne', token: 'demo-invite-sophie', invitee_username: 'Sophie Dupont',
                         role: 'family', status: 'pending', expires_at: at(6, 23, 59), created_at: at(-1, 10, 0),
                         created_by_name: 'Marie Dupont',
                     },
                     {
-                        id: 'inv-2', circle_id: 'c-jeanne', token: 'demo-invite-kine', invitee_email: 'cabinet.kine@exemple.fr',
+                        id: 'inv-2', circle_id: 'c-jeanne', token: 'demo-invite-kine', invitee_username: 'Lucas Moreau',
                         role: 'professional', status: 'pending', expires_at: at(13, 23, 59), created_at: at(-3, 16, 0),
                         created_by_name: 'Marie Dupont',
                     },
@@ -653,7 +653,7 @@ export function createSeed(): DemoStore {
                 members: [
                     {
                         id: 'cm-marie-papa', circle_id: 'c-papa', user_id: 'u-marie', role: 'admin', color: '#2563EB',
-                        created_at: dstr(-90), name: marie.name, email: marie.email, avatar_url: null,
+                        created_at: dstr(-90), name: marie.name, username: marie.username, avatar_url: null,
                     },
                 ],
                 invites: [],

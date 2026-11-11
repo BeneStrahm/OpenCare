@@ -11,6 +11,10 @@ interface DatePickerProps {
     min?: string;
     max?: string;
     className?: string;
+    /** Feld hat einen Fehler (aria-invalid). */
+    invalid?: boolean;
+    /** ID der Fehlermeldung (aria-describedby). */
+    describedBy?: string;
 }
 
 const parseDateTimeValue = (value: string): { date: string; time: string } => {
@@ -33,6 +37,8 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     min,
     max,
     className,
+    invalid,
+    describedBy,
 }) => {
     const { t } = useTranslation('common');
     const fieldId = React.useId();
@@ -71,6 +77,8 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                         min={minDate}
                         max={maxDate}
                         className={cn('input-nexus py-0 text-caption', className)}
+                        aria-invalid={invalid || undefined}
+                        aria-describedby={describedBy}
                     />
                     </div>
                     <div>
@@ -95,6 +103,8 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                             onChange(`${date || today}T${nextTime}`);
                         }}
                         className={cn('input-nexus py-0 text-caption', className)}
+                        aria-invalid={invalid || undefined}
+                        aria-describedby={describedBy}
                     />
                     </div>
                 </div>
@@ -115,6 +125,8 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                 min={min}
                 max={max}
                 className={cn('input-nexus py-0 text-caption', className)}
+                aria-invalid={invalid || undefined}
+                aria-describedby={describedBy}
             />
         </div>
     );

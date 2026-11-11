@@ -1,9 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     CalendarDays, Check, CheckCheck, LogOut, MapPin, MessageCircle, Phone, Pill, RotateCcw,
     Settings as SettingsIcon, ThermometerSun, Users, Backpack, Car, Volume2, Square, X,
-    Stethoscope, CalendarRange, CalendarClock,
+    Stethoscope, CalendarRange, CalendarClock, Droplet, Scale, HeartPulse, Sun, Moon, ChevronRight,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -16,6 +16,7 @@ import { changeAppLanguage } from '../lib/language';
 import { formatAmount } from '../lib/medications';
 import { isFeatureEnabled, type FeatureId } from '../lib/features';
 import { cn } from '../lib/utils';
+import { VIEW_COLORS, viewColorOf } from '../lib/viewColors';
 import {
     FONT_SCALES, MOMENTS, RECIPIENT_QUESTIONS, isCompanionActive, isTravelActive, loadFontScale,
     localDay, momentOf, saveFontScale, type Moment, type RecipientQuestion,
@@ -28,10 +29,12 @@ import {
 // freigibt. Schreiben kann sie nur eines: Einnahmen als genommen bestaetigen
 // (mit Rueckgaengig, 10 Minuten). Kein Menue, keine anderen Seiten (App.tsx).
 // Palette fest und hell, wie zuvor im Kiosk: das dunkle Thema der App gilt hier nicht.
-const C = {
+// blue, blueDark und blueSoft ersetzt die gewaehlte Farbe (Block D, lib/viewColors.ts).
+const BASE = {
     bg: '#f5f7fb',
     card: '#ffffff',
-    border: '#d5dbe6',
+    // Rand von Kacheln: gleicher Farbton wie vorher (#d5dbe6), dunkler, mind. 3:1 auf Weiss, bg und den hellen Flaechen
+    border: '#7286ab',
     // Rand von Bedienelementen: mind. 3:1 auf Weiss und auf bg (WCAG 1.4.11)
     control: '#6b7484',
     text: '#1d2433',
@@ -98,8 +101,34 @@ interface CalendarEvent {
 
 interface Contact { id: string; name: string; category: string; phone: string | null; organization: string | null }
 interface Heatwave { enabled: boolean; active: boolean; level: string | null }
+/** Block E: offene Messwert-Erinnerung von heute (GET /api/vitals/reminders/today) */
+interface OpenVitalReminder { type: 'glucose' | 'weight'; remind_time: string; note: string | null }
 
 type Notice = { kind: 'ok' | 'error' | 'queued'; text: string } | null;
+
+/** Block D: Notfallblatt, dieselben Angaben wie der QR-Code (GET /api/emergency/payload). */
+interface EmergencySheet {
+    recipient: {
+        first_name: string;
+        last_name: string | null;
+        birth_date: string | null;
+        blood_type: string | null;
+        allergies: string | null;
+        medical_history: string | null;
+        advance_directives: string | null;
+        gp_name: string | null;
+        gp_phone: string | null;
+        insurance_info: string | null;
+    } | null;
+    medications: Array<{ name: string; dosage: string | null; form: string | null; schedules: Array<{ time: string }> }>;
+    contacts: Array<{ name: string; category: string; organization: string | null; phone: string | null }>;
+    extra_notes: string | null;
+}
+
+/** Block D: Fotos der Familie wechseln ruhig alle 20 Sekunden. */
+const PHOTO_INTERVAL_MS = 20_000;
+/** Block D: Tagesrueckblick ab 18 Uhr. */
+const REVIEW_FROM_HOUR = 18;
 
 /** Frage -> Text der Taste (companion:quick.*) und Funktion, ohne die es keine Antwort gibt. */
 const QUESTION_INFO: Record<RecipientQuestion, { label: string; feature: FeatureId | null; Icon: React.FC<{ className?: string }> }> = {
@@ -112,13 +141,13 @@ const QUESTION_INFO: Record<RecipientQuestion, { label: string; feature: Feature
 };
 
 /** Rundes Foto, sonst der Anfangsbuchstabe. */
-const PersonPhoto: React.FC<{ name: string; url: string | null; size: number }> = ({ name, url, size }) =>
+const PersonPhoto: React.FC<{ name: string; url: string | null; size: number; soft: string; strong: string }> = ({ name, url, size, soft, strong }) =>
     url ? (
-        <img src={url} alt="" className="shrink-0 rounded-full object-cover" style={{ width: size, height: size, border: `3px solid ${C.border}` }} />
+        <img src={url} alt="" className="shrink-0 rounded-full object-cover" style={{ width: size, height: size, border: `3px solid ${BASE.border}` }} />
     ) : (
         <div
             className="flex shrink-0 items-center justify-center rounded-full font-bold"
-            style={{ width: size, height: size, backgroundColor: C.blueSoft, color: C.blue, fontSize: size * 0.42 }}
+            style={{ width: size, height: size, backgroundColor: soft, color: strong, fontSize: size * 0.42 }}
             aria-hidden="true"
         >
             {(name.trim().charAt(0) || '?').toUpperCase()}
@@ -152,8 +181,8 @@ interface RecipientViewProps {
 }
 
 const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
-    const { t, i18n } = useTranslation(['simpleView', 'medications', 'calendar', 'companion']);
-    const { logout } = useAuth();
+    const { t, i18n } = useTranslation(['simpleView', 'medications', 'calendar', 'companion', 'emergency']);
+    const { logout, user, updateViewColor } = useAuth();
 
     const [now, setNow] = useState(() => new Date());
     const [fontScale, setFontScale] = useState<number>(loadFontScale);
@@ -162,6 +191,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     const [events, setEvents] = useState<CalendarEvent[]>([]);
     const [contacts, setContacts] = useState<Contact[]>([]);
     const [heat, setHeat] = useState<Heatwave | null>(null);
+    const [openVitals, setOpenVitals] = useState<OpenVitalReminder[]>([]);
     const [loadError, setLoadError] = useState(false);
 
     const [busy, setBusy] = useState(false);
@@ -176,12 +206,26 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     const [answer, setAnswer] = useState<{ state: 'loading' | 'done' | 'error'; text: string }>({ state: 'loading', text: '' });
     const [speaking, setSpeaking] = useState(false);
 
+    // Block D: eigene Farbe (am Konto gespeichert), Fotos, Notfallblatt
+    const [colorId, setColorId] = useState<string | null>(user?.view_color ?? null);
+    const [colorError, setColorError] = useState(false);
+    const [photoIds, setPhotoIds] = useState<string[]>([]);
+    const [photoIndex, setPhotoIndex] = useState(0);
+    const [photoData, setPhotoData] = useState<Record<string, string>>({});
+    const [emergencyOpen, setEmergencyOpen] = useState(false);
+    const [emergency, setEmergency] = useState<{ state: 'loading' | 'done' | 'error'; data: EmergencySheet | null }>({ state: 'loading', data: null });
+
+    useEffect(() => { setColorId(user?.view_color ?? null); }, [user?.view_color]);
+    const accent = viewColorOf(colorId);
+    const C = { ...BASE, blue: accent.strong, blueDark: accent.dark, blueSoft: accent.soft };
+
     const settings = circle.settings;
     const on = (id: FeatureId) => isFeatureEnabled(settings, id);
     const medsOn = on('medications');
     const calendarOn = on('calendar');
     const contactsOn = on('contacts');
     const heatOn = on('heatwave');
+    const healthOn = on('health');
 
     const language = (i18n.resolvedLanguage || i18n.language || 'de').split('-')[0];
     const voice = useLocalVoice(language);
@@ -220,9 +264,13 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
             jobs.push(api.get<{ success: boolean; data: Heatwave }>('/api/heatwave')
                 .then((res) => setHeat(res.data ?? null)));
         }
+        if (healthOn) {
+            jobs.push(api.get<{ success: boolean; data: OpenVitalReminder[] }>('/api/vitals/reminders/today')
+                .then((res) => setOpenVitals(Array.isArray(res.data) ? res.data : [])));
+        }
         const results = await Promise.allSettled(jobs);
         setLoadError(results.some((r) => r.status === 'rejected'));
-    }, [medsOn, calendarOn, contactsOn, heatOn, day, loadIntakes]);
+    }, [medsOn, calendarOn, contactsOn, heatOn, healthOn, day, loadIntakes]);
 
     // Beim Start, bei neuem Tag, alle 5 Minuten und bei Aenderungen im Kreis.
     useEffect(() => {
@@ -235,10 +283,79 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     useWebSocketUpdates('events', () => void load());
     useWebSocketUpdates('contacts', () => void load());
     useWebSocketUpdates('heatwave', () => void load());
+    useWebSocketUpdates('vitals', () => void load());
     useWebSocketUpdates('reminder', () => {
         void load();
         setReminderOpen(true);
     });
+
+    // ── Fotos der Familie (Block D) ──
+    // Eigener Abruf: Fehlt ein Foto, ist das kein Grund fuer die Fehlermeldung oben.
+    const loadPhotos = useCallback(async () => {
+        try {
+            const res = await api.get<{ success: boolean; data: Array<{ id: string }> }>('/api/view-photos');
+            setPhotoIds(Array.isArray(res.data) ? res.data.map((p) => p.id) : []);
+        } catch { /* ohne Fotos bleibt das Begruessungsbild */ }
+    }, []);
+    useEffect(() => {
+        void loadPhotos();
+        const id = window.setInterval(() => void loadPhotos(), 30 * 60_000);
+        return () => window.clearInterval(id);
+    }, [loadPhotos]);
+    useWebSocketUpdates('view_photos', () => void loadPhotos());
+
+    // Ruhiger Wechsel; bei nur einem Foto bleibt es stehen.
+    useEffect(() => {
+        if (photoIds.length < 2) return;
+        const id = window.setInterval(() => setPhotoIndex((i) => (i + 1) % photoIds.length), PHOTO_INTERVAL_MS);
+        return () => window.clearInterval(id);
+    }, [photoIds.length]);
+    const currentPhotoId = photoIds.length > 0 ? photoIds[photoIndex % photoIds.length] : null;
+    const nextPhotoId = photoIds.length > 1 ? photoIds[(photoIndex + 1) % photoIds.length] : null;
+
+    // Nur das aktuelle und das naechste Foto im Speicher halten, jedes nur einmal laden.
+    const photoDataRef = useRef<Record<string, string>>({});
+    useEffect(() => { photoDataRef.current = photoData; }, [photoData]);
+    useEffect(() => {
+        const keep = [currentPhotoId, nextPhotoId].filter((id): id is string => Boolean(id));
+        setPhotoData((prev) => Object.fromEntries(Object.entries(prev).filter(([id]) => keep.includes(id))));
+        let cancelled = false;
+        for (const id of keep) {
+            if (photoDataRef.current[id]) continue;
+            api.get<{ success: boolean; data: { id: string; data_url: string } }>(`/api/view-photos/${id}`)
+                .then((res) => {
+                    if (!cancelled && res.data?.data_url) setPhotoData((prev) => ({ ...prev, [id]: res.data.data_url }));
+                })
+                .catch(() => undefined);
+        }
+        return () => { cancelled = true; };
+    }, [currentPhotoId, nextPhotoId]);
+    const currentPhoto = currentPhotoId ? photoData[currentPhotoId] ?? null : null;
+
+    // ── Notfallblatt (Block D, nur lesen) ──
+    const openEmergency = async () => {
+        setEmergencyOpen(true);
+        setEmergency({ state: 'loading', data: null });
+        try {
+            const res = await api.get<{ success: boolean; data: EmergencySheet }>('/api/emergency/payload');
+            setEmergency({ state: 'done', data: res.data ?? null });
+        } catch {
+            setEmergency({ state: 'error', data: null });
+        }
+    };
+
+    // ── Farbe (Block D): sofort zeigen, am Konto speichern, bei Fehler zurueck ──
+    const chooseColor = async (id: string) => {
+        const before = colorId;
+        setColorId(id);
+        setColorError(false);
+        try {
+            await updateViewColor(id);
+        } catch {
+            setColorId(before);
+            setColorError(true);
+        }
+    };
 
     // Rueckgaengig verschwindet genau dann, wenn die vom Server genannte Zeit um ist.
     const [undoClock, setUndoClock] = useState(() => Date.now());
@@ -387,6 +504,15 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     const visitorEvents = events.filter((e) => e.category !== 'medical');
     const appointmentEvents = events.filter((e) => e.category === 'medical');
     const heatActive = Boolean(heat?.enabled && heat?.active);
+    // Block E: Messwert-Erinnerung zeigen, sobald die Uhrzeit erreicht ist und solange heute kein Wert da ist.
+    const nowHm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const dueVitals = openVitals.filter((r) => r.remind_time <= nowHm);
+    // Block D: Tagesrueckblick ab 18 Uhr. Offen heisst: eine jetzt faellige Einnahme ist
+    // nicht bestaetigt oder ein Messwert von heute fehlt. Nie aufzaehlen, nie vorwerfen.
+    const showReview = now.getHours() >= REVIEW_FROM_HOUR;
+    const somethingOpen = (medsOn && dueNow.length > 0) || (healthOn && dueVitals.length > 0);
+    const praiseNumber = (Number(day.replace(/-/g, '')) % 3) + 1;
+    const reviewText = somethingOpen ? t('simpleView:review.open') : t(`simpleView:review.praise${praiseNumber}`);
     const heatRed = heat?.level === 'red';
 
     const timeRange = (e: CalendarEvent) =>
@@ -441,6 +567,10 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                         </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
+                        <button type="button" onClick={() => void openEmergency()} className="flex min-h-[56px] items-center gap-2 rounded-2xl px-4 font-bold" style={secondaryButton}>
+                            <HeartPulse className="h-6 w-6 shrink-0" style={{ color: C.red }} aria-hidden="true" />
+                            {t('simpleView:emergency.button')}
+                        </button>
                         <button type="button" onClick={() => setSettingsOpen(true)} className="flex min-h-[56px] items-center gap-2 rounded-2xl px-4 font-bold" style={secondaryButton}>
                             <SettingsIcon className="h-6 w-6 shrink-0" aria-hidden="true" />
                             {t('simpleView:header.settings')}
@@ -459,13 +589,28 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                 >
                     <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.9) 50%, rgba(255,255,255,0.2) 80%, rgba(255,255,255,0) 100%)' }} />
                     <div className="relative flex min-h-[180px] items-center gap-5 p-5 sm:p-7">
-                        <PersonPhoto name={name} url={circle.recipient_photo_url} size={88} />
+                        <PersonPhoto name={name} url={circle.recipient_photo_url} size={88} soft={C.blueSoft} strong={C.blue} />
                         <div>
                             <h1 className="font-bold" style={{ ...fs(40), color: C.blueDark, lineHeight: 1.2 }}>{greeting}</h1>
                             <p className="mt-1 font-bold" style={{ ...fs(22), color: C.blueDark }}>{t('simpleView:tagline')}</p>
                         </div>
                     </div>
                 </section>
+
+                {/* Tagesrueckblick ab 18 Uhr: ein Satz, keine Aufzaehlung */}
+                {showReview && (
+                    <section className="flex items-center gap-4 rounded-3xl p-5 sm:p-6" style={{ backgroundColor: C.blueSoft, border: `1px solid ${C.border}` }} aria-labelledby="rv-review">
+                        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-white" style={{ backgroundColor: C.blue }}>
+                            {somethingOpen
+                                ? <Sun className="h-8 w-8" aria-hidden="true" />
+                                : <Moon className="h-8 w-8" aria-hidden="true" />}
+                        </span>
+                        <div>
+                            <h2 id="rv-review" style={sectionTitle(C.blueDark)}>{t('simpleView:review.title')}</h2>
+                            <p className="font-bold" style={fs(22)}>{reviewText}</p>
+                        </div>
+                    </section>
+                )}
 
                 {loadError && (
                     <section role="alert" className="flex flex-wrap items-center justify-between gap-4 rounded-3xl p-5" style={{ backgroundColor: C.redSoft, border: `2px solid ${C.red}` }}>
@@ -483,6 +628,20 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                         <p className="font-bold" style={fs(22)}>{t('simpleView:heat.banner')}</p>
                     </section>
                 )}
+
+                {/* Block E: freundliche Zeile, solange ein Messwert von heute fehlt */}
+                {healthOn && dueVitals.map((r) => {
+                    const Icon = r.type === 'glucose' ? Droplet : Scale;
+                    return (
+                        <section key={r.type} className="flex items-center gap-4 rounded-3xl p-5" style={{ backgroundColor: C.blueSoft, border: `1px solid ${C.border}` }}>
+                            <Icon className="h-12 w-12 shrink-0" style={{ color: C.blue }} aria-hidden="true" />
+                            <p className="font-bold" style={fs(22)}>
+                                {t(`simpleView:vitals.${r.type}`)}
+                                {r.note ? ` (${r.note})` : ''}
+                            </p>
+                        </section>
+                    );
+                })}
 
                 {/* Medikamente heute: eine Taste pro Einnahme, wie in Medikamente > Heute */}
                 {medsOn && (
@@ -588,7 +747,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                                                         <RotateCcw className="h-6 w-6 shrink-0" aria-hidden="true" />
                                                                         {t('medications:today.undo')}
                                                                     </button>
-                                                                    <span style={{ ...fs(17), color: C.muted }}>
+                                                                    <span style={{ ...fs(18), color: C.muted }}>
                                                                         {t('simpleView:meds.undoHint', { time: clockOf(new Date(intake.undo_until ?? Date.now())) })}
                                                                     </span>
                                                                 </div>
@@ -627,7 +786,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                         return (
                                             <li key={`${e.id}-${e.start_time}`} className="flex items-center gap-4 rounded-2xl p-4" style={tile}>
                                                 {people.length > 0 ? (
-                                                    <PersonPhoto name={people[0]} url={null} size={64} />
+                                                    <PersonPhoto name={people[0]} url={null} size={64} soft={C.blueSoft} strong={C.blue} />
                                                 ) : (
                                                     <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: C.blueSoft, color: C.blue }} aria-hidden="true">
                                                         <Stethoscope className="h-8 w-8" />
@@ -694,6 +853,35 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                             )}
                         </section>
                     </div>
+                )}
+
+                {/* Fotos der Familie, ruhig im Wechsel (Block D) */}
+                {currentPhoto && (
+                    <section className="rounded-3xl p-4 sm:p-5" style={tile} aria-labelledby="rv-photos">
+                        <h2 id="rv-photos" className="mb-3 flex items-center gap-3" style={sectionTitle(C.blueDark)}>
+                            {t('simpleView:photos.title')}
+                        </h2>
+                        <img
+                            key={currentPhotoId ?? ''}
+                            src={currentPhoto}
+                            alt={t('simpleView:photos.alt', { number: (photoIndex % Math.max(1, photoIds.length)) + 1, total: photoIds.length })}
+                            className="mx-auto max-h-[60vh] w-full rounded-2xl object-contain motion-safe:animate-fade-in"
+                            style={{ backgroundColor: C.bg }}
+                        />
+                        {photoIds.length > 1 && (
+                            <div className="mt-3 flex justify-end">
+                                <button
+                                    type="button"
+                                    onClick={() => setPhotoIndex((i) => (i + 1) % photoIds.length)}
+                                    className="flex min-h-[56px] items-center gap-2 rounded-2xl px-5 font-bold"
+                                    style={secondaryButton}
+                                >
+                                    {t('simpleView:photos.next')}
+                                    <ChevronRight className="h-6 w-6 shrink-0" aria-hidden="true" />
+                                </button>
+                            </div>
+                        )}
+                    </section>
                 )}
 
                 {/* Wichtige Kontakte */}
@@ -890,7 +1078,109 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                 </div>
             )}
 
-            {/* Eigene Einstellungen: Schriftgroesse und Sprache */}
+            {/* Notfallblatt zum Lesen (Block D) */}
+            {emergencyOpen && (
+                <div className="fixed inset-0 z-[70] overflow-y-auto font-kiosk" style={rootStyle} role="dialog" aria-modal="true" aria-labelledby="rv-emergency-title">
+                    <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-5 px-4 py-6 sm:px-6">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <h2 id="rv-emergency-title" className="flex items-center gap-3 font-bold" style={{ ...fs(32), color: C.text }}>
+                                <HeartPulse className="h-9 w-9 shrink-0" style={{ color: C.red }} aria-hidden="true" />
+                                {t('emergency:title')}
+                            </h2>
+                            <button type="button" onClick={() => setEmergencyOpen(false)} className="flex min-h-[56px] items-center gap-2 rounded-2xl px-5 font-bold" style={secondaryButton}>
+                                <X className="h-6 w-6 shrink-0" aria-hidden="true" />
+                                {t('simpleView:emergency.close')}
+                            </button>
+                        </div>
+
+                        {emergency.state === 'loading' && <p style={fs(22)}>{t('simpleView:ask.loading')}</p>}
+                        {(emergency.state === 'error' || (emergency.state === 'done' && !emergency.data?.recipient)) && (
+                            <div role="alert" className="flex flex-wrap items-center justify-between gap-4 rounded-3xl p-5" style={{ backgroundColor: C.redSoft, border: `2px solid ${C.red}` }}>
+                                <p className="font-bold" style={fs(21)}>{t('simpleView:emergency.error')}</p>
+                                <button type="button" onClick={() => void openEmergency()} className="flex min-h-[56px] items-center gap-2 rounded-2xl px-5 font-bold" style={secondaryButton}>
+                                    <RotateCcw className="h-6 w-6 shrink-0" aria-hidden="true" />
+                                    {t('simpleView:reload')}
+                                </button>
+                            </div>
+                        )}
+
+                        {emergency.state === 'done' && emergency.data?.recipient && (() => {
+                            const sheet = emergency.data as EmergencySheet;
+                            const r = sheet.recipient as NonNullable<EmergencySheet['recipient']>;
+                            const fullName = [r.first_name, r.last_name].filter(Boolean).join(' ');
+                            const rows: Array<[string, string | null]> = [
+                                [t('emergency:fields.birthDate'), r.birth_date ? new Intl.DateTimeFormat(intlLocale(), { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(r.birth_date)) : null],
+                                [t('emergency:fields.bloodType'), r.blood_type],
+                                [t('emergency:sections.allergies'), r.allergies],
+                                [t('emergency:sections.history'), r.medical_history],
+                                [t('emergency:sections.directives'), r.advance_directives],
+                                [t('emergency:fields.gp'), [r.gp_name, r.gp_phone].filter(Boolean).join(' · ') || null],
+                                [t('emergency:fields.insurance'), r.insurance_info],
+                                [t('emergency:sections.notes'), sheet.extra_notes],
+                            ];
+                            return (
+                                <>
+                                    <section className="rounded-3xl p-5 sm:p-6" style={tile}>
+                                        <p className="font-bold" style={fs(28)}>{fullName}</p>
+                                        <dl className="mt-3 space-y-3">
+                                            {rows.filter(([, value]) => value && value.trim()).map(([label, value]) => (
+                                                <div key={label}>
+                                                    <dt className="font-bold" style={{ ...fs(20), color: C.muted }}>{label}</dt>
+                                                    <dd className="whitespace-pre-wrap" style={fs(22)}>{value}</dd>
+                                                </div>
+                                            ))}
+                                        </dl>
+                                    </section>
+
+                                    <section className="rounded-3xl p-5 sm:p-6" style={tile} aria-labelledby="rv-emergency-meds">
+                                        <h3 id="rv-emergency-meds" className="mb-3 flex items-center gap-3" style={sectionTitle(C.text)}>
+                                            <Pill className="h-7 w-7 shrink-0" style={{ color: C.green }} aria-hidden="true" />
+                                            {t('emergency:sections.medications')}
+                                        </h3>
+                                        {sheet.medications.length === 0 ? (
+                                            <p style={fs(21)}>{t('emergency:sections.noMedications')}</p>
+                                        ) : (
+                                            <ul className="space-y-2">
+                                                {sheet.medications.map((m, idx) => (
+                                                    <li key={idx} style={fs(22)}>
+                                                        <span className="font-bold">{m.name}{m.dosage ? ` ${m.dosage}` : ''}</span>
+                                                        {m.schedules.length > 0 && (
+                                                            <span className="tabular-nums" style={{ color: C.muted }}>{' · '}{m.schedules.map((x) => x.time).join(', ')}</span>
+                                                        )}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                    </section>
+
+                                    {sheet.contacts.length > 0 && (
+                                        <section className="rounded-3xl p-5 sm:p-6" style={tile} aria-labelledby="rv-emergency-contacts">
+                                            <h3 id="rv-emergency-contacts" className="mb-3 flex items-center gap-3" style={sectionTitle(C.text)}>
+                                                <Phone className="h-7 w-7 shrink-0" style={{ color: C.blue }} aria-hidden="true" />
+                                                {t('emergency:sections.contacts')}
+                                            </h3>
+                                            <ul className="space-y-3">
+                                                {sheet.contacts.map((c, idx) => (
+                                                    <li key={idx}>
+                                                        <p className="font-bold" style={fs(22)}>{c.name}</p>
+                                                        <p style={{ ...fs(20), color: C.muted }}>
+                                                            {t(`emergency:categories.${c.category}`, { defaultValue: c.category })}
+                                                            {c.organization ? ` · ${c.organization}` : ''}
+                                                            {c.phone ? ` · ${c.phone}` : ''}
+                                                        </p>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </section>
+                                    )}
+                                </>
+                            );
+                        })()}
+                    </div>
+                </div>
+            )}
+
+            {/* Eigene Einstellungen: Schriftgroesse, Farbe und Sprache */}
             {settingsOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 font-kiosk" style={{ lineHeight: 1.5, ['--k' as string]: String(fontScale) }} role="dialog" aria-modal="true" aria-labelledby="rv-settings-title">
                     <div className="absolute inset-0 bg-black/40" aria-hidden="true" />
@@ -917,6 +1207,37 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                     );
                                 })}
                             </div>
+                        </fieldset>
+
+                        <fieldset className="mt-6">
+                            <legend className="mb-3 font-bold" style={fs(22)}>{t('simpleView:settings.color')}</legend>
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                {VIEW_COLORS.map((color) => {
+                                    const active = accent.id === color.id;
+                                    return (
+                                        <button
+                                            key={color.id}
+                                            type="button"
+                                            aria-pressed={active}
+                                            onClick={() => void chooseColor(color.id)}
+                                            className="flex min-h-[64px] items-center gap-3 rounded-2xl px-4 text-left font-bold"
+                                            style={{
+                                                ...fs(20),
+                                                backgroundColor: active ? color.soft : C.card,
+                                                color: C.text,
+                                                border: `${active ? 3 : 2}px solid ${active ? color.dark : C.control}`,
+                                            }}
+                                        >
+                                            <span className="h-9 w-9 shrink-0 rounded-full" style={{ backgroundColor: color.strong }} aria-hidden="true" />
+                                            <span className="flex-1">{t(`simpleView:colors.${color.id}`)}</span>
+                                            {active && <Check className="h-6 w-6 shrink-0" strokeWidth={3} style={{ color: color.dark }} aria-hidden="true" />}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            {colorError && (
+                                <p role="alert" className="mt-3 font-bold" style={{ ...fs(20), color: C.red }}>{t('simpleView:settings.colorError')}</p>
+                            )}
                         </fieldset>
 
                         <fieldset className="mt-6">

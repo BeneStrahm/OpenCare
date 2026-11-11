@@ -1,12 +1,11 @@
 /**
- * Qui peut transmettre un lien de reinitialisation (instance sans SMTP).
+ * Wer einen Link zum Zuruecksetzen des Passworts erzeugen darf (E18).
  *
- * Un lien de reinitialisation ouvre TOUT le compte, donc tous ses cercles. Si
- * l'admin d'un seul cercle partage pouvait le lire, il pourrait prendre le
- * compte et entrer dans des cercles ou il n'est pas invite. Regle : seul un
- * admin de CHAQUE cercle de la personne peut relayer son lien ; il n'y gagne
- * alors aucun cercle qu'il ne gere deja. Sans admin commun a tous ses cercles,
- * personne ne recoit le lien : il faut configurer le SMTP.
+ * Ein solcher Link oeffnet das GANZE Konto, also alle seine Kreise. Duerfte der
+ * Admin nur eines gemeinsamen Kreises ihn erzeugen, koennte er das Konto
+ * uebernehmen und in Kreise gelangen, in die er nicht eingeladen ist. Regel: nur
+ * ein Admin JEDES Kreises der Person; er gewinnt so keinen Kreis dazu, den er
+ * nicht schon verwaltet. Gibt es keinen solchen Admin, hilft nur der Betreiber.
  */
 
 export interface Membership {

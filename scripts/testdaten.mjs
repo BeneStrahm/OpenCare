@@ -10,13 +10,15 @@ if (!/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(API)) {
 }
 
 const PASSWORT = 'Testpasswort-123';
+// Anmeldung mit Benutzername = Vorname Nachname (E18)
 const KONTEN = [
-    { rolle: 'admin', name: 'Thomas Muster', email: 'admin@example.com' },
-    { rolle: 'family', name: 'Sabine Muster', email: 'familie@example.com' },
-    { rolle: 'professional', name: 'Pflegedienst Sonnenschein', email: 'fachkraft@example.com' },
-    { rolle: 'neighbor', name: 'Karl Nachbar', email: 'freunde@example.com' },
-    { rolle: 'recipient', name: 'Erika Muster', email: 'erika@example.com' },
+    { rolle: 'admin', vorname: 'Thomas', nachname: 'Muster' },
+    { rolle: 'family', vorname: 'Sabine', nachname: 'Muster' },
+    { rolle: 'professional', vorname: 'Petra', nachname: 'Sonnenschein' },
+    { rolle: 'neighbor', vorname: 'Karl', nachname: 'Nachbar' },
+    { rolle: 'recipient', vorname: 'Erika', nachname: 'Muster' },
 ];
+const benutzername = (k) => `${k.vorname} ${k.nachname}`;
 
 async function call(method, path, body, token, circle) {
     const headers = { 'Content-Type': 'application/json', 'Accept-Language': 'de' };
@@ -51,7 +53,7 @@ async function main() {
     const admin = KONTEN[0];
 
     // Schon angelegt? Dann nichts tun.
-    const login = await call('POST', '/api/auth/login', { email: admin.email, password: PASSWORT });
+    const login = await call('POST', '/api/auth/login', { username: benutzername(admin), password: PASSWORT });
     if (login.status === 200) {
         console.log('Testdaten sind schon vorhanden.');
         console.log('Ganz neu anlegen: docker compose down -v, danach npm run precheck');
@@ -59,7 +61,8 @@ async function main() {
         return;
     }
 
-    const reg = await call('POST', '/api/auth/register', { email: admin.email, password: PASSWORT, name: admin.name });
+    // Erstes Konto auf leerem Server, wird Administrator
+    const reg = await call('POST', '/api/auth/register', { firstName: admin.vorname, lastName: admin.nachname, password: PASSWORT });
     if (reg.status === 403) {
         console.error('Die lokale Datenbank enthaelt schon andere Konten.');
         console.error('Lokale Daten loeschen und neu starten: docker compose down -v, danach npm run precheck');
@@ -74,8 +77,8 @@ async function main() {
 
     // Weitere Konten ueber Einladungen (Rolle kommt aus der Einladung)
     for (const k of KONTEN.slice(1)) {
-        const inv = await api('POST', '/api/invites', { role: k.rolle, invitee_email: k.email, expires_in_days: 1 });
-        await must('POST', '/api/auth/register', { email: k.email, password: PASSWORT, name: k.name, inviteToken: inv.token });
+        const inv = await api('POST', '/api/invites', { role: k.rolle, first_name: k.vorname, last_name: k.nachname, expires_in_days: 1 });
+        await must('POST', '/api/auth/register', { password: PASSWORT, inviteToken: inv.token });
     }
 
     // Kontakte
@@ -167,7 +170,7 @@ async function main() {
 
 function zugangsdaten() {
     console.log(`\nTest-Zugänge (Passwort für alle: ${PASSWORT}):`);
-    for (const k of KONTEN) console.log(`  ${k.rolle.padEnd(13)} ${k.email}`);
+    for (const k of KONTEN) console.log(`  ${k.rolle.padEnd(13)} ${benutzername(k)}`);
 }
 
 main().catch((err) => {

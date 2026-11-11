@@ -1,0 +1,129 @@
+{
+  "_hinweis": [
+    "Beispiel fuer die Voreinrichtung (Launch-Plan Block F). Alle Namen und Werte sind erfunden.",
+    "Zum Ausfuellen kopieren und als voreinrichtung.json speichern. Die ausgefuellte Datei enthaelt Gesundheitsdaten: nicht ins Repo, nicht per Mail oder Cloud verschicken.",
+    "Felder, die Sie nicht brauchen, leer lassen (\"\") oder ganz loeschen. Eintraege einer Liste mit Komma trennen, nach dem letzten kein Komma.",
+    "Keine Passwoerter und keine E-Mail-Adressen. Der Benutzername ist immer Vorname und Nachname. Jede Person bekommt einen Einladungslink und waehlt dort nur ihr Passwort.",
+    "Pruefen und Anlegen: siehe server/src/scripts/voreinrichtung.ts (Befehle oben in der Datei)."
+  ],
+  "betreute_person": {
+    "vorname": "Erika",
+    "nachname": "Muster"
+  },
+  "mitglieder": [
+    {
+      "vorname": "Thomas",
+      "nachname": "Muster",
+      "rolle": "admin"
+    },
+    {
+      "vorname": "Anna",
+      "nachname": "Muster",
+      "rolle": "family"
+    }
+  ],
+  "_rollen": "admin = Administrator, family = Familie, professional = Fachkraft, neighbor = Freunde",
+  "messwert_erinnerungen": [
+    {
+      "messwert": "blutzucker",
+      "uhrzeit": "07:30",
+      "hinweis": "vor dem Fruehstueck"
+    },
+    {
+      "messwert": "gewicht",
+      "uhrzeit": "07:30",
+      "hinweis": "morgens"
+    }
+  ],
+  "kontakte": [
+    {
+      "name": "Dr. Max Beispiel",
+      "kategorie": "arzt",
+      "praxis_oder_firma": "Hausarztpraxis Beispiel",
+      "telefon": "0123 456789",
+      "telefon2": "",
+      "email": "",
+      "adresse": "Musterstrasse 1, 12345 Musterstadt",
+      "hat_schluessel": false,
+      "notizen": "Hausarzt"
+    },
+    {
+      "name": "Apotheke am Markt",
+      "kategorie": "apotheke",
+      "praxis_oder_firma": "",
+      "telefon": "0123 987654",
+      "telefon2": "",
+      "email": "",
+      "adresse": "",
+      "hat_schluessel": false,
+      "notizen": ""
+    }
+  ],
+  "_kategorien": "arzt, pflegedienst, betreuung, physiotherapie, apotheke, familie, nachbarn, sonstige",
+  "medikamente": [
+    {
+      "name": "Beispielmittel 500 mg",
+      "wirkstoff": "Beispielwirkstoff",
+      "staerke": "500 mg",
+      "einheit": "tablette",
+      "wofuer": "gegen hohen Blutzucker",
+      "aussehen": "weiss, laenglich",
+      "verordnet_von": "Dr. Max Beispiel",
+      "zum_essen": "mit",
+      "bei_bedarf": false,
+      "vorrat": 60,
+      "hinweise": "",
+      "einnahmen": [
+        {
+          "tageszeit": "morgens",
+          "menge": 1
+        },
+        {
+          "tageszeit": "abends",
+          "menge": 1
+        }
+      ]
+    },
+    {
+      "name": "Beispielkapsel 20 mg",
+      "wirkstoff": "",
+      "staerke": "20 mg",
+      "einheit": "kapsel",
+      "wofuer": "fuer den Magen",
+      "aussehen": "",
+      "verordnet_von": "Dr. Max Beispiel",
+      "zum_essen": "ohne",
+      "bei_bedarf": false,
+      "vorrat": 30,
+      "hinweise": "30 Minuten vor dem Fruehstueck",
+      "einnahmen": [
+        {
+          "uhrzeit": "07:00",
+          "menge": 1,
+          "tage": [
+            1,
+            3,
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Beispieltropfen",
+      "wirkstoff": "",
+      "staerke": "",
+      "einheit": "tropfen",
+      "wofuer": "bei Schmerzen",
+      "aussehen": "",
+      "verordnet_von": "",
+      "zum_essen": "egal",
+      "bei_bedarf": true,
+      "vorrat": null,
+      "hinweise": "hoechstens 3-mal am Tag",
+      "einnahmen": []
+    }
+  ],
+  "_einheiten": "tablette, kapsel, ml, tropfen, beutel, pflaster, spritze, hub, anwendung, dosis",
+  "_zum_essen": "mit, ohne, egal",
+  "_einnahmen": "tageszeit = morgens, mittags, abends oder zur_nacht. Statt tageszeit geht auch eine feste Uhrzeit, z. B. { \"uhrzeit\": \"07:00\", \"menge\": 1 }. menge darf 0.5 sein. Nur an bestimmten Tagen: \"tage\": [1,3,5] (1 = Montag ... 7 = Sonntag), sonst jeden Tag. Bei bei_bedarf = true bleibt einnahmen leer."
+}

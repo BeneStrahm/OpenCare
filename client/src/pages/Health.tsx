@@ -32,6 +32,7 @@ import { useCircle } from '../contexts/CircleContext';
 import { useWebSocketUpdates } from '../hooks/useWebSocketUpdates';
 import { Button, Dialog, Input, Select, Textarea, useToast } from '../components/ui';
 import { ChartCard, EmptyState, ListRow } from '../components/app';
+import VitalReminderSection from '../components/app/VitalReminderSection';
 import { dateLocale, formatNumber, intlLocale } from '../i18n/format';
 import {
     decimalsFor,
@@ -582,10 +583,17 @@ const Health: React.FC = () => {
         );
     }
 
+    // Fehler im Eingabe-Dialog stehen im Dialog und sind mit dem Feld verknüpft.
+    const vitalFormError = error === t('health:errors.valueRequired') || error === t('health:errors.pulseInvalid') ? error : '';
+    const missingNumber = (raw: string) => !raw.trim() || !Number.isFinite(parseLocaleNumber(raw));
+    const badBound = (raw: string) => error === t('health:errors.thresholdInvalid') && raw.trim() !== '' && !Number.isFinite(parseLocaleNumber(raw));
+    const boundProps = (raw: string) =>
+        badBound(raw) ? { 'aria-invalid': true, 'aria-describedby': 'health-error' } : {};
+
     return (
         <div className="max-w-4xl mx-auto space-y-6">
-            {error ? (
-                <div className="rounded-input border border-danger/30 bg-danger/10 px-4 py-3 text-caption text-danger">
+            {error && !(dialogOpen && vitalFormError) ? (
+                <div id="health-error" role="alert" className="rounded-input border border-danger/30 bg-danger/10 px-4 py-3 text-caption text-danger">
                     {error}
                 </div>
             ) : null}
@@ -1007,6 +1015,7 @@ const Health: React.FC = () => {
                                                 type="text"
                                                 inputMode="decimal"
                                                 value={draft.min}
+                                                {...boundProps(draft.min)}
                                                 onChange={(e) => updateDraft(type, 'min', e.target.value)}
                                             />
                                             <Input
@@ -1019,6 +1028,7 @@ const Health: React.FC = () => {
                                                 type="text"
                                                 inputMode="decimal"
                                                 value={draft.max}
+                                                {...boundProps(draft.max)}
                                                 onChange={(e) => updateDraft(type, 'max', e.target.value)}
                                             />
                                         </div>
@@ -1030,6 +1040,7 @@ const Health: React.FC = () => {
                                                     type="text"
                                                     inputMode="decimal"
                                                     value={draft.min2}
+                                                {...boundProps(draft.min2)}
                                                     onChange={(e) => updateDraft(type, 'min2', e.target.value)}
                                                 />
                                                 <Input
@@ -1038,6 +1049,7 @@ const Health: React.FC = () => {
                                                     type="text"
                                                     inputMode="decimal"
                                                     value={draft.max2}
+                                                {...boundProps(draft.max2)}
                                                     onChange={(e) => updateDraft(type, 'max2', e.target.value)}
                                                 />
                                             </div>
@@ -1050,6 +1062,7 @@ const Health: React.FC = () => {
                                                     type="text"
                                                     inputMode="numeric"
                                                     value={draft.minP}
+                                                {...boundProps(draft.minP)}
                                                     onChange={(e) => updateDraft(type, 'minP', e.target.value)}
                                                 />
                                                 <Input
@@ -1058,6 +1071,7 @@ const Health: React.FC = () => {
                                                     type="text"
                                                     inputMode="numeric"
                                                     value={draft.maxP}
+                                                {...boundProps(draft.maxP)}
                                                     onChange={(e) => updateDraft(type, 'maxP', e.target.value)}
                                                 />
                                             </div>
@@ -1084,6 +1098,9 @@ const Health: React.FC = () => {
                 </div>
             </section>
 
+            {/* Fork, Block E: Erinnerung zum Messen */}
+            <VitalReminderSection shownTypes={shownTypes} />
+
             {/* Saisie rapide */}
             <Dialog
                 open={dialogOpen}
@@ -1092,6 +1109,11 @@ const Health: React.FC = () => {
                 description={t('health:form.description')}
             >
                 <form onSubmit={handleSubmit} className="space-y-4">
+                    {vitalFormError ? (
+                        <div id="vital-form-error" role="alert" className="rounded-input border border-danger/30 bg-danger/10 px-4 py-3 text-caption text-danger">
+                            {vitalFormError}
+                        </div>
+                    ) : null}
                     <div>
                         <span className="mb-1.5 block text-caption font-medium text-foreground">
                             {t('health:form.typeLabel')}
@@ -1115,6 +1137,8 @@ const Health: React.FC = () => {
                             value={formValue}
                             onChange={(e) => setFormValue(e.target.value)}
                             required
+                            aria-invalid={error === t('health:errors.valueRequired') && missingNumber(formValue) ? true : undefined}
+                            aria-describedby={error === t('health:errors.valueRequired') && missingNumber(formValue) ? 'vital-form-error' : undefined}
                         />
                         {formType === 'bp' && (
                             <Input
@@ -1124,6 +1148,8 @@ const Health: React.FC = () => {
                                 value={formValue2}
                                 onChange={(e) => setFormValue2(e.target.value)}
                                 required
+                                aria-invalid={error === t('health:errors.valueRequired') && missingNumber(formValue2) ? true : undefined}
+                                aria-describedby={error === t('health:errors.valueRequired') && missingNumber(formValue2) ? 'vital-form-error' : undefined}
                             />
                         )}
                     </div>
@@ -1134,6 +1160,8 @@ const Health: React.FC = () => {
                             inputMode="numeric"
                             value={formPulse}
                             onChange={(e) => setFormPulse(e.target.value)}
+                            aria-invalid={error === t('health:errors.pulseInvalid') ? true : undefined}
+                            aria-describedby={error === t('health:errors.pulseInvalid') ? 'vital-form-error' : undefined}
                         />
                     )}
                     <Input

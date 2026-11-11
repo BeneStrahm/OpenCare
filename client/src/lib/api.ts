@@ -8,6 +8,12 @@ import { mockRequest } from '../demo/mockApi';
 import { enqueue, getQueueSize, replay, type QueuedMethod } from './offlineQueue';
 import i18n from '../i18n';
 
+export interface RegisterOptions {
+    inviteToken?: string;
+    firstName?: string;
+    lastName?: string;
+}
+
 const IS_DEMO = Boolean(import.meta.env.VITE_DEMO);
 
 const rawApiUrl = import.meta.env.VITE_API_URL as string | undefined;
@@ -233,10 +239,10 @@ class ApiClient {
     }
 
     // Authentication methods
-    async login(email: string, password: string) {
+    async login(username: string, password: string) {
         const response = await this.post<any>(
             '/api/auth/login',
-            { email, password }
+            { username, password }
         );
 
         if (response.success && response.data) {
@@ -246,9 +252,15 @@ class ApiClient {
         return response;
     }
 
-    async register(email: string, password: string, name: string, inviteToken?: string) {
-        const body: Record<string, string> = { email, password, name };
-        if (inviteToken) body.inviteToken = inviteToken;
+    /**
+     * Registrieren (E18): mit Einladungslink nur das Passwort (Benutzername kommt aus
+     * der Einladung), oder beim allerersten Konto mit Vor- und Nachname.
+     */
+    async register(password: string, options: RegisterOptions) {
+        const body: Record<string, string> = { password };
+        if (options.inviteToken) body.inviteToken = options.inviteToken;
+        if (options.firstName) body.firstName = options.firstName;
+        if (options.lastName) body.lastName = options.lastName;
 
         const response = await this.post<any>(
             '/api/auth/register',

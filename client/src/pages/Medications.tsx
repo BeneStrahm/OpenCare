@@ -1557,7 +1557,7 @@ const Medications: React.FC = () => {
             >
                 <form onSubmit={handleMedSubmit} className="space-y-4">
                     {medFormError ? (
-                        <div className="rounded-input border border-danger/30 bg-danger/10 px-4 py-3 text-caption text-danger">
+                        <div id="med-form-error" role="alert" className="rounded-input border border-danger/30 bg-danger/10 px-4 py-3 text-caption text-danger">
                             {medFormError}
                         </div>
                     ) : null}
@@ -1567,6 +1567,8 @@ const Medications: React.FC = () => {
                         value={medForm.name}
                         onChange={(e) => setMedForm({ ...medForm, name: e.target.value })}
                         required
+                        aria-invalid={medFormError && !medForm.name.trim() ? true : undefined}
+                        aria-describedby={medFormError && !medForm.name.trim() ? 'med-form-error' : undefined}
                         placeholder={t('medications:form.namePlaceholder')}
                     />
                     <Input
@@ -1580,6 +1582,8 @@ const Medications: React.FC = () => {
                             label={t('medications:form.dosage')}
                             value={medForm.dosage}
                             aria-required="true"
+                            aria-invalid={medFormError && !medForm.dosage.trim() ? true : undefined}
+                            aria-describedby={medFormError && !medForm.dosage.trim() ? 'med-form-error' : undefined}
                             onChange={(e) => setMedForm({ ...medForm, dosage: e.target.value })}
                             placeholder={t('medications:form.dosagePlaceholder')}
                         />
@@ -1592,6 +1596,8 @@ const Medications: React.FC = () => {
                                 onValueChange={(value) => setMedForm({ ...medForm, form: value })}
                                 placeholder={t('medications:form.formPlaceholder')}
                                 options={formOptions}
+                                invalid={!!medFormError && !medForm.form}
+                                describedBy={medFormError && !medForm.form ? 'med-form-error' : undefined}
                             />
                         </div>
                     </div>
@@ -1851,6 +1857,8 @@ const Medications: React.FC = () => {
                                                     onChange={(e) =>
                                                         updateScheduleRow(index, { quantity: e.target.value })
                                                     }
+                                                    aria-invalid={medFormError && parseQuantity(row.quantity) === null ? true : undefined}
+                                                    aria-describedby={medFormError && parseQuantity(row.quantity) === null ? 'med-form-error' : undefined}
                                                 />
                                             </div>
                                             <div className="w-40 flex-shrink-0">
@@ -1960,7 +1968,7 @@ const Medications: React.FC = () => {
             >
                 <form onSubmit={handleStockSubmit} className="space-y-4">
                     {stockFormError ? (
-                        <div className="rounded-input border border-danger/30 bg-danger/10 px-4 py-3 text-caption text-danger">
+                        <div id="stock-form-error" role="alert" className="rounded-input border border-danger/30 bg-danger/10 px-4 py-3 text-caption text-danger">
                             {stockFormError}
                         </div>
                     ) : null}
@@ -1975,6 +1983,8 @@ const Medications: React.FC = () => {
                             step={1}
                             value={stockForm.quantity}
                             onChange={(e) => setStockForm({ ...stockForm, quantity: e.target.value })}
+                            aria-invalid={stockFormError && parseStockValue(stockForm.quantity) === undefined ? true : undefined}
+                            aria-describedby={stockFormError && parseStockValue(stockForm.quantity) === undefined ? 'stock-form-error' : undefined}
                             placeholder={t('medications:stock.quantityPlaceholder')}
                         />
                     </div>

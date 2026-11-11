@@ -115,5 +115,29 @@
       "load": "No se ha podido cargar la ficha de urgencia.",
       "save": "No se ha podido guardar."
     }
+  },
+  "viewPhotos": {
+    "title": "Fotos para la tableta",
+    "description": "Su familiar ve estas fotos en la vista sencilla, cambiando con calma. Como máximo {{max}} fotos. Cada foto se reduce antes de subirla y se eliminan la ubicación y otros datos ocultos.",
+    "add": "Añadir fotos",
+    "uploading": "Subiendo fotos: {{done}} de {{total}}",
+    "count": "{{count}} de {{max}} fotos",
+    "full": "Ya hay {{max}} fotos. Borre una para añadir otra nueva.",
+    "empty": "Todavía no hay fotos.",
+    "alt": "Foto {{number}}",
+    "uploaded_one": "Foto subida.",
+    "uploaded_other": "{{count}} fotos subidas.",
+    "deleted": "Foto borrada.",
+    "delete": "Borrar",
+    "confirmDelete": "¿Borrar de verdad esta foto?",
+    "deleteYes": "Sí, borrar",
+    "deleteNo": "No",
+    "errors": {
+      "load": "No se han podido cargar las fotos. Vuelva a cargar la página.",
+      "upload_one": "No se ha podido subir una foto. Elija otra imagen, por ejemplo un JPEG.",
+      "upload_other": "No se han podido subir {{count}} fotos. Elija otras imágenes, por ejemplo JPEG.",
+      "delete": "No se ha podido borrar la foto. Inténtelo de nuevo.",
+      "limit": "Como máximo {{max}} fotos. Solo se han subido las que cabían."
+    }
   }
 }

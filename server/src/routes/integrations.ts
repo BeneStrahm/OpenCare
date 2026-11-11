@@ -8,7 +8,6 @@ import { safeFetch } from '../utils/safeFetch';
 import { testHomeAssistantConnection, syncHomeAssistant } from '../services/integrations/homeassistant';
 import { testGrocyConnection, syncGrocy } from '../services/integrations/grocy';
 import { testNextcloudConnection, syncNextcloud } from '../services/integrations/nextcloud';
-import { testImmichConnection, syncImmich, fetchImmichRandomPhoto } from '../services/integrations/immich';
 import { broadcastToCircle } from '../lib/broadcaster';
 import { langFromRequest, t, type Lang } from '../lib/i18n';
 
@@ -18,7 +17,7 @@ const router = Router();
 router.use(authMiddleware);
 router.use(circleMiddleware);
 
-const INTEGRATION_TYPES = ['homeassistant', 'grocy', 'nextcloud', 'immich', 'whisper'] as const;
+const INTEGRATION_TYPES = ['homeassistant', 'grocy', 'nextcloud', 'whisper'] as const;
 
 // Whisper (speaches / faster-whisper-server, API compatible OpenAI): un simple
 // GET /v1/models suffit à vérifier que le service répond (clé Bearer optionnelle).
@@ -61,36 +60,6 @@ router.get('/', async (req: CircleRequest, res) => {
     }
 });
 
-// GET /api/integrations/immich/photo - proxy a random photo from the circle's
-// Immich instance (the Immich API key never reaches the browser).
-router.get('/immich/photo', async (req: CircleRequest, res) => {
-    const lang = langFromRequest(req);
-    try {
-        const result = await query(
-            `SELECT base_url, encrypted_credentials FROM integrations
-             WHERE circle_id = $1 AND type = 'immich'`,
-            [req.circleId]
-        );
-        const integ = result.rows[0] as { base_url: string; encrypted_credentials: string | null } | undefined;
-        if (!integ || !integ.encrypted_credentials) {
-            return res.status(404).json({ success: false, error: t(lang, 'integrations.immichNotConfigured') });
-        }
-
-        // Re-validate the stored URL at use time (DNS answers can change).
-        await assertSafeIntegrationUrl(integ.base_url);
-
-        const photo = await fetchImmichRandomPhoto(integ.base_url, integ.encrypted_credentials);
-        res.set('Content-Type', photo.contentType);
-        res.set('Cache-Control', 'no-store');
-        res.send(photo.buffer);
-    } catch (e) {
-        if (e instanceof UnsafeUrlError) {
-            return res.status(400).json({ success: false, error: unsafeUrlMessage(e, lang) });
-        }
-        res.status(502).json({ success: false, error: t(lang, 'integrations.immichUnavailable') });
-    }
-});
-
 // POST /api/integrations/test - test without saving (circle admins)
 router.post('/test', requireAdmin, async (req: CircleRequest, res) => {
     const lang = langFromRequest(req);
@@ -105,7 +74,6 @@ router.post('/test', requireAdmin, async (req: CircleRequest, res) => {
             case 'homeassistant': result = await testHomeAssistantConnection(cleanUrl, token, lang); break;
             case 'grocy':         result = await testGrocyConnection(cleanUrl, apiKey, lang); break;
             case 'nextcloud':     result = await testNextcloudConnection(cleanUrl, (req.body as Record<string, string>).username, (req.body as Record<string, string>).password, lang); break;
-            case 'immich':        result = await testImmichConnection(cleanUrl, apiKey, lang); break;
             case 'whisper':       result = await testWhisperConnection(cleanUrl, apiKey, lang); break;
             default:              result = { success: false, message: t(lang, 'integrations.unknownType') };
         }
@@ -203,7 +171,6 @@ router.post('/:id/sync', requireAdmin, async (req: CircleRequest, res) => {
                 case 'homeassistant': syncResult = await syncHomeAssistant(integ.id, req.circleId!, integ.base_url, integ.encrypted_credentials, integ.config || {}, lang); break;
                 case 'grocy':         syncResult = await syncGrocy(integ.id, req.circleId!, integ.base_url, integ.encrypted_credentials); break;
                 case 'nextcloud':     syncResult = await syncNextcloud(integ.id, req.circleId!, integ.base_url, integ.encrypted_credentials, integ.config || {}); break;
-                case 'immich':        syncResult = await syncImmich(integ.id, req.circleId!, integ.base_url, integ.encrypted_credentials); break;
                 // Whisper est appelé à la demande (transcription): rien à synchroniser.
                 case 'whisper':       syncResult = { imported: 0, errors: 0 }; break;
                 default: throw new Error('Type inconnu');

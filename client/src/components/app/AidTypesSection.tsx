@@ -107,6 +107,8 @@ const AidTypesSection: React.FC = () => {
                         placeholder={t('settings:aidTypes.placeholder')}
                         aria-label={t('settings:aidTypes.newLabel')}
                         onChange={(e) => { setNewType(e.target.value); setError(''); }}
+                        aria-invalid={error === t('settings:aidTypes.duplicate') ? true : undefined}
+                        aria-describedby={error === t('settings:aidTypes.duplicate') ? 'aid-types-error' : undefined}
                     />
                 </div>
                 <Button type="submit" variant="secondary" disabled={!cleanAidType(newType)}>
@@ -135,7 +137,7 @@ const AidTypesSection: React.FC = () => {
             </div>
             {draft.length === 0 && <p className="mt-2 text-caption text-muted-foreground">{t('settings:aidTypes.empty')}</p>}
             {saved && <p className="mt-2 text-caption text-muted-foreground">{t('settings:aidTypes.saved')}</p>}
-            {error && <p className="mt-2 text-caption text-danger">{error}</p>}
+            {error && <p id="aid-types-error" role="alert" className="mt-2 text-caption text-danger">{error}</p>}
         </section>
     );
 };

@@ -7,10 +7,13 @@ import { useCircle } from '../../contexts/CircleContext';
 import { Card, CardContent } from '../ui';
 import RegionSectionHeader from './RegionSectionHeader';
 import {
-    FEATURE_IDS, VITAL_TYPES,
+    FEATURE_IDS, RETIRED_FEATURES, VITAL_TYPES,
     isFeatureEnabled, enabledVitalTypes,
     type VitalType,
 } from '../../lib/features';
+
+/** Waehlbare Funktionen: ohne die vorerst stillgelegten. */
+const SELECTABLE_FEATURES = FEATURE_IDS.filter((id) => !RETIRED_FEATURES.includes(id));
 
 /**
  * Fork: Funktionen des Kreises ein- und ausschalten (nur Admins).
@@ -83,7 +86,8 @@ const FeaturesCard: React.FC = () => {
     // Der Server ersetzt das ganze Objekt: immer alle Schalter mitschicken.
     const toggleFeature = (id: (typeof FEATURE_IDS)[number]) => {
         const next: Record<string, boolean> = {};
-        for (const f of FEATURE_IDS) next[f] = isFeatureEnabled(settings, f);
+        // Stillgelegte (RETIRED_FEATURES) fehlen in der Liste, sie sind ohnehin aus.
+        for (const f of SELECTABLE_FEATURES) next[f] = isFeatureEnabled(settings, f);
         next[id] = !next[id];
         void save({ features: next });
     };
@@ -113,7 +117,7 @@ const FeaturesCard: React.FC = () => {
                     <section>
                         <RegionSectionHeader title={t('features.modules.title')} subtitle={t('features.modules.subtitle')} scope="circle" />
                         <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
-                            {FEATURE_IDS.map((id) => (
+                            {SELECTABLE_FEATURES.map((id) => (
                                 <SwitchRow
                                     key={id}
                                     label={t(`features.items.${id}`)}

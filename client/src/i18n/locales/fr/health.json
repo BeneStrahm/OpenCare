@@ -101,5 +101,19 @@
     "pulse": "Pouls"
   },
   "pulseUnit": "/min",
-  "pulseShort": "Pouls {{value}}/min"
+  "pulseShort": "Pouls {{value}}/min",
+  "reminders": {
+    "title": "Rappel de mesure",
+    "description": "La personne accompagnée reçoit chaque jour un rappel à l'heure choisie. Si aucune valeur n'est saisie 2 heures plus tard, la famille reçoit une alerte.",
+    "readOnly": "Les rappels de mesure sont réglés par les administrateurs et la famille.",
+    "statusOn": "Tous les jours à {{time}}",
+    "statusOff": "Aucun rappel",
+    "enable": "Rappeler chaque jour",
+    "timeLabel": "Heure",
+    "noteLabel": "Remarque (facultatif), par exemple : avant le petit-déjeuner",
+    "hint": "Le rappel est terminé dès qu'une valeur est saisie aujourd'hui.",
+    "saved": "Rappel enregistré",
+    "saveError": "Le rappel n'a pas pu être enregistré. Veuillez réessayer.",
+    "timeInvalid": "Indiquez une heure valide, par exemple 07:30."
+  }
 }

@@ -115,5 +115,29 @@
       "load": "Impossible de charger la fiche urgence.",
       "save": "L'enregistrement a échoué."
     }
+  },
+  "viewPhotos": {
+    "title": "Photos pour la tablette",
+    "description": "Votre proche voit ces photos dans la vue simple, qui défilent calmement. {{max}} photos au plus. Chaque photo est réduite avant l'envoi, la localisation et les autres informations cachées sont supprimées.",
+    "add": "Ajouter des photos",
+    "uploading": "Envoi des photos : {{done}} sur {{total}}",
+    "count": "{{count}} photos sur {{max}}",
+    "full": "Il y a déjà {{max}} photos. Supprimez-en une pour en ajouter une nouvelle.",
+    "empty": "Aucune photo pour le moment.",
+    "alt": "Photo {{number}}",
+    "uploaded_one": "Photo envoyée.",
+    "uploaded_other": "{{count}} photos envoyées.",
+    "deleted": "Photo supprimée.",
+    "delete": "Supprimer",
+    "confirmDelete": "Supprimer vraiment cette photo ?",
+    "deleteYes": "Oui, supprimer",
+    "deleteNo": "Non",
+    "errors": {
+      "load": "Les photos n'ont pas pu être chargées. Rechargez la page.",
+      "upload_one": "Une photo n'a pas pu être envoyée. Choisissez une autre image, par exemple un JPEG.",
+      "upload_other": "{{count}} photos n'ont pas pu être envoyées. Choisissez d'autres images, par exemple des JPEG.",
+      "delete": "La photo n'a pas pu être supprimée. Réessayez.",
+      "limit": "{{max}} photos au plus. Seules les photos pour lesquelles il restait de la place ont été envoyées."
+    }
   }
 }

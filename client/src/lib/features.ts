@@ -41,8 +41,14 @@ const flags = (settings: Settings, key: string): Record<string, unknown> => {
     return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 };
 
+/**
+ * Vorerst stillgelegt (Launch Block D): immer aus, in den Einstellungen nicht
+ * waehlbar, Daten bleiben. Gegenstueck in server/src/lib/features.ts.
+ */
+export const RETIRED_FEATURES: readonly FeatureId[] = ['visitors'];
+
 export const isFeatureEnabled = (settings: Settings, id: FeatureId): boolean =>
-    flags(settings, 'features')[id] !== false;
+    !RETIRED_FEATURES.includes(id) && flags(settings, 'features')[id] !== false;
 
 export const enabledVitalTypes = (settings: Settings): VitalType[] => {
     const value = settings?.vital_types;

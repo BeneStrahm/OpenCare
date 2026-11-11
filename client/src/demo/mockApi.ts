@@ -6,7 +6,7 @@
 // Le cercle actif est résolu depuis localStorage (la clé qu'utilise
 // ApiClient.setCircleId), faute d'en-tête X-Circle-Id dans le mock.
 import { createSeed, type CircleData, type DemoStore, type Json } from './seed';
-import { detectIntent, answerIntent, hasDistressSignal, distressHint, type CompanionFactsInput, type CompanionIntent, type CompanionLang, type FactsVitalType } from './companionAnswers';
+import { answerIntent, type CompanionFactsInput, type CompanionIntent, type CompanionLang, type FactsVitalType } from './companionAnswers';
 import { formatVital } from '../lib/units';
 
 const store: DemoStore = createSeed();
@@ -97,7 +97,7 @@ function makeCircle(name: string, recipient: Json): CircleData {
         recipient: { id: uid(), circle_id: id, photo_url: null, last_name: null, birth_date: null, ...recipient },
         members: [{
             id: uid(), circle_id: id, user_id: store.user.id, role: 'admin', color: '#2563EB',
-            created_at: naiveNow(), name: store.user.name, email: store.user.email, avatar_url: null,
+            created_at: naiveNow(), name: store.user.name, username: store.user.username, avatar_url: null,
         }],
         invites: [], caregiverLinks: [], journal: [], vitals: [], medications: [], intakeOverrides: {}, prnIntakes: [], visits: [], carePlan: null, vitalThresholds: [], messageReads: {}, escalation: { enabled: false, med_patient_min: 15, med_primary_min: 30, med_secondary_min: 60, help_ack_min: 10, primary_member_ids: [], secondary_member_ids: [] }, helpRequests: [],
         prescriptions: [], events: [], tasks: [], shopping: [], messages: [], documents: [], contacts: [],
@@ -770,12 +770,10 @@ function todaySnapshot(c: CircleData): Json {
         members: c.members.map((m) => ({ id: m.id, name: m.name, avatar_url: m.avatar_url ?? null, role: m.role })),
         visits_today: c.visits.filter((v) => String(v.checked_in_at).slice(0, 10) === isoDate(now)),
         active_visit: c.visits.find((v) => !v.checked_out_at) ?? null,
-        photos_enabled: false,
         heatwave: (() => {
             const h = heatwaveOf(c);
             return h.enabled && h.active ? { active: true, level: h.level } : null;
         })(),
-        companion_enabled: true,
     };
 }
 
@@ -901,15 +899,22 @@ async function route(method: string, path: string, q: Record<string, string>, bo
         if ('avatar_url' in body) store.user.avatar_url = body.avatar_url ?? null;
         return ok({ user: store.user });
     }
-    // Mot de passe oublie : la demo n'envoie rien, elle montre le parcours
-    // "sans e-mail" (remise du lien par un administrateur du cercle).
-    if (path === '/api/auth/forgot-password') return ok({ delivery: 'admin' });
+    if (path === '/api/auth/setup-status') return ok({ firstAccount: false });
     if (path === '/api/auth/reset-password') return ok({});
-    if (seg[1] === 'auth' && seg[2] === 'reset-password' && seg[3]) return ok({ valid: true, name: store.user.name });
+    if (seg[1] === 'auth' && seg[2] === 'reset-password' && seg[3]) return ok({ valid: true, name: store.user.name, username: store.user.username });
+    // Passwort vergessen: in der Demo erzeugt der Admin einen Link, der nirgends hinfuehrt.
+    if (path === '/api/auth/password-resets' && method === 'POST') {
+        return ok({ id: uid(), expires_at: toLocalISO(new Date(Date.now() + 86400000)), url: '/reset-password?token=demo' });
+    }
     if (path === '/api/auth/password-resets') return ok([]);
     if (path === '/api/auth/language') {
         if (body.language !== 'fr' && body.language !== 'en' && body.language !== 'es' && body.language !== 'de') throw new Error('Invalid language'); // 400 du serveur
         store.user.language = body.language;
+        return ok({ user: store.user });
+    }
+    // Block D: Farbe der einfachen Ansicht am Konto
+    if (path === '/api/auth/view-color' && method === 'PUT') {
+        store.user.view_color = typeof body.color === 'string' ? body.color : null;
         return ok({ user: store.user });
     }
 
@@ -1054,7 +1059,7 @@ async function route(method: string, path: string, q: Record<string, string>, bo
     if (path === '/api/invites' && method === 'POST') {
         const invite = {
             id: uid(), circle_id: c.id, token: 'demo-invite-' + uid().slice(0, 8),
-            invitee_email: typeof body.invitee_email === 'string' && body.invitee_email.trim() ? body.invitee_email.trim() : null,
+            invitee_username: `${String(body.first_name ?? '').trim()} ${String(body.last_name ?? '').trim()}`.trim(),
             role: typeof body.role === 'string' ? body.role : 'family',
             status: 'pending',
             expires_at: toLocalISO(new Date(Date.now() + (num(body.expires_in_days) || 7) * 86400000)),
@@ -1068,7 +1073,7 @@ async function route(method: string, path: string, q: Record<string, string>, bo
         const home = found ? store.circles.find((circle) => circle.id === found.circle_id) : undefined;
         return ok({
             role: found ? found.role : 'family',
-            invitee_email: found ? found.invitee_email : null,
+            invitee_username: found ? found.invitee_username : null,
             expires_at: found ? found.expires_at : toLocalISO(new Date(Date.now() + 7 * 86400000)),
             circle_name: home ? home.name : c.name,
             recipient_first_name: home && home.recipient ? home.recipient.first_name : (c.recipient ? c.recipient.first_name : null),
@@ -1855,7 +1860,7 @@ async function route(method: string, path: string, q: Record<string, string>, bo
 
     // ── IA (la démo se présente comme configurée pour montrer les ✨) ────────
     if (path === '/api/ai/settings' && method === 'GET') {
-        return ok({ configured: true, enabled: true, provider: 'ollama', base_url: 'http://localhost:11434', model: 'llama3.1', has_api_key: false, companion_enabled: true });
+        return ok({ configured: true, enabled: true, provider: 'ollama', base_url: 'http://localhost:11434', model: 'llama3.1', has_api_key: false });
     }
     if (path === '/api/ai/settings' && method === 'PUT') {
         return ok({
@@ -1865,7 +1870,6 @@ async function route(method: string, path: string, q: Record<string, string>, bo
             base_url: (body.base_url as string) ?? null,
             model: (body.model as string) || 'llama3.1',
             has_api_key: Boolean(body.api_key),
-            companion_enabled: body.companion_enabled === true,
         });
     }
     // Feste Fragen der einfachen Ansicht (wie GET /api/companion/answer/:frage im Server).
@@ -1888,34 +1892,6 @@ async function route(method: string, path: string, q: Record<string, string>, bo
             events_week: demoExtraFacts(c, lang).events_week,
         };
         return ok({ reply: answerIntent(intent, facts, lang, new Date()), intent });
-    }
-    if (path === '/api/companion/message' && method === 'POST') {
-        // Comme le serveur : les questions pratiques sont repondues depuis les
-        // donnees du cercle (sans IA), le reste simule un compagnon.
-        await new Promise((resolve) => setTimeout(resolve, 400));
-        const msgs = Array.isArray(body.messages) ? (body.messages as Array<{ role: string; content: string }>) : [];
-        const last = msgs.length > 0 ? String(msgs[msgs.length - 1]?.content || '') : '';
-        const lang: CompanionLang = store.user.language === 'en' ? 'en' : store.user.language === 'es' ? 'es' : store.user.language === 'de' ? 'de' : 'fr';
-        const today = todaySnapshot(c);
-        const facts: CompanionFactsInput = {
-            recipientFirstName: c.recipient?.first_name ?? '',
-            medications: today.medications,
-            events_today: today.events_today,
-            visits_today: today.visits_today,
-            contacts_key: today.contacts_key,
-            heatwave: today.heatwave,
-            // Fork: wie server/src/lib/companionExtraFacts.ts
-            ...demoExtraFacts(c, lang),
-        };
-        const intent = detectIntent(last);
-        if (intent) {
-            const hint = intent !== 'help' && hasDistressSignal(last) ? distressHint(lang) : '';
-            return ok({ reply: answerIntent(intent, facts, lang, new Date(), last) + hint, flagged: intent === 'help', source: 'facts', intent });
-        }
-        const reply = lang === 'en'
-            ? 'That is kind of you to tell me. What memory does it bring back?'
-            : "C'est gentil de me raconter ça. Et qu'est-ce que ça t'évoque comme souvenir ?";
-        return ok({ reply, flagged: false, source: 'ai', intent: null });
     }
     if (path === '/api/ai/test' && method === 'POST') {
         await new Promise((resolve) => setTimeout(resolve, 600));

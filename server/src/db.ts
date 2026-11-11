@@ -367,6 +367,30 @@ export const runMigrations = async () => {
             alerted_at TIMESTAMP
         );`,
         `INSERT INTO backup_alert_state (id) VALUES (1) ON CONFLICT (id) DO NOTHING;`,
+        // Fork, Block E: gesendete Erinnerungen pro Termin-Vorkommen bzw. Tag und Person
+        // (lib/reminderScheduler.ts, lib/vitalReminders.ts). Der Primaerschluessel
+        // verhindert doppelte Erinnerungen, auch bei Serien und doppelten Zeittakten.
+        `CREATE TABLE IF NOT EXISTS reminder_log (
+            kind VARCHAR(40) NOT NULL,
+            ref_id UUID NOT NULL,
+            slot VARCHAR(40) NOT NULL,
+            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (kind, ref_id, slot, user_id)
+        );`,
+        `CREATE INDEX IF NOT EXISTS idx_reminder_log_created ON reminder_log(created_at);`,
+        // Fork, Block E: Messwert-Erinnerung an die betreute Person (Blutzucker, Gewicht),
+        // Hinweis an die Familie, wenn nach 2 Stunden noch kein Wert eingetragen ist.
+        // changed_at: letzte Aenderung von Ein/Aus oder Uhrzeit (heute erst ab dann erinnern).
+        `CREATE TABLE IF NOT EXISTS vital_reminders (
+            circle_id UUID NOT NULL REFERENCES care_circles(id) ON DELETE CASCADE,
+            type VARCHAR(20) NOT NULL CHECK (type IN ('glucose', 'weight')),
+            enabled BOOLEAN NOT NULL DEFAULT FALSE,
+            remind_time TIME NOT NULL DEFAULT '07:30',
+            note VARCHAR(80),
+            changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (circle_id, type)
+        );`,
         // Arztgespraech-Modul (Fork), siehe modules/consultations/schema.ts
         ...CONSULTATION_MIGRATIONS,
         // Fork, Rollen E10: viewer entfaellt, neu recipient ("Betreute Person").
@@ -389,6 +413,43 @@ export const runMigrations = async () => {
                     CHECK (role IN ('admin', 'family', 'professional', 'neighbor', 'recipient'));
             END IF;
         END $$;`,
+        // Fork, Anmeldung E18: Benutzername statt E-Mail. Alte Konten bekommen ihren
+        // Namen als Benutzernamen, wenn er eindeutig ist, sonst die bisherige Adresse.
+        // Danach wird die E-Mail-Spalte entfernt. Laeuft nur, solange sie existiert.
+        `DO $$ BEGIN
+            IF EXISTS (SELECT 1 FROM information_schema.columns
+                       WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'email') THEN
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(255);
+                UPDATE users u SET username = regexp_replace(btrim(u.name), '\\s+', ' ', 'g')
+                    WHERE u.username IS NULL
+                      AND (SELECT COUNT(*) FROM users x
+                           WHERE LOWER(regexp_replace(btrim(x.name), '\\s+', ' ', 'g'))
+                               = LOWER(regexp_replace(btrim(u.name), '\\s+', ' ', 'g'))) = 1;
+                UPDATE users SET username = email WHERE username IS NULL;
+                ALTER TABLE users ALTER COLUMN username SET NOT NULL;
+                ALTER TABLE users DROP COLUMN email;
+            END IF;
+        END $$;`,
+        `CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username_lower ON users (LOWER(username));`,
+        // Einladungen gelten fuer einen Benutzernamen. Alte offene Einladungen ohne
+        // Benutzernamen werden ungueltig (Pruefung in routes/auth.ts).
+        `ALTER TABLE circle_invites ADD COLUMN IF NOT EXISTS invitee_username VARCHAR(255);`,
+        `ALTER TABLE circle_invites DROP COLUMN IF EXISTS invitee_email;`,
+        // Fork, Block D: Farbe der einfachen Ansicht, am Konto der betreuten Person
+        // (Kennung aus client/src/lib/viewColors.ts, NULL = Standardfarbe Blau).
+        `ALTER TABLE users ADD COLUMN IF NOT EXISTS view_color VARCHAR(20);`,
+        // Fork, Block D: Fotos fuer die einfache Ansicht (ruhig im Wechsel), hochgeladen
+        // von Familie und Admin. JPEG als data URL wie die uebrigen Fotos, im Browser
+        // verkleinert, Metadaten (Ortsdaten) entfernt (lib/viewPhotos.ts).
+        `CREATE TABLE IF NOT EXISTS view_photos (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            circle_id UUID NOT NULL REFERENCES care_circles(id) ON DELETE CASCADE,
+            data_url TEXT NOT NULL,
+            size_bytes INTEGER NOT NULL,
+            created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );`,
+        `CREATE INDEX IF NOT EXISTS idx_view_photos_circle ON view_photos(circle_id, created_at);`,
     ];
 
     for (const migration of migrations) {

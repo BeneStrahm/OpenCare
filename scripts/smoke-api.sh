@@ -7,9 +7,10 @@ set -euo pipefail
 
 API_BASE="${API_BASE:-http://localhost:3001}"
 RUN_ID="${RUN_ID:-$(date +%s)-$RANDOM}"
-EMAIL="${SMOKE_EMAIL:-smoke-${RUN_ID}@example.com}"
+# Benutzername = Vorname Nachname (E18). Das erste Konto geht nur auf einem leeren Server.
 PASSWORD="${SMOKE_PASSWORD:-SmokeTest123!}"
-NAME="${SMOKE_NAME:-Smoke ${RUN_ID}}"
+FIRST_NAME="Smoke"
+LAST_NAME="${RUN_ID}"
 TOKEN=""
 CIRCLE_ID=""
 
@@ -55,8 +56,8 @@ echo "[1/14] Health"
 health=$(request GET "/health")
 echo "$health" | jq -e '.status == "ok"' >/dev/null
 
-echo "[2/14] Register"
-reg=$(request POST "/api/auth/register" "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\",\"name\":\"$NAME\"}")
+echo "[2/14] Register (first account on an empty server)"
+reg=$(request POST "/api/auth/register" "{\"firstName\":\"$FIRST_NAME\",\"lastName\":\"$LAST_NAME\",\"password\":\"$PASSWORD\"}")
 assert_success "$reg"
 TOKEN=$(echo "$reg" | jq -r '.data.token')
 if [[ "$TOKEN" == "null" || -z "$TOKEN" ]]; then
@@ -115,10 +116,10 @@ link=$(request POST "/api/circles/$CIRCLE_ID/link" "{\"target_circle_id\":\"$CIR
 assert_success "$link"
 request GET "/api/dashboard/household" >/dev/null
 
-echo "[11/14] Password reset (no SMTP: admin delivery)"
-forgot=$(request POST "/api/auth/forgot-password" "{\"email\":\"$EMAIL\"}")
-assert_success "$forgot"
-echo "$forgot" | jq -e '.data.delivery == "admin"' >/dev/null
+echo "[11/14] Password reset (link created by an admin)"
+# Ohne Einladung gibt es kein zweites Konto.
+open_reg=$(curl -sS -o /dev/null -w "%{http_code}" -X POST "$API_BASE/api/auth/register" -H "Content-Type: application/json" -d "{\"firstName\":\"Fremd\",\"lastName\":\"$RUN_ID\",\"password\":\"$PASSWORD\"}")
+[[ "$open_reg" == "403" ]] || { echo "[FAIL] registration without invite must be refused (got $open_reg)"; exit 1; }
 check=$(request GET "/api/auth/reset-password/0000000000000000000000000000000000000000000000000000000000000000")
 echo "$check" | jq -e '.data.valid == false' >/dev/null
 request GET "/api/auth/password-resets" >/dev/null
@@ -230,11 +231,17 @@ echo "$ask" | jq -e '.data.source == "fallback" and .data.flagged == false' >/de
 # Role neighbor : aucune donnee de sante, sur aucune route (synthese, journal,
 # tableau de bord), et pas le jeton de la fiche urgence en direct. L'admin, lui,
 # voit les entrees de sante : sans elles, le filtre ne prouverait rien.
-invite=$(request POST "/api/invites" '{"role":"neighbor"}')
+NUSER="Voisin ${RUN_ID}"
+invite=$(request POST "/api/invites" "{\"role\":\"neighbor\",\"first_name\":\"Voisin\",\"last_name\":\"$RUN_ID\"}")
 invite_token=$(echo "$invite" | jq -r '.data.token')
-# Inscription par le jeton d'invitation, comme un voisin invite : le role vient de l'invitation.
-nreg=$(curl -sS -X POST "$API_BASE/api/auth/register" -H "Content-Type: application/json" -d "{\"email\":\"neighbor-${RUN_ID}@example.com\",\"password\":\"$PASSWORD\",\"name\":\"Voisin ${RUN_ID}\",\"inviteToken\":\"$invite_token\"}")
+# Gleicher Name ein zweites Mal: einfache Meldung statt zweiter Einladung.
+dup=$(curl -sS -o /dev/null -w "%{http_code}" -X POST "$API_BASE/api/invites" -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -H "X-Circle-Id: $CIRCLE_ID" -d "{\"role\":\"family\",\"first_name\":\"voisin\",\"last_name\":\"$RUN_ID\"}")
+[[ "$dup" == "409" ]] || { echo "[FAIL] duplicate username must be refused (got $dup)"; exit 1; }
+# Registrieren ueber den Einladungslink: nur das Passwort, Benutzername und Rolle kommen aus der Einladung.
+nreg=$(curl -sS -X POST "$API_BASE/api/auth/register" -H "Content-Type: application/json" -d "{\"password\":\"$PASSWORD\",\"inviteToken\":\"$invite_token\"}")
 NTOKEN=$(echo "$nreg" | jq -r '.data.token')
+NUSER_ID=$(echo "$nreg" | jq -r '.data.user.id')
+echo "$nreg" | jq -e --arg u "$NUSER" '.data.user.username == $u' >/dev/null
 [[ -n "$NTOKEN" && "$NTOKEN" != "null" ]] || { echo "[FAIL] neighbor registration"; exit 1; }
 as_neighbor() { curl -sS "$API_BASE$1" -H "Authorization: Bearer $NTOKEN" -H "X-Circle-Id: $CIRCLE_ID"; }
 n_digests=$(curl -sS -o /dev/null -w "%{http_code}" "$API_BASE/api/digests" -H "Authorization: Bearer $NTOKEN" -H "X-Circle-Id: $CIRCLE_ID")
@@ -246,10 +253,9 @@ as_neighbor "/api/dashboard" | jq -e '(.data.last_journal_entries | all(.[]; .ty
 as_neighbor "/api/emergency/sheet" | jq -e '.success == true and (.data | has("public_token") | not) and (.data | has("url") | not)' >/dev/null
 request GET "/api/emergency/sheet" | jq -e '.data.public_token | length == 64' >/dev/null
 
-# Mot de passe oublie sans SMTP : le lien ouvre tout le compte, donc seul un admin
-# de TOUS les cercles de la personne le recoit ou peut annuler la demande. Le
-# voisin ouvre son propre cercle : l'admin du cercle partage ne voit plus rien.
-NEMAIL="neighbor-${RUN_ID}@example.com"
+# Passwort vergessen: der Link oeffnet das ganze Konto, daher erzeugt oder loescht ihn
+# nur ein Admin ALLER Kreise der Person. Hat der Nachbar einen eigenen Kreis, darf
+# der Admin des gemeinsamen Kreises keinen Link erzeugen.
 neighbor_circle() {
   curl -sS -X POST "$API_BASE/api/circles" -H "Content-Type: application/json" -H "Authorization: Bearer $NTOKEN" -d '{"recipient_first_name":"Paul"}' | jq -r '.data.circle.id'
 }
@@ -258,13 +264,14 @@ drop_neighbor_circle() {
 }
 NCIRCLE_ID=$(neighbor_circle)
 [[ -n "$NCIRCLE_ID" && "$NCIRCLE_ID" != "null" ]] || { echo "[FAIL] neighbor circle"; exit 1; }
-curl -sS -X POST "$API_BASE/api/auth/forgot-password" -H "Content-Type: application/json" -d "{\"email\":\"$NEMAIL\"}" | jq -e '.data.delivery == "admin"' >/dev/null
-request GET "/api/auth/password-resets" | jq -e --arg e "$NEMAIL" 'all(.data[]; .email != $e)' >/dev/null
-# Sans son autre cercle, le voisin n'a plus que celui de l'admin : le lien revient.
+denied=$(curl -sS -o /dev/null -w "%{http_code}" -X POST "$API_BASE/api/auth/password-resets" -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -d "{\"user_id\":\"$NUSER_ID\"}")
+[[ "$denied" == "403" ]] || { echo "[FAIL] admin of one shared circle created a reset link (got $denied)"; exit 1; }
+# Ohne seinen anderen Kreis hat der Nachbar nur noch den des Admins: der Link geht.
 drop_neighbor_circle "$NCIRCLE_ID"
+request POST "/api/auth/password-resets" "{\"user_id\":\"$NUSER_ID\"}" | jq -e '.data.url | startswith("/reset-password?token=")' >/dev/null
 resets=$(request GET "/api/auth/password-resets")
-reset_id=$(echo "$resets" | jq -r --arg e "$NEMAIL" '[.data[] | select(.email == $e)][0].id')
-reset_url=$(echo "$resets" | jq -r --arg e "$NEMAIL" '[.data[] | select(.email == $e)][0].url')
+reset_id=$(echo "$resets" | jq -r --arg u "$NUSER" '[.data[] | select(.username == $u)][0].id')
+reset_url=$(echo "$resets" | jq -r --arg u "$NUSER" '[.data[] | select(.username == $u)][0].url')
 [[ "$reset_id" != "null" && "$reset_url" == /reset-password\?token=* ]] || { echo "[FAIL] reset link not relayed to the admin of every circle"; exit 1; }
 # Un nouveau cercle a lui : l'admin ne peut plus annuler sa demande.
 NCIRCLE_ID=$(neighbor_circle)
@@ -274,7 +281,7 @@ drop_neighbor_circle "$NCIRCLE_ID"
 # Reinitialisation par le lien relaye : le titulaire en est prevenu.
 reset_token="${reset_url#*token=}"
 curl -sS -X POST "$API_BASE/api/auth/reset-password" -H "Content-Type: application/json" -d "{\"token\":\"$reset_token\",\"password\":\"Smoke-Nouveau-456!\"}" | jq -e '.success == true' >/dev/null
-NTOKEN=$(curl -sS -X POST "$API_BASE/api/auth/login" -H "Content-Type: application/json" -d "{\"email\":\"$NEMAIL\",\"password\":\"Smoke-Nouveau-456!\"}" | jq -r '.data.token')
+NTOKEN=$(curl -sS -X POST "$API_BASE/api/auth/login" -H "Content-Type: application/json" -d "{\"username\":\"$NUSER\",\"password\":\"Smoke-Nouveau-456!\"}" | jq -r '.data.token')
 curl -sS "$API_BASE/api/notifications" -H "Authorization: Bearer $NTOKEN" | jq -e 'any(.data[]; .type == "password_changed")' >/dev/null
 
 echo "[14/14] Cleanup"

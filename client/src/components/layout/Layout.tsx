@@ -263,7 +263,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                             )}
                             <div className="min-w-0 flex-1">
                                 <p className="truncate text-caption font-semibold text-foreground">{user?.name}</p>
-                                <p className="truncate text-micro text-muted-foreground">{user?.email}</p>
+                                <p className="truncate text-micro text-muted-foreground">{user?.username}</p>
                             </div>
                         </div>
                         <div className="flex gap-2">

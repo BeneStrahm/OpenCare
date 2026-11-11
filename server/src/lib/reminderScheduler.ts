@@ -8,16 +8,25 @@ import { backupCheckEnabled, checkBackupStatus } from './backupAlerts';
 import logger from './logger';
 import { pickLang } from './i18n';
 import { TRAVEL_ACTIVE_SQL } from './eventExtras';
+import { expandEventOccurrences } from '../routes/events';
+import { claimReminder, pruneReminderLog } from './reminderLog';
+import { checkVitalReminders } from './vitalReminders';
 
 // Rappels planifiés du cercle de soin:
 //  - rappels d'événements (events.reminder_30min / reminder_1hour), notifiés
 //    à TOUS les membres du cercle (notification interne + web push);
+//    Fork, Block E: pour une série, chaque occurrence (reminder_log, sans doublon);
+//  - Fork, Block E: rappels de mesure (lib/vitalReminders.ts);
 //  - rappel quotidien (9h) de renouvellement d'ordonnance, notifié aux membres
 //    admin + family du cercle, une seule fois par jour et par ordonnance.
 // Les rappels de prise de médicaments (medication_intakes) sont gérés ailleurs.
 
 interface EventRow {
     id: string;
+    /** Fork: Serienregel; dann zaehlt jedes Vorkommen einzeln. */
+    rrule?: string | null;
+    exceptions?: unknown;
+    end_time?: string | null;
     circle_id: string;
     title: string;
     /** Naive local timestamp string ('YYYY-MM-DDTHH:mm:ss'), see the pg type parser in db.ts */
@@ -103,37 +112,33 @@ function buildEventTexts(event: EventRow, kind: '30min' | '1hour', language: str
     };
 }
 
-/**
- * Members of the circle who have NOT yet received the given notification
- * (type + related_id), with their preferred language. Optional role filter.
- */
-async function membersToNotify(
-    circleId: string,
-    relatedId: string,
-    type: string,
-    roles?: string[]
-): Promise<MemberRow[]> {
-    const params: unknown[] = [circleId, relatedId, type];
-    let roleFilter = '';
-    if (roles && roles.length > 0) {
-        params.push(roles);
-        roleFilter = `AND cm.role = ANY($4)`;
-    }
+/** All members of the circle with their preferred language. */
+async function circleMembers(circleId: string): Promise<MemberRow[]> {
     const { rows } = await query(
         `SELECT cm.user_id, COALESCE(u.language, 'fr') AS language
          FROM circle_members cm
          JOIN users u ON u.id = cm.user_id
-         WHERE cm.circle_id = $1
-           ${roleFilter}
-           AND NOT EXISTS (
-             SELECT 1 FROM notifications n
-             WHERE n.user_id = cm.user_id
-               AND n.related_id = $2
-               AND n.type = $3
-           )`,
-        params
+         WHERE cm.circle_id = $1`,
+        [circleId]
     );
     return rows as MemberRow[];
+}
+
+/**
+ * Fork, Block E: Vorkommen eines Termins, deren Erinnerungszeitpunkt (Beginn,
+ * mit Hinfahrt die Abfahrt) im Fenster liegt. Einzeltermine liefern hoechstens
+ * eines, Serien jedes passende Vorkommen (Regel und Ausnahmen wie im Kalender,
+ * expandEventOccurrences aus routes/events.ts).
+ */
+function dueOccurrences(event: EventRow, windowStart: Date, windowEnd: Date): Array<{ start: Date; occurrenceDate: string }> {
+    const travelMs = (event.travel_to_minutes ?? 0) * 60 * 1000;
+    const from = new Date(windowStart.getTime() + travelMs);
+    const to = new Date(windowEnd.getTime() + travelMs);
+    return expandEventOccurrences(
+        { start_time: event.start_time, end_time: event.end_time ?? null, rrule: event.rrule ?? null, exceptions: event.exceptions },
+        from,
+        to
+    ).filter((occ) => occ.start.getTime() >= from.getTime() && occ.start.getTime() <= to.getTime());
 }
 
 async function processEventWindow(
@@ -146,37 +151,54 @@ async function processEventWindow(
     const { rows } = await query(
         // Fork: Mit Hinfahrt zählt die Abfahrt (Beginn minus Fahrzeit), sonst der Beginn.
         // Fahrt mit abgehaktem Kästchen „Jemand muss fahren“ zählt nicht.
-        `SELECT e.id, e.circle_id, e.title, e.start_time, e.location,
+        // Fork, Block E: Serien (rrule) kommen alle mit, sofern sie vor dem Fenster
+        // (plus hoechstens einem Tag Fahrzeit) begonnen haben; die Vorkommen
+        // rechnet dueOccurrences aus. Vorher zaehlte nur der erste Termin einer Serie.
+        `SELECT e.id, e.circle_id, e.title, e.start_time, e.end_time, e.location, e.rrule, e.exceptions,
                 CASE WHEN ${TRAVEL_ACTIVE_SQL} THEN e.travel_to_minutes END AS travel_to_minutes,
                 CASE WHEN ${TRAVEL_ACTIVE_SQL} THEN e.driver_to END AS driver_to
          FROM events e
          WHERE e.${flagColumn} = true
-           AND (e.start_time - make_interval(mins => (CASE WHEN ${TRAVEL_ACTIVE_SQL}
-                THEN COALESCE(e.travel_to_minutes, 0) ELSE 0 END)::int)) BETWEEN $1 AND $2`,
+           AND (
+             (e.rrule IS NULL
+              AND (e.start_time - make_interval(mins => (CASE WHEN ${TRAVEL_ACTIVE_SQL}
+                   THEN COALESCE(e.travel_to_minutes, 0) ELSE 0 END)::int)) BETWEEN $1 AND $2)
+             OR (e.rrule IS NOT NULL AND e.start_time <= $2::timestamp + INTERVAL '1 day')
+           )`,
         [toLocalNaive(windowStart), toLocalNaive(windowEnd)]
     );
 
     for (const event of rows as EventRow[]) {
+        const occurrences = dueOccurrences(event, windowStart, windowEnd);
+        if (occurrences.length === 0) continue;
         // Fork: Kalender ausgeschaltet -> keine Termin-Erinnerungen.
         if (!(await featureEnabledForCircle(event.circle_id, 'calendar'))) continue;
-        // Every circle member gets the event reminder; the NOT EXISTS dedup is
-        // per user, so a member added between two ticks still gets notified.
-        const members = await membersToNotify(event.circle_id, event.id, type);
-        for (const member of members) {
-            const { title, body } = buildEventTexts(event, kind, member.language);
-            await createNotification({
-                userId: member.user_id,
-                circleId: event.circle_id,
-                title,
-                message: body,
-                type,
-                relatedId: event.id,
-                url: '/calendar',
-                tag: `reminder-${event.id}-${kind}`,
-            });
-        }
-        if (members.length > 0) {
-            logger.info('reminder.event_sent', { eventId: event.id, type: kind, recipients: members.length });
+        const members = await circleMembers(event.circle_id);
+        for (const occ of occurrences) {
+            // Texte mit der Uhrzeit dieses Vorkommens (auch wenn es verschoben wurde).
+            const occurrence: EventRow = { ...event, start_time: toLocalNaive(occ.start) };
+            let sent = 0;
+            // Every circle member gets the event reminder, once per occurrence
+            // (reminder_log: Termin + Datum des Vorkommens + Person). A member added
+            // between two ticks still gets notified; a double tick sends nothing twice.
+            for (const member of members) {
+                if (!(await claimReminder(type, event.id, occ.occurrenceDate, member.user_id))) continue;
+                const { title, body } = buildEventTexts(occurrence, kind, member.language);
+                await createNotification({
+                    userId: member.user_id,
+                    circleId: event.circle_id,
+                    title,
+                    message: body,
+                    type,
+                    relatedId: event.id,
+                    url: '/calendar',
+                    tag: `reminder-${event.id}-${occ.occurrenceDate}-${kind}`,
+                });
+                sent++;
+            }
+            if (sent > 0) {
+                logger.info('reminder.event_sent', { eventId: event.id, occurrence: occ.occurrenceDate, type: kind, recipients: sent });
+            }
         }
     }
 }
@@ -434,6 +456,18 @@ export function startReminderScheduler(): void {
         }, { timezone: tz });
         void checkBackupStatus();
     }
+
+    // Fork, Block E: Messwert-Erinnerungen, jede Minute (einmal pro Tag und Person)
+    cron.schedule('* * * * *', () => {
+        void checkVitalReminders();
+    }, { timezone: tz });
+
+    // Fork, Block E: alte Eintraege der Erinnerungs-Merkliste taeglich entfernen
+    cron.schedule('20 3 * * *', () => {
+        pruneReminderLog().catch((err) => logger.error('reminder.prune_error', {
+            error: err instanceof Error ? err.message : String(err),
+        }));
+    }, { timezone: tz });
 
     // Prescription renewals: every day at 9:00 (the daily dedup makes it idempotent)
     cron.schedule('0 9 * * *', () => {

@@ -25,7 +25,6 @@
     "stock": "Stock",
     "calendar": "Calendar",
     "appointments": "Appointments",
-    "photos": "Photos",
     "voice": "Voice journal"
   },
   "presence": {
@@ -91,14 +90,6 @@
       "userPlaceholder": "your.username",
       "passwordLabel": "Password (or app password)",
       "passwordPlaceholder": "****"
-    },
-    "immich": {
-      "tagline": "Photo library",
-      "description": "Show random photos from your self-hosted Immich library as the kiosk display background.",
-      "urlLabel": "Instance URL",
-      "urlPlaceholder": "https://immich.mydomain.com",
-      "keyLabel": "API key",
-      "keyPlaceholder": "From Immich > Account settings > API keys"
     },
     "whisper": {
       "name": "Voice transcription (Whisper)",

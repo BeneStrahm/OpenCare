@@ -115,5 +115,29 @@
       "load": "Could not load the emergency sheet.",
       "save": "Saving failed."
     }
+  },
+  "viewPhotos": {
+    "title": "Photos for the tablet",
+    "description": "Your loved one sees these photos in the simple view, calmly changing. At most {{max}} photos. Each photo is made smaller before uploading, and location and other hidden details are removed.",
+    "add": "Add photos",
+    "uploading": "Uploading photos: {{done}} of {{total}}",
+    "count": "{{count}} of {{max}} photos",
+    "full": "There are already {{max}} photos. Delete one to add a new one.",
+    "empty": "No photos uploaded yet.",
+    "alt": "Photo {{number}}",
+    "uploaded_one": "Photo uploaded.",
+    "uploaded_other": "{{count}} photos uploaded.",
+    "deleted": "Photo deleted.",
+    "delete": "Delete",
+    "confirmDelete": "Really delete this photo?",
+    "deleteYes": "Yes, delete",
+    "deleteNo": "No",
+    "errors": {
+      "load": "The photos could not be loaded. Please reload the page.",
+      "upload_one": "One photo could not be uploaded. Please choose another picture, for example a JPEG.",
+      "upload_other": "{{count}} photos could not be uploaded. Please choose other pictures, for example JPEG.",
+      "delete": "The photo could not be deleted. Please try again.",
+      "limit": "At most {{max}} photos. Only as many were uploaded as there was room for."
+    }
   }
 }

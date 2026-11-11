@@ -101,5 +101,19 @@
     "pulse": "Puls"
   },
   "pulseUnit": "/min",
-  "pulseShort": "Puls {{value}}/min"
+  "pulseShort": "Puls {{value}}/min",
+  "reminders": {
+    "title": "Erinnerung zum Messen",
+    "description": "Die betreute Person wird täglich zur gewählten Uhrzeit ans Messen erinnert. Ist 2 Stunden danach noch kein Wert eingetragen, bekommt die Familie einmal einen Hinweis.",
+    "readOnly": "Erinnerungen zum Messen werden von Administratoren und Familie eingestellt.",
+    "statusOn": "Täglich um {{time}} Uhr",
+    "statusOff": "Keine Erinnerung",
+    "enable": "Täglich erinnern",
+    "timeLabel": "Uhrzeit",
+    "noteLabel": "Hinweis (freiwillig), zum Beispiel: vor dem Frühstück",
+    "hint": "Die Erinnerung ist erledigt, sobald heute ein Wert eingetragen ist.",
+    "saved": "Erinnerung gespeichert",
+    "saveError": "Die Erinnerung konnte nicht gespeichert werden. Bitte versuchen Sie es noch einmal.",
+    "timeInvalid": "Bitte geben Sie eine gültige Uhrzeit ein, zum Beispiel 07:30."
+  }
 }

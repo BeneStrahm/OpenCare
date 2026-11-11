@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
-    Copy, Link2, Unlink, LogOut, Mail, Plus, RotateCcw, Ban, Trash2, UserMinus, KeyRound,
+    ClipboardList, Copy, Link2, Unlink, LogOut, Mail, Plus, RotateCcw, Ban, Trash2, UserMinus, KeyRound,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -13,14 +13,16 @@ import {
     Button, Input, Select, Dialog, Badge, useToast,
 } from '../components/ui';
 import { formatDate } from '../lib/utils';
+import { intlLocale } from '../i18n/format';
+import { familyColorStyle } from '../design/colorPresets';
 
-// Demande de reinitialisation de mot de passe en attente (instance sans SMTP :
-// l'administrateur transmet le lien a la personne).
+// Link zum Zuruecksetzen des Passworts, vom Admin erzeugt (E18). Der Admin gibt
+// ihn der Person weiter; 24 Stunden gueltig, einmal nutzbar.
 interface PendingReset {
     id: string;
     user_id: string;
     name: string;
-    email: string;
+    username: string;
     circle_id: string;
     expires_at: string;
     created_at: string;
@@ -38,7 +40,7 @@ interface Member {
     color: string;
     created_at: string;
     name: string;
-    email: string;
+    username?: string;
     avatar_url: string | null;
 }
 
@@ -52,7 +54,7 @@ interface CircleDetail {
 interface Invite {
     id: string;
     token: string;
-    invitee_email: string | null;
+    invitee_username: string | null;
     role: CircleRole;
     status: string;
     expires_at: string;
@@ -263,8 +265,8 @@ const MemberAvatar: React.FC<{ member: Member }> = ({ member }) =>
         />
     ) : (
         <div
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-caption font-semibold text-white"
-            style={{ backgroundColor: member.color || '#3e6b54' }}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-caption font-semibold"
+            style={familyColorStyle(member.color || '#3e6b54')}
             aria-hidden="true"
         >
             {(member.name || '?').charAt(0).toUpperCase()}
@@ -287,7 +289,10 @@ const Circle: React.FC = () => {
     // Invite creation dialog
     const [inviteOpen, setInviteOpen] = useState(false);
     const [inviteRole, setInviteRole] = useState<CircleRole>('family');
-    const [inviteEmail, setInviteEmail] = useState('');
+    const [inviteFirstName, setInviteFirstName] = useState('');
+    const [inviteLastName, setInviteLastName] = useState('');
+    const [inviteError, setInviteError] = useState('');
+    const [resetBusyId, setResetBusyId] = useState<string | null>(null);
     const [inviteDays, setInviteDays] = useState('7');
     const [inviteSaving, setInviteSaving] = useState(false);
 
@@ -355,7 +360,7 @@ const Circle: React.FC = () => {
             }
         } catch (error) {
             console.error('Circle load error:', error);
-            showToast({ title: t('circle:errors.load') });
+            showToast({ variant: 'error', title: t('circle:errors.load') });
         } finally {
             setLoading(false);
         }
@@ -377,13 +382,27 @@ const Circle: React.FC = () => {
 
     const onError = (error: unknown) => {
         const message = error instanceof Error ? error.message : t('circle:errors.action');
-        showToast({ title: t('common:states.error'), description: message });
+        showToast({ variant: 'error', title: t('common:states.error'), description: message });
     };
 
     const copyToClipboard = async (text: string, successTitle: string) => {
         try {
             await navigator.clipboard.writeText(text);
             showToast({ title: successTitle, description: text });
+        } catch (error) {
+            onError(error);
+        }
+    };
+
+    // Anleitung zum Weitergeben: Link und Benutzername stehen im Text.
+    const copyInviteGuide = async (invite: Invite) => {
+        const text = t('circle:invites.guideText', {
+            link: `${window.location.origin}/join?token=${invite.token}`,
+            username: invite.invitee_username ?? '',
+        });
+        try {
+            await navigator.clipboard.writeText(text);
+            showToast({ title: t('circle:invites.guideCopied') });
         } catch (error) {
             onError(error);
         }
@@ -440,21 +459,25 @@ const Circle: React.FC = () => {
 
     const createInvite = async (e: React.FormEvent) => {
         e.preventDefault();
+        setInviteError('');
         setInviteSaving(true);
         try {
             await api.post('/api/invites', {
                 role: inviteRole,
-                invitee_email: inviteEmail.trim() || undefined,
+                first_name: inviteFirstName.trim(),
+                last_name: inviteLastName.trim(),
                 expires_in_days: Number(inviteDays),
             });
             setInviteOpen(false);
-            setInviteEmail('');
+            setInviteFirstName('');
+            setInviteLastName('');
             setInviteRole('family');
             setInviteDays('7');
             showToast({ title: t('circle:invites.created') });
             await loadAll();
         } catch (error) {
-            onError(error);
+            // Meldung im Dialog, z. B. wenn es den Namen schon gibt.
+            setInviteError(error instanceof Error ? error.message : t('circle:errors.action'));
         } finally {
             setInviteSaving(false);
         }
@@ -551,7 +574,20 @@ const Circle: React.FC = () => {
         }
     };
 
-    // ── Mot de passe oublie : remise du lien par l'administrateur ─────────────
+    // ── Passwort vergessen: der Admin erzeugt einen Link und gibt ihn weiter ──
+    const createResetLink = async (member: Member) => {
+        setResetBusyId(member.user_id);
+        try {
+            await api.post('/api/auth/password-resets', { user_id: member.user_id });
+            showToast({ title: t('circle:resets.created'), description: t('circle:resets.createdHint') });
+            await loadAll();
+        } catch (error) {
+            onError(error);
+        } finally {
+            setResetBusyId(null);
+        }
+    };
+
     const copyResetLink = async (reset: PendingReset) => {
         if (!reset.url) return;
         try {
@@ -712,7 +748,11 @@ const Circle: React.FC = () => {
                                             </span>
                                         )}
                                     </p>
-                                    <p className="truncate text-caption text-muted-foreground">{member.email}</p>
+                                    {member.username && (
+                                        <p className="truncate text-caption text-muted-foreground">
+                                            {t('circle:members.username', { username: member.username })}
+                                        </p>
+                                    )}
                                 </div>
                                 {isAdmin ? (
                                     <div className="flex items-center gap-1">
@@ -722,6 +762,17 @@ const Circle: React.FC = () => {
                                             options={roleOptions}
                                             className="h-11 w-44 md:h-10"
                                         />
+                                        {!isSelf && (
+                                            <Button
+                                                variant="secondary"
+                                                size="sm"
+                                                disabled={resetBusyId === member.user_id}
+                                                onClick={() => void createResetLink(member)}
+                                            >
+                                                <KeyRound className="mr-2 h-4 w-4" aria-hidden="true" />
+                                                {t('circle:resets.create')}
+                                            </Button>
+                                        )}
                                         {!isSelf && (
                                             <Button
                                                 variant="ghost"
@@ -755,7 +806,7 @@ const Circle: React.FC = () => {
                 </CardContent>
             </Card>
 
-            {/* Mot de passe oublie : liens a transmettre (instance sans e-mail) */}
+            {/* Passwort vergessen: erzeugte Links zum Weitergeben */}
             {isAdmin && resets.length > 0 && (
                 <Card hover={false} className="border-primary/30">
                     <CardHeader>
@@ -770,7 +821,9 @@ const Circle: React.FC = () => {
                                     <p className="truncate text-body font-medium text-foreground">{reset.name}</p>
                                     <p className="truncate text-caption text-muted-foreground">
                                         {t('circle:resets.expires', {
-                                            time: new Date(reset.expires_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }),
+                                            time: new Date(reset.expires_at).toLocaleString(intlLocale(), {
+                                                weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit',
+                                            }),
                                         })}
                                     </p>
                                 </div>
@@ -1005,7 +1058,7 @@ const Circle: React.FC = () => {
                                                     {t(`circle:roles.${invite.role}`)}
                                                 </Badge>
                                                 <span className="truncate text-caption text-foreground">
-                                                    {invite.invitee_email || t('circle:invites.anyEmail')}
+                                                    {invite.invitee_username}
                                                 </span>
                                             </div>
                                             <p className="mt-0.5 text-micro text-muted-foreground">
@@ -1028,6 +1081,18 @@ const Circle: React.FC = () => {
                                             >
                                                 <Copy className="h-4 w-4" />
                                             </Button>
+                                            {invite.invitee_username && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-11 w-11 md:h-10 md:w-10"
+                                                    aria-label={t('circle:invites.copyGuide')}
+                                                    title={t('circle:invites.copyGuide')}
+                                                    onClick={() => void copyInviteGuide(invite)}
+                                                >
+                                                    <ClipboardList className="h-4 w-4" />
+                                                </Button>
+                                            )}
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
@@ -1119,15 +1184,33 @@ const Circle: React.FC = () => {
                             {t(`circle:roleHints.${inviteRole}`)}
                         </p>
                     </div>
-                    <div>
+                    <div className="space-y-3">
                         <Input
-                            type="email"
-                            label={t('circle:invites.email')}
-                            value={inviteEmail}
-                            onChange={(e) => setInviteEmail(e.target.value)}
-                            placeholder="prenom.nom@exemple.fr"
+                            id="invite-first-name"
+                            label={t('circle:invites.firstName')}
+                            value={inviteFirstName}
+                            onChange={(e) => { setInviteFirstName(e.target.value); setInviteError(''); }}
+                            autoComplete="off"
+                            required
+                            aria-invalid={inviteError ? true : undefined}
+                            aria-describedby={inviteError ? 'invite-error' : undefined}
                         />
-                        <p className="mt-1.5 text-micro text-muted-foreground">{t('circle:invites.emailHint')}</p>
+                        <Input
+                            id="invite-last-name"
+                            label={t('circle:invites.lastName')}
+                            value={inviteLastName}
+                            onChange={(e) => { setInviteLastName(e.target.value); setInviteError(''); }}
+                            autoComplete="off"
+                            required
+                            aria-invalid={inviteError ? true : undefined}
+                            aria-describedby={inviteError ? 'invite-error' : undefined}
+                        />
+                        <p className="text-caption text-muted-foreground">{t('circle:invites.usernameHint')}</p>
+                        {inviteError && (
+                            <div role="alert" className="rounded-input border border-destructive/20 bg-destructive/10 p-3">
+                                <p id="invite-error" className="text-caption font-medium text-destructive">{inviteError}</p>
+                            </div>
+                        )}
                     </div>
                     <div>
                         <label className="mb-1.5 block text-caption font-medium text-foreground">

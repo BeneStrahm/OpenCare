@@ -12,7 +12,7 @@ import { intlLocale } from '../i18n/format';
 // Shape returned by GET /api/invites/info/:token (public endpoint).
 interface InviteInfo {
     role: CircleRole;
-    invitee_email: string | null;
+    invitee_username: string;
     expires_at: string;
     circle_name: string;
     recipient_first_name: string | null;

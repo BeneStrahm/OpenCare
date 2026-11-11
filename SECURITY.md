@@ -47,10 +47,12 @@ You are hosting health data: a few minutes of hardening are worth it.
 - Set a strong `POSTGRES_PASSWORD` (the server refuses to start in production without one).
 - Restrict `CORS_ORIGINS` to trusted frontend domains.
 - Use HTTPS for both app and API in production (also required for web push and the PWA).
-- Set `REGISTRATION_ENABLED=false` once every member of the circle has an account.
-- Configure SMTP as soon as more than one family shares the instance. Without it, a
-  forgotten password is reset through a circle admin, who then holds a link that
-  opens the whole account.
+- Accounts are created only through invitation links, except the very first account
+  on an empty server (it becomes admin). Set it up right after deployment. Accounts
+  have no email address; users sign in with a username (first and last name).
+- A forgotten password is reset with a link that a circle admin creates and hands
+  over (valid 24 hours, single use). The link opens the whole account: pass it on
+  in person or through a safe channel only.
 - Treat magic links (`/care/<token>`), the emergency sheet QR and handover links as
   secrets: share them only with the intended caregivers, set expirations, and revoke
   them when a caregiver stops intervening.

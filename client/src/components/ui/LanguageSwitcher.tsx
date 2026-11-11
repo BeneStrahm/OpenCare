@@ -17,7 +17,7 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ className })
     const handleChange = (lng: string) => {
         // Fire-and-forget server sync; only surface an error toast on failure.
         void changeAppLanguage(lng).then((synced) => {
-            if (!synced) showToast({ title: t('language.syncError') });
+            if (!synced) showToast({ variant: 'error', title: t('language.syncError') });
         });
     };
 

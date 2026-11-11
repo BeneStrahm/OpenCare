@@ -10,7 +10,9 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- ============================================================
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    email VARCHAR(255) UNIQUE NOT NULL,
+    -- Benutzername (E18): Vorname und Nachname, eindeutig ohne Gross-/Kleinschreibung.
+    -- Konten haben keine E-Mail-Adresse.
+    username VARCHAR(255) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
     language VARCHAR(8) NOT NULL DEFAULT 'fr',
@@ -20,6 +22,7 @@ CREATE TABLE users (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE UNIQUE INDEX idx_users_calendar_token ON users(calendar_token);
+CREATE UNIQUE INDEX idx_users_username_lower ON users (LOWER(username));
 
 -- ============================================================
 -- Cercles de soin
@@ -105,7 +108,8 @@ CREATE TABLE circle_invites (
     circle_id UUID NOT NULL REFERENCES care_circles(id) ON DELETE CASCADE,
     created_by UUID REFERENCES users(id) ON DELETE SET NULL,
     token VARCHAR(64) UNIQUE NOT NULL,
-    invitee_email TEXT,
+    -- Benutzername des kuenftigen Kontos, vom Admin beim Einladen gesetzt (E18).
+    invitee_username VARCHAR(255),
     role VARCHAR(20) NOT NULL DEFAULT 'family'
         CHECK (role IN ('admin', 'family', 'professional', 'neighbor', 'recipient')),
     status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'revoked')),

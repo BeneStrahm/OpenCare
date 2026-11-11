@@ -422,6 +422,7 @@ const ShoppingList: React.FC = () => {
                             step="0.1"
                             value={editForm.quantity}
                             onChange={(e) => setEditForm((prev) => ({ ...prev, quantity: e.target.value }))}
+                            error={error === t('shopping:errors.quantityInvalid') ? error : undefined}
                             placeholder="1"
                         />
                         <Input

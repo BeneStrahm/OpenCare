@@ -1685,7 +1685,7 @@ const Calendar: React.FC = () => {
                 {moveTarget && (
                     <form onSubmit={submitMove} className="space-y-4">
                         {error && (
-                            <div className="rounded-input border border-danger/30 bg-danger/10 px-3 py-2 text-caption text-danger">
+                            <div id="move-form-error" role="alert" className="rounded-input border border-danger/30 bg-danger/10 px-3 py-2 text-caption text-danger">
                                 {error}
                             </div>
                         )}
@@ -1699,12 +1699,16 @@ const Calendar: React.FC = () => {
                                 min={format(subDays(parseISO(moveTarget.occurrence_date), MOVE_MAX_DAYS), 'yyyy-MM-dd')}
                                 max={format(addDays(parseISO(moveTarget.occurrence_date), MOVE_MAX_DAYS), 'yyyy-MM-dd')}
                                 onChange={setMoveDate}
+                                invalid={error === t('calendar:errors.startRequired') && !moveDate}
+                                describedBy={error === t('calendar:errors.startRequired') && !moveDate ? 'move-form-error' : undefined}
                             />
                             <DatePicker
                                 label={t('calendar:form.startTime')}
                                 type="time"
                                 value={moveTime}
                                 onChange={setMoveTime}
+                                invalid={error === t('calendar:errors.startRequired') && !moveTime}
+                                describedBy={error === t('calendar:errors.startRequired') && !moveTime ? 'move-form-error' : undefined}
                             />
                         </div>
                         <p className="text-caption text-muted-foreground">
@@ -1739,7 +1743,7 @@ const Calendar: React.FC = () => {
                 <form onSubmit={handleSubmit} className="space-y-4" noValidate>
                     <div role="alert" aria-live="assertive">
                         {error && (
-                            <div className="rounded-input border border-danger/30 bg-danger/10 px-3 py-2 text-body text-danger">
+                            <div id="event-form-error" className="rounded-input border border-danger/30 bg-danger/10 px-3 py-2 text-body text-danger">
                                 {error}
                             </div>
                         )}
@@ -1757,6 +1761,8 @@ const Calendar: React.FC = () => {
                             value={formData.title}
                             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                             required
+                            aria-invalid={error === t('calendar:errors.titleRequired') ? true : undefined}
+                            aria-describedby={error === t('calendar:errors.titleRequired') ? 'event-form-error' : undefined}
                             placeholder={t('calendar:form.titlePlaceholder')}
                         />
                         <Input
@@ -1771,12 +1777,16 @@ const Calendar: React.FC = () => {
                                 label={t('calendar:form.date')}
                                 value={formData.date}
                                 onChange={(value) => setFormData({ ...formData, date: value })}
+                                invalid={error === t('calendar:errors.startRequired') && !formData.date}
+                                describedBy={error === t('calendar:errors.startRequired') && !formData.date ? 'event-form-error' : undefined}
                             />
                             <DatePicker
                                 label={t('calendar:form.startTime')}
                                 type="time"
                                 value={formData.startTime}
                                 onChange={(value) => setFormData({ ...formData, startTime: value })}
+                                invalid={error === t('calendar:errors.startRequired') && !formData.startTime}
+                                describedBy={error === t('calendar:errors.startRequired') && !formData.startTime ? 'event-form-error' : undefined}
                             />
                         </div>
                         <div role="status" aria-live="polite">
@@ -1955,6 +1965,8 @@ const Calendar: React.FC = () => {
                             type="time"
                             value={formData.endTime}
                             onChange={(value) => setFormData({ ...formData, endTime: value })}
+                            invalid={error === t('calendar:errors.endAfterStart')}
+                            describedBy={error === t('calendar:errors.endAfterStart') ? 'event-form-error' : undefined}
                         />
 
                         {/* Simple recurrence */}

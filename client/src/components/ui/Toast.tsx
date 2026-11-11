@@ -9,6 +9,8 @@ interface ToastItem {
     description?: string;
     actionLabel?: string;
     onAction?: () => void;
+    /** 'error': bleibt stehen, bis man die Meldung antippt oder schließt. */
+    variant?: 'error';
 }
 
 interface ToastContextType {
@@ -43,7 +45,8 @@ export const AppToastProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                         onOpenChange={(open: boolean) => {
                             if (!open) removeToast(toast.id);
                         }}
-                        duration={9000}
+                        duration={toast.variant === 'error' ? Infinity : 9000}
+                        onClick={toast.variant === 'error' ? () => removeToast(toast.id) : undefined}
                         className="group pointer-events-auto grid w-full max-w-sm grid-cols-[1fr_auto] items-start gap-3 rounded-card border border-border bg-card p-4 shadow-surface-hover animate-slide-up"
                     >
                         <div>

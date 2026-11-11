@@ -1,19 +1,25 @@
 import { Router } from 'express';
 import bcrypt from 'bcrypt';
-import { query } from '../db';
+import { query, getClient } from '../db';
 import { authMiddleware, AuthRequest, generateToken } from '../middleware/auth';
-import { normalizeEmail } from '../lib/normalize';
+import { buildUsername, normalizeUsername } from '../lib/normalize';
 import { langFromRequest, t } from '../lib/i18n';
 
 const router = Router();
 
-const USER_FIELDS = 'id, email, name, language, avatar_url';
+const USER_FIELDS = 'id, username, name, language, avatar_url, view_color';
 
-// Dummy bcrypt hash (cost 12) generated once at startup. When the email does not
+// Dummy bcrypt hash (cost 12) generated once at startup. When the username does not
 // exist we still run a bcrypt.compare against it so the response time matches the
 // "user found but wrong password" path, removing the account-enumeration timing oracle.
 // Generated at load (rather than hardcoded) to guarantee a well-formed hash.
 const DUMMY_PASSWORD_HASH = bcrypt.hashSync('opencare-timing-equalizer', 12);
+
+const MIN_PASSWORD_LENGTH = 10;
+
+// Sperre fuer die Einrichtung des allerersten Kontos: zwei gleichzeitige Anfragen
+// auf einem leeren Server duerfen nicht beide Administrator werden.
+const BOOTSTRAP_LOCK_KEY = 4180018;
 
 router.get('/me', authMiddleware, async (req: AuthRequest, res) => {
     try {
@@ -32,124 +38,140 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res) => {
     }
 });
 
-// Register. With an inviteToken the new account joins the circle attached to
-// the invite (role chosen by the inviter). Without a token the account starts
-// without any circle: the client then drives the onboarding (create a circle
-// for a cared-for person, or wait for an invitation).
-//
-// Registration is opt-in (secure by default): public sign-up is only open when
-// REGISTRATION_ENABLED === 'true'. Otherwise the endpoint is closed EXCEPT for
-// two cases that must always work: a valid invite token (an invited caregiver
-// must be able to create their account even when public sign-up is off), and the
-// very first account (bootstrap of the initial administrator when the users table
-// is still empty).
+// Leer = keine Konten und kein Kreis. Nach der Voreinrichtung (scripts/voreinrichtung.ts)
+// gibt es noch keine Konten, aber schon den Kreis: dann geht es nur per Einladungslink.
+const NOT_EMPTY_SQL = 'SELECT 1 FROM users UNION ALL SELECT 1 FROM care_circles LIMIT 1';
+
+// Oeffentlich: Ist der Server noch leer? Dann zeigt die Anmeldeseite das Anlegen
+// des ersten Kontos (wird Administrator). Sonst gibt es Konten nur per Einladung.
+router.get('/setup-status', async (_req, res) => {
+    try {
+        const result = await query(NOT_EMPTY_SQL);
+        return res.json({ success: true, data: { firstAccount: result.rows.length === 0 } });
+    } catch (error) {
+        console.error('Setup status error:', error);
+        return res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
+
+// Registrieren (E18), nur in zwei Faellen:
+//  - mit Einladungslink: Benutzername und Rolle kommen aus der Einladung, die
+//    Person waehlt nur ihr Passwort;
+//  - das allererste Konto auf einem leeren Server, mit Vor- und Nachname. Es legt
+//    danach in der Einrichtung den Kreis an und ist dort Administrator.
+// Oeffentliches Registrieren gibt es nicht mehr.
 router.post('/register', async (req, res) => {
     const lang = langFromRequest(req);
+    const { password, inviteToken, firstName, lastName } = req.body ?? {};
+    const hasInviteToken = typeof inviteToken === 'string' && inviteToken.length > 0;
+
+    if (typeof password !== 'string' || password.length === 0) {
+        return res.status(400).json({ success: false, error: t(lang, 'auth.passwordRequired') });
+    }
+    if (password.length < MIN_PASSWORD_LENGTH) {
+        return res.status(400).json({ success: false, error: t(lang, 'auth.passwordTooShort') });
+    }
+
+    const client = await getClient();
     try {
-        const { email, password, name, inviteToken } = req.body;
-        const normalizedEmail = typeof email === 'string' ? normalizeEmail(email) : '';
-        const cleanedName = typeof name === 'string' ? name.trim() : '';
-        const hasInviteToken = typeof inviteToken === 'string' && inviteToken.length > 0;
+        await client.query('BEGIN');
 
-        if (!normalizedEmail || !password || !cleanedName) {
-            return res.status(400).json({ success: false, error: 'Missing required fields' });
-        }
-
-        if (password.length < 10) {
-            return res.status(400).json({ success: false, error: 'Password must be at least 10 characters' });
-        }
-
-        // Opt-in gate: when public registration is closed, allow only an invited
-        // caregiver (validated below) or the bootstrap of the first account.
-        if (!hasInviteToken && process.env.REGISTRATION_ENABLED !== 'true') {
-            const userCount = await query('SELECT 1 FROM users LIMIT 1');
-            const isBootstrap = userCount.rows.length === 0;
-            if (!isBootstrap) {
-                return res.status(403).json({ success: false, error: 'Registration is disabled' });
-            }
-        }
-
-        // Keep the error generic so the endpoint cannot be used to enumerate emails.
-        const existingUser = await query('SELECT id FROM users WHERE LOWER(email) = $1', [normalizedEmail]);
-        if (existingUser.rows.length > 0) {
-            return res.status(400).json({ success: false, error: 'Registration failed' });
-        }
-
-        // Validate the invite BEFORE creating the account so an invalid token
-        // never leaves an orphan user.
+        let username: string;
         let invite: { id: string; circle_id: string; role: string } | null = null;
+
         if (hasInviteToken) {
-            const inviteResult = await query(
-                `SELECT id, circle_id, invitee_email, role FROM circle_invites
-                 WHERE token = $1 AND status = 'pending' AND expires_at > NOW()`,
+            // FOR UPDATE: derselbe Link kann nicht zweimal gleichzeitig eingeloest werden.
+            const inviteResult = await client.query(
+                `SELECT id, circle_id, invitee_username, role FROM circle_invites
+                 WHERE token = $1 AND status = 'pending' AND expires_at > NOW()
+                   AND invitee_username IS NOT NULL
+                 FOR UPDATE`,
                 [inviteToken]
             );
             if (inviteResult.rows.length === 0) {
+                await client.query('ROLLBACK');
                 return res.status(400).json({ success: false, error: t(lang, 'invites.invalidOrExpired') });
             }
-
-            const row = inviteResult.rows[0] as { id: string; circle_id: string; invitee_email: string | null; role: string };
-
-            if (row.invitee_email && normalizeEmail(row.invitee_email) !== normalizedEmail) {
-                return res.status(403).json({ success: false, error: t(lang, 'invites.reservedForOtherEmail') });
-            }
-
+            const row = inviteResult.rows[0] as { id: string; circle_id: string; invitee_username: string; role: string };
+            username = normalizeUsername(row.invitee_username);
             invite = { id: row.id, circle_id: row.circle_id, role: row.role };
+        } else {
+            await client.query('SELECT pg_advisory_xact_lock($1)', [BOOTSTRAP_LOCK_KEY]);
+            const userCount = await client.query(NOT_EMPTY_SQL);
+            if (userCount.rows.length > 0) {
+                await client.query('ROLLBACK');
+                return res.status(403).json({ success: false, error: t(lang, 'auth.registrationClosed') });
+            }
+            const built = buildUsername(firstName, lastName);
+            if (!built) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ success: false, error: t(lang, 'auth.nameRequired') });
+            }
+            username = built;
+        }
+
+        const existingUser = await client.query('SELECT 1 FROM users WHERE LOWER(username) = LOWER($1)', [username]);
+        if (existingUser.rows.length > 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, error: t(lang, 'invites.usernameTaken') });
         }
 
         const password_hash = await bcrypt.hash(password, 12);
 
-        // The account starts in the language the person signed up in (the client
-        // sends its UI language as Accept-Language). Without it the column default
-        // ('fr') would switch an English or Spanish newcomer's screen to French on
-        // first login, and their notifications too.
-        const result = await query(
-            `INSERT INTO users (email, password_hash, name, language) VALUES ($1, $2, $3, $4) RETURNING ${USER_FIELDS}`,
-            [normalizedEmail, password_hash, cleanedName, lang]
+        // Das Konto startet in der Sprache der Anmeldeseite (Accept-Language).
+        // Der Anzeigename ist zunaechst der Benutzername und in den Einstellungen aenderbar.
+        const result = await client.query(
+            `INSERT INTO users (username, password_hash, name, language) VALUES ($1, $2, $1, $3) RETURNING ${USER_FIELDS}`,
+            [username, password_hash, lang]
         );
-
         const user = result.rows[0];
 
-        // The membership role is NEVER taken from the client: it comes from the invite.
+        // Die Rolle kommt NIE vom Client, sondern aus der Einladung.
         if (invite) {
-            await query(
+            await client.query(
                 'INSERT INTO circle_members (circle_id, user_id, role) VALUES ($1, $2, $3) ON CONFLICT (circle_id, user_id) DO NOTHING',
                 [invite.circle_id, user.id, invite.role]
             );
-            await query("UPDATE circle_invites SET status = 'accepted' WHERE id = $1", [invite.id]);
+            await client.query("UPDATE circle_invites SET status = 'accepted' WHERE id = $1", [invite.id]);
         }
 
+        await client.query('COMMIT');
+
         const token = generateToken(user.id);
-        res.json({ success: true, data: { user, token } });
+        return res.json({ success: true, data: { user, token } });
     } catch (error) {
+        await client.query('ROLLBACK').catch(() => undefined);
         console.error('Register error:', error);
-        res.status(500).json({ success: false, error: 'Internal server error' });
+        return res.status(500).json({ success: false, error: 'Internal server error' });
+    } finally {
+        client.release();
     }
 });
 
-// Login
+// Anmelden mit Benutzername (Vorname Nachname) und Passwort.
 router.post('/login', async (req, res) => {
+    const lang = langFromRequest(req);
     try {
-        const { email, password } = req.body;
-        const normalizedEmail = typeof email === 'string' ? normalizeEmail(email) : '';
+        const { username, password } = req.body ?? {};
+        const cleanedUsername = typeof username === 'string' ? normalizeUsername(username) : '';
 
-        if (!normalizedEmail || !password) {
-            return res.status(400).json({ success: false, error: 'Missing required fields' });
+        if (!cleanedUsername || typeof password !== 'string' || !password) {
+            return res.status(400).json({ success: false, error: t(lang, 'auth.loginMissing') });
         }
 
-        const result = await query('SELECT * FROM users WHERE LOWER(email) = $1', [normalizedEmail]);
+        const result = await query('SELECT * FROM users WHERE LOWER(username) = LOWER($1)', [cleanedUsername]);
         if (result.rows.length === 0) {
             // Equalize the response time with the "wrong password" path so the
-            // endpoint cannot be used to enumerate emails by timing.
-            await bcrypt.compare(typeof password === 'string' ? password : '', DUMMY_PASSWORD_HASH);
-            return res.status(401).json({ success: false, error: 'Invalid credentials' });
+            // endpoint cannot be used to enumerate usernames by timing.
+            await bcrypt.compare(password, DUMMY_PASSWORD_HASH);
+            return res.status(401).json({ success: false, error: t(lang, 'auth.invalidCredentials') });
         }
 
         const user = result.rows[0];
         const isValid = await bcrypt.compare(password, user.password_hash);
 
         if (!isValid) {
-            return res.status(401).json({ success: false, error: 'Invalid credentials' });
+            return res.status(401).json({ success: false, error: t(lang, 'auth.invalidCredentials') });
         }
 
         const token = generateToken(user.id);
@@ -159,7 +181,7 @@ router.post('/login', async (req, res) => {
             data: {
                 user: {
                     id: user.id,
-                    email: user.email,
+                    username: user.username,
                     name: user.name,
                     language: user.language || 'fr',
                     avatar_url: user.avatar_url ?? null,

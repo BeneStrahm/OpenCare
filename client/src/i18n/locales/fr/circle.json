@@ -68,28 +68,32 @@
     "leave": "Quitter le cercle",
     "leaveTitle": "Quitter le cercle",
     "leaveConfirm": "Vous n'aurez plus accès aux informations de ce cercle. Un administrateur devra vous inviter de nouveau pour y revenir.",
-    "left": "Vous avez quitté le cercle"
+    "left": "Vous avez quitté le cercle",
+    "username": "Nom d'utilisateur : {{username}}"
   },
   "invites": {
     "title": "Invitations",
-    "subtitle": "Invitez la fratrie, un professionnel ou un voisin à rejoindre le cercle avec un compte.",
+    "subtitle": "Invitez la famille, un professionnel ou des amis à rejoindre le cercle avec un compte.",
     "empty": "Aucune invitation en attente.",
     "create": "Inviter quelqu'un",
     "dialogTitle": "Nouvelle invitation",
-    "dialogDescription": "La personne crée un compte (ou se connecte) avec ce lien et rejoint le cercle avec le rôle choisi.",
+    "dialogDescription": "La personne ouvre le lien, choisit son mot de passe et rejoint le cercle avec le rôle choisi.",
     "role": "Rôle",
-    "email": "Adresse e-mail (facultatif)",
-    "emailHint": "Si renseignée, seule cette adresse pourra accepter l'invitation.",
+    "firstName": "Prénom",
+    "lastName": "Nom",
+    "usernameHint": "Le prénom et le nom forment le nom d'utilisateur avec lequel la personne se connecte.",
     "duration": "Validité du lien",
     "days_7": "7 jours",
     "days_14": "14 jours",
     "days_30": "30 jours",
     "submit": "Créer l'invitation",
     "created": "Invitation créée",
-    "anyEmail": "Lien ouvert, sans adresse imposée",
     "expiresOn": "Expire le {{date}}",
     "copy": "Copier le lien",
     "copied": "Lien d'invitation copié",
+    "copyGuide": "Copier le texte",
+    "guideCopied": "Instructions avec le lien et le nom d'utilisateur copiées",
+    "guideText": "Comment accéder à l'application de soins :\n\n1. Ouvrez ce lien : {{link}}\n2. Choisissez un mot de passe. Conservez-le en lieu sûr.\n3. Connectez-vous avec votre nom d'utilisateur et votre mot de passe. Votre nom d'utilisateur : {{username}}\n4. Placez l'application sur l'écran d'accueil : ouvrez le menu du navigateur et choisissez « Ajouter à l'écran d'accueil ».\n5. Mot de passe oublié ? Adressez-vous à l'administrateur qui vous a invité. Vous recevrez un nouveau lien.",
     "revoke": "Révoquer",
     "revoked": "Invitation révoquée"
   },
@@ -182,12 +186,15 @@
     "action": "L'opération a échoué."
   },
   "resets": {
-    "title": "Mots de passe oubliés",
-    "subtitle": "Ces membres ont demandé une réinitialisation. Transmettez-leur le lien de vive voix ou par un canal sûr : il est valable une heure et ne sert qu'une fois.",
-    "expires": "Lien valable jusqu'à {{time}}",
+    "title": "Liens de réinitialisation du mot de passe",
+    "subtitle": "Transmettez le lien à la personne de vive voix ou par un canal sûr. Il est valable 24 heures et ne sert qu'une fois.",
+    "expires": "Lien valable jusqu'au {{time}}",
     "copy": "Copier le lien",
     "copied": "Lien copié",
-    "cancel": "Annuler la demande",
-    "cancelled": "Demande annulée"
+    "cancel": "Rendre le lien invalide",
+    "cancelled": "Lien rendu invalide",
+    "create": "Lien mot de passe",
+    "created": "Lien créé",
+    "createdHint": "Vous le trouverez plus bas, sous Liens de réinitialisation du mot de passe. Copiez-le et transmettez-le à la personne."
   }
 }

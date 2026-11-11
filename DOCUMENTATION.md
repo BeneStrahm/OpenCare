@@ -99,7 +99,7 @@ Toutes les routes (sauf mention contraire) exigent un JWT (`Authorization: Beare
 
 ### Authentification et compte (`/api/auth`)
 
-- `POST /api/auth/register` : création de compte (désactivable via `REGISTRATION_ENABLED=false`).
+- `POST /api/auth/register` : création de compte, uniquement avec un jeton d'invitation (le nom d'utilisateur vient de l'invitation), sauf le tout premier compte d'un serveur vide (prénom et nom). `GET /api/auth/setup-status` indique si le serveur est vide.
 - `POST /api/auth/login`, `POST /api/auth/refresh`, `GET /api/auth/me`, `PUT /api/auth/profile`, `PUT /api/auth/language`.
 
 ### Cercles de soin (`/api/circles`)
@@ -233,7 +233,7 @@ Le compteur de messages non lus est réel : `GET /api/messages/unread` renvoie l
 
 L'interface existe en **français, anglais et espagnol**. Les langues sont découvertes depuis les dossiers de `client/src/i18n/locales/` : déposer un dossier `<code>/` suffit pour qu'une langue apparaisse dans le sélecteur, et une traduction partielle retombe sur l'anglais clé par clé. L'attribut `lang` du document suit la langue choisie, pour que les lecteurs d'écran prononcent correctement.
 
-Le serveur parle les mêmes trois langues pour tout ce qu'il écrit lui-même : messages d'erreur, notifications et push (rappels, mesure hors plage, visites, escalade, absence de signe de vie), e-mail de mot de passe oublié, réponses du compagnon « Demandez-moi » et synthèse hebdomadaire. Chaque membre reçoit ses notifications dans la langue de son compte, que le client enregistre par `PUT /api/auth/language` (`fr`, `en` ou `es`). Le mode Kiosk suit la langue réglée sur la tablette, y compris pour la voix de synthèse et la dictée. La synthèse hebdomadaire, écrite une fois pour tout le cercle, prend la langue la plus fréquente chez les administrateurs et la famille, celle du créateur du cercle en cas d'égalité.
+Le serveur parle les mêmes trois langues pour tout ce qu'il écrit lui-même : messages d'erreur, notifications et push (rappels, mesure hors plage, visites, escalade, absence de signe de vie), réponses du compagnon « Demandez-moi » et synthèse hebdomadaire. Chaque membre reçoit ses notifications dans la langue de son compte, que le client enregistre par `PUT /api/auth/language` (`fr`, `en` ou `es`). Le mode Kiosk suit la langue réglée sur la tablette, y compris pour la voix de synthèse et la dictée. La synthèse hebdomadaire, écrite une fois pour tout le cercle, prend la langue la plus fréquente chez les administrateurs et la famille, celle du créateur du cercle en cas d'égalité.
 
 Côté serveur, les messages vivent dans `server/src/lib/i18n.ts`, dont un test vérifie que les trois langues ont les mêmes clés et les mêmes variables. Les phrases construites dans le code passent par `pick(lang, { fr, en, es })`, dont le type impose les trois variantes : ajouter une langue fera échouer la compilation à chaque phrase oubliée, au lieu de retomber en silence sur le français.
 
@@ -414,8 +414,8 @@ OpenCare manipule des **données de santé** : la prudence prime à chaque couch
 | **Isolation par cercle** | Chaque requête vérifie l'appartenance au cercle et le rôle du membre ; les liens magiques ont une portée réduite et révocable |
 | **Appareils patient** | La tablette et le téléphone du proche ont un token d'appareil (appairage par code à usage unique) qui n'atteint que les écrans patient, révocable à tout moment ; un code aidant protège les réglages et la sortie de l'écran |
 | **En-têtes HTTP** | helmet, avec une CSP dédiée quand le serveur sert aussi le client (`SERVE_CLIENT_DIR`) ; le nginx de l'image Docker du client envoie la même politique (`client/nginx.conf`), seul `connect-src` y est élargi parce que l'adresse de l'API (`VITE_API_URL`) n'y est pas connue |
-| **Anti brute-force** | Rate limiting sur `/api/auth/login`, `/api/auth/register` et `/api/auth/forgot-password` (fenêtre et plafond configurables) |
-| **Mot de passe oublié** | Jeton aléatoire de 256 bits, stocké haché (SHA-256), valable une heure, à usage unique ; réponse identique que le compte existe ou non ; sans SMTP, remise du lien par un administrateur de **tous** les cercles de la personne (le lien ouvre tout le compte : l'admin d'un seul cercle partagé ne le voit pas, `server/src/lib/resetRelay.ts`) ; toutes les sessions ouvertes sont fermées après le changement, et la personne est prévenue sur ses appareils |
+| **Anti brute-force** | Rate limiting sur `/api/auth/login` et `/api/auth/register` (fenêtre et plafond configurables) |
+| **Mot de passe oublié** | Lien créé par un administrateur (`POST /api/auth/password-resets`), jeton aléatoire de 256 bits, stocké haché (SHA-256), valable 24 heures, à usage unique ; seul un administrateur de **tous** les cercles de la personne peut le créer (le lien ouvre tout le compte : l'admin d'un seul cercle partagé ne le voit pas, `server/src/lib/resetRelay.ts`) ; toutes les sessions ouvertes sont fermées après le changement, et la personne est prévenue sur ses appareils |
 | **CORS** | Origines strictes configurables (`CORS_ORIGINS`) |
 | **Secrets** | Clés IA et identifiants d'intégrations chiffrés au repos (AES-256-GCM), jamais renvoyés au navigateur |
 | **Fichiers et import** | Documents, photos et pièces jointes sont des data URL en base, limitées aux images matricielles et au PDF (pas de SVG). L'import (`/api/data/import`) applique exactement les mêmes règles (`server/src/lib/dataUrls.ts`) et n'attribue un contenu qu'à un membre du cercle importé |

@@ -297,6 +297,7 @@ export const MagicInputButton: React.FC = () => {
             reset();
         } else if (added > 0) {
             showToast({
+                variant: 'error',
                 title: t('ai:magic.partialTitle'),
                 description: t('ai:magic.partialDescription', { added, failed }),
             });

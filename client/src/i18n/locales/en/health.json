@@ -101,5 +101,19 @@
     "pulse": "Pulse"
   },
   "pulseUnit": "/min",
-  "pulseShort": "Pulse {{value}}/min"
+  "pulseShort": "Pulse {{value}}/min",
+  "reminders": {
+    "title": "Measurement reminder",
+    "description": "The care recipient is reminded to measure every day at the chosen time. If no value has been recorded 2 hours later, the family gets one notice.",
+    "readOnly": "Measurement reminders are set by administrators and family.",
+    "statusOn": "Daily at {{time}}",
+    "statusOff": "No reminder",
+    "enable": "Remind daily",
+    "timeLabel": "Time",
+    "noteLabel": "Note (optional), for example: before breakfast",
+    "hint": "The reminder is done as soon as a value is recorded today.",
+    "saved": "Reminder saved",
+    "saveError": "The reminder could not be saved. Please try again.",
+    "timeInvalid": "Please enter a valid time, for example 07:30."
+  }
 }

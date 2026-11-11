@@ -45,8 +45,14 @@ export const RECIPIENT_ALLOWED_REQUESTS: Array<{ method: 'GET' | 'POST' | 'PUT';
     { method: 'GET', path: /^\/api\/contacts$/ },
     { method: 'GET', path: /^\/api\/visits$/ },
     { method: 'GET', path: /^\/api\/heatwave$/ },
+    // Block D: Notfallblatt zum Lesen (dieselben Angaben wie der QR-Code am Kuehlschrank)
+    { method: 'GET', path: /^\/api\/emergency\/payload$/ },
+    // Block D: Fotos der Familie im Wechsel (nur ansehen)
+    { method: 'GET', path: new RegExp(`^/api/view-photos(/${SEGMENT})?$`) },
+    // Block E: offene Messwert-Erinnerungen von heute (nur Art und Uhrzeit, keine Werte)
+    { method: 'GET', path: /^\/api\/vitals\/reminders\/today$/ },
     // "Fragen Sie mich": nur die festen Fragen, Antwort ohne KI aus den eigenen Daten
-    // (FIXED_QUESTIONS in routes/companion.ts). Keine freie Eingabe (/message bleibt gesperrt).
+    // (FIXED_QUESTIONS in routes/companion.ts). Keine freie Eingabe.
     { method: 'GET', path: /^\/api\/companion\/answer\/(medications|visitors|appointments|week|date|contacts)$/ },
 ];
 

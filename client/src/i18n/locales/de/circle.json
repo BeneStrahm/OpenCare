@@ -68,28 +68,32 @@
     "leave": "Kreis verlassen",
     "leaveTitle": "Kreis verlassen",
     "leaveConfirm": "Sie haben dann keinen Zugriff mehr auf die Informationen dieses Kreises. Ein Administrator muss Sie neu einladen.",
-    "left": "Sie haben den Kreis verlassen"
+    "left": "Sie haben den Kreis verlassen",
+    "username": "Benutzername: {{username}}"
   },
   "invites": {
     "title": "Einladungen",
-    "subtitle": "Laden Sie Geschwister, eine Fachkraft oder Nachbarn ein, dem Kreis mit einem Konto beizutreten.",
+    "subtitle": "Laden Sie Familie, eine Fachkraft oder Freunde ein, dem Kreis mit einem Konto beizutreten.",
     "empty": "Keine offene Einladung.",
     "create": "Jemanden einladen",
     "dialogTitle": "Neue Einladung",
-    "dialogDescription": "Die Person legt mit diesem Link ein Konto an (oder meldet sich an) und tritt dem Kreis mit der gewählten Rolle bei.",
+    "dialogDescription": "Die Person öffnet den Link, wählt ihr Passwort und tritt dem Kreis mit der gewählten Rolle bei.",
     "role": "Rolle",
-    "email": "E-Mail-Adresse (optional)",
-    "emailHint": "Wenn angegeben, kann nur diese Adresse die Einladung annehmen.",
+    "firstName": "Vorname",
+    "lastName": "Nachname",
+    "usernameHint": "Vorname und Nachname ergeben den Benutzernamen, mit dem sich die Person anmeldet.",
     "duration": "Gültigkeit des Links",
     "days_7": "7 Tage",
     "days_14": "14 Tage",
     "days_30": "30 Tage",
     "submit": "Einladung erstellen",
     "created": "Einladung erstellt",
-    "anyEmail": "Offener Link, keine E-Mail nötig",
     "expiresOn": "Läuft ab am {{date}}",
     "copy": "Link kopieren",
     "copied": "Einladungslink kopiert",
+    "copyGuide": "Text kopieren",
+    "guideCopied": "Anleitung mit Link und Benutzername kopiert",
+    "guideText": "So kommen Sie in die Pflege-App:\n\n1. Öffnen Sie diesen Link: {{link}}\n2. Wählen Sie ein Passwort. Bewahren Sie es gut auf.\n3. Melden Sie sich mit Ihrem Benutzernamen und dem Passwort an. Ihr Benutzername: {{username}}\n4. Legen Sie die App auf den Startbildschirm: Öffnen Sie im Browser das Menü und wählen Sie „Zum Startbildschirm hinzufügen“.\n5. Passwort vergessen? Wenden Sie sich an den Administrator, der Sie eingeladen hat. Sie bekommen dann einen neuen Link.",
     "revoke": "Widerrufen",
     "revoked": "Einladung widerrufen"
   },
@@ -182,12 +186,15 @@
     "action": "Der Vorgang ist fehlgeschlagen."
   },
   "resets": {
-    "title": "Vergessene Passwörter",
-    "subtitle": "Diese Mitglieder haben ein neues Passwort angefordert. Geben Sie ihnen den Link persönlich oder auf einem sicheren Weg. Er ist eine Stunde gültig und kann nur einmal verwendet werden.",
+    "title": "Links zum Zurücksetzen des Passworts",
+    "subtitle": "Geben Sie den Link der Person persönlich oder auf einem sicheren Weg. Er ist 24 Stunden gültig und kann nur einmal verwendet werden.",
     "expires": "Link gültig bis {{time}}",
     "copy": "Link kopieren",
     "copied": "Link kopiert",
-    "cancel": "Anfrage abbrechen",
-    "cancelled": "Anfrage abgebrochen"
+    "cancel": "Link ungültig machen",
+    "cancelled": "Link ungültig gemacht",
+    "create": "Passwort-Link",
+    "created": "Link erstellt",
+    "createdHint": "Sie finden ihn unten unter Links zum Zurücksetzen des Passworts. Kopieren Sie ihn und geben Sie ihn der Person."
   }
 }

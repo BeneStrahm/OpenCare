@@ -66,7 +66,10 @@ const BLOCKED: Array<[string, string]> = [
     ['GET', '/api/digests'],
     ['GET', '/api/insights'],
     ['GET', '/api/emergency/sheet'],
-    ['GET', '/api/emergency/payload'],
+    // Block D: Fotos verwalten nur Familie und Admin.
+    ['POST', '/api/view-photos'],
+    ['DELETE', '/api/view-photos/foto-1'],
+    ['GET', '/api/view-photos/foto-1/extra'],
     ['GET', '/api/invites'],
     ['GET', '/api/caregiver-links'],
     ['GET', '/api/integrations'],
@@ -137,6 +140,10 @@ const ALLOWED: Array<[string, string]> = [
     ['GET', '/api/companion/answer/week'],
     ['GET', '/api/companion/answer/date'],
     ['GET', '/api/companion/answer/contacts'],
+    // Block D: Notfallblatt lesen, Fotos ansehen
+    ['GET', '/api/emergency/payload'],
+    ['GET', '/api/view-photos'],
+    ['GET', '/api/view-photos/foto-1'],
 ];
 
 describe('recipient: gesperrte Bereiche (403 auf dem Server)', () => {

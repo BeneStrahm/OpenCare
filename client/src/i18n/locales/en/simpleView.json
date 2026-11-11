@@ -65,7 +65,9 @@
     "fontXL": "Extra large",
     "title": "Settings",
     "language": "Language",
-    "close": "Close"
+    "close": "Close",
+    "color": "Colour",
+    "colorError": "The colour could not be saved. Please check the internet connection and try again."
   },
   "header": {
     "settings": "Settings",
@@ -79,5 +81,36 @@
     "hint": "You will need your password to come back in.",
     "yes": "Yes, log out",
     "no": "No, stay here"
+  },
+  "vitals": {
+    "glucose": "Please measure your blood sugar today.",
+    "weight": "Please weigh yourself today."
+  },
+  "emergency": {
+    "button": "Emergency sheet",
+    "close": "Close",
+    "error": "The emergency sheet could not be loaded. Please check the internet connection."
+  },
+  "review": {
+    "title": "Your day",
+    "praise1": "You did well today. Have a lovely evening!",
+    "praise2": "A good day is coming to an end. You managed everything nicely.",
+    "praise3": "Well done today. Now have a good rest.",
+    "open": "There is still something left for today. No hurry, you will find it on this page."
+  },
+  "photos": {
+    "title": "Photos from the family",
+    "alt": "Photo {{number}} of {{total}}",
+    "next": "Next photo"
+  },
+  "colors": {
+    "blue": "Blue",
+    "teal": "Teal",
+    "green": "Green",
+    "purple": "Violet",
+    "berry": "Berry",
+    "terracotta": "Terracotta",
+    "brown": "Brown",
+    "slate": "Slate grey"
   }
 }

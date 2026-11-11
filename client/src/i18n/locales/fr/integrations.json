@@ -25,7 +25,6 @@
     "stock": "Stock",
     "calendar": "Calendrier",
     "appointments": "Rendez-vous",
-    "photos": "Photos",
     "voice": "Journal vocal"
   },
   "presence": {
@@ -91,14 +90,6 @@
       "userPlaceholder": "votre.identifiant",
       "passwordLabel": "Mot de passe (ou app password)",
       "passwordPlaceholder": "****"
-    },
-    "immich": {
-      "tagline": "Photothèque",
-      "description": "Affichez des photos aléatoires de votre bibliothèque Immich auto-hébergée en fond du mode kiosque.",
-      "urlLabel": "URL de l'instance",
-      "urlPlaceholder": "https://immich.mondomaine.com",
-      "keyLabel": "Clé API",
-      "keyPlaceholder": "Depuis Immich > Paramètres du compte > Clés API"
     },
     "whisper": {
       "name": "Transcription vocale (Whisper)",

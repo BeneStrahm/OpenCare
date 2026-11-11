@@ -15,6 +15,10 @@ interface SelectProps {
     ariaLabel?: string;
     /** Gesperrt: Wert wird angezeigt, kann aber nicht geändert werden. */
     disabled?: boolean;
+    /** Feld hat einen Fehler (aria-invalid). */
+    invalid?: boolean;
+    /** ID der Fehlermeldung oder eines Hinweises (aria-describedby). */
+    describedBy?: string;
 }
 
 const EMPTY_SELECT_VALUE = '__of_empty_value__';
@@ -31,6 +35,8 @@ export const Select: React.FC<SelectProps> = ({
     icon,
     ariaLabel,
     disabled,
+    invalid,
+    describedBy,
 }) => {
     return (
         <SelectPrimitive.Root
@@ -40,6 +46,8 @@ export const Select: React.FC<SelectProps> = ({
         >
             <SelectPrimitive.Trigger
                 aria-label={ariaLabel}
+                aria-invalid={invalid || undefined}
+                aria-describedby={describedBy}
                 className={cn(
                     'input-nexus flex items-center justify-between py-0 text-caption disabled:cursor-not-allowed disabled:bg-surface-2',
                     className

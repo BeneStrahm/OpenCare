@@ -44,10 +44,7 @@ export interface TodaySnapshot {
     members: TodayMember[];
     visits_today: VisitRow[];
     active_visit: VisitRow | null;
-    photos_enabled: boolean;
     heatwave: { active: true; level: string } | null;
-    /** L'IA du cercle est configuree et le compagnon active : conversation libre possible. */
-    companion_enabled: boolean;
 }
 
 /** Wichtige Kontakte; die betreute Person sieht in der einfachen Ansicht dieselben (routes/contacts.ts). */
@@ -61,7 +58,7 @@ export async function loadTodaySnapshot(circleId: string, now: Date = new Date()
     // (they used to be generated only by the Medications page).
     await ensureTodayIntakes(circleId);
 
-    const [recipientResult, eventsResult, membersResult, intakesResult, immichResult, heatwaveResult, companionResult, contactsResult, visitsResult] = await Promise.all([
+    const [recipientResult, eventsResult, membersResult, intakesResult, heatwaveResult, contactsResult, visitsResult] = await Promise.all([
         query('SELECT first_name, last_name, photo_url, address, phone FROM care_recipients WHERE circle_id = $1', [circleId]),
         // Candidate events: anything overlapping today, plus every recurring
         // event started before tonight (expanded below).
@@ -87,13 +84,7 @@ export async function loadTodaySnapshot(circleId: string, now: Date = new Date()
              ORDER BY i.due_at, m.name`,
             [circleId]
         ),
-        query(`SELECT 1 FROM integrations WHERE circle_id = $1 AND type = 'immich' LIMIT 1`, [circleId]),
         query(`SELECT level FROM heatwave_settings WHERE circle_id = $1 AND enabled = TRUE AND active = TRUE`, [circleId]),
-        query(
-            `SELECT 1 FROM ai_settings
-             WHERE circle_id = $1 AND enabled = TRUE AND companion_enabled = TRUE AND model <> ''`,
-            [circleId]
-        ),
         query(
             `SELECT id, name, category, phone, organization
              FROM contacts
@@ -157,8 +148,6 @@ export async function loadTodaySnapshot(circleId: string, now: Date = new Date()
         members: Array.from(membersById.values()),
         visits_today: visitsToday,
         active_visit: visitsToday.find((v) => !v.checked_out_at) ?? null,
-        photos_enabled: immichResult.rows.length > 0,
         heatwave: heatwaveResult.rows[0] ? { active: true, level: heatwaveResult.rows[0].level as string } : null,
-        companion_enabled: companionResult.rows.length > 0,
     };
 }

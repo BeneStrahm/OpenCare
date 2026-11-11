@@ -198,7 +198,7 @@ const ConsultationDetail: React.FC = () => {
 
     const fail = (error: unknown) => {
         console.error('Consultation action failed:', error);
-        showToast({ title: t('consultations:detail.actionError') });
+        showToast({ variant: 'error', title: t('consultations:detail.actionError') });
     };
 
     const run = async (fn: () => Promise<unknown>, successTitle?: string) => {

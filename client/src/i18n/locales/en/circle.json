@@ -68,28 +68,32 @@
     "leave": "Leave the circle",
     "leaveTitle": "Leave the circle",
     "leaveConfirm": "You will no longer have access to this circle's information. An administrator will have to invite you again.",
-    "left": "You have left the circle"
+    "left": "You have left the circle",
+    "username": "Username: {{username}}"
   },
   "invites": {
     "title": "Invitations",
-    "subtitle": "Invite siblings, a professional or a neighbour to join the circle with an account.",
+    "subtitle": "Invite family, a professional or friends to join the circle with an account.",
     "empty": "No pending invitation.",
     "create": "Invite someone",
     "dialogTitle": "New invitation",
-    "dialogDescription": "The person creates an account (or signs in) with this link and joins the circle with the chosen role.",
+    "dialogDescription": "The person opens the link, chooses a password and joins the circle with the chosen role.",
     "role": "Role",
-    "email": "Email address (optional)",
-    "emailHint": "If set, only this address will be able to accept the invitation.",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "usernameHint": "First and last name make up the username the person signs in with.",
     "duration": "Link validity",
     "days_7": "7 days",
     "days_14": "14 days",
     "days_30": "30 days",
     "submit": "Create the invitation",
     "created": "Invitation created",
-    "anyEmail": "Open link, no email required",
     "expiresOn": "Expires on {{date}}",
     "copy": "Copy link",
     "copied": "Invitation link copied",
+    "copyGuide": "Copy text",
+    "guideCopied": "Instructions with link and username copied",
+    "guideText": "How to get into the care app:\n\n1. Open this link: {{link}}\n2. Choose a password. Keep it in a safe place.\n3. Sign in with your username and password. Your username: {{username}}\n4. Put the app on your home screen: open the browser menu and choose \"Add to Home screen\".\n5. Forgot your password? Contact the administrator who invited you. You will get a new link.",
     "revoke": "Revoke",
     "revoked": "Invitation revoked"
   },
@@ -182,12 +186,15 @@
     "action": "The operation failed."
   },
   "resets": {
-    "title": "Forgotten passwords",
-    "subtitle": "These members asked for a password reset. Hand them the link in person or through a safe channel: it is valid for one hour and can only be used once.",
+    "title": "Password reset links",
+    "subtitle": "Hand the link to the person in person or through a safe channel. It is valid for 24 hours and can only be used once.",
     "expires": "Link valid until {{time}}",
     "copy": "Copy link",
     "copied": "Link copied",
-    "cancel": "Cancel request",
-    "cancelled": "Request cancelled"
+    "cancel": "Invalidate link",
+    "cancelled": "Link invalidated",
+    "create": "Password link",
+    "created": "Link created",
+    "createdHint": "You will find it below under Password reset links. Copy it and pass it on to the person."
   }
 }

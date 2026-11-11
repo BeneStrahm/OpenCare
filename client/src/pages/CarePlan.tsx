@@ -69,7 +69,7 @@ const CarePlan: React.FC = () => {
             const res = await api.get<{ success: boolean; data: CarePlanData }>('/api/care-plan');
             if (res.success) setData(res.data);
         } catch {
-            showToast({ title: t('careplan:errors.load') });
+            showToast({ variant: 'error', title: t('careplan:errors.load') });
         } finally {
             setLoading(false);
         }
@@ -93,7 +93,7 @@ const CarePlan: React.FC = () => {
                 setEditing(null);
             }
         } catch {
-            showToast({ title: t('careplan:errors.save') });
+            showToast({ variant: 'error', title: t('careplan:errors.save') });
         } finally {
             setSaving(false);
         }

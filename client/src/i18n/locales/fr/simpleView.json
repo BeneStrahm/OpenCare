@@ -65,7 +65,9 @@
     "fontXL": "Très grand",
     "title": "Réglages",
     "language": "Langue",
-    "close": "Fermer"
+    "close": "Fermer",
+    "color": "Couleur",
+    "colorError": "La couleur n'a pas pu être enregistrée. Vérifiez la connexion Internet et réessayez."
   },
   "header": {
     "settings": "Réglages",
@@ -79,5 +81,36 @@
     "hint": "Ensuite, il faudra votre mot de passe pour revenir.",
     "yes": "Oui, me déconnecter",
     "no": "Non, rester ici"
+  },
+  "vitals": {
+    "glucose": "Pensez à mesurer votre glycémie aujourd'hui.",
+    "weight": "Pensez à vous peser aujourd'hui."
+  },
+  "emergency": {
+    "button": "Fiche d'urgence",
+    "close": "Fermer",
+    "error": "La fiche d'urgence n'a pas pu être chargée. Vérifiez la connexion Internet."
+  },
+  "review": {
+    "title": "Votre journée",
+    "praise1": "Vous avez bien fait les choses aujourd'hui. Belle soirée !",
+    "praise2": "Une belle journée se termine. Vous avez tout très bien réussi.",
+    "praise3": "Très bien aujourd'hui. Reposez-vous bien maintenant.",
+    "open": "Il reste encore quelque chose pour aujourd'hui. Sans vous presser, vous le trouverez sur cette page."
+  },
+  "photos": {
+    "title": "Photos de la famille",
+    "alt": "Photo {{number}} sur {{total}}",
+    "next": "Photo suivante"
+  },
+  "colors": {
+    "blue": "Bleu",
+    "teal": "Bleu canard",
+    "green": "Vert",
+    "purple": "Violet",
+    "berry": "Framboise",
+    "terracotta": "Terre cuite",
+    "brown": "Brun",
+    "slate": "Gris ardoise"
   }
 }

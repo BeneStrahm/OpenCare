@@ -84,6 +84,5 @@
     "medication_stock_other": "{{count}} medicamentos casi agotados",
     "stockLeft_one": "{{name}} (queda {{count}})",
     "stockLeft_other": "{{name}} (quedan {{count}})"
-  },
-  "openAskMe": "Pregúntame"
+  }
 }

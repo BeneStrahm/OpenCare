@@ -19,6 +19,7 @@ const ResetPassword: React.FC = () => {
     const [checking, setChecking] = useState(true);
     const [valid, setValid] = useState(false);
     const [name, setName] = useState<string | null>(null);
+    const [username, setUsername] = useState<string | null>(null);
     const [password, setPassword] = useState('');
     const [confirm, setConfirm] = useState('');
     const [error, setError] = useState('');
@@ -31,11 +32,12 @@ const ResetPassword: React.FC = () => {
             return;
         }
         let mounted = true;
-        api.get<{ success: boolean; data: { valid: boolean; name?: string } }>(`/api/auth/reset-password/${token}`)
+        api.get<{ success: boolean; data: { valid: boolean; name?: string; username?: string } }>(`/api/auth/reset-password/${token}`)
             .then((res) => {
                 if (!mounted) return;
                 setValid(Boolean(res.success && res.data?.valid));
                 setName(res.data?.name ?? null);
+                setUsername(res.data?.username ?? null);
             })
             .catch(() => {
                 if (mounted) setValid(false);
@@ -82,7 +84,9 @@ const ResetPassword: React.FC = () => {
                     <CheckCircle2 className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                     <div className="space-y-1">
                         <p className="text-body-sm font-medium text-foreground">{t('auth:reset.doneTitle')}</p>
-                        <p className="text-caption text-muted-foreground">{t('auth:reset.done')}</p>
+                        <p className="text-caption text-muted-foreground">
+                            {username ? t('auth:reset.doneNamed', { username }) : t('auth:reset.done')}
+                        </p>
                     </div>
                 </div>
                 <Button type="button" className="w-full h-12" size="lg" onClick={goToLogin}>
@@ -125,6 +129,8 @@ const ResetPassword: React.FC = () => {
                         onChange={(e) => setPassword(e.target.value)}
                         required
                         autoFocus
+                        aria-invalid={error ? true : undefined}
+                        aria-describedby={error ? 'reset-error' : undefined}
                         autoComplete="new-password"
                         minLength={MIN_PASSWORD_LENGTH}
                         placeholder="••••••••••"
@@ -138,13 +144,15 @@ const ResetPassword: React.FC = () => {
                         value={confirm}
                         onChange={(e) => setConfirm(e.target.value)}
                         required
+                        aria-invalid={error ? true : undefined}
+                        aria-describedby={error ? 'reset-error' : undefined}
                         autoComplete="new-password"
                         placeholder="••••••••••"
                     />
                 </div>
                 {error && (
-                    <div className="p-3 rounded-input bg-destructive/10 border border-destructive/20">
-                        <p className="text-label-sm text-destructive font-medium text-center">{error}</p>
+                    <div role="alert" className="p-3 rounded-input bg-destructive/10 border border-destructive/20">
+                        <p id="reset-error" className="text-label-sm text-destructive font-medium text-center">{error}</p>
                     </div>
                 )}
                 <Button type="submit" disabled={loading} className="w-full h-12 text-body-sm font-semibold" size="lg">

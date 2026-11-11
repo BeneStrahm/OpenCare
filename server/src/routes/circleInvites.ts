@@ -4,7 +4,7 @@ import { query } from '../db';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { circleMiddleware, requireAdmin, CircleRequest, CIRCLE_ROLES } from '../middleware/circle';
 import { broadcastToCircle } from '../lib/broadcaster';
-import { normalizeEmail } from '../lib/normalize';
+import { buildUsername } from '../lib/normalize';
 import { langFromRequest, t } from '../lib/i18n';
 
 const router = Router();
@@ -16,7 +16,7 @@ router.get('/info/:token', async (req, res) => {
     const lang = langFromRequest(req);
     try {
         const result = await query(
-            `SELECT i.role, i.invitee_email, i.expires_at,
+            `SELECT i.role, i.invitee_username, i.expires_at,
                     c.name AS circle_name,
                     r.first_name AS recipient_first_name,
                     u.name AS inviter_name
@@ -24,7 +24,8 @@ router.get('/info/:token', async (req, res) => {
              JOIN care_circles c ON c.id = i.circle_id
              LEFT JOIN care_recipients r ON r.circle_id = i.circle_id
              LEFT JOIN users u ON u.id = i.created_by
-             WHERE i.token = $1 AND i.status = 'pending' AND i.expires_at > NOW()`,
+             WHERE i.token = $1 AND i.status = 'pending' AND i.expires_at > NOW()
+               AND i.invitee_username IS NOT NULL`,
             [req.params.token]
         );
 
@@ -44,8 +45,9 @@ router.post('/accept/:token', authMiddleware, async (req: AuthRequest, res: Resp
     const lang = langFromRequest(req);
     try {
         const result = await query(
-            `SELECT id, circle_id, invitee_email, role FROM circle_invites
-             WHERE token = $1 AND status = 'pending' AND expires_at > NOW()`,
+            `SELECT id, circle_id, invitee_username, role FROM circle_invites
+             WHERE token = $1 AND status = 'pending' AND expires_at > NOW()
+               AND invitee_username IS NOT NULL`,
             [req.params.token]
         );
 
@@ -55,11 +57,13 @@ router.post('/accept/:token', authMiddleware, async (req: AuthRequest, res: Resp
 
         const invite = result.rows[0];
 
-        if (invite.invitee_email) {
-            const me = await query('SELECT email FROM users WHERE id = $1', [req.userId]);
-            if (normalizeEmail(me.rows[0]?.email ?? '') !== normalizeEmail(invite.invitee_email)) {
-                return res.status(403).json({ success: false, error: t(lang, 'invites.reservedForOtherEmail') });
-            }
+        // Die Einladung gilt nur fuer das Konto mit dem Benutzernamen aus der Einladung.
+        const me = await query(
+            'SELECT 1 FROM users WHERE id = $1 AND LOWER(username) = LOWER($2)',
+            [req.userId, invite.invitee_username]
+        );
+        if (me.rows.length === 0) {
+            return res.status(403).json({ success: false, error: t(lang, 'invites.reservedForOtherAccount') });
         }
 
         const existing = await query(
@@ -91,7 +95,7 @@ router.use(authMiddleware, circleMiddleware, requireAdmin);
 router.get('/', async (req: CircleRequest, res: Response) => {
     try {
         const result = await query(
-            `SELECT i.id, i.token, i.invitee_email, i.role, i.status, i.expires_at, i.created_at,
+            `SELECT i.id, i.token, i.invitee_username, i.role, i.status, i.expires_at, i.created_at,
                     u.name AS created_by_name
              FROM circle_invites i
              LEFT JOIN users u ON u.id = i.created_by
@@ -106,25 +110,41 @@ router.get('/', async (req: CircleRequest, res: Response) => {
     }
 });
 
-// Create an invite (role chosen by the admin, optional target email, 1 to 30 days)
+// Einladung anlegen (E18): Rolle, Vor- und Nachname (ergibt den Benutzernamen),
+// Gueltigkeit 1 bis 30 Tage. Gibt es den Benutzernamen schon (Konto oder offene
+// Einladung), kommt eine einfache Meldung.
 router.post('/', async (req: CircleRequest, res: Response) => {
+    const lang = langFromRequest(req);
     try {
-        const { role, invitee_email, expires_in_days } = req.body;
+        const { role, first_name, last_name, expires_in_days } = req.body ?? {};
 
         const cleanedRole = typeof role === 'string' && VALID_ROLES.includes(role) ? role : 'family';
         const days = Number.parseInt(String(expires_in_days ?? 7), 10);
         const cleanedDays = Number.isNaN(days) ? 7 : Math.min(Math.max(days, 1), 30);
-        const cleanedEmail = typeof invitee_email === 'string' && invitee_email.trim()
-            ? normalizeEmail(invitee_email)
-            : null;
+        const username = buildUsername(first_name, last_name);
+        if (!username) {
+            return res.status(400).json({ success: false, error: t(lang, 'auth.nameRequired') });
+        }
+
+        const taken = await query(
+            `SELECT 1 FROM users WHERE LOWER(username) = LOWER($1)
+             UNION ALL
+             SELECT 1 FROM circle_invites
+             WHERE LOWER(invitee_username) = LOWER($1) AND status = 'pending' AND expires_at > NOW()
+             LIMIT 1`,
+            [username]
+        );
+        if (taken.rows.length > 0) {
+            return res.status(409).json({ success: false, error: t(lang, 'invites.usernameTaken') });
+        }
 
         const token = crypto.randomBytes(32).toString('hex');
 
         const result = await query(
-            `INSERT INTO circle_invites (circle_id, created_by, token, invitee_email, role, expires_at)
+            `INSERT INTO circle_invites (circle_id, created_by, token, invitee_username, role, expires_at)
              VALUES ($1, $2, $3, $4, $5, NOW() + ($6 || ' days')::interval)
-             RETURNING id, token, invitee_email, role, status, expires_at, created_at`,
-            [req.circleId, req.userId, token, cleanedEmail, cleanedRole, String(cleanedDays)]
+             RETURNING id, token, invitee_username, role, status, expires_at, created_at`,
+            [req.circleId, req.userId, token, username, cleanedRole, String(cleanedDays)]
         );
 
         res.json({ success: true, data: result.rows[0] });

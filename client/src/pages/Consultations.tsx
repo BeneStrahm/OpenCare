@@ -110,7 +110,7 @@ const Consultations: React.FC = () => {
                 navigate(`/consultations/${res.data.id}`);
             }
         } catch {
-            showToast({ title: t('consultations:list.createError') });
+            showToast({ variant: 'error', title: t('consultations:list.createError') });
         } finally {
             setSaving(false);
         }

@@ -5,7 +5,8 @@ import { api } from '../lib/api';
 import { useCircle } from '../contexts/CircleContext';
 import { Card, CardContent, Button, DatePicker, Textarea } from '../components/ui';
 import { formatDate } from '../lib/utils';
-import { formatClock } from '../i18n/format';
+import { formatClock, intlLocale } from '../i18n/format';
+import { formatVital } from '../lib/units';
 
 interface ConsultationRecipient {
     first_name: string;
@@ -96,6 +97,8 @@ const defaultSince = (): string => {
 };
 
 const formatVitalValue = (type: string, point: VitalPoint): string => {
+    // Blutzucker immer in mg/dL (E15), gespeichert ist g/L.
+    if (type === 'glucose') return formatVital('glucose', point.value, null, 'metric', intlLocale());
     const base = type === 'bp' && point.value2 !== null
         ? `${point.value}/${point.value2}`
         : String(point.value);

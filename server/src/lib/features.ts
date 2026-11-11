@@ -48,8 +48,16 @@ const flags = (settings: Settings, key: string): Record<string, unknown> => {
     return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 };
 
-/** An, solange nicht ausdruecklich false gespeichert ist. */
+/**
+ * Vorerst stillgelegte Funktionen (Launch Block D): immer aus, nicht in den
+ * Einstellungen waehlbar, Daten und Code bleiben. Gegenstueck in client/src/lib/features.ts.
+ * visitors: Besuche wurden nur am Kiosk angemeldet, der entfallen ist.
+ */
+export const RETIRED_FEATURES: readonly FeatureId[] = ['visitors'];
+
+/** An, solange nicht stillgelegt und nicht ausdruecklich false gespeichert. */
 export function isFeatureEnabled(settings: Settings, id: FeatureId): boolean {
+    if (RETIRED_FEATURES.includes(id)) return false;
     return flags(settings, 'features')[id] !== false;
 }
 

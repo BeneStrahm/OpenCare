@@ -85,6 +85,7 @@ voreinrichtung*.json
 voreinrichtung*.yml
 voreinrichtung*.yaml
 !voreinrichtung*.example.*
+!scripts/voreinrichtung-beispiel.json
 
 # Schlüssel und Zertifikate
 *.pem

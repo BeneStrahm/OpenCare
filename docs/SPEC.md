@@ -25,7 +25,7 @@ Principe : tout est rattaché à un cercle de soin. Un cercle correspond à un p
 - `care_circles` : id, name, created_by, settings JSONB.
 - `care_recipients` : 1 par cercle. Identité, date de naissance, photo, adresse, médecin traitant, groupe sanguin, allergies, antécédents, directives anticipées, numéro de sécurité sociale, notes médicales.
 - `circle_members` : circle_id, user_id, role, display_name, color. Rôles : `admin` (gère le cercle), `family` (fratrie, écrit partout), `professional` (écrit journal/constantes/médicaments), `neighbor` (écrit journal simple, lit calendrier ; UI « Freunde »), `recipient` (personne aidée, lecture seule provisoire, sans consultations médicales ; droits définitifs à fixer, cf. `server/src/middleware/circle.ts`).
-- `circle_invites` : token, rôle pré-assigné, email optionnel, expiration.
+- `circle_invites` : token, rôle pré-assigné, nom d'utilisateur (prénom et nom), expiration.
 - `caregiver_links` : liens magiques pour intervenants SANS compte (auxiliaire, infirmière). Token long, nom affiché, rôle, portée limitée (journal + lecture du jour), expiration optionnelle, accessible par URL/QR/SMS.
 
 ### Journal de liaison (cœur de l'app)

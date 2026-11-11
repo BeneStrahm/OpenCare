@@ -23,7 +23,8 @@ export type WsEntity =
     | 'visits'
     | 'care_plan'
     | 'help_requests'
-    | 'consultations';
+    | 'consultations'
+    | 'view_photos';
 
 export type WsAction = 'created' | 'updated' | 'deleted' | 'synced';
 

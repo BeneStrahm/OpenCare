@@ -25,7 +25,6 @@
     "stock": "Existencias",
     "calendar": "Calendario",
     "appointments": "Citas",
-    "photos": "Fotos",
     "voice": "Diario de voz"
   },
   "presence": {
@@ -91,14 +90,6 @@
       "userPlaceholder": "su.usuario",
       "passwordLabel": "Contraseña (o contraseña de aplicación)",
       "passwordPlaceholder": "****"
-    },
-    "immich": {
-      "tagline": "Fototeca",
-      "description": "Muestre fotos al azar de su biblioteca Immich autoalojada como fondo del modo kiosco.",
-      "urlLabel": "URL de la instancia",
-      "urlPlaceholder": "https://immich.midominio.com",
-      "keyLabel": "Clave API",
-      "keyPlaceholder": "Desde Immich > Ajustes de la cuenta > Claves API"
     },
     "whisper": {
       "name": "Transcripción de voz (Whisper)",

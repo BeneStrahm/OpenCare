@@ -13,6 +13,7 @@ import {
     Button, Input, Select, Textarea, DatePicker, useToast,
 } from '../components/ui';
 import { formatDate } from '../lib/utils';
+import ViewPhotosCard from '../components/app/ViewPhotosCard';
 
 interface RecipientProfile {
     id: string;
@@ -117,7 +118,7 @@ const StoryCard: React.FC<{ circleId: string | null; canWriteContent: boolean }>
             if (res.success) setSections(Array.isArray(res.data.sections) ? res.data.sections : []);
         } catch (error) {
             console.error('Story load error:', error);
-            showToast({ title: t('recipient:story.errors.load') });
+            showToast({ variant: 'error', title: t('recipient:story.errors.load') });
         }
     }, [circleId, showToast, t]);
 
@@ -153,7 +154,7 @@ const StoryCard: React.FC<{ circleId: string | null; canWriteContent: boolean }>
 
     const save = async () => {
         if (draft.some((s) => !s.title.trim())) {
-            showToast({ title: t('recipient:story.errors.titleRequired') });
+            showToast({ variant: 'error', title: t('recipient:story.errors.titleRequired') });
             return;
         }
         setSaving(true);
@@ -169,7 +170,7 @@ const StoryCard: React.FC<{ circleId: string | null; canWriteContent: boolean }>
             }
         } catch (error) {
             const message = error instanceof Error ? error.message : t('recipient:story.errors.save');
-            showToast({ title: t('common:states.error'), description: message });
+            showToast({ variant: 'error', title: t('common:states.error'), description: message });
         } finally {
             setSaving(false);
         }
@@ -318,7 +319,7 @@ const EmergencyCard: React.FC<{ circleId: string | null; canWriteContent: boolea
             }
         } catch (error) {
             console.error('Emergency payload load error:', error);
-            showToast({ title: t('recipient:emergency.errors.load') });
+            showToast({ variant: 'error', title: t('recipient:emergency.errors.load') });
         } finally {
             setLoading(false);
         }
@@ -355,7 +356,7 @@ const EmergencyCard: React.FC<{ circleId: string | null; canWriteContent: boolea
             }
         } catch (error) {
             const message = error instanceof Error ? error.message : t('recipient:emergency.errors.save');
-            showToast({ title: t('common:states.error'), description: message });
+            showToast({ variant: 'error', title: t('common:states.error'), description: message });
         } finally {
             setBusy(false);
         }
@@ -505,7 +506,7 @@ const HandoverCard: React.FC<{ circleId: string | null }> = ({ circleId }) => {
             if (res.success) setPacks(res.data);
         } catch (error) {
             console.error('Handover packs load error:', error);
-            showToast({ title: t('handover:card.errors.load') });
+            showToast({ variant: 'error', title: t('handover:card.errors.load') });
         }
     }, [circleId, showToast, t]);
 
@@ -529,11 +530,11 @@ const HandoverCard: React.FC<{ circleId: string | null }> = ({ circleId }) => {
 
     const createPack = async () => {
         if (!startsOn || !endsOn) {
-            showToast({ title: t('handover:card.datesRequired') });
+            showToast({ variant: 'error', title: t('handover:card.datesRequired') });
             return;
         }
         if (endsOn < startsOn) {
-            showToast({ title: t('handover:card.datesOrder') });
+            showToast({ variant: 'error', title: t('handover:card.datesOrder') });
             return;
         }
         setCreating(true);
@@ -553,7 +554,7 @@ const HandoverCard: React.FC<{ circleId: string | null }> = ({ circleId }) => {
             }
         } catch (error) {
             const message = error instanceof Error ? error.message : t('handover:card.errors.create');
-            showToast({ title: t('common:states.error'), description: message });
+            showToast({ variant: 'error', title: t('common:states.error'), description: message });
         } finally {
             setCreating(false);
         }
@@ -567,7 +568,7 @@ const HandoverCard: React.FC<{ circleId: string | null }> = ({ circleId }) => {
             await load();
         } catch (error) {
             console.error('Handover pack delete error:', error);
-            showToast({ title: t('handover:card.errors.delete') });
+            showToast({ variant: 'error', title: t('handover:card.errors.delete') });
         }
     };
 
@@ -694,7 +695,7 @@ const Recipient: React.FC = () => {
             if (res.success) setRecipient(res.data);
         } catch (error) {
             console.error('Recipient load error:', error);
-            showToast({ title: t('recipient:errors.load') });
+            showToast({ variant: 'error', title: t('recipient:errors.load') });
         } finally {
             setLoading(false);
         }
@@ -711,7 +712,7 @@ const Recipient: React.FC = () => {
 
     const onError = (error: unknown) => {
         const message = error instanceof Error ? error.message : t('recipient:errors.save');
-        showToast({ title: t('common:states.error'), description: message });
+        showToast({ variant: 'error', title: t('common:states.error'), description: message });
     };
 
     const startEdit = (card: CardKey) => {
@@ -735,7 +736,7 @@ const Recipient: React.FC = () => {
     const saveCard = async (card: CardKey) => {
         if (!circleId) return;
         if (card === 'identity' && !(draft.first_name ?? '').trim()) {
-            showToast({ title: t('recipient:errors.firstNameRequired') });
+            showToast({ variant: 'error', title: t('recipient:errors.firstNameRequired') });
             return;
         }
         setSaving(true);
@@ -787,7 +788,7 @@ const Recipient: React.FC = () => {
         if (photoInputRef.current) photoInputRef.current.value = '';
         if (!file) return;
         if (!file.type.startsWith('image/')) {
-            showToast({ title: t('recipient:photo.invalid') });
+            showToast({ variant: 'error', title: t('recipient:photo.invalid') });
             return;
         }
         try {
@@ -795,7 +796,7 @@ const Recipient: React.FC = () => {
             const dataUrl = await compressPhoto(file);
             await updatePhoto(dataUrl);
         } catch {
-            showToast({ title: t('recipient:photo.error') });
+            showToast({ variant: 'error', title: t('recipient:photo.error') });
             setPhotoLoading(false);
         }
     };
@@ -1209,6 +1210,9 @@ const Recipient: React.FC = () => {
                 canWriteContent={canWriteContent}
                 recipientName={recipient.first_name}
             />
+
+            {/* Block D: Fotos fuer die einfache Ansicht, nur Familie und Admin */}
+            {canWriteContent && <ViewPhotosCard circleId={circleId} />}
 
             {/* Mode relais: liste/création réservées à admin et famille */}
             {canWriteContent && <HandoverCard circleId={circleId} />}

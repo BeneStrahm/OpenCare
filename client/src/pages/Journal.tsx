@@ -334,7 +334,7 @@ const Journal: React.FC = () => {
     const transcribeBlob = async (blob: Blob) => {
         if (blob.size === 0) return;
         if (blob.size > MAX_AUDIO_BYTES) {
-            showToast({ title: t('journal:voice.tooLong') });
+            showToast({ variant: 'error', title: t('journal:voice.tooLong') });
             return;
         }
         setTranscribing(true);
@@ -351,7 +351,7 @@ const Journal: React.FC = () => {
             );
             const text = res.success ? res.data.text.trim() : '';
             if (!text) {
-                showToast({ title: t('journal:voice.emptyTranscript') });
+                showToast({ variant: 'error', title: t('journal:voice.emptyTranscript') });
                 return;
             }
             // Le texte est placé dans la zone de saisie: l'aidant relit avant de publier.
@@ -361,11 +361,12 @@ const Journal: React.FC = () => {
             const message = err instanceof Error ? err.message : '';
             if (message === 'WHISPER_NOT_CONFIGURED') {
                 showToast({
+                    variant: 'error',
                     title: t('journal:voice.notConfiguredTitle'),
                     description: t('journal:voice.notConfiguredBody'),
                 });
             } else {
-                showToast({ title: t('journal:voice.transcribeError') });
+                showToast({ variant: 'error', title: t('journal:voice.transcribeError') });
             }
         } finally {
             setTranscribing(false);
@@ -398,6 +399,7 @@ const Journal: React.FC = () => {
         } catch (err) {
             console.error('Microphone access failed:', err);
             showToast({
+                variant: 'error',
                 title: t('journal:voice.micDeniedTitle'),
                 description: t('journal:voice.micDeniedBody'),
             });
@@ -446,7 +448,7 @@ const Journal: React.FC = () => {
             }
         } catch (err) {
             console.error('Auto file failed:', err);
-            showToast({ title: t('journal:voice.fileError') });
+            showToast({ variant: 'error', title: t('journal:voice.fileError') });
         } finally {
             setAutoFiling(false);
         }
@@ -599,7 +601,7 @@ const Journal: React.FC = () => {
     return (
         <div className="max-w-3xl mx-auto space-y-6">
             {error ? (
-                <div className="rounded-input border border-danger/30 bg-danger/10 px-4 py-3 text-caption text-danger">
+                <div id="journal-error" role="alert" className="rounded-input border border-danger/30 bg-danger/10 px-4 py-3 text-caption text-danger">
                     {error}
                 </div>
             ) : null}
@@ -678,6 +680,8 @@ const Journal: React.FC = () => {
                                         inputMode="decimal"
                                         value={vitalValue}
                                         onChange={(e) => setVitalValue(e.target.value)}
+                                        aria-invalid={error === t('journal:errors.valueRequired') && (!vitalValue.trim() || !Number.isFinite(parseLocaleNumber(vitalValue))) ? true : undefined}
+                                        aria-describedby={error === t('journal:errors.valueRequired') && (!vitalValue.trim() || !Number.isFinite(parseLocaleNumber(vitalValue))) ? 'journal-error' : undefined}
                                     />
                                     {vitalType === 'bp' && (
                                         <Input
@@ -686,6 +690,8 @@ const Journal: React.FC = () => {
                                             inputMode="decimal"
                                             value={vitalValue2}
                                             onChange={(e) => setVitalValue2(e.target.value)}
+                                            aria-invalid={error === t('journal:errors.valueRequired') && (!vitalValue2.trim() || !Number.isFinite(parseLocaleNumber(vitalValue2))) ? true : undefined}
+                                            aria-describedby={error === t('journal:errors.valueRequired') && (!vitalValue2.trim() || !Number.isFinite(parseLocaleNumber(vitalValue2))) ? 'journal-error' : undefined}
                                         />
                                     )}
                                 </div>

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
-    CalendarDays, Pill, BookOpen, CheckSquare, Activity, ChevronRight, MessageCircle, Mic,
+    CalendarDays, Pill, BookOpen, CheckSquare, Activity, ChevronRight, MessageCircle,
 } from 'lucide-react';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { api } from '../lib/api';
@@ -18,7 +18,6 @@ import PresenceBanner from '../components/app/PresenceBanner';
 import HeatwaveBanner from '../components/app/HeatwaveBanner';
 import HouseholdOverview from '../components/app/HouseholdOverview';
 import AttentionCard, { type AttentionItem } from '../components/app/AttentionCard';
-import KioskCompanion from '../components/app/KioskCompanion';
 
 // ─── Payload of GET /api/dashboard ────────────────────────────────────────────
 
@@ -188,7 +187,6 @@ const Dashboard: React.FC = () => {
     // Vue foyer (couple): 'single' = un proche, 'household' = tout le foyer.
     const [view, setView] = useState<'single' | 'household'>('single');
     // Fork: "Fragen Sie mich" auch in der PC-Ansicht (feste Antworten aus den Daten, ohne KI).
-    const [askOpen, setAskOpen] = useState(false);
 
     const load = async () => {
         if (!activeCircle) return;
@@ -317,17 +315,6 @@ const Dashboard: React.FC = () => {
                     </h1>
                     <p className="text-caption text-muted-foreground first-letter:uppercase">{todayLabel}</p>
                 </div>
-                {/* Fork: Assistent, nicht fuer die Betreute Person (recipient), die der Server ablehnt. */}
-                {myRole !== 'recipient' && (
-                    <button
-                        type="button"
-                        onClick={() => setAskOpen(true)}
-                        className="ml-auto flex min-h-[44px] shrink-0 items-center gap-2 rounded-card border border-border bg-card px-4 text-caption font-medium text-foreground transition-colors duration-fast hover:bg-surface-2"
-                    >
-                        <Mic className="h-4 w-4 text-primary" aria-hidden="true" />
-                        {t('dashboard:openAskMe')}
-                    </button>
-                )}
             </div>
 
             {/* Ce qui demande l'attention d'un aidant, avant tout le reste */}
@@ -519,18 +506,6 @@ const Dashboard: React.FC = () => {
             {/* Weekly AI digest: full width, below the grid. Built from health data, so never for a neighbor. */}
             {myRole !== 'neighbor' && !isRecipient && isOn('digests') && <WeeklyDigestCard />}
             </>
-            )}
-
-            {askOpen && (
-                <KioskCompanion
-                    /* Leer: Die Begruessung soll nicht die betreute Person ansprechen. */
-                    recipientName=""
-                    aiEnabled={false}
-                    browserSpeech={false}
-                    fontScale={1}
-                    healthTopics={myRole !== 'neighbor'}
-                    onClose={() => setAskOpen(false)}
-                />
             )}
         </div>
     );

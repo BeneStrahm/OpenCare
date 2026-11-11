@@ -439,7 +439,7 @@ const Documents: React.FC = () => {
             >
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {formError ? (
-                        <div className="rounded-input border border-danger/30 bg-danger/10 px-3 py-2 text-caption text-danger">
+                        <div id="document-form-error" role="alert" className="rounded-input border border-danger/30 bg-danger/10 px-3 py-2 text-caption text-danger">
                             {formError}
                         </div>
                     ) : null}
@@ -477,6 +477,8 @@ const Documents: React.FC = () => {
                                 type="file"
                                 accept="image/*,application/pdf"
                                 onChange={(e) => void handleFileChange(e)}
+                                aria-invalid={formError && !fileDataUrl ? true : undefined}
+                                aria-describedby={formError && !fileDataUrl ? 'document-form-error' : undefined}
                                 className="block w-full text-caption text-muted-foreground file:mr-3 file:min-h-[44px] file:cursor-pointer file:rounded-input file:border file:border-border file:bg-surface-2 file:px-4 file:text-caption file:font-medium file:text-foreground"
                             />
                             {fileProcessing ? (

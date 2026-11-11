@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import crypto from 'crypto';
 import { query } from '../db';
 import { authMiddleware } from '../middleware/auth';
-import { circleMiddleware, requireContentWriter, CONTENT_WRITER_ROLES, CircleRequest } from '../middleware/circle';
+import { circleMiddleware, requireContentWriter, requireRole, CONTENT_WRITER_ROLES, CircleRequest } from '../middleware/circle';
 import { langFromRequest, t } from '../lib/i18n';
 import { buildEmergencyData } from '../lib/emergencySheet';
 
@@ -50,7 +50,8 @@ router.use(authMiddleware, circleMiddleware);
 
 // Donnees de la fiche pour le mode AUTONOME: le client les encode dans le QR.
 // Reserve aux roles qui peuvent voir les donnees de sante (admin/family).
-router.get('/payload', requireContentWriter, async (req: CircleRequest, res: Response) => {
+// Fork, Block D: die betreute Person liest ihr eigenes Notfallblatt (einfache Ansicht).
+router.get('/payload', requireRole(...CONTENT_WRITER_ROLES, 'recipient'), async (req: CircleRequest, res: Response) => {
     try {
         const data = await buildEmergencyData(req.circleId!);
         if (!data.recipient) {

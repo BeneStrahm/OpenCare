@@ -8,6 +8,10 @@ import { langFromRequest, t, pick, pickLang, type Lang } from '../lib/i18n';
 import { getPublicSettings } from '../lib/circleSettings';
 import { formatVital, isVitalType, numberLocale } from '../lib/units';
 import { isVitalTypeEnabled, loadCircleSettings } from '../lib/features';
+import {
+    cleanNote, cleanRemindTime, isVitalReminderType, loadVitalReminderSettings,
+    openVitalRemindersToday, saveVitalReminderSetting,
+} from '../lib/vitalReminders';
 
 const router = Router();
 
@@ -279,6 +283,52 @@ router.put('/thresholds', requireRole('admin', 'family'), async (req: CircleRequ
         res.json({ success: true, data: result.rows[0] });
     } catch (error) {
         console.error('Update vital threshold error:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
+
+// Fork, Block E: Messwert-Erinnerungen (lib/vitalReminders.ts).
+// GET /api/vitals/reminders : Einstellungen fuer Blutzucker und Gewicht.
+router.get('/reminders', async (req: CircleRequest, res: Response) => {
+    try {
+        res.json({ success: true, data: await loadVitalReminderSettings(req.circleId!) });
+    } catch (error) {
+        console.error('Get vital reminders error:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
+
+// GET /api/vitals/reminders/today : eingeschaltete Erinnerungen ohne Wert von heute.
+// Auch fuer recipient freigegeben (einfache Ansicht), liefert keine Messwerte.
+router.get('/reminders/today', async (req: CircleRequest, res: Response) => {
+    try {
+        const open = await openVitalRemindersToday(req.circleId!);
+        res.json({ success: true, data: open.map(({ type, remind_time, note }) => ({ type, remind_time, note })) });
+    } catch (error) {
+        console.error('Get open vital reminders error:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
+
+// PUT /api/vitals/reminders : { type, enabled, remind_time 'HH:MM', note } (admin/family)
+router.put('/reminders', requireRole('admin', 'family'), async (req: CircleRequest, res: Response) => {
+    const lang = langFromRequest(req);
+    try {
+        const type = req.body?.type;
+        const remindTime = cleanRemindTime(req.body?.remind_time);
+        if (!isVitalReminderType(type)) {
+            return res.status(400).json({ success: false, error: t(lang, 'vitals.thresholdType') });
+        }
+        if (!remindTime) {
+            return res.status(400).json({ success: false, error: t(lang, 'vitals.reminderTime') });
+        }
+        const saved = await saveVitalReminderSetting(
+            req.circleId!, type, req.body?.enabled === true, remindTime, cleanNote(req.body?.note)
+        );
+        await broadcastToCircle(req.circleId!, { type: 'update', entity: 'vitals', action: 'updated' });
+        res.json({ success: true, data: saved });
+    } catch (error) {
+        console.error('Update vital reminder error:', error);
         res.status(500).json({ success: false, error: 'Internal server error' });
     }
 });

@@ -752,7 +752,7 @@ const Expenses: React.FC = () => {
             >
                 <form onSubmit={submitExpense} className="space-y-4">
                     {formError ? (
-                        <div className="rounded-input border border-danger/30 bg-danger/10 px-3 py-2 text-caption text-danger">
+                        <div id="expense-form-error" role="alert" className="rounded-input border border-danger/30 bg-danger/10 px-3 py-2 text-caption text-danger">
                             {formError}
                         </div>
                     ) : null}
@@ -766,6 +766,8 @@ const Expenses: React.FC = () => {
                             required
                             value={expenseForm.amount}
                             onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })}
+                            aria-invalid={formError === t('expenses:errors.amountInvalid') ? true : undefined}
+                            aria-describedby={formError === t('expenses:errors.amountInvalid') ? 'expense-form-error' : undefined}
                         />
                         <div>
                             <label className="mb-1.5 block text-caption font-medium text-foreground">
@@ -834,6 +836,8 @@ const Expenses: React.FC = () => {
                                         step="0.01"
                                         min="0"
                                         value={expenseForm.shares[member.member_id] ?? ''}
+                                        aria-invalid={formError === t('expenses:errors.splitSum') ? true : undefined}
+                                        aria-describedby={formError === t('expenses:errors.splitSum') ? 'expense-form-error' : undefined}
                                         onChange={(e) =>
                                             setExpenseForm({
                                                 ...expenseForm,
@@ -876,7 +880,7 @@ const Expenses: React.FC = () => {
             >
                 <form onSubmit={submitAid} className="space-y-4">
                     {aidFormError ? (
-                        <div className="rounded-input border border-danger/30 bg-danger/10 px-3 py-2 text-caption text-danger">
+                        <div id="aid-form-error" role="alert" className="rounded-input border border-danger/30 bg-danger/10 px-3 py-2 text-caption text-danger">
                             {aidFormError}
                         </div>
                     ) : null}
@@ -903,6 +907,8 @@ const Expenses: React.FC = () => {
                             required
                             value={aidForm.amount}
                             onChange={(e) => setAidForm({ ...aidForm, amount: e.target.value })}
+                            aria-invalid={aidFormError === t('expenses:errors.amountInvalid') ? true : undefined}
+                            aria-describedby={aidFormError === t('expenses:errors.amountInvalid') ? 'aid-form-error' : undefined}
                         />
                     </div>
                     <Input

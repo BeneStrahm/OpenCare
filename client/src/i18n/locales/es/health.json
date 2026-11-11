@@ -101,5 +101,19 @@
     "pulse": "Pulso"
   },
   "pulseUnit": "/min",
-  "pulseShort": "Pulso {{value}}/min"
+  "pulseShort": "Pulso {{value}}/min",
+  "reminders": {
+    "title": "Recordatorio de medición",
+    "description": "La persona cuidada recibe cada día un recordatorio a la hora elegida. Si 2 horas después no hay ningún valor, la familia recibe un aviso.",
+    "readOnly": "Los recordatorios de medición los configuran los administradores y la familia.",
+    "statusOn": "Cada día a las {{time}}",
+    "statusOff": "Sin recordatorio",
+    "enable": "Recordar cada día",
+    "timeLabel": "Hora",
+    "noteLabel": "Nota (opcional), por ejemplo: antes del desayuno",
+    "hint": "El recordatorio termina en cuanto se registra un valor hoy.",
+    "saved": "Recordatorio guardado",
+    "saveError": "No se pudo guardar el recordatorio. Inténtelo de nuevo.",
+    "timeInvalid": "Indique una hora válida, por ejemplo 07:30."
+  }
 }

@@ -25,7 +25,8 @@ export interface BaseEntity {
 
 // Compte utilisateur (aidant)
 export interface User extends BaseEntity {
-    email: string;
+    /** Anmeldename (E18): Vorname und Nachname, eindeutig. Konten haben keine E-Mail. */
+    username: string;
     password_hash: string;
     name: string;
     language: string;
@@ -51,7 +52,7 @@ export interface CircleMember {
     created_at: Date;
     // Champs joints depuis users pour l'affichage
     name?: string;
-    email?: string;
+    username?: string;
     avatar_url?: string;
 }
 
@@ -96,7 +97,7 @@ export interface CircleInvite {
     circle_id: string;
     created_by?: string;
     token: string;
-    invitee_email?: string;
+    invitee_username?: string;
     role: CircleRole;
     status: 'pending' | 'accepted' | 'revoked';
     expires_at: Date;

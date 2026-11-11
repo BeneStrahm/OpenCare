@@ -13,21 +13,33 @@ import { useTheme } from '../contexts/ThemeContext';
 // Public preview of an invite, used for the "you will join X's circle" banner.
 interface InviteInfo {
     role: string;
+    invitee_username: string;
     circle_name: string;
     recipient_first_name: string | null;
     inviter_name: string | null;
 }
 
+const MIN_PASSWORD_LENGTH = 10;
+
+/**
+ * Anmeldung (E18): Benutzername (Vorname Nachname) und Passwort.
+ * Drei Ansichten:
+ *  - login: Benutzername und Passwort;
+ *  - invite: Einladungslink, Benutzername steht fest, die Person waehlt nur ihr Passwort;
+ *  - first: leerer Server, das erste Konto mit Vor- und Nachname (wird Administrator).
+ * Ohne Einladung gibt es kein Registrieren.
+ */
 const Login: React.FC = () => {
     const { t } = useTranslation(['auth', 'common', 'nav']);
     const { login, register } = useAuth();
     const { actualTheme, setTheme } = useTheme();
     const navigate = useNavigate();
-    const registrationEnabled = import.meta.env.VITE_REGISTRATION_ENABLED !== 'false';
-    const [isLogin, setIsLogin] = useState(true);
-    const [email, setEmail] = useState('');
+    const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
-    const [name, setName] = useState('');
+    const [confirm, setConfirm] = useState('');
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
+    const [firstAccount, setFirstAccount] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [inviteToken, setInviteToken] = useState<string | null>(null);
@@ -41,8 +53,18 @@ const Login: React.FC = () => {
         const invite = params.get('invite') ?? params.get('token');
         if (invite) {
             setInviteToken(invite);
-            setIsLogin(false);
+            return;
         }
+        // Leerer Server: das erste Konto anlegen lassen.
+        let mounted = true;
+        api.get<{ success: boolean; data: { firstAccount: boolean } }>('/api/auth/setup-status')
+            .then((res) => {
+                if (mounted && res.success && res.data?.firstAccount) setFirstAccount(true);
+            })
+            .catch(() => undefined);
+        return () => {
+            mounted = false;
+        };
     }, []);
 
     // Public invite preview: show whose circle will be joined.
@@ -66,26 +88,38 @@ const Login: React.FC = () => {
         };
     }, [inviteToken]);
 
+    // Solange die Einladung geprueft wird, kein Formular zeigen (sonst blitzt kurz die Anmeldung auf).
+    const inviteLoading = Boolean(inviteToken) && !inviteInfo && !inviteInvalid;
+    const mode: 'login' | 'invite' | 'first' = inviteToken && inviteInfo
+        ? 'invite'
+        : !inviteToken && firstAccount ? 'first' : 'login';
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-        setLoading(true);
 
+        if (mode !== 'login') {
+            if (password.length < MIN_PASSWORD_LENGTH) {
+                setError(t('auth:reset.tooShort', { count: MIN_PASSWORD_LENGTH }));
+                return;
+            }
+            if (password !== confirm) {
+                setError(t('auth:reset.mismatch'));
+                return;
+            }
+        }
+
+        setLoading(true);
         try {
-            if (isLogin) {
-                await login(email, password);
-                // An existing account accepts the invitation on the /join page.
-                if (inviteToken) {
-                    navigate(`/join?token=${inviteToken}`, { replace: true });
-                }
+            if (mode === 'login') {
+                await login(username, password);
+            } else if (mode === 'invite') {
+                // Benutzername und Rolle kommen aus der Einladung (Server).
+                await register(password, { inviteToken: inviteToken ?? undefined });
+                navigate('/', { replace: true });
             } else {
-                // The circle role is decided server-side: it comes from the invite.
-                // Without an invite the account starts without a circle (onboarding).
-                await register(email, password, name, inviteToken ?? undefined);
-                if (inviteToken) {
-                    // The invite is consumed during registration: land on the dashboard.
-                    navigate('/', { replace: true });
-                }
+                // Erstes Konto: danach fuehrt die Einrichtung zum Anlegen des Kreises.
+                await register(password, { firstName, lastName });
             }
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : t('common:states.error'));
@@ -145,41 +179,80 @@ const Login: React.FC = () => {
                         </div>
                     )}
 
+                    {!inviteLoading && (
                     <form onSubmit={handleSubmit} className="space-y-5">
-                        {!isLogin && (
+                        {mode === 'first' && (
+                            <>
+                                <p className="text-body-sm text-foreground">{t('auth:first.intro')}</p>
+                                <Input
+                                    id="first-name"
+                                    label={t('auth:fields.firstName')}
+                                    type="text"
+                                    autoComplete="given-name"
+                                    value={firstName}
+                                    onChange={(e) => setFirstName(e.target.value)}
+                                    required
+                                />
+                                <Input
+                                    id="last-name"
+                                    label={t('auth:fields.lastName')}
+                                    type="text"
+                                    autoComplete="family-name"
+                                    value={lastName}
+                                    onChange={(e) => setLastName(e.target.value)}
+                                    required
+                                />
+                            </>
+                        )}
+
+                        {mode === 'invite' && inviteInfo && (
+                            <div className="space-y-1.5">
+                                <p className="text-caption font-medium text-foreground">{t('auth:fields.username')}</p>
+                                <p className="rounded-input border border-border bg-surface-2 px-4 py-3 text-body font-semibold text-foreground">
+                                    {inviteInfo.invitee_username}
+                                </p>
+                                <p className="text-caption text-muted-foreground">{t('auth:invite.usernameHint')}</p>
+                            </div>
+                        )}
+
+                        {mode === 'login' && (
                             <div className="space-y-1.5">
                                 <Input
-                                    label={t('auth:fields.fullName')}
+                                    id="username"
+                                    label={t('auth:fields.username')}
                                     type="text"
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                    required={!isLogin}
-                                    placeholder={t('auth:fields.fullNamePlaceholder')}
+                                    autoComplete="username"
+                                    autoCapitalize="words"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    required
+                                    aria-invalid={error ? true : undefined}
+                                    aria-describedby={error ? 'username-hint login-error' : 'username-hint'}
                                 />
+                                <p id="username-hint" className="text-caption text-muted-foreground">
+                                    {t('auth:fields.usernameHint')}
+                                </p>
                             </div>
                         )}
 
                         <div className="space-y-1.5">
                             <Input
-                                label={t('auth:fields.email')}
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                required
-                                placeholder={t('auth:fields.emailPlaceholder')}
-                            />
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <Input
-                                label={t('auth:fields.password')}
+                                id="password"
+                                label={mode === 'login' ? t('auth:fields.password') : t('auth:reset.newPassword')}
                                 type="password"
+                                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
-                                placeholder="••••••••"
+                                aria-invalid={error ? true : undefined}
+                                aria-describedby={error ? 'login-error' : undefined}
                             />
-                            {isLogin && (
+                            {mode !== 'login' && (
+                                <p className="text-caption text-muted-foreground">
+                                    {t('auth:reset.hint', { count: MIN_PASSWORD_LENGTH })}
+                                </p>
+                            )}
+                            {mode === 'login' && (
                                 <div className="text-right">
                                     <button
                                         type="button"
@@ -192,9 +265,23 @@ const Login: React.FC = () => {
                             )}
                         </div>
 
+                        {mode !== 'login' && (
+                            <Input
+                                id="password-confirm"
+                                label={t('auth:reset.confirmPassword')}
+                                type="password"
+                                autoComplete="new-password"
+                                value={confirm}
+                                onChange={(e) => setConfirm(e.target.value)}
+                                required
+                                aria-invalid={error ? true : undefined}
+                                aria-describedby={error ? 'login-error' : undefined}
+                            />
+                        )}
+
                         {error && (
-                            <div className="p-3 rounded-input bg-destructive/10 border border-destructive/20 animate-accordion-down">
-                                <p className="text-label-sm text-destructive font-medium text-center">{error}</p>
+                            <div role="alert" className="p-3 rounded-input bg-destructive/10 border border-destructive/20 animate-accordion-down">
+                                <p id="login-error" className="text-label-sm text-destructive font-medium text-center">{error}</p>
                             </div>
                         )}
 
@@ -209,29 +296,15 @@ const Login: React.FC = () => {
                                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                     {t('common:states.loading')}
                                 </span>
-                            ) : isLogin ? (
+                            ) : mode === 'login' ? (
                                 t('auth:login.submit')
                             ) : (
                                 t('auth:register.submit')
                             )}
                         </Button>
                     </form>
-
-                    {registrationEnabled && (
-                        <div className="mt-8 text-center pt-2 border-t border-border">
-                            <button
-                                onClick={() => {
-                                    setIsLogin(!isLogin);
-                                    setError('');
-                                }}
-                                className="text-body-sm text-primary hover:text-primary/80 font-medium transition-colors hover:underline underline-offset-4"
-                            >
-                                {isLogin
-                                    ? t('auth:login.noAccount')
-                                    : t('auth:login.haveAccount')}
-                            </button>
-                        </div>
                     )}
+
                 </CardContent>
             </Card>
 

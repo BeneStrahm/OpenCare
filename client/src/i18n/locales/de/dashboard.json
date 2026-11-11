@@ -84,6 +84,5 @@
     "medication_stock_other": "{{count}} Medikamente gehen zur Neige",
     "stockLeft_one": "{{name}} (noch {{count}})",
     "stockLeft_other": "{{name}} (noch {{count}})"
-  },
-  "openAskMe": "Fragen Sie mich"
+  }
 }

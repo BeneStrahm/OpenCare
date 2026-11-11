@@ -115,5 +115,29 @@
       "load": "Das Notfallblatt konnte nicht geladen werden.",
       "save": "Speichern fehlgeschlagen."
     }
+  },
+  "viewPhotos": {
+    "title": "Fotos für das Tablet",
+    "description": "Diese Fotos sieht Ihr Angehöriger in der einfachen Ansicht, ruhig im Wechsel. Höchstens {{max}} Fotos. Jedes Foto wird vor dem Hochladen verkleinert, Ortsangaben und andere versteckte Angaben werden entfernt.",
+    "add": "Fotos hinzufügen",
+    "uploading": "Fotos werden hochgeladen: {{done}} von {{total}}",
+    "count": "{{count}} von {{max}} Fotos",
+    "full": "Es sind schon {{max}} Fotos da. Löschen Sie eines, um ein neues hinzuzufügen.",
+    "empty": "Noch keine Fotos hochgeladen.",
+    "alt": "Foto {{number}}",
+    "uploaded_one": "Foto hochgeladen.",
+    "uploaded_other": "{{count}} Fotos hochgeladen.",
+    "deleted": "Foto gelöscht.",
+    "delete": "Löschen",
+    "confirmDelete": "Dieses Foto wirklich löschen?",
+    "deleteYes": "Ja, löschen",
+    "deleteNo": "Nein",
+    "errors": {
+      "load": "Die Fotos konnten nicht geladen werden. Bitte laden Sie die Seite neu.",
+      "upload_one": "Ein Foto konnte nicht hochgeladen werden. Bitte wählen Sie ein anderes Bild, zum Beispiel ein JPEG.",
+      "upload_other": "{{count}} Fotos konnten nicht hochgeladen werden. Bitte wählen Sie andere Bilder, zum Beispiel JPEG.",
+      "delete": "Das Foto konnte nicht gelöscht werden. Bitte versuchen Sie es noch einmal.",
+      "limit": "Höchstens {{max}} Fotos. Es wurden nur so viele hochgeladen, wie noch Platz ist."
+    }
   }
 }

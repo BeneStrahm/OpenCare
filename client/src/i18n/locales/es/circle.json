@@ -68,28 +68,32 @@
     "leave": "Salir del círculo",
     "leaveTitle": "Salir del círculo",
     "leaveConfirm": "Ya no tendrá acceso a la información de este círculo. Un administrador tendrá que invitarle de nuevo para volver.",
-    "left": "Ha salido del círculo"
+    "left": "Ha salido del círculo",
+    "username": "Nombre de usuario: {{username}}"
   },
   "invites": {
     "title": "Invitaciones",
-    "subtitle": "Invite a sus hermanos, a un profesional o a un vecino a unirse al círculo con una cuenta.",
+    "subtitle": "Invite a la familia, a un profesional o a amigos a unirse al círculo con una cuenta.",
     "empty": "Ninguna invitación pendiente.",
     "create": "Invitar a alguien",
     "dialogTitle": "Nueva invitación",
-    "dialogDescription": "La persona crea una cuenta (o inicia sesión) con este enlace y se une al círculo con el rol elegido.",
+    "dialogDescription": "La persona abre el enlace, elige su contraseña y se une al círculo con el rol elegido.",
     "role": "Rol",
-    "email": "Dirección de correo (opcional)",
-    "emailHint": "Si la indica, solo esa dirección podrá aceptar la invitación.",
+    "firstName": "Nombre",
+    "lastName": "Apellido",
+    "usernameHint": "El nombre y el apellido forman el nombre de usuario con el que la persona inicia sesión.",
     "duration": "Validez del enlace",
     "days_7": "7 días",
     "days_14": "14 días",
     "days_30": "30 días",
     "submit": "Crear la invitación",
     "created": "Invitación creada",
-    "anyEmail": "Enlace abierto, sin dirección fijada",
     "expiresOn": "Caduca el {{date}}",
     "copy": "Copiar el enlace",
     "copied": "Enlace de invitación copiado",
+    "copyGuide": "Copiar el texto",
+    "guideCopied": "Instrucciones con enlace y nombre de usuario copiadas",
+    "guideText": "Cómo entrar en la aplicación de cuidados:\n\n1. Abra este enlace: {{link}}\n2. Elija una contraseña. Guárdela en un lugar seguro.\n3. Inicie sesión con su nombre de usuario y su contraseña. Su nombre de usuario: {{username}}\n4. Ponga la aplicación en la pantalla de inicio: abra el menú del navegador y elija «Añadir a pantalla de inicio».\n5. ¿Ha olvidado la contraseña? Diríjase al administrador que le invitó. Recibirá un enlace nuevo.",
     "revoke": "Revocar",
     "revoked": "Invitación revocada"
   },
@@ -182,12 +186,15 @@
     "action": "La operación ha fallado."
   },
   "resets": {
-    "title": "Contraseñas olvidadas",
-    "subtitle": "Estos miembros han pedido cambiar su contraseña. Páseles el enlace en persona o por un canal seguro: vale una hora y solo sirve una vez.",
-    "expires": "Enlace válido hasta las {{time}}",
+    "title": "Enlaces para restablecer la contraseña",
+    "subtitle": "Pase el enlace a la persona en persona o por un canal seguro. Vale 24 horas y solo sirve una vez.",
+    "expires": "Enlace válido hasta el {{time}}",
     "copy": "Copiar el enlace",
     "copied": "Enlace copiado",
-    "cancel": "Cancelar la solicitud",
-    "cancelled": "Solicitud cancelada"
+    "cancel": "Invalidar el enlace",
+    "cancelled": "Enlace invalidado",
+    "create": "Enlace de contraseña",
+    "created": "Enlace creado",
+    "createdHint": "Lo encontrará más abajo, en Enlaces para restablecer la contraseña. Cópielo y páselo a la persona."
   }
 }

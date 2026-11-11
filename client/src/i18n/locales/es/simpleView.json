@@ -65,7 +65,9 @@
     "fontXL": "Muy grande",
     "title": "Ajustes",
     "language": "Idioma",
-    "close": "Cerrar"
+    "close": "Cerrar",
+    "color": "Color",
+    "colorError": "No se ha podido guardar el color. Compruebe la conexión a Internet e inténtelo de nuevo."
   },
   "header": {
     "settings": "Ajustes",
@@ -79,5 +81,36 @@
     "hint": "Después necesitará su contraseña para volver a entrar.",
     "yes": "Sí, cerrar sesión",
     "no": "No, quedarme aquí"
+  },
+  "vitals": {
+    "glucose": "Por favor, mida hoy su glucosa.",
+    "weight": "Por favor, pésese hoy."
+  },
+  "emergency": {
+    "button": "Hoja de emergencia",
+    "close": "Cerrar",
+    "error": "No se ha podido cargar la hoja de emergencia. Compruebe la conexión a Internet."
+  },
+  "review": {
+    "title": "Su día",
+    "praise1": "Hoy lo ha hecho muy bien. ¡Que pase una buena tarde!",
+    "praise2": "Termina un buen día. Lo ha conseguido todo muy bien.",
+    "praise3": "Muy bien hecho hoy. Ahora descanse tranquilamente.",
+    "open": "Todavía queda algo para hoy. Con calma, lo encontrará en esta página."
+  },
+  "photos": {
+    "title": "Fotos de la familia",
+    "alt": "Foto {{number}} de {{total}}",
+    "next": "Foto siguiente"
+  },
+  "colors": {
+    "blue": "Azul",
+    "teal": "Verde azulado",
+    "green": "Verde",
+    "purple": "Violeta",
+    "berry": "Frambuesa",
+    "terracotta": "Terracota",
+    "brown": "Marrón",
+    "slate": "Gris pizarra"
   }
 }

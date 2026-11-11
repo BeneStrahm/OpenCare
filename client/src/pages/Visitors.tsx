@@ -39,7 +39,7 @@ const Visitors: React.FC = () => {
             const res = await api.get<{ success: boolean; data: Visit[] }>(`/api/visits?from=${toDay(from)}&to=${toDay(to)}`);
             if (res.success) setVisits(res.data);
         } catch {
-            showToast({ title: t('visitors:errors.load') });
+            showToast({ variant: 'error', title: t('visitors:errors.load') });
         } finally {
             setLoading(false);
         }
@@ -54,7 +54,7 @@ const Visitors: React.FC = () => {
             showToast({ title: t('visitors:deleted') });
             await load();
         } catch (err) {
-            showToast({ title: err instanceof Error ? err.message : t('common:states.error') });
+            showToast({ variant: 'error', title: err instanceof Error ? err.message : t('common:states.error') });
         }
     };
 

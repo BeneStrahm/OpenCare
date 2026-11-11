@@ -99,12 +99,19 @@ Beenden mit Strg+C. Die Datenbank läuft weiter, anhalten mit `docker compose st
 
 ### Testkonten (fiktiv)
 
+Anmeldung mit Benutzername (Vorname und Nachname, Groß- und Kleinschreibung egal).
 Passwort für alle: `Testpasswort-123`
 
-| Rolle | E-Mail |
+| Rolle | Benutzername |
 | --- | --- |
-| Administrator | admin@example.com |
-| Familie | familie@example.com |
-| Fachkraft | fachkraft@example.com |
-| Freunde | freunde@example.com |
-| Betreute Person | erika@example.com |
+| Administrator | Thomas Muster |
+| Familie | Sabine Muster |
+| Fachkraft | Petra Sonnenschein |
+| Freunde | Karl Nachbar |
+| Betreute Person | Erika Muster |
+
+Lokale Datenbank aus der Zeit vor den Benutzernamen: einmal mit `docker compose down -v`
+löschen, danach legt `npm run precheck` die Testkonten neu an.
+
+Passwort vergessen: Auf der Seite Kreis erzeugt der Administrator mit der Taste
+„Passwort-Link“ neben einem Mitglied einen Link (24 Stunden gültig, einmal nutzbar).

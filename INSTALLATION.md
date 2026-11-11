@@ -53,7 +53,7 @@ Base de référence : `.env.production.example`. En production, définir au mini
 - `VITE_API_URL` et `VITE_WS_URL` vers votre endpoint public API (variables de build du client)
 - les clés VAPID si vous voulez le Web Push (`npx web-push generate-vapid-keys`)
 
-Pensez aussi à `REGISTRATION_ENABLED=false` une fois tous les comptes du cercle créés.
+Les comptes se créent uniquement par lien d'invitation, sauf le tout premier compte sur un serveur vide (il devient administrateur) : créez-le juste après le déploiement.
 
 ### Validation post-déploiement
 
@@ -182,14 +182,9 @@ docker-compose down
 
 ### Mot de passe oublié
 
-Le lien « Mot de passe oublié ? » de l'écran de connexion fonctionne dans les deux cas :
+Les comptes n'ont pas d'adresse e-mail. Sur la page Cercle, un administrateur crée un lien de réinitialisation pour un membre (bouton « Lien mot de passe ») et le lui transmet de vive voix ou par un canal sûr. Le lien est valable 24 heures et ne sert qu'une fois ; les sessions ouvertes sur d'autres appareils sont fermées une fois le mot de passe changé.
 
-- **Avec SMTP** (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` dans `.env`, et `APP_URL` pour construire le lien) : la personne reçoit un e-mail contenant un lien valable une heure.
-- **Sans SMTP** (par défaut) : les administrateurs des cercles de la personne reçoivent une notification. Sur leur page Cercle, un encart « Mots de passe oubliés » leur permet de copier le lien et de le transmettre de vive voix ou par un canal sûr.
-
-Dans les deux cas, le lien ne sert qu'une fois, et les sessions ouvertes sur d'autres appareils sont fermées une fois le mot de passe changé.
-
-Limite : une personne qui n'appartient à aucun cercle avec un autre administrateur (par exemple l'unique administrateur de l'instance) doit passer par l'opérateur de l'instance, qui peut activer un SMTP ou intervenir directement dans la base.
+Limite : une personne qui n'appartient à aucun cercle avec un autre administrateur (par exemple l'unique administrateur de l'instance) doit passer par l'opérateur de l'instance, qui intervient directement dans la base.
 
 ### `password authentication failed for user "opencare"`
 

@@ -121,6 +121,8 @@ const VocabularyCard: React.FC<{ canWrite: boolean }> = ({ canWrite }) => {
                             value={term}
                             maxLength={MAX_VOCABULARY_TERM}
                             onChange={(e) => setTerm(e.target.value)}
+                            aria-invalid={error ? true : undefined}
+                            aria-describedby={error ? 'vocabulary-error' : undefined}
                         />
                         <Button type="submit" disabled={busy || !term.trim()} className="min-h-[44px] shrink-0">
                             <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
@@ -128,7 +130,7 @@ const VocabularyCard: React.FC<{ canWrite: boolean }> = ({ canWrite }) => {
                         </Button>
                     </form>
                 )}
-                {error && <p className="text-caption text-danger" role="alert">{error}</p>}
+                {error && <p id="vocabulary-error" className="text-caption text-danger" role="alert">{error}</p>}
 
                 {data && data.automatic.length > 0 && (
                     <div>
