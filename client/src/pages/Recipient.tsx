@@ -14,6 +14,7 @@ import {
 } from '../components/ui';
 import { formatDate } from '../lib/utils';
 import ViewPhotosCard from '../components/app/ViewPhotosCard';
+import ViewTilesCard from '../components/app/ViewTilesCard';
 
 interface RecipientProfile {
     id: string;
@@ -669,7 +670,7 @@ const HandoverCard: React.FC<{ circleId: string | null }> = ({ circleId }) => {
 
 const Recipient: React.FC = () => {
     const { t } = useTranslation(['recipient', 'common']);
-    const { activeCircle, canWriteContent, refreshCircles } = useCircle();
+    const { activeCircle, canWriteContent, isAdmin, refreshCircles } = useCircle();
     const { showToast } = useToast();
 
     const [recipient, setRecipient] = useState<RecipientProfile | null>(null);
@@ -1213,6 +1214,9 @@ const Recipient: React.FC = () => {
 
             {/* Block D: Fotos fuer die einfache Ansicht, nur Familie und Admin */}
             {canWriteContent && <ViewPhotosCard circleId={circleId} />}
+
+            {/* Kacheln der einfachen Ansicht ein- und ausblenden, nur Admin */}
+            {isAdmin && <ViewTilesCard />}
 
             {/* Mode relais: liste/création réservées à admin et famille */}
             {canWriteContent && <HandoverCard circleId={circleId} />}

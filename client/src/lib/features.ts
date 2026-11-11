@@ -50,6 +50,26 @@ export const RETIRED_FEATURES: readonly FeatureId[] = ['visitors'];
 export const isFeatureEnabled = (settings: Settings, id: FeatureId): boolean =>
     !RETIRED_FEATURES.includes(id) && flags(settings, 'features')[id] !== false;
 
+/**
+ * Kacheln der einfachen Ansicht, die ein Admin ausblenden kann (Seite Betreute
+ * Person). Gespeichert als view_tiles: { id: false }. Die Kachel Einstellungen
+ * bleibt immer. Nur Anzeige, die Rechte bleiben gleich.
+ * Gegenstueck in server/src/lib/circleSettings.ts.
+ */
+export const VIEW_TILE_IDS = [
+    'emergency', 'meds', 'health', 'visitors', 'appointments', 'contacts', 'ask', 'doctor', 'info', 'shopping',
+] as const;
+export type ViewTileId = (typeof VIEW_TILE_IDS)[number];
+
+export const isViewTileOn = (settings: Settings, id: ViewTileId): boolean =>
+    flags(settings, 'view_tiles')[id] !== false;
+
+/** Gehoert die Kachel zu einer Funktion des Kreises? Dann fehlt sie, wenn die Funktion aus ist. */
+export const VIEW_TILE_FEATURES: Partial<Record<ViewTileId, FeatureId>> = {
+    meds: 'medications', health: 'health', visitors: 'calendar', appointments: 'calendar',
+    contacts: 'contacts', doctor: 'consultations', shopping: 'shopping',
+};
+
 export const enabledVitalTypes = (settings: Settings): VitalType[] => {
     const value = settings?.vital_types;
     if (!Array.isArray(value)) return [...VITAL_TYPES];

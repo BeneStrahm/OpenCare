@@ -4,7 +4,7 @@ import {
     CalendarDays, Check, CheckCheck, LogOut, MapPin, MessageCircle, Phone, Pill, RotateCcw,
     Settings as SettingsIcon, ThermometerSun, Users, Backpack, Car, Volume2, Square, X,
     Stethoscope, CalendarRange, CalendarClock, Droplet, Scale, HeartPulse, Sun, Moon, ChevronRight,
-    IdCard, ShoppingCart, CalendarPlus, Plus, Activity,
+    IdCard, ShoppingCart, CalendarPlus, Plus, Activity, SkipForward, Bell,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -15,12 +15,13 @@ import { clockDate } from '../lib/clock';
 import { SUPPORTED_LANGUAGES, LANGUAGE_NAMES } from '../i18n';
 import { changeAppLanguage } from '../lib/language';
 import { formatAmount } from '../lib/medications';
-import { enabledVitalTypes, isFeatureEnabled, type FeatureId } from '../lib/features';
+import { enabledVitalTypes, isFeatureEnabled, isViewTileOn, type FeatureId, type ViewTileId } from '../lib/features';
 import { displayUnit, formatVital, toStorageValue } from '../lib/units';
 import { cn } from '../lib/utils';
 import { VIEW_COLORS, medicationColorOf, viewColorOf } from '../lib/viewColors';
 import {
     FONT_SCALES, RECIPIENT_QUESTIONS, RECIPIENT_VITAL_TYPES, groupIntakes, isCompanionActive, isTravelActive, loadFontScale,
+    effectiveDue, isOverdue, maySnooze, showOnHome, snoozeTarget,
     localDay, parseRecipientEventForm, parseRecipientVital, saveFontScale, type IntakeGroup, type RecipientQuestion, type RecipientVitalType,
 } from '../lib/recipientView';
 
@@ -30,6 +31,8 @@ import {
 // nur ueber die normalen API-Routen, die middleware/circle.ts fuer recipient
 // freigibt. Schreiben kann sie nur: Einnahmen als genommen bestaetigen und
 // Blutzucker und Gewicht eintragen (Block K), beides mit Rueckgaengig, 10 Minuten. Kein Menue, keine anderen Seiten (App.tsx).
+// Block M (E23): Medikamenten-Kachel oben auf der Startseite (ab 30 Minuten vor der Zeit
+// bis Tagesende), mit Genommen, Ueberspringen und Spaeter erinnern.
 // Palette fest und hell, wie zuvor im Kiosk: das dunkle Thema der App gilt hier nicht.
 // blue, blueDark und blueSoft ersetzt die gewaehlte Farbe (Block D, lib/viewColors.ts).
 const BASE = {
@@ -76,6 +79,9 @@ interface Intake {
     appearance: string | null;
     /** Block L2: Farbe des Medikaments (medications.view_color), null = neutrale Karte */
     medication_color?: string | null;
+    /** Block M: verschobene Faelligkeit nach "Spaeter erinnern", Anzahl der Verschiebungen */
+    snoozed_until?: string | null;
+    snooze_count?: number | null;
     /** Vom Server: Restzeit fuer Rueckgaengig in ms (nur eigene Bestaetigung). */
     undo_ms_left?: number;
     /** Lokal: bis wann Rueckgaengig angeboten wird (Date.now()-Zeit). */
@@ -280,6 +286,9 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     const [busy, setBusy] = useState(false);
     const [notice, setNotice] = useState<Notice>(null);
     const [confirmGroup, setConfirmGroup] = useState<string | null>(null);
+    // Block M: Rueckfragen der Kachel auf der Startseite
+    const [homeTakeAll, setHomeTakeAll] = useState<Intake[] | null>(null);
+    const [skipConfirm, setSkipConfirm] = useState<Intake[] | null>(null);
 
     const [win, setWin] = useState<WindowId | null>(null);
     const [logoutOpen, setLogoutOpen] = useState(false);
@@ -309,6 +318,8 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     const heatOn = on('heatwave');
     const healthOn = on('health');
     const shoppingOn = on('shopping');
+    // Kacheln, die der Admin auf der Seite Betreute Person ausgeblendet hat (nur Anzeige)
+    const tileOn = (id: ViewTileId) => isViewTileOn(settings, id);
     // Block K: nur die eingeschalteten von Blutzucker und Gewicht
     const vitalTypesOn = enabledVitalTypes(settings);
     const ownVitalTypes = healthOn ? RECIPIENT_VITAL_TYPES.filter((type) => vitalTypesOn.includes(type)) : [];
@@ -488,7 +499,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
         const id = window.setTimeout(() => setUndoClock(Date.now()), Math.max(0, next - Date.now()) + 50);
         return () => window.clearTimeout(id);
     }, [intakes, ownVitals, ownEvents, shopping, undoClock]);
-    const canUndo = (i: Intake) => i.status === 'taken' && Boolean(i.undo_until && i.undo_until > undoClock);
+    const canUndo = (i: Intake) => (i.status === 'taken' || i.status === 'skipped') && Boolean(i.undo_until && i.undo_until > undoClock);
 
     // Erfolgsmeldungen bleiben 10 s stehen, Fehler bis zum Schliessen.
     useEffect(() => {
@@ -724,11 +735,17 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     const allTakenLabel = (group: IntakeGroup, items: Intake[]) =>
         group.kind === 'moment' ? t(`medications:today.allTaken.${group.moment}`) : t('simpleView:meds.allTakenAt', { time: clockOf(items[0].due_at) });
     const confirmEntry = confirmGroup ? intakeGroups.find((g) => g.group.key === confirmGroup) ?? null : null;
-    const dueNow = intakes.filter((i) => isOpen(i) && (clockDate(i.due_at)?.getTime() ?? Infinity) <= now.getTime());
+    const closeTakeAll = () => { setConfirmGroup(null); setHomeTakeAll(null); };
+    // Block M: nach "Spaeter erinnern" zaehlt die verschobene Zeit.
+    const dueNow = intakes.filter((i) => isOpen(i) && (effectiveDue(i, clockDate)?.getTime() ?? Infinity) <= now.getTime());
+    // Block M: Kachel auf der Startseite. Offene Einnahmen ab 30 Minuten vor der Zeit bis
+    // Tagesende, dazu eigene Wahl, solange Rueckgaengig moeglich ist.
+    const homeIntakes = intakes.filter((i) => showOnHome(i, now, clockDate) || canUndo(i));
+    const homeGroups = groupIntakes(homeIntakes, clockDate);
 
-    /** Offline in der Warteschlange: lokal als genommen zeigen, ohne Rueckgaengig. */
-    const markLocally = (ids: string[]) =>
-        setIntakes((prev) => prev.map((i) => (ids.includes(i.id) ? { ...i, status: 'taken', confirmed_at: null, undo_until: undefined } : i)));
+    /** Offline in der Warteschlange: lokal als genommen bzw. uebersprungen zeigen, ohne Rueckgaengig. */
+    const markLocally = (ids: string[], status: 'taken' | 'skipped' = 'taken') =>
+        setIntakes((prev) => prev.map((i) => (ids.includes(i.id) ? { ...i, status, confirmed_at: null, undo_until: undefined } : i)));
 
     const setStatus = async (intake: Intake, status: 'taken' | 'pending') => {
         if (busy) return;
@@ -763,6 +780,56 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                 setNotice({ kind: 'queued', text: t('simpleView:meds.queued') });
             } else {
                 setNotice({ kind: 'ok', text: t('simpleView:meds.saved') });
+                await loadIntakes();
+            }
+        } catch {
+            setNotice({ kind: 'error', text: t('simpleView:meds.error') });
+            void loadIntakes().catch(() => undefined);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    // Block M: ueberspringen (nach der Rueckfrage), einzeln oder alle eines Zeitraums.
+    const skipMany = async (ids: string[]) => {
+        if (busy || ids.length === 0) return;
+        setBusy(true);
+        setNotice(null);
+        try {
+            const res = await api.post<{ success: boolean; queued?: boolean }>('/api/medications/intakes/skip', { intake_ids: ids });
+            if (res.queued) {
+                markLocally(ids, 'skipped');
+                setNotice({ kind: 'queued', text: t('simpleView:meds.queued') });
+            } else {
+                setNotice({ kind: 'ok', text: t('simpleView:home.skipped') });
+                await loadIntakes();
+            }
+        } catch {
+            setNotice({ kind: 'error', text: t('simpleView:meds.error') });
+            void loadIntakes().catch(() => undefined);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    // Block M: spaeter erinnern, 30 Minuten, hoechstens zweimal, nicht bei fester Uhrzeit.
+    const snoozeMany = async (items: Intake[]) => {
+        const allowed = items.filter(maySnooze);
+        if (busy || allowed.length === 0) return;
+        const at = allowed.map((i) => snoozeTarget(i, new Date(), clockDate)).reduce((a, b) => (b > a ? b : a));
+        setBusy(true);
+        setNotice(null);
+        try {
+            const ids = allowed.map((i) => i.id);
+            const res = await api.post<{ success: boolean; queued?: boolean }>('/api/medications/intakes/snooze', { intake_ids: ids });
+            if (res.queued) {
+                // Lokal verschieben, damit die Kachel gleich ruhig wird; der Server rechnet beim Senden neu.
+                setIntakes((prev) => prev.map((i) => (ids.includes(i.id)
+                    ? { ...i, snoozed_until: snoozeTarget(i, new Date(), clockDate).toISOString(), snooze_count: Number(i.snooze_count ?? 0) + 1 }
+                    : i)));
+                setNotice({ kind: 'queued', text: t('simpleView:meds.queued') });
+            } else {
+                setNotice({ kind: 'ok', text: t('simpleView:home.snoozed', { time: clockOf(at) }) });
                 await loadIntakes();
             }
         } catch {
@@ -907,6 +974,76 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
         onClose: () => { stopSpeaking(); setWin(null); },
     };
 
+    // ── Karte einer Einnahme (Fenster Medikamente und Kachel auf der Startseite) ──
+    // Farbe des Medikaments: helle Flaeche mit kraeftigem Rand; ohne Farbe neutral.
+    const intakeCardStyle = (intake: Intake): React.CSSProperties => {
+        const color = medicationColorOf(intake.medication_color);
+        return color
+            ? { backgroundColor: color.soft, border: `3px solid ${color.strong}`, color: C.text }
+            : { backgroundColor: C.card, border: `2px solid ${C.border}`, color: C.text };
+    };
+    const renderIntakeInfo = (intake: Intake, group: IntakeGroup) => {
+        const amount = formatAmount(t, intake.quantity, intake.unit, intake.form);
+        const color = medicationColorOf(intake.medication_color);
+        return (
+            <div className="flex items-start gap-4">
+                {intake.photo_url ? (
+                    <img src={intake.photo_url} alt="" className="h-20 w-20 shrink-0 rounded-2xl object-cover" style={{ border: `1px solid ${C.border}` }} />
+                ) : (
+                    <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl" style={{ backgroundColor: C.card, color: color ? color.strong : C.blue, border: `1px solid ${C.border}` }} aria-hidden="true">
+                        <Pill className="h-10 w-10" />
+                    </div>
+                )}
+                <div className="min-w-0">
+                    <p className="font-bold" style={fs(23)}>
+                        {intake.medication_name}
+                        {intake.medication_dosage ? ` ${intake.medication_dosage}` : ''}
+                    </p>
+                    <p className="font-bold" style={fs(21)}>
+                        {group.kind === 'moment' ? amount : t('medications:today.takeAt', { amount, time: clockOf(intake.due_at) })}
+                    </p>
+                    {intakeDetails(intake).map((line, idx) => (
+                        <p key={idx} style={fs(19)}>{line}</p>
+                    ))}
+                </div>
+            </div>
+        );
+    };
+    const intakeLabel = (i: Intake) => `${i.medication_name}${i.medication_dosage ? ` ${i.medication_dosage}` : ''}`;
+    /** Rueckgaengig-Zeile unter einer eigenen Wahl (genommen oder uebersprungen). */
+    const renderUndo = (intake: Intake) => (
+        <div className="flex flex-wrap items-center gap-3">
+            <button type="button" onClick={() => void setStatus(intake, 'pending')} disabled={busy} className="flex min-h-[56px] items-center gap-2 rounded-2xl px-5 font-bold" style={secondaryButton}>
+                <RotateCcw className="h-6 w-6 shrink-0" aria-hidden="true" />
+                {t('medications:today.undo')}
+            </button>
+            <span style={fs(18)}>
+                {t('simpleView:meds.undoHint', { time: clockOf(new Date(intake.undo_until ?? Date.now())) })}
+            </span>
+        </div>
+    );
+    const noticeBox = notice && (
+        <div
+            role={notice.kind === 'error' ? 'alert' : 'status'}
+            className="flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4"
+            style={{ backgroundColor: C.card, border: `2px solid ${notice.kind === 'error' ? C.red : C.green}` }}
+        >
+            <p className="font-bold" style={{ ...fs(21), color: notice.kind === 'error' ? C.red : C.text }}>{notice.text}</p>
+            <button type="button" onClick={() => setNotice(null)} className="min-h-[56px] min-w-[96px] rounded-2xl px-4 font-bold" style={secondaryButton}>
+                {t('simpleView:ok')}
+            </button>
+        </div>
+    );
+    // Rueckfrage "alle genommen": aus dem Fenster (pro Tageszeit) oder aus der Kachel (nur die gezeigten).
+    // Erst hier, weil allTakenLabel clockOf braucht.
+    const takeAllDialog = confirmEntry
+        ? { title: allTakenLabel(confirmEntry.group, confirmEntry.items), items: confirmEntry.items.filter(isOpen) }
+        : homeTakeAll ? { title: t('simpleView:home.allTaken'), items: homeTakeAll.filter(isOpen) } : null;
+    // Block M: Tasten unter jeder Tablette nur mit Symbol (Ausnahme wie E20), 64 px, 12 px Abstand.
+    const iconButton = 'flex h-16 min-w-[64px] flex-1 items-center justify-center rounded-2xl px-3 disabled:opacity-70';
+    // Hellroter Rahmen bei offener Einnahme 30 Minuten nach der Zeit: mind. 3:1 auf Weiss und den hellen Flaechen.
+    const OVERDUE_RING = '#d9534f';
+
     // ── Kacheln (Block L1): alle gleich, weiss mit gleichem Rand; Farbe nur mit Bedeutung ──
     const tileStyle: React.CSSProperties = { backgroundColor: C.card, border: `2px solid ${C.border}`, color: C.text };
     const renderTile = (id: WindowId, Icon: React.FC<{ className?: string; style?: React.CSSProperties }>, title: string, hint: string | null, iconColor: string = C.blue) => (
@@ -944,6 +1081,131 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                         {t('simpleView:header.logout')}
                     </button>
                 </header>
+
+                {/* Block M (E23): Medikamente direkt auf der Startseite, ohne Fenster */}
+                {medsOn && win === null && notice && noticeBox}
+                {medsOn && homeGroups.length > 0 && (
+                    <section className="rounded-3xl p-5 sm:p-6" style={{ backgroundColor: C.blueSoft, border: `2px solid ${C.border}` }} aria-labelledby="rv-home-meds">
+                        <h2 id="rv-home-meds" className="mb-4 flex items-center gap-4" style={sectionTitle(C.blueDark)}>
+                            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-white" style={{ backgroundColor: C.blue }} aria-hidden="true">
+                                <Pill className="h-8 w-8" />
+                            </span>
+                            {t('simpleView:reminder.title')}
+                        </h2>
+                        <div className="flex flex-col gap-5">
+                            {homeGroups.map(({ group, items }) => {
+                                const open = items.filter(isOpen);
+                                const snoozable = open.filter(maySnooze);
+                                return (
+                                    <div key={group.key} role="group" aria-labelledby={`rv-home-${group.key}`} className="rounded-2xl p-4 sm:p-5" style={tile}>
+                                        <h3 id={`rv-home-${group.key}`} className="mb-3 font-bold" style={{ ...fs(26), lineHeight: 1.3 }}>{groupTitle(group, items)}</h3>
+                                        <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                            {items.map((intake) => {
+                                                const overdue = isOverdue(intake, now, clockDate);
+                                                const label = intakeLabel(intake);
+                                                return (
+                                                    <li
+                                                        key={intake.id}
+                                                        className="flex flex-col gap-3 rounded-2xl p-4"
+                                                        style={{ ...intakeCardStyle(intake), ...(overdue ? { outline: `4px solid ${OVERDUE_RING}`, outlineOffset: 3 } : {}) }}
+                                                    >
+                                                        {renderIntakeInfo(intake, group)}
+
+                                                        {/* Verpasst: nie zum Nachholen auffordern, nur sagen, was ist */}
+                                                        {overdue && (
+                                                            <div className="rounded-xl px-3 py-2" style={{ backgroundColor: C.redSoft, color: C.red }}>
+                                                                <p className="font-bold" style={fs(21)}>{t('simpleView:home.overdue', { time: clockOf(intake.due_at) })}</p>
+                                                                <p className="font-bold" style={fs(19)}>{t('simpleView:home.askFamily')}</p>
+                                                            </div>
+                                                        )}
+
+                                                        {intake.status === 'taken' && (
+                                                            <p className="flex items-center gap-2 rounded-xl px-3 py-2 font-bold text-white" style={{ ...fs(21), backgroundColor: C.green }}>
+                                                                <Check className="h-7 w-7 shrink-0" strokeWidth={3} aria-hidden="true" />
+                                                                {intake.confirmed_at
+                                                                    ? t('medications:today.status.takenAt', { time: clockOf(intake.confirmed_at) })
+                                                                    : t('medications:today.status.taken')}
+                                                            </p>
+                                                        )}
+                                                        {intake.status === 'skipped' && (
+                                                            <p className="font-bold" style={fs(21)}>{t('simpleView:home.skippedStatus')}</p>
+                                                        )}
+
+                                                        {isOpen(intake) && (
+                                                            <div className="flex gap-3">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => void setStatus(intake, 'taken')}
+                                                                    disabled={busy}
+                                                                    aria-label={t('simpleView:home.takeOne', { name: label })}
+                                                                    title={t('simpleView:home.take')}
+                                                                    className={cn(iconButton, 'text-white shadow-md')}
+                                                                    style={{ backgroundColor: C.green }}
+                                                                >
+                                                                    <Check className="h-9 w-9" strokeWidth={3} aria-hidden="true" />
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setSkipConfirm([intake])}
+                                                                    disabled={busy}
+                                                                    aria-label={t('simpleView:home.skipOne', { name: label })}
+                                                                    title={t('simpleView:home.skip')}
+                                                                    className={iconButton}
+                                                                    style={secondaryButton}
+                                                                >
+                                                                    <SkipForward className="h-9 w-9" aria-hidden="true" />
+                                                                </button>
+                                                                {maySnooze(intake) && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => void snoozeMany([intake])}
+                                                                        disabled={busy}
+                                                                        aria-label={t('simpleView:home.snoozeOne', { name: label })}
+                                                                        title={t('simpleView:home.snooze')}
+                                                                        className={iconButton}
+                                                                        style={secondaryButton}
+                                                                    >
+                                                                        <Bell className="h-9 w-9" aria-hidden="true" />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                        {canUndo(intake) && renderUndo(intake)}
+                                                    </li>
+                                                );
+                                            })}
+                                        </ul>
+
+                                        {open.length > 1 && (
+                                            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setHomeTakeAll(open)}
+                                                    disabled={busy}
+                                                    className="flex min-h-[64px] items-center justify-center gap-2 rounded-2xl px-4 font-bold text-white shadow-md disabled:opacity-70"
+                                                    style={{ ...fs(21), backgroundColor: C.green }}
+                                                >
+                                                    <CheckCheck className="h-7 w-7 shrink-0" aria-hidden="true" />
+                                                    {t('simpleView:home.allTaken')}
+                                                </button>
+                                                <button type="button" onClick={() => setSkipConfirm(open)} disabled={busy} className="flex min-h-[64px] items-center justify-center gap-2 rounded-2xl px-4 font-bold" style={secondaryButton}>
+                                                    <SkipForward className="h-7 w-7 shrink-0" aria-hidden="true" />
+                                                    {t('simpleView:home.allSkip')}
+                                                </button>
+                                                {snoozable.length > 0 && (
+                                                    <button type="button" onClick={() => void snoozeMany(snoozable)} disabled={busy} className="flex min-h-[64px] items-center justify-center gap-2 rounded-2xl px-4 font-bold" style={secondaryButton}>
+                                                        <Bell className="h-7 w-7 shrink-0" aria-hidden="true" />
+                                                        {t('simpleView:home.snooze')}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </section>
+                )}
 
                 {/* Begruessung mit Foto */}
                 <section
@@ -1021,18 +1283,18 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
 
                 {/* Block L1: Kacheln, jede oeffnet ein grosses Fenster */}
                 <nav aria-label={t('simpleView:tiles.label')} className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {renderTile('emergency', HeartPulse, t('simpleView:emergency.button'), null, C.red)}
-                    {medsOn && renderTile('meds', Pill, t('simpleView:tiles.meds'),
+                    {tileOn('emergency') && renderTile('emergency', HeartPulse, t('simpleView:emergency.button'), null, C.red)}
+                    {medsOn && tileOn('meds') && renderTile('meds', Pill, t('simpleView:tiles.meds'),
                         dueNow.length > 0 ? t('simpleView:reminder.subtitle', { count: dueNow.length }) : null)}
-                    {ownVitalTypes.length > 0 && renderTile('health', Activity, t('simpleView:measure.title'),
+                    {ownVitalTypes.length > 0 && tileOn('health') && renderTile('health', Activity, t('simpleView:measure.title'),
                         dueVitals.length > 0 ? t(`simpleView:vitals.${dueVitals[0].type}`) : null)}
-                    {calendarOn && renderTile('visitors', Users, t('simpleView:visitors.title'),
+                    {calendarOn && tileOn('visitors') && renderTile('visitors', Users, t('simpleView:visitors.title'),
                         visitorEvents.length === 0 ? t('simpleView:visitors.empty') : t('simpleView:tiles.visits', { count: visitorEvents.length }))}
-                    {calendarOn && renderTile('appointments', CalendarDays, t('simpleView:appointments.title'),
+                    {calendarOn && tileOn('appointments') && renderTile('appointments', CalendarDays, t('simpleView:appointments.title'),
                         appointmentEvents.length === 0 ? t('simpleView:appointments.empty') : t('simpleView:tiles.appointments', { count: appointmentEvents.length }))}
-                    {contactsOn && renderTile('contacts', Phone, t('simpleView:contacts.title'), null)}
-                    {questions.length > 0 && renderTile('ask', MessageCircle, t('simpleView:ask.button'), t('simpleView:ask.hint'))}
-                    {on('consultations') && (
+                    {contactsOn && tileOn('contacts') && renderTile('contacts', Phone, t('simpleView:contacts.title'), null)}
+                    {questions.length > 0 && tileOn('ask') && renderTile('ask', MessageCircle, t('simpleView:ask.button'), t('simpleView:ask.hint'))}
+                    {on('consultations') && tileOn('doctor') && (
                         <div
                             role="group"
                             aria-disabled="true"
@@ -1049,8 +1311,8 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                             </span>
                         </div>
                     )}
-                    {renderTile('info', IdCard, t('simpleView:info.title'), null)}
-                    {shoppingOn && renderTile('shopping', ShoppingCart, t('simpleView:tiles.shopping'),
+                    {tileOn('info') && renderTile('info', IdCard, t('simpleView:info.title'), null)}
+                    {shoppingOn && tileOn('shopping') && renderTile('shopping', ShoppingCart, t('simpleView:tiles.shopping'),
                         openShopping.length === 0 ? t('simpleView:shopping.empty') : t('simpleView:tiles.shoppingOpen', { count: openShopping.length }))}
                     {renderTile('settings', SettingsIcon, t('simpleView:settings.title'), null)}
                 </nav>
@@ -1207,35 +1469,9 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                 </div>
                                 <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
                                     {items.map((intake) => {
-                                        const amount = formatAmount(t, intake.quantity, intake.unit, intake.form);
-                                        // Farbe des Medikaments: helle Flaeche mit kraeftigem Rand; ohne Farbe neutral.
-                                        const color = medicationColorOf(intake.medication_color);
-                                        const cardStyle: React.CSSProperties = color
-                                            ? { backgroundColor: color.soft, border: `3px solid ${color.strong}`, color: C.text }
-                                            : { backgroundColor: C.card, border: `2px solid ${C.border}`, color: C.text };
                                         return (
-                                            <li key={intake.id} className="flex flex-col gap-3 rounded-2xl p-4" style={cardStyle}>
-                                                <div className="flex items-start gap-4">
-                                                    {intake.photo_url ? (
-                                                        <img src={intake.photo_url} alt="" className="h-20 w-20 shrink-0 rounded-2xl object-cover" style={{ border: `1px solid ${C.border}` }} />
-                                                    ) : (
-                                                        <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl" style={{ backgroundColor: C.card, color: color ? color.strong : C.blue, border: `1px solid ${C.border}` }} aria-hidden="true">
-                                                            <Pill className="h-10 w-10" />
-                                                        </div>
-                                                    )}
-                                                    <div className="min-w-0">
-                                                        <p className="font-bold" style={fs(23)}>
-                                                            {intake.medication_name}
-                                                            {intake.medication_dosage ? ` ${intake.medication_dosage}` : ''}
-                                                        </p>
-                                                        <p className="font-bold" style={fs(21)}>
-                                                            {group.kind === 'moment' ? amount : t('medications:today.takeAt', { amount, time: clockOf(intake.due_at) })}
-                                                        </p>
-                                                        {intakeDetails(intake).map((line, idx) => (
-                                                            <p key={idx} style={fs(19)}>{line}</p>
-                                                        ))}
-                                                    </div>
-                                                </div>
+                                            <li key={intake.id} className="flex flex-col gap-3 rounded-2xl p-4" style={intakeCardStyle(intake)}>
+                                                {renderIntakeInfo(intake, group)}
 
                                                 {intake.status === 'taken' && (
                                                     <p className="flex items-center gap-2 rounded-xl px-3 py-2 font-bold text-white" style={{ ...fs(21), backgroundColor: C.green }}>
@@ -1264,17 +1500,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                                         {t('medications:today.markTaken')}
                                                     </button>
                                                 )}
-                                                {canUndo(intake) && (
-                                                    <div className="flex flex-wrap items-center gap-3">
-                                                        <button type="button" onClick={() => void setStatus(intake, 'pending')} disabled={busy} className="flex min-h-[56px] items-center gap-2 rounded-2xl px-5 font-bold" style={secondaryButton}>
-                                                            <RotateCcw className="h-6 w-6 shrink-0" aria-hidden="true" />
-                                                            {t('medications:today.undo')}
-                                                        </button>
-                                                        <span style={fs(18)}>
-                                                            {t('simpleView:meds.undoHint', { time: clockOf(new Date(intake.undo_until ?? Date.now())) })}
-                                                        </span>
-                                                    </div>
-                                                )}
+                                                {canUndo(intake) && renderUndo(intake)}
                                             </li>
                                         );
                                     })}
@@ -1950,15 +2176,15 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                 </div>
             )}
 
-            {/* Rueckfrage: alle einer Tageszeit genommen */}
-            {confirmEntry && (
+            {/* Rueckfrage: alle einer Tageszeit genommen (Fenster) bzw. alle gezeigten (Kachel) */}
+            {takeAllDialog && (
                 <div className={dialogLayer} style={{ lineHeight: 1.5, ['--k' as string]: String(fontScale) }} role="dialog" aria-modal="true" aria-labelledby="rv-confirm-title">
                     <div className="absolute inset-0 bg-black/40" aria-hidden="true" />
                     <div className={cn(overlayBox, 'max-w-xl font-kiosk')} style={tile}>
-                        <h2 id="rv-confirm-title" className="font-bold" style={fs(26)}>{allTakenLabel(confirmEntry.group, confirmEntry.items)}</h2>
+                        <h2 id="rv-confirm-title" className="font-bold" style={fs(26)}>{takeAllDialog.title}</h2>
                         <p className="mt-2" style={fs(21)}>{t('medications:today.allTakenQuestion')}</p>
                         <ul className="mt-4 space-y-2">
-                            {confirmEntry.items.filter(isOpen).map((i) => (
+                            {takeAllDialog.items.map((i) => (
                                 <li key={i.id} className="flex items-start gap-3" style={fs(21)}>
                                     <Pill className="mt-1 h-6 w-6 shrink-0" style={{ color: C.blue }} aria-hidden="true" />
                                     <span>{i.medication_name}{i.medication_dosage ? ` ${i.medication_dosage}` : ''}: {formatAmount(t, i.quantity, i.unit, i.form)}</span>
@@ -1966,15 +2192,15 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                             ))}
                         </ul>
                         <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                            <button type="button" onClick={() => setConfirmGroup(null)} className="min-h-[64px] rounded-2xl px-4 font-bold" style={secondaryButton}>
+                            <button type="button" onClick={closeTakeAll} className="min-h-[64px] rounded-2xl px-4 font-bold" style={secondaryButton}>
                                 {t('medications:today.allTakenNo')}
                             </button>
                             <button
                                 type="button"
                                 disabled={busy}
                                 onClick={() => {
-                                    const ids = confirmEntry.items.filter(isOpen).map((i) => i.id);
-                                    setConfirmGroup(null);
+                                    const ids = takeAllDialog.items.map((i) => i.id);
+                                    closeTakeAll();
                                     void confirmMany(ids);
                                 }}
                                 className="flex min-h-[64px] items-center justify-center gap-2 rounded-2xl px-4 font-bold text-white"
@@ -1982,6 +2208,44 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                             >
                                 <Check className="h-7 w-7 shrink-0" strokeWidth={3} aria-hidden="true" />
                                 {t('medications:today.allTakenYes')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Block M: Rueckfrage vor dem Ueberspringen */}
+            {skipConfirm && skipConfirm.length > 0 && (
+                <div className={dialogLayer} style={{ lineHeight: 1.5, ['--k' as string]: String(fontScale) }} role="alertdialog" aria-modal="true" aria-labelledby="rv-skip-title" aria-describedby="rv-skip-hint">
+                    <div className="absolute inset-0 bg-black/40" aria-hidden="true" />
+                    <div className={cn(overlayBox, 'max-w-xl font-kiosk')} style={tile}>
+                        <h2 id="rv-skip-title" className="font-bold" style={fs(26)}>{t('simpleView:home.skipTitle')}</h2>
+                        <ul className="mt-4 space-y-2">
+                            {skipConfirm.map((i) => (
+                                <li key={i.id} className="flex items-start gap-3" style={fs(21)}>
+                                    <Pill className="mt-1 h-6 w-6 shrink-0" style={{ color: C.blue }} aria-hidden="true" />
+                                    <span>{intakeLabel(i)}: {formatAmount(t, i.quantity, i.unit, i.form)}</span>
+                                </li>
+                            ))}
+                        </ul>
+                        <p id="rv-skip-hint" className="mt-4" style={fs(21)}>{t('simpleView:home.skipHint')}</p>
+                        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <button type="button" onClick={() => setSkipConfirm(null)} className="min-h-[64px] rounded-2xl px-4 font-bold" style={secondaryButton}>
+                                {t('simpleView:home.skipNo')}
+                            </button>
+                            <button
+                                type="button"
+                                disabled={busy}
+                                onClick={() => {
+                                    const ids = skipConfirm.map((i) => i.id);
+                                    setSkipConfirm(null);
+                                    void skipMany(ids);
+                                }}
+                                className="flex min-h-[64px] items-center justify-center gap-2 rounded-2xl px-4 font-bold text-white disabled:opacity-70"
+                                style={{ ...fs(21), backgroundColor: C.blue }}
+                            >
+                                <SkipForward className="h-7 w-7 shrink-0" aria-hidden="true" />
+                                {t('simpleView:home.skipYes')}
                             </button>
                         </div>
                     </div>

@@ -19,12 +19,12 @@ describe('publicSettings', () => {
             kiosk_pin_hash: '$2b$10$uneEmpreinteQuiNeDoitPasSortir',
             secret_futur: 'jamais',
         });
-        expect(filtered).toEqual({ unit_system: 'imperial', week_start: 'monday', emergency_numbers: null, aid_types: null, features: {}, vital_types: null });
+        expect(filtered).toEqual({ unit_system: 'imperial', week_start: 'monday', emergency_numbers: null, aid_types: null, features: {}, vital_types: null, view_tiles: {} });
         expect(JSON.stringify(filtered)).not.toContain('2b$10');
     });
 
     it('donne une valeur par defaut utilisable', () => {
-        const defaults = { unit_system: 'metric', week_start: 'monday', emergency_numbers: null, aid_types: null, features: {}, vital_types: null };
+        const defaults = { unit_system: 'metric', week_start: 'monday', emergency_numbers: null, aid_types: null, features: {}, vital_types: null, view_tiles: {} };
         expect(publicSettings({})).toEqual(defaults);
         expect(publicSettings(null)).toEqual(defaults);
         expect(publicSettings('texte')).toEqual(defaults);
@@ -32,7 +32,7 @@ describe('publicSettings', () => {
     });
 
     it('garde le dimanche quand le cercle l a choisi', () => {
-        expect(publicSettings({ week_start: 'sunday' })).toEqual({ unit_system: 'metric', week_start: 'sunday', emergency_numbers: null, aid_types: null, features: {}, vital_types: null });
+        expect(publicSettings({ week_start: 'sunday' })).toEqual({ unit_system: 'metric', week_start: 'sunday', emergency_numbers: null, aid_types: null, features: {}, vital_types: null, view_tiles: {} });
     });
 
     it('filtre aussi une ligne de cercle entiere, sans perdre le reste', () => {
@@ -40,7 +40,7 @@ describe('publicSettings', () => {
         const safe = withPublicSettings(row);
         expect(safe.id).toBe('c1');
         expect(safe.name).toBe('Jeanne');
-        expect(safe.settings).toEqual({ unit_system: 'imperial', week_start: 'monday', emergency_numbers: null, aid_types: null, features: {}, vital_types: null });
+        expect(safe.settings).toEqual({ unit_system: 'imperial', week_start: 'monday', emergency_numbers: null, aid_types: null, features: {}, vital_types: null, view_tiles: {} });
         expect(JSON.stringify(safe)).not.toContain('secret');
     });
 });
@@ -104,7 +104,7 @@ describe('validateSettingsPatch', () => {
     });
 
     it('ne declare publique que ce qui a ete relu', () => {
-        expect([...PUBLIC_SETTING_KEYS]).toEqual(['unit_system', 'week_start', 'emergency_numbers', 'aid_types', 'features', 'vital_types']);
+        expect([...PUBLIC_SETTING_KEYS]).toEqual(['unit_system', 'week_start', 'emergency_numbers', 'aid_types', 'features', 'vital_types', 'view_tiles']);
     });
 });
 
@@ -163,5 +163,20 @@ describe('inheritedSettings', () => {
     it('laisse les defauts aux cles absentes ou invalides', () => {
         expect(inheritedSettings({ unit_system: 'furlongs', emergency_numbers: '  ' })).toEqual({});
         expect(inheritedSettings(null)).toEqual({});
+    });
+});
+
+describe('view_tiles (Kacheln der einfachen Ansicht)', () => {
+    it('speichert nur ausgeblendete bekannte Kacheln', () => {
+        expect(validateSettingsPatch({ view_tiles: { emergency: false, meds: true } }, 'de')).toEqual({ patch: { view_tiles: { emergency: false } } });
+    });
+    it('lehnt unbekannte Kacheln und falsche Werte ab', () => {
+        expect(validateSettingsPatch({ view_tiles: { settings: false } }, 'de').error).toBeTruthy();
+        expect(validateSettingsPatch({ view_tiles: { meds: 'no' } }, 'de').error).toBeTruthy();
+        expect(validateSettingsPatch({ view_tiles: ['meds'] }, 'de').error).toBeTruthy();
+    });
+    it('liest ausgeblendete Kacheln, ignoriert Unbekanntes', () => {
+        expect(publicSettings({ view_tiles: { shopping: false } }).view_tiles).toEqual({ shopping: false });
+        expect(publicSettings({ view_tiles: { foo: false } }).view_tiles).toEqual({});
     });
 });

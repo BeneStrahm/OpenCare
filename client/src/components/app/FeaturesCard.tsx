@@ -29,7 +29,7 @@ interface SwitchRowProps {
     onToggle: () => void;
 }
 
-const SwitchRow: React.FC<SwitchRowProps> = ({ label, hint, on, disabled, onToggle }) => (
+export const SwitchRow: React.FC<SwitchRowProps> = ({ label, hint, on, disabled, onToggle }) => (
     <button
         type="button"
         role="switch"

@@ -139,5 +139,24 @@
       "delete": "La photo n'a pas pu être supprimée. Réessayez.",
       "limit": "{{max}} photos au plus. Seules les photos pour lesquelles il restait de la place ont été envoyées."
     }
+  },
+  "viewTiles": {
+    "title": "Tuiles sur la tablette",
+    "description": "Choisissez les tuiles que votre proche voit dans la vue simple. Les tuiles masquées disparaissent seulement de l'écran ; les droits et les données ne changent pas.",
+    "fixed": "La tuile Réglages reste toujours visible.",
+    "featureOff": "Cette fonction est désactivée pour le cercle, la tuile n'apparaît donc pas.",
+    "error": "La sélection n'a pas pu être enregistrée. Veuillez réessayer.",
+    "items": {
+      "emergency": "Fiche urgence",
+      "meds": "Médicaments",
+      "health": "Saisir une mesure",
+      "visitors": "Qui vient aujourd'hui",
+      "appointments": "Rendez-vous du jour",
+      "contacts": "Qui je peux appeler",
+      "ask": "Posez-moi une question",
+      "doctor": "Consultation",
+      "info": "Mes informations",
+      "shopping": "Liste de courses"
+    }
   }
 }

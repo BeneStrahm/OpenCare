@@ -139,5 +139,24 @@
       "delete": "The photo could not be deleted. Please try again.",
       "limit": "At most {{max}} photos. Only as many were uploaded as there was room for."
     }
+  },
+  "viewTiles": {
+    "title": "Tiles on the tablet",
+    "description": "Choose which tiles your relative sees in the simple view. Hidden tiles only disappear from the screen; permissions and data stay the same.",
+    "fixed": "The Settings tile is always shown.",
+    "featureOff": "This feature is turned off for the circle, so the tile is not shown anyway.",
+    "error": "The selection could not be saved. Please try again.",
+    "items": {
+      "emergency": "Emergency sheet",
+      "meds": "Medications",
+      "health": "Enter a health value",
+      "visitors": "Who is coming today",
+      "appointments": "Appointments today",
+      "contacts": "Who I can call",
+      "ask": "Ask me",
+      "doctor": "Doctor's visit",
+      "info": "My information",
+      "shopping": "Shopping list"
+    }
   }
 }

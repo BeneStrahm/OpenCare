@@ -139,5 +139,24 @@
       "delete": "No se ha podido borrar la foto. Inténtelo de nuevo.",
       "limit": "Como máximo {{max}} fotos. Solo se han subido las que cabían."
     }
+  },
+  "viewTiles": {
+    "title": "Mosaicos en la tableta",
+    "description": "Elija qué mosaicos ve su familiar en la vista sencilla. Los mosaicos ocultos solo desaparecen de la pantalla; los permisos y los datos no cambian.",
+    "fixed": "El mosaico Ajustes siempre está visible.",
+    "featureOff": "Esta función está desactivada para el círculo, así que el mosaico no aparece de todos modos.",
+    "error": "No se pudo guardar la selección. Inténtelo de nuevo.",
+    "items": {
+      "emergency": "Ficha de emergencia",
+      "meds": "Medicamentos",
+      "health": "Anotar un valor de salud",
+      "visitors": "Quién viene hoy",
+      "appointments": "Citas de hoy",
+      "contacts": "A quién puedo llamar",
+      "ask": "Pregúnteme",
+      "doctor": "Consulta médica",
+      "info": "Mi información",
+      "shopping": "Lista de la compra"
+    }
   }
 }

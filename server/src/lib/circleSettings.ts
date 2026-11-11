@@ -15,7 +15,16 @@ import { pick, type Lang } from './i18n';
  */
 
 /** Ce qu'un membre du cercle peut lire. */
-export const PUBLIC_SETTING_KEYS = ['unit_system', 'week_start', 'emergency_numbers', 'aid_types', 'features', 'vital_types'] as const;
+export const PUBLIC_SETTING_KEYS = ['unit_system', 'week_start', 'emergency_numbers', 'aid_types', 'features', 'vital_types', 'view_tiles'] as const;
+
+/**
+ * Fork: Kacheln der einfachen Ansicht, die ein Admin ausblenden kann
+ * (Gegenstueck in client/src/lib/features.ts). Die Kachel Einstellungen bleibt
+ * immer. Nur Anzeige: die Rechte der betreuten Person aendern sich nicht.
+ */
+export const VIEW_TILE_IDS = [
+    'emergency', 'meds', 'health', 'visitors', 'appointments', 'contacts', 'ask', 'doctor', 'info', 'shopping',
+] as const;
 
 /** Systeme d'unites de saisie et d'affichage des constantes. */
 export const UNIT_SYSTEMS = ['metric', 'imperial'] as const;
@@ -59,6 +68,8 @@ export interface PublicCircleSettings {
     features: Record<string, false>;
     /** Fork: erfasste Messwerte, null = alle */
     vital_types: string[] | null;
+    /** Fork: ausgeblendete Kacheln der einfachen Ansicht ({ id: false }) */
+    view_tiles: Record<string, false>;
 }
 
 const isUnitSystem = (value: unknown): value is UnitSystem =>
@@ -125,6 +136,7 @@ export function publicSettings(raw: unknown): PublicCircleSettings {
         })(),
         features: cleanFlags(source.features, FEATURE_IDS) ?? {},
         vital_types: cleanVitalTypes(source.vital_types ?? null) ?? null,
+        view_tiles: cleanFlags(source.view_tiles, VIEW_TILE_IDS) ?? {},
     };
 }
 
@@ -177,6 +189,14 @@ export function validateSettingsPatch(input: unknown, lang: Lang): { patch?: Rec
                 };
             }
             patch.emergency_numbers = cleaned;
+        }
+        if (key === 'view_tiles') {
+            const cleaned = cleanFlags(value, VIEW_TILE_IDS);
+            if (!cleaned) {
+                return { error: pick(lang, { fr: `${key} : valeurs invalides`, en: `${key}: invalid values`, es: `${key}: valores no válidos`, de: `${key}: ungültige Werte` }) };
+            }
+            patch.view_tiles = cleaned;
+            continue;
         }
         if (key === 'features') {
             const cleaned = cleanFlags(value, FEATURE_IDS);

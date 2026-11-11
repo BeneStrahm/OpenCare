@@ -139,5 +139,24 @@
       "delete": "Das Foto konnte nicht gelöscht werden. Bitte versuchen Sie es noch einmal.",
       "limit": "Höchstens {{max}} Fotos. Es wurden nur so viele hochgeladen, wie noch Platz ist."
     }
+  },
+  "viewTiles": {
+    "title": "Kacheln auf dem Tablet",
+    "description": "Wählen Sie, welche Kacheln Ihr Angehöriger in der einfachen Ansicht sieht. Ausgeblendete Kacheln verschwinden nur vom Bildschirm, die Rechte und die Daten bleiben gleich.",
+    "fixed": "Die Kachel Einstellungen bleibt immer sichtbar.",
+    "featureOff": "Diese Funktion ist für den Kreis ausgeschaltet, die Kachel fehlt deshalb ohnehin.",
+    "error": "Die Auswahl konnte nicht gespeichert werden. Bitte versuchen Sie es noch einmal.",
+    "items": {
+      "emergency": "Notfallblatt",
+      "meds": "Medikamente",
+      "health": "Gesundheitswert eintragen",
+      "visitors": "Wer heute kommt",
+      "appointments": "Termine heute",
+      "contacts": "Wen ich anrufen kann",
+      "ask": "Fragen Sie mich",
+      "doctor": "Arztgespräch",
+      "info": "Meine Informationen",
+      "shopping": "Einkaufsliste"
+    }
   }
 }
