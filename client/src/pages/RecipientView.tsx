@@ -1228,7 +1228,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                 <Icon className="h-10 w-10" style={{ color: iconColor }} />
             </span>
             <span className="block">
-                <span className="block font-bold" style={{ ...fs(26), lineHeight: 1.25 }}>{title}</span>
+                <span className="block break-words font-bold hyphens-auto" style={{ ...fs(26), lineHeight: 1.25 }}>{title}</span>
                 {hint && <span className="mt-1 block" style={{ ...fs(19), color: C.muted }}>{hint}</span>}
             </span>
         </button>
@@ -1364,8 +1364,8 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                     );
                 })}
 
-                {/* Block L1: Kacheln, jede oeffnet ein grosses Fenster. Alle Reihen so hoch wie die hoechste Kachel (1fr, keine feste Hoehe) */}
-                <nav aria-label={t('simpleView:tiles.label')} className="grid auto-rows-[1fr] grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {/* Block L1: Kacheln, jede oeffnet ein grosses Fenster. 3 Spalten ab 768 px (Tablet mit hoechstem Bildschirmzoom: 853 px). Alle Reihen so hoch wie die hoechste Kachel (1fr, keine feste Hoehe) */}
+                <nav aria-label={t('simpleView:tiles.label')} className="grid auto-rows-[1fr] grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
                     {medsOn && tileOn('meds') && renderTile('meds', Pill, t('simpleView:tiles.meds'), null)}
                     {ownVitalTypes.length > 0 && tileOn('health') && renderTile('health', Activity, t('simpleView:tiles.health'),
                         dueVitals.length > 0 ? t(`simpleView:vitals.${dueVitals[0].type}`) : null)}
