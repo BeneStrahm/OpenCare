@@ -217,7 +217,11 @@
   "medInfo": {
     "when": "Einnahme",
     "appearance": "Sieht aus wie",
-    "reason": "Wofür"
+    "reason": "Wofür",
+    "prescriber": "Verordnet von",
+    "startDate": "Einnehmen ab",
+    "endDate": "Einnehmen bis",
+    "onDays": "nur {{days}}"
   },
   "devClock": {
     "label": "Testuhr (nur beim lokalen Testen)",

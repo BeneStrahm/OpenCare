@@ -84,6 +84,11 @@ interface Intake {
     /** Block M: fuer das Fenster mit den Infos zur Tablette */
     reason?: string | null;
     active_ingredient?: string | null;
+    /** Fenster mit den Infos: Angaben aus dem Medikamentenplan (nur GET /api/medications/intakes) */
+    prescriber?: string | null;
+    start_date?: string | null;
+    end_date?: string | null;
+    plan_schedules?: PlanSchedule[];
     /** Block L2: Farbe des Medikaments (medications.view_color), null = neutrale Karte */
     medication_color?: string | null;
     /** Block M: verschobene Faelligkeit nach "Spaeter erinnern", Anzahl der Verschiebungen */
@@ -93,6 +98,14 @@ interface Intake {
     undo_ms_left?: number;
     /** Lokal: bis wann Rueckgaengig angeboten wird (Date.now()-Zeit). */
     undo_until?: number;
+}
+
+interface PlanSchedule {
+    time_of_day: string;
+    time_fixed: boolean | null;
+    days_of_week: number[];
+    quantity: number | string | null;
+    unit: string | null;
 }
 
 interface EventMember { id: string; name: string }
@@ -986,6 +999,31 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     const howToTake = (i: Intake): string | null => {
         const food = i.with_food && i.with_food !== 'any' ? t(`medications:withFood.${i.with_food}`) : null;
         return [food, i.instructions].filter(Boolean).join(' - ') || null;
+    };
+
+    // Alle Einnahmezeiten des Medikaments, je Zeile "Morgens: 1 Tablette", Wochentage nur wenn nicht taeglich.
+    const planLines = (i: Intake): string[] | null => {
+        const schedules = i.plan_schedules ?? [];
+        if (schedules.length === 0) return null;
+        const dayNames = t('common:days', { returnObjects: true }) as unknown as string[];
+        return schedules.map((s) => {
+            const when = s.time_fixed === false
+                ? t(`medications:moments.${momentOf(parseInt(s.time_of_day.slice(0, 2), 10))}`)
+                : t('simpleView:meds.at', { time: formatClock(s.time_of_day) });
+            const line = `${when}: ${formatAmount(t, s.quantity, s.unit, i.form)}`;
+            const days = Array.isArray(s.days_of_week) && s.days_of_week.length < 7
+                ? [...s.days_of_week].sort((a, b) => a - b).map((d) => dayNames[d - 1]).filter(Boolean).join(', ')
+                : '';
+            return days ? `${line} (${t('simpleView:medInfo.onDays', { days })})` : line;
+        });
+    };
+
+    // "12. November 2026" aus YYYY-MM-DD (ohne Zeitzonen-Verschiebung).
+    const longDate = (value: string | null | undefined): string | null => {
+        const m = value ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(value) : null;
+        if (!m) return null;
+        const date = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+        return new Intl.DateTimeFormat(intlLocale(), { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
     };
 
     const rootStyle: React.CSSProperties = {
@@ -2212,13 +2250,16 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                 const when = due && i.time_fixed === false
                     ? t(`medications:moments.${momentOf(due.getHours())}`)
                     : t('simpleView:meds.at', { time: clockOf(i.due_at) });
-                const rows: Array<[string, string | null]> = [
+                const rows: Array<[string, string | string[] | null]> = [
                     [t('medications:form.activeIngredient'), i.active_ingredient ?? null],
                     [t('medications:form.quantity'), formatAmount(t, i.quantity, i.unit, i.form)],
-                    [t('simpleView:medInfo.when'), when],
+                    [t('simpleView:medInfo.when'), planLines(i) ?? when],
                     [t('medications:form.instructions'), howToTake(i)],
                     [t('simpleView:medInfo.appearance'), i.appearance],
                     [t('simpleView:medInfo.reason'), i.reason ?? null],
+                    [t('simpleView:medInfo.prescriber'), i.prescriber?.trim() || null],
+                    [t('simpleView:medInfo.startDate'), longDate(i.start_date)],
+                    [t('simpleView:medInfo.endDate'), longDate(i.end_date)],
                 ];
                 return (
                     <div className={dialogLayer} style={{ lineHeight: 1.5, ['--k' as string]: String(fontScale) }} role="dialog" aria-modal="true" aria-labelledby="rv-medinfo-title">
@@ -2240,7 +2281,13 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                 {rows.filter(([, value]) => value).map(([label, value]) => (
                                     <div key={label}>
                                         <dt className="font-bold" style={{ ...fs(19), color: C.muted }}>{label}</dt>
-                                        <dd className="font-bold" style={fs(24)}>{value}</dd>
+                                        {Array.isArray(value) ? (
+                                            value.map((line, index) => (
+                                                <dd key={index} className="font-bold" style={fs(24)}>{line}</dd>
+                                            ))
+                                        ) : (
+                                            <dd className="font-bold" style={fs(24)}>{value}</dd>
+                                        )}
                                     </div>
                                 ))}
                             </dl>

@@ -217,7 +217,11 @@
   "medInfo": {
     "when": "Prise",
     "appearance": "Aspect",
-    "reason": "Pour quoi"
+    "reason": "Pour quoi",
+    "prescriber": "Prescrit par",
+    "startDate": "À prendre à partir du",
+    "endDate": "À prendre jusqu’au",
+    "onDays": "seulement {{days}}"
   },
   "devClock": {
     "label": "Horloge de test (tests locaux seulement)",

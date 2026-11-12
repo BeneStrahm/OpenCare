@@ -217,7 +217,11 @@
   "medInfo": {
     "when": "Toma",
     "appearance": "Aspecto",
-    "reason": "Para qué"
+    "reason": "Para qué",
+    "prescriber": "Recetado por",
+    "startDate": "Tomar desde",
+    "endDate": "Tomar hasta",
+    "onDays": "solo {{days}}"
   },
   "devClock": {
     "label": "Reloj de prueba (solo pruebas locales)",

@@ -217,7 +217,11 @@
   "medInfo": {
     "when": "When to take",
     "appearance": "Looks like",
-    "reason": "What for"
+    "reason": "What for",
+    "prescriber": "Prescribed by",
+    "startDate": "Take from",
+    "endDate": "Take until",
+    "onDays": "only {{days}}"
   },
   "devClock": {
     "label": "Test clock (local testing only)",

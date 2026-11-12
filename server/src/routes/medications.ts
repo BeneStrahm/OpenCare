@@ -630,6 +630,21 @@ router.delete('/:id', requireContentWriter, async (req: CircleRequest, res: Resp
 // Intakes (occurrences)
 // ============================================================
 
+// Fenster "Infos zur Tablette" in der einfachen Ansicht: Angaben aus dem Medikamentenplan.
+// Nur in dieser Route (Rollen HEALTH_READER_ROLES), nicht im Link fuer Betreuungspersonen.
+const INTAKE_PLAN_COLUMNS = `
+    m.prescriber,
+    to_char(m.start_date, 'YYYY-MM-DD') AS start_date,
+    to_char(m.end_date, 'YYYY-MM-DD') AS end_date,
+    (SELECT COALESCE(json_agg(json_build_object(
+                'time_of_day', to_char(ps.time_of_day, 'HH24:MI'),
+                'time_fixed', ps.time_fixed,
+                'days_of_week', ps.days_of_week,
+                'quantity', ps.quantity,
+                'unit', ps.unit
+            ) ORDER BY ps.time_of_day), '[]')
+     FROM medication_schedules ps WHERE ps.medication_id = m.id) AS plan_schedules`;
+
 // List intakes between from and to (default: today), lazily generating
 // the missing occurrences of the period from the active medications' schedules.
 router.get('/intakes', async (req: CircleRequest, res: Response) => {
@@ -664,7 +679,8 @@ router.get('/intakes', async (req: CircleRequest, res: Response) => {
 
         const result = await query(
             `SELECT ${INTAKE_DISPLAY_COLUMNS}, ${CONFIRMED_AGE_MS_SQL} AS confirmed_age_ms,
-                    cu.name AS confirmed_by_name
+                    cu.name AS confirmed_by_name,
+                    ${INTAKE_PLAN_COLUMNS}
              ${INTAKE_DISPLAY_FROM}
              LEFT JOIN users cu ON cu.id = i.confirmed_by_user
              WHERE i.circle_id = $1
