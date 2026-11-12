@@ -71,7 +71,7 @@ const CareLink: React.FC = () => {
             const response = await fetch(`${base}/today`);
             const json = await response.json();
             if (!response.ok || !json.success) {
-                setError(json.error || t('errors.invalid'));
+                setError(json.error === 'FEATURE_DISABLED' ? t('errors.disabled') : (json.error || t('errors.invalid')));
                 return;
             }
             setData(json.data);

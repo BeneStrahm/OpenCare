@@ -10,12 +10,15 @@ import { query } from '../db';
 
 /**
  * Abschaltbare Funktionen und die API-Pfade, die der Server dann sperrt.
- * Fest an (nicht in der Liste): Uebersicht, Tagebuch, Informationen, Kreis,
+ * Fest an (nicht in der Liste): Uebersicht, Informationen, Kreis,
  * Einstellungen, Notfall.
  */
 export const FEATURES = {
     calendar: ['/api/events', '/api/calendar'],
     messages: ['/api/messages'],
+    // Pflegetagebuch. Sperrt auch die Links fuer Betreuungspersonen
+    // (caregiverLinkMiddleware) und ueber FEATURE_REQUIRES die Sprachnotizen.
+    journal: ['/api/journal', '/api/caregiver-links'],
     care_plan: ['/api/care-plan'],
     medications: ['/api/medications'],
     health: ['/api/vitals'],
@@ -55,10 +58,21 @@ const flags = (settings: Settings, key: string): Record<string, unknown> => {
  */
 export const RETIRED_FEATURES: readonly FeatureId[] = ['visitors'];
 
-/** An, solange nicht stillgelegt und nicht ausdruecklich false gespeichert. */
+/**
+ * Funktionen, die nur mit einer anderen Funktion laufen. Der eigene Schalter
+ * bleibt gespeichert, wirkt aber erst, wenn die andere Funktion wieder an ist.
+ * Gegenstueck in client/src/lib/features.ts.
+ */
+export const FEATURE_REQUIRES: Partial<Record<FeatureId, FeatureId>> = {
+    voice_journal: 'journal',
+};
+
+/** An, solange nicht stillgelegt, nicht ausdruecklich false gespeichert und die noetige Funktion an ist. */
 export function isFeatureEnabled(settings: Settings, id: FeatureId): boolean {
     if (RETIRED_FEATURES.includes(id)) return false;
-    return flags(settings, 'features')[id] !== false;
+    if (flags(settings, 'features')[id] === false) return false;
+    const required = FEATURE_REQUIRES[id];
+    return required === undefined || isFeatureEnabled(settings, required);
 }
 
 /** Ausgewaehlte Messwerte; ohne Auswahl alle. */

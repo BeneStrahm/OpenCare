@@ -7,8 +7,8 @@ import { useCircle } from '../../contexts/CircleContext';
 import { Card, CardContent } from '../ui';
 import RegionSectionHeader from './RegionSectionHeader';
 import {
-    FEATURE_IDS, RETIRED_FEATURES, VITAL_TYPES,
-    isFeatureEnabled, enabledVitalTypes,
+    FEATURE_IDS, RETIRED_FEATURES, VITAL_TYPES, FEATURE_REQUIRES,
+    isFeatureEnabled, isFeatureSwitchOn, enabledVitalTypes,
     type VitalType,
 } from '../../lib/features';
 
@@ -87,7 +87,8 @@ const FeaturesCard: React.FC = () => {
     const toggleFeature = (id: (typeof FEATURE_IDS)[number]) => {
         const next: Record<string, boolean> = {};
         // Stillgelegte (RETIRED_FEATURES) fehlen in der Liste, sie sind ohnehin aus.
-        for (const f of SELECTABLE_FEATURES) next[f] = isFeatureEnabled(settings, f);
+        // Gespeicherte Schalter, damit abhaengige Funktionen ihren Stand behalten.
+        for (const f of SELECTABLE_FEATURES) next[f] = isFeatureSwitchOn(settings, f);
         next[id] = !next[id];
         void save({ features: next });
     };
@@ -117,15 +118,21 @@ const FeaturesCard: React.FC = () => {
                     <section>
                         <RegionSectionHeader title={t('features.modules.title')} subtitle={t('features.modules.subtitle')} scope="circle" />
                         <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
-                            {SELECTABLE_FEATURES.map((id) => (
-                                <SwitchRow
-                                    key={id}
-                                    label={t(`features.items.${id}`)}
-                                    on={isFeatureEnabled(settings, id)}
-                                    disabled={saving}
-                                    onToggle={() => toggleFeature(id)}
-                                />
-                            ))}
+                            {SELECTABLE_FEATURES.map((id) => {
+                                // Abhaengige Funktion: gesperrt mit Grund, solange die andere aus ist.
+                                const required = FEATURE_REQUIRES[id];
+                                const blocked = required !== undefined && !isFeatureEnabled(settings, required);
+                                return (
+                                    <SwitchRow
+                                        key={id}
+                                        label={t(`features.items.${id}`)}
+                                        hint={blocked ? t(`features.requires.${required}`) : undefined}
+                                        on={isFeatureEnabled(settings, id)}
+                                        disabled={saving || blocked}
+                                        onToggle={() => toggleFeature(id)}
+                                    />
+                                );
+                            })}
                         </div>
                         <p className="mt-3 text-micro text-muted-foreground">{t('features.modules.fixed')}</p>
                     </section>

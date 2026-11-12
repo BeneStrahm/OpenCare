@@ -140,11 +140,12 @@
     "modules": {
       "title": "Parts of the app",
       "subtitle": "Menu, dashboard and simple view only show switched-on parts.",
-      "fixed": "Always on: dashboard, care journal, settings and emergency."
+      "fixed": "Always on: dashboard, settings and emergency."
     },
     "items": {
       "calendar": "Calendar",
       "messages": "Messages",
+      "journal": "Care journal",
       "care_plan": "Care plan",
       "medications": "Medications",
       "health": "Health (measurements)",
@@ -159,6 +160,9 @@
       "voice_journal": "Voice notes in the journal",
       "digests": "Weekly summary",
       "heatwave": "Heat warning"
+    },
+    "requires": {
+      "journal": "Only with the care journal switched on."
     },
     "vitals": {
       "title": "Measurements",

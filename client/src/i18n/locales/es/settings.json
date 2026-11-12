@@ -140,11 +140,12 @@
     "modules": {
       "title": "Partes de la aplicación",
       "subtitle": "El menú, el inicio y la vista sencilla solo muestran las partes activadas.",
-      "fixed": "Siempre activos: inicio, diario, ajustes y emergencia."
+      "fixed": "Siempre activos: inicio, ajustes y emergencia."
     },
     "items": {
       "calendar": "Calendario",
       "messages": "Mensajes",
+      "journal": "Diario",
       "care_plan": "Plan de cuidados",
       "medications": "Medicamentos",
       "health": "Salud (mediciones)",
@@ -159,6 +160,9 @@
       "voice_journal": "Notas de voz en el diario",
       "digests": "Resumen semanal",
       "heatwave": "Aviso de calor"
+    },
+    "requires": {
+      "journal": "Solo con el diario activado."
     },
     "vitals": {
       "title": "Mediciones",

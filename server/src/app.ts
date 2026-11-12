@@ -168,7 +168,7 @@ app.use('/api/auth', userSettingsRoutes);
 app.use('/api/auth', passwordResetRoutes);
 app.use('/api/circles', circlesRoutes);
 app.use('/api/invites', circleInvitesRoutes);
-app.use('/api/journal', journalRoutes);
+app.use('/api/journal', requireFeature('journal'), journalRoutes);
 app.use('/api/vitals', requireFeature('health'), vitalsRoutes);
 app.use('/api/medications', requireFeature('medications'), medicationsRoutes);
 app.use('/api/events', requireFeature('calendar'), eventsRoutes);
@@ -178,7 +178,7 @@ app.use('/api/expenses', requireFeature('expenses'), expensesRoutes);
 app.use('/api/messages', requireFeature('messages'), messagesRoutes);
 app.use('/api/documents', requireFeature('documents'), documentsRoutes);
 app.use('/api/contacts', requireFeature('contacts'), contactsRoutes);
-app.use('/api/caregiver-links', caregiverLinksRoutes);
+app.use('/api/caregiver-links', requireFeature('journal'), caregiverLinksRoutes);
 app.use('/api/emergency', emergencyRoutes);
 app.use('/api/visits', requireFeature('visitors'), visitsRoutes);
 // Fork, Block D: Fotos fuer die einfache Ansicht der betreuten Person

@@ -14,6 +14,7 @@ import {
 } from '../services/ai/assistant';
 import { broadcastToCircle } from '../lib/broadcaster';
 import logger from '../lib/logger';
+import { requireFeature } from '../lib/features';
 import { langFromRequest, t } from '../lib/i18n';
 import { dictationPromptFor } from '../modules/consultations/vocabulary';
 import { isLocalServiceUrl } from '../modules/consultations/localOnly';
@@ -181,7 +182,7 @@ router.post('/transcribe', requireJournalWriter, async (req: CircleRequest, res:
 // POST /api/voice/journal : { text } -> the circle's AI files the dictation as
 // a clean journal entry + shopping items. Without a configured AI, the raw text
 // becomes a plain 'note' entry and no shopping item is created.
-router.post('/journal', requireJournalWriter, async (req: CircleRequest, res: Response) => {
+router.post('/journal', requireFeature('voice_journal'), requireJournalWriter, async (req: CircleRequest, res: Response) => {
     const text = typeof req.body?.text === 'string' ? req.body.text.trim().slice(0, MAX_TEXT_LENGTH) : '';
     if (!text) {
         return res.status(400).json({ success: false, error: 'text is required' });

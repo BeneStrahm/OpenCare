@@ -15,6 +15,7 @@ const ATTENTION_FEATURES: Record<string, FeatureId> = {
     '/tasks': 'tasks',
     '/visitors': 'visitors',
     '/calendar': 'calendar',
+    '/journal': 'journal',
 };
 
 const router = Router();
@@ -201,7 +202,7 @@ router.get('/', async (req: CircleRequest, res: Response) => {
             data: {
                 recipient: recipientResult.rows[0] ?? null,
                 today_events: on('calendar') ? todayEvents : [],
-                last_journal_entries: isRecipient ? [] : journalResult.rows,
+                last_journal_entries: isRecipient || !on('journal') ? [] : journalResult.rows,
                 pending_tasks: on('tasks') && !isRecipient
                     ? { count: pendingCountResult.rows[0]?.count ?? 0, next: pendingTasksResult.rows }
                     : { count: 0, next: [] },
@@ -293,7 +294,7 @@ router.get('/household', async (req: CircleRequest, res: Response) => {
             const meds = includeHealth && medsRes
                 ? { taken: medsRes.rows[0]?.taken ?? 0, total: medsRes.rows[0]?.total ?? 0 }
                 : null;
-            const last = journalRes.rows[0] ?? null;
+            const last = isFeatureEnabled(settings, 'journal') ? journalRes.rows[0] ?? null : null;
 
             return {
                 circle_id: circle.id,

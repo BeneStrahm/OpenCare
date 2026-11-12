@@ -37,7 +37,8 @@
     "title": "Link nicht verfügbar",
     "invalid": "Dieser Link ist nicht mehr gültig. Bitten Sie die Familie um einen neuen Link.",
     "network": "Keine Verbindung. Bitte prüfen Sie das Netz und versuchen Sie es erneut.",
-    "sendFailed": "Senden fehlgeschlagen. Bitte versuchen Sie es erneut."
+    "sendFailed": "Senden fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "disabled": "Dieser Link ist zurzeit ausgeschaltet. Bitte wenden Sie sich an die Familie."
   },
   "story": {
     "show": "Wer ist {{name}}?",

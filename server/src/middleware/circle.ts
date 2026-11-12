@@ -1,5 +1,6 @@
 import { Response, NextFunction } from 'express';
 import { query } from '../db';
+import { featureEnabledForCircle } from '../lib/features';
 import { AuthRequest } from './auth';
 
 export type CircleRole = 'admin' | 'family' | 'professional' | 'neighbor' | 'recipient';
@@ -416,6 +417,11 @@ export const caregiverLinkMiddleware = async (req: CaregiverLinkRequest, res: Re
         const link = result.rows[0];
         if (!link) {
             return res.status(401).json({ success: false, error: 'Invalid or expired link' });
+        }
+
+        // Fork: Links gehoeren zum Pflegetagebuch. Ist es aus, ruht jeder Link.
+        if (!(await featureEnabledForCircle(link.circle_id, 'journal'))) {
+            return res.status(403).json({ success: false, error: 'FEATURE_DISABLED' });
         }
 
         await query('UPDATE caregiver_links SET last_used_at = CURRENT_TIMESTAMP WHERE id = $1', [link.id]);

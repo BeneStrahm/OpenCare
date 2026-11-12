@@ -37,7 +37,8 @@
     "title": "Lien indisponible",
     "invalid": "Ce lien n'est plus valide. Demandez un nouveau lien à la famille.",
     "network": "Connexion impossible. Vérifiez le réseau et réessayez.",
-    "sendFailed": "L'envoi a échoué. Réessayez."
+    "sendFailed": "L'envoi a échoué. Réessayez.",
+    "disabled": "Ce lien est désactivé pour le moment. Contactez la famille."
   },
   "story": {
     "show": "Qui est {{name}} ?",

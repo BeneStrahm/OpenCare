@@ -411,7 +411,7 @@ const Dashboard: React.FC = () => {
                 )}
 
                 {/* Latest journal entries */}
-                {!isRecipient && (
+                {!isRecipient && isOn('journal') && (
                 <DashCard
                     icon={BookOpen}
                     title={t('dashboard:journal.title')}

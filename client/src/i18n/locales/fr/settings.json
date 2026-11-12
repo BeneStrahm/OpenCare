@@ -140,11 +140,12 @@
     "modules": {
       "title": "Parties de l'application",
       "subtitle": "Le menu, l'accueil et la vue simple n'affichent que les parties activées.",
-      "fixed": "Toujours actifs : accueil, journal, réglages et urgence."
+      "fixed": "Toujours actifs : accueil, réglages et urgence."
     },
     "items": {
       "calendar": "Agenda",
       "messages": "Messages",
+      "journal": "Journal",
       "care_plan": "Plan de soins",
       "medications": "Médicaments",
       "health": "Santé (mesures)",
@@ -159,6 +160,9 @@
       "voice_journal": "Notes vocales du journal",
       "digests": "Résumé de la semaine",
       "heatwave": "Alerte canicule"
+    },
+    "requires": {
+      "journal": "Uniquement avec le journal activé."
     },
     "vitals": {
       "title": "Mesures",

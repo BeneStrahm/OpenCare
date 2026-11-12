@@ -8,6 +8,7 @@ import { api } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useCircle, CircleRole } from '../contexts/CircleContext';
 import { useWebSocketUpdates } from '../hooks/useWebSocketUpdates';
+import { useFeatures } from '../lib/features';
 import {
     Card, CardHeader, CardTitle, CardContent,
     Button, Input, Select, Dialog, Badge, useToast,
@@ -278,6 +279,9 @@ const Circle: React.FC = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
     const { activeCircle, circles, isAdmin, canWriteContent, refreshCircles } = useCircle();
+    // Links fuer Betreuungspersonen gehoeren zum Pflegetagebuch.
+    const { isOn } = useFeatures();
+    const linksOn = canWriteContent && isOn('journal');
     const { showToast } = useToast();
 
     const [detail, setDetail] = useState<CircleDetail | null>(null);
@@ -337,7 +341,7 @@ const Circle: React.FC = () => {
             ] = [
                 api.get<{ success: boolean; data: CircleDetail }>(`/api/circles/${circleId}`),
                 isAdmin ? api.get<{ success: boolean; data: Invite[] }>('/api/invites') : Promise.resolve(null),
-                canWriteContent ? api.get<{ success: boolean; data: CaregiverLink[] }>('/api/caregiver-links') : Promise.resolve(null),
+                linksOn ? api.get<{ success: boolean; data: CaregiverLink[] }>('/api/caregiver-links') : Promise.resolve(null),
             ];
             const [detailRes, invitesRes, linksRes] = await Promise.all(requests);
             if (detailRes.success) {
@@ -364,7 +368,7 @@ const Circle: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [circleId, isAdmin, canWriteContent, showToast, t]);
+    }, [circleId, isAdmin, linksOn, showToast, t]);
 
     useEffect(() => {
         setLoading(true);
@@ -919,7 +923,7 @@ const Circle: React.FC = () => {
             {canWriteContent && <EquitySection circleId={activeCircle.id} />}
 
             {/* Intervenants sans compte: liens magiques, le differenciateur cle */}
-            {canWriteContent && (
+            {linksOn && (
                 <Card hover={false} className="border-primary/30">
                     <CardHeader>
                         <div className="flex flex-wrap items-start justify-between gap-3">

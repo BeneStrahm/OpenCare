@@ -23,6 +23,16 @@ describe('Standard: alles an', () => {
         expect(RETIRED_FEATURES).toContain('visitors');
         expect(isFeatureEnabled({ features: { visitors: true } }, 'visitors')).toBe(false);
     });
+
+    it('Pflegetagebuch ist abschaltbar, Sprachnotizen ruhen dann mit', () => {
+        const off = { features: { journal: false } };
+        expect(FEATURE_IDS).toContain('journal');
+        expect(isFeatureEnabled(off, 'journal')).toBe(false);
+        expect(isFeatureEnabled(off, 'voice_journal')).toBe(false);
+        expect(isFeatureEnabled(off, 'voice_commands')).toBe(true);
+        expect(isFeatureEnabled({ features: { journal: true } }, 'voice_journal')).toBe(true);
+        expect(cleanFlags({ journal: false }, FEATURE_IDS)).toEqual({ journal: false });
+    });
 });
 
 describe('Messwerte', () => {

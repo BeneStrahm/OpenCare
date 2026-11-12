@@ -140,11 +140,12 @@
     "modules": {
       "title": "Bereiche der App",
       "subtitle": "Menü, Übersicht und einfache Ansicht zeigen nur eingeschaltete Bereiche.",
-      "fixed": "Immer an: Übersicht, Pflegetagebuch, Einstellungen und Notfall."
+      "fixed": "Immer an: Übersicht, Einstellungen und Notfall."
     },
     "items": {
       "calendar": "Kalender",
       "messages": "Nachrichten",
+      "journal": "Pflegetagebuch",
       "care_plan": "Pflegeplan",
       "medications": "Medikamente",
       "health": "Gesundheitswerte",
@@ -159,6 +160,9 @@
       "voice_journal": "Sprachnotizen im Tagebuch",
       "digests": "Wochenzusammenfassung",
       "heatwave": "Hitzewarnung"
+    },
+    "requires": {
+      "journal": "Nur mit eingeschaltetem Pflegetagebuch."
     },
     "vitals": {
       "title": "Gesundheitswerte",

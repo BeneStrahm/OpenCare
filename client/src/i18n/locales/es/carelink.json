@@ -37,7 +37,8 @@
     "title": "Enlace no disponible",
     "invalid": "Este enlace ya no es válido. Pida un enlace nuevo a la familia.",
     "network": "No se ha podido conectar. Compruebe la red e inténtelo de nuevo.",
-    "sendFailed": "No se ha podido enviar. Inténtelo de nuevo."
+    "sendFailed": "No se ha podido enviar. Inténtelo de nuevo.",
+    "disabled": "Este enlace está desactivado por ahora. Póngase en contacto con la familia."
   },
   "story": {
     "show": "¿Quién es {{name}}?",

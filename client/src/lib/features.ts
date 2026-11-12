@@ -8,7 +8,7 @@ import { useCircle } from '../contexts/CircleContext';
 
 /** Abschaltbare Funktionen, in der Reihenfolge der Einstellungen. */
 export const FEATURE_IDS = [
-    'calendar', 'messages', 'care_plan', 'medications', 'health', 'consultations', 'visitors',
+    'calendar', 'messages', 'journal', 'care_plan', 'medications', 'health', 'consultations', 'visitors',
     'tasks', 'shopping', 'expenses', 'contacts', 'documents',
     'voice_commands', 'voice_journal', 'digests', 'heatwave',
 ] as const;
@@ -18,6 +18,7 @@ export type FeatureId = (typeof FEATURE_IDS)[number];
 const ROUTE_FEATURES: Array<[string, FeatureId]> = [
     ['/calendar', 'calendar'],
     ['/messages', 'messages'],
+    ['/journal', 'journal'],
     ['/care-plan', 'care_plan'],
     ['/medications', 'medications'],
     ['/health', 'health'],
@@ -47,8 +48,23 @@ const flags = (settings: Settings, key: string): Record<string, unknown> => {
  */
 export const RETIRED_FEATURES: readonly FeatureId[] = ['visitors'];
 
-export const isFeatureEnabled = (settings: Settings, id: FeatureId): boolean =>
+/**
+ * Funktionen, die nur mit einer anderen Funktion laufen (Sprachnotizen nur mit
+ * Pflegetagebuch). Gegenstueck in server/src/lib/features.ts.
+ */
+export const FEATURE_REQUIRES: Partial<Record<FeatureId, FeatureId>> = {
+    voice_journal: 'journal',
+};
+
+/** Gespeicherter Schalter ohne Abhaengigkeiten (Einstellungsseite). */
+export const isFeatureSwitchOn = (settings: Settings, id: FeatureId): boolean =>
     !RETIRED_FEATURES.includes(id) && flags(settings, 'features')[id] !== false;
+
+export const isFeatureEnabled = (settings: Settings, id: FeatureId): boolean => {
+    if (!isFeatureSwitchOn(settings, id)) return false;
+    const required = FEATURE_REQUIRES[id];
+    return required === undefined || isFeatureEnabled(settings, required);
+};
 
 /**
  * Kacheln der einfachen Ansicht, die ein Admin ausblenden kann (Seite Betreute

@@ -37,7 +37,8 @@
     "title": "Link unavailable",
     "invalid": "This link is no longer valid. Ask the family for a new link.",
     "network": "Could not connect. Check the network and try again.",
-    "sendFailed": "Sending failed. Please try again."
+    "sendFailed": "Sending failed. Please try again.",
+    "disabled": "This link is switched off for now. Please contact the family."
   },
   "story": {
     "show": "Who is {{name}}?",
