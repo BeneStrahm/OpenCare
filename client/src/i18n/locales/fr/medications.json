@@ -196,13 +196,13 @@
     "timeKind": "Quand",
     "fixedTime": "Heure fixe",
     "viewColor": "Couleur sur la tablette / dans le pilulier",
-    "viewColorHint": "Aide la personne aidée à reconnaître ce médicament dans sa vue.",
+    "viewColorHint": "Colore la carte de cette prise dans la vue de la personne aidée.",
     "viewColorNone": "Sans couleur",
     "viewColors": {
-      "pink": "Rose (Stabilo 70/56)",
-      "blue": "Bleu (Stabilo 70/31)",
-      "green": "Vert (Stabilo 70/33)",
-      "orange": "Orange (Stabilo 70/54)"
+      "pink": "Rose",
+      "blue": "Bleu",
+      "green": "Vert",
+      "orange": "Orange"
     }
   },
   "prescriptions": {

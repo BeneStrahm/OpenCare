@@ -196,13 +196,13 @@
     "timeKind": "Cuándo",
     "fixedTime": "Hora fija",
     "viewColor": "Color en la tableta / en el pastillero",
-    "viewColorHint": "Ayuda a la persona cuidada a reconocer este medicamento en su vista.",
+    "viewColorHint": "Colorea la tarjeta de esta toma en la vista de la persona cuidada.",
     "viewColorNone": "Sin color",
     "viewColors": {
-      "pink": "Rosa (Stabilo 70/56)",
-      "blue": "Azul (Stabilo 70/31)",
-      "green": "Verde (Stabilo 70/33)",
-      "orange": "Naranja (Stabilo 70/54)"
+      "pink": "Rosa",
+      "blue": "Azul",
+      "green": "Verde",
+      "orange": "Naranja"
     }
   },
   "prescriptions": {

@@ -56,6 +56,8 @@ interface MedicationSchedule {
     unit: string | null;
     /** false = nur Tageszeit, Uhrzeit ist ein Standardwert für Erinnerungen */
     time_fixed?: boolean;
+    /** E28: Farbe dieser Einnahmezeit (lib/viewColors.ts, MEDICATION_COLORS), null = keine */
+    view_color?: string | null;
 }
 
 interface Medication {
@@ -76,8 +78,6 @@ interface Medication {
     appearance: string | null;
     /** Wirkstoff */
     active_ingredient: string | null;
-    /** Block L2: Farbe in der einfachen Ansicht (lib/viewColors.ts, MEDICATION_COLORS) */
-    view_color: string | null;
     /** Stock restant, dans l'unite d'une prise ; null = stock non suivi */
     stock_quantity: number | null;
     /** Sous ce seuil le stock est signale comme bas ; null = pas d'alerte */
@@ -141,6 +141,8 @@ interface ScheduleRow {
     unit: string;
     /** false = nur Tageszeit (Morgens, Mittags ...) */
     time_fixed: boolean;
+    /** E28: Farbe dieser Einnahmezeit, '' = keine */
+    view_color: string;
 }
 
 // ─── Constants and helpers ────────────────────────────────────────────────────
@@ -271,6 +273,7 @@ const emptyScheduleRow = (): ScheduleRow => ({
     quantity: '1',
     unit: '',
     time_fixed: false,
+    view_color: '',
 });
 
 const emptyMedForm = () => ({
@@ -287,7 +290,6 @@ const emptyMedForm = () => ({
     reason: '',
     appearance: '',
     active_ingredient: '',
-    view_color: '',
     schedules: [emptyScheduleRow()],
 });
 
@@ -869,7 +871,6 @@ const Medications: React.FC = () => {
             reason: med.reason || '',
             appearance: med.appearance || '',
             active_ingredient: med.active_ingredient || '',
-            view_color: medicationColorOf(med.view_color)?.id ?? '',
             schedules: med.schedules.map((s) => ({
                 time_of_day: s.time_of_day,
                 days_of_week: [...s.days_of_week],
@@ -877,6 +878,7 @@ const Medications: React.FC = () => {
                 quantity: String(Number(s.quantity) || 1),
                 unit: s.unit || '',
                 time_fixed: s.time_fixed !== false,
+                view_color: medicationColorOf(s.view_color)?.id ?? '',
             })),
         });
         setMedFormError('');
@@ -974,7 +976,6 @@ const Medications: React.FC = () => {
             reason: medForm.reason.trim() || null,
             appearance: medForm.appearance.trim() || null,
             active_ingredient: medForm.active_ingredient.trim() || null,
-            view_color: medForm.view_color || null,
             schedules: rows.map((row) => ({
                 time_of_day: row.time_of_day,
                 days_of_week: row.days_of_week,
@@ -982,6 +983,7 @@ const Medications: React.FC = () => {
                 quantity: parseQuantity(row.quantity) ?? 1,
                 unit: row.unit || null,
                 time_fixed: row.time_fixed,
+                view_color: row.view_color || null,
             })),
         };
 
@@ -1659,39 +1661,6 @@ const Medications: React.FC = () => {
                             placeholder={t('medications:form.appearancePlaceholder')}
                         />
                     </div>
-                    {/* Block L2: Farbe der Karte in der einfachen Ansicht der betreuten Person */}
-                    <fieldset>
-                        <legend className="mb-1.5 block text-caption font-medium text-foreground">
-                            {t('medications:form.viewColor')}
-                        </legend>
-                        <p className="mb-2 text-caption text-muted-foreground">{t('medications:form.viewColorHint')}</p>
-                        <div className="flex flex-wrap gap-2">
-                            {[null, ...MEDICATION_COLORS].map((color) => {
-                                const id = color?.id ?? '';
-                                const selected = medForm.view_color === id;
-                                return (
-                                    <button
-                                        key={id || 'none'}
-                                        type="button"
-                                        aria-pressed={selected}
-                                        onClick={() => setMedForm({ ...medForm, view_color: id })}
-                                        className={cn(
-                                            'flex min-h-[48px] items-center gap-2 rounded-input border-2 px-3 text-body font-medium',
-                                            selected ? 'border-foreground bg-surface-2' : 'border-border bg-surface text-foreground hover:bg-surface-2'
-                                        )}
-                                    >
-                                        <span
-                                            className="h-6 w-6 shrink-0 rounded-full border border-border"
-                                            style={color ? { backgroundColor: color.soft, borderColor: color.strong, borderWidth: 3 } : undefined}
-                                            aria-hidden="true"
-                                        />
-                                        {color ? t(`medications:form.viewColors.${color.id}`) : t('medications:form.viewColorNone')}
-                                        {selected && <Check className="h-5 w-5 shrink-0" aria-hidden="true" />}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </fieldset>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
                             <label className="mb-1.5 block text-caption font-medium text-foreground">
@@ -1994,6 +1963,39 @@ const Medications: React.FC = () => {
                                                 );
                                             })}
                                         </div>
+                                        {/* E28: Farbe dieser Einnahmezeit (Dispenser-Fach), faerbt die Karte in der einfachen Ansicht */}
+                                        <fieldset>
+                                            <legend className="mb-1.5 block text-caption font-medium text-foreground">
+                                                {t('medications:form.viewColor')}
+                                            </legend>
+                                            <p className="mb-2 text-caption text-muted-foreground">{t('medications:form.viewColorHint')}</p>
+                                            <div className="flex flex-wrap gap-2">
+                                                {[null, ...MEDICATION_COLORS].map((color) => {
+                                                    const id = color?.id ?? '';
+                                                    const selected = row.view_color === id;
+                                                    return (
+                                                        <button
+                                                            key={id || 'none'}
+                                                            type="button"
+                                                            aria-pressed={selected}
+                                                            onClick={() => updateScheduleRow(index, { view_color: id })}
+                                                            className={cn(
+                                                                'flex min-h-[48px] items-center gap-2 rounded-input border-2 px-3 text-body font-medium',
+                                                                selected ? 'border-foreground bg-surface-2' : 'border-border bg-surface text-foreground hover:bg-surface-2'
+                                                            )}
+                                                        >
+                                                            <span
+                                                                className="h-6 w-6 shrink-0 rounded-full border border-border"
+                                                                style={color ? { backgroundColor: color.soft, borderColor: color.strong, borderWidth: 3 } : undefined}
+                                                                aria-hidden="true"
+                                                            />
+                                                            {color ? t(`medications:form.viewColors.${color.id}`) : t('medications:form.viewColorNone')}
+                                                            {selected && <Check className="h-5 w-5 shrink-0" aria-hidden="true" />}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </fieldset>
                                     </div>
                                 ))
                             )}

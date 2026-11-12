@@ -453,6 +453,13 @@ export const runMigrations = async () => {
         // Fork, Block L2: Farbe des Medikaments in der einfachen Ansicht
         // (Kennung aus MEDICATION_COLOR_IDS, server/src/lib/viewColors.ts; NULL = keine Farbe).
         `ALTER TABLE medications ADD COLUMN IF NOT EXISTS view_color VARCHAR(20);`,
+        // Fork, E28: Farbe pro Einnahmezeit statt pro Medikament (Dispenser-Fach). Alte Farbe
+        // des Medikaments einmalig auf seine Einnahmezeiten uebertragen, dann leeren.
+        `ALTER TABLE medication_schedules ADD COLUMN IF NOT EXISTS view_color VARCHAR(20);`,
+        `UPDATE medication_schedules s SET view_color = m.view_color
+         FROM medications m
+         WHERE s.medication_id = m.id AND m.view_color IS NOT NULL AND s.view_color IS NULL;`,
+        `UPDATE medications SET view_color = NULL WHERE view_color IS NOT NULL;`,
         // Fork, Block L4: wer wann abgehakt hat (10 Minuten Rueckgaengig fuer die betreute Person).
         `ALTER TABLE shopping_items ADD COLUMN IF NOT EXISTS checked_by UUID REFERENCES users(id) ON DELETE SET NULL;`,
         `ALTER TABLE shopping_items ADD COLUMN IF NOT EXISTS checked_at TIMESTAMP;`,

@@ -5,6 +5,7 @@ import { circleMiddleware, requireAdmin, CircleRequest } from '../middleware/cir
 import { broadcastToCircle } from '../lib/broadcaster';
 import { FILE_DATA_URL_REGEX, IMAGE_DATA_URL_REGEX, cleanImportedAttachments } from '../lib/dataUrls';
 import { cleanAidType } from '../lib/circleSettings';
+import { MEDICATION_COLOR_IDS } from '../lib/viewColors';
 import { cleanFlag, cleanGuests, cleanPersonName, cleanTakeAlong, cleanTravelMinutes } from '../lib/eventExtras';
 
 /**
@@ -358,12 +359,13 @@ router.post('/import', async (req: CircleRequest, res: Response) => {
             }
             const quantity = Number(row.quantity);
             const newId = await insert('medication_schedules',
-                ['medication_id', 'time_of_day', 'days_of_week', 'label', 'quantity', 'unit', 'time_fixed', 'created_at'],
+                ['medication_id', 'time_of_day', 'days_of_week', 'label', 'quantity', 'unit', 'time_fixed', 'view_color', 'created_at'],
                 [medicationId, row.time_of_day,
                     JSON.stringify(Array.isArray(row.days_of_week) ? row.days_of_week : [1, 2, 3, 4, 5, 6, 7]),
                     textOrNull(row.label),
                     Number.isFinite(quantity) && quantity > 0 ? quantity : 1, textOrNull(row.unit),
                     row.time_fixed !== false,
+                    typeof row.view_color === 'string' && MEDICATION_COLOR_IDS.includes(row.view_color) ? row.view_color : null,
                     tsOrNow(row.created_at)]
             );
             if (typeof row.id === 'string') scheduleMap.set(row.id, newId);

@@ -71,6 +71,8 @@ interface ScheduleInput {
     unit: string | null;
     /** false = nur Tageszeit, Uhrzeit ist ein Standardwert */
     time_fixed: boolean;
+    /** E28: Farbe dieser Einnahmezeit (Dispenser-Fach), MEDICATION_COLOR_IDS oder null */
+    view_color: string | null;
 }
 
 /** Quantite par prise : nombre strictement positif, 2 decimales max, 99 max. */
@@ -96,7 +98,7 @@ const parseSchedules = (raw: unknown, lang: Lang): { schedules?: ScheduleInput[]
         if (!item || typeof item !== 'object') {
             return { error: t(lang, 'medications.scheduleInvalid') };
         }
-        const { time_of_day, days_of_week, label, quantity, unit, time_fixed } = item as Record<string, unknown>;
+        const { time_of_day, days_of_week, label, quantity, unit, time_fixed, view_color } = item as Record<string, unknown>;
         if (typeof time_of_day !== 'string' || !TIME_RE.test(time_of_day)) {
             return { error: t(lang, 'medications.timeInvalid') };
         }
@@ -107,6 +109,13 @@ const parseSchedules = (raw: unknown, lang: Lang): { schedules?: ScheduleInput[]
         const parsedUnit = parseUnit(unit);
         if (parsedUnit === undefined) {
             return { error: t(lang, 'medications.unitInvalid') };
+        }
+        let color: string | null = null;
+        if (view_color !== undefined && view_color !== null && view_color !== '') {
+            if (typeof view_color !== 'string' || !MEDICATION_COLOR_IDS.includes(view_color)) {
+                return { error: t(lang, 'medications.colorInvalid') };
+            }
+            color = view_color;
         }
         let days: number[] = [1, 2, 3, 4, 5, 6, 7];
         if (days_of_week !== undefined && days_of_week !== null) {
@@ -123,6 +132,7 @@ const parseSchedules = (raw: unknown, lang: Lang): { schedules?: ScheduleInput[]
             quantity: parsedQuantity,
             unit: parsedUnit,
             time_fixed: time_fixed !== false,
+            view_color: color,
         });
     }
     return { schedules };
@@ -160,8 +170,6 @@ interface MedicationExtras {
     reason?: string | null;
     appearance?: string | null;
     active_ingredient?: string | null;
-    /** Block L2: Farbe in der einfachen Ansicht */
-    view_color?: string | null;
 }
 
 /** Champs optionnels du medicament : { valeur } ou { error }. */
@@ -190,13 +198,7 @@ const parseMedicationExtras = (body: Record<string, unknown>, lang: Lang): {
         const raw = body.active_ingredient;
         values.active_ingredient = typeof raw === 'string' && raw.trim() ? raw.trim().slice(0, 255) : null;
     }
-    // Block L2: Farbe in der einfachen Ansicht, nur aus der festen Liste (ohne Gruen).
-    if ('view_color' in body) {
-        const raw = body.view_color;
-        if (raw === null || raw === '' || raw === undefined) values.view_color = null;
-        else if (typeof raw === 'string' && MEDICATION_COLOR_IDS.includes(raw)) values.view_color = raw;
-        else return { error: t(lang, 'medications.colorInvalid') };
-    }
+    // E28: Die Farbe steht pro Einnahmezeit (parseSchedules), nicht mehr am Medikament.
     return { values };
 };
 
@@ -212,7 +214,8 @@ const MEDICATION_WITH_SCHEDULES = `
                        'label', s.label,
                        'time_fixed', s.time_fixed,
                        'quantity', s.quantity,
-                       'unit', s.unit
+                       'unit', s.unit,
+                       'view_color', s.view_color
                    ) ORDER BY s.time_of_day
                ) FILTER (WHERE s.id IS NOT NULL),
                '[]'
@@ -359,8 +362,8 @@ router.post('/', requireContentWriter, async (req: CircleRequest, res: Response)
 
         const medResult = await client.query(
             `INSERT INTO medications (circle_id, name, dosage, form, instructions, photo_url, prescriber, start_date, end_date,
-                                      prn, with_food, reason, appearance, active_ingredient, view_color)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+                                      prn, with_food, reason, appearance, active_ingredient)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
              RETURNING id`,
             [
                 req.circleId,
@@ -377,16 +380,15 @@ router.post('/', requireContentWriter, async (req: CircleRequest, res: Response)
                 extras.values?.reason ?? null,
                 extras.values?.appearance ?? null,
                 extras.values?.active_ingredient ?? null,
-                extras.values?.view_color ?? null,
             ]
         );
         const medicationId = medResult.rows[0].id;
 
         for (const schedule of parsedSchedules) {
             await client.query(
-                `INSERT INTO medication_schedules (medication_id, time_of_day, days_of_week, label, quantity, unit, time_fixed)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-                [medicationId, schedule.time_of_day, JSON.stringify(schedule.days_of_week), schedule.label, schedule.quantity, schedule.unit, schedule.time_fixed]
+                `INSERT INTO medication_schedules (medication_id, time_of_day, days_of_week, label, quantity, unit, time_fixed, view_color)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                [medicationId, schedule.time_of_day, JSON.stringify(schedule.days_of_week), schedule.label, schedule.quantity, schedule.unit, schedule.time_fixed, schedule.view_color]
             );
         }
 
@@ -544,9 +546,9 @@ router.put('/:id', requireContentWriter, async (req: CircleRequest, res: Respons
             await client.query('DELETE FROM medication_schedules WHERE medication_id = $1', [req.params.id]);
             for (const schedule of parsedSchedules) {
                 await client.query(
-                    `INSERT INTO medication_schedules (medication_id, time_of_day, days_of_week, label, quantity, unit, time_fixed)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-                    [req.params.id, schedule.time_of_day, JSON.stringify(schedule.days_of_week), schedule.label, schedule.quantity, schedule.unit, schedule.time_fixed]
+                    `INSERT INTO medication_schedules (medication_id, time_of_day, days_of_week, label, quantity, unit, time_fixed, view_color)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                    [req.params.id, schedule.time_of_day, JSON.stringify(schedule.days_of_week), schedule.label, schedule.quantity, schedule.unit, schedule.time_fixed, schedule.view_color]
                 );
             }
             // Pending occurrences of today and later no longer match the new

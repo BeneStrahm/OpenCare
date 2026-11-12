@@ -196,13 +196,13 @@
     "timeKind": "Wann",
     "fixedTime": "Feste Uhrzeit",
     "viewColor": "Farbe auf Tablet / in Dispenser",
-    "viewColorHint": "So erkennt die betreute Person das Medikament in ihrer Ansicht leichter.",
+    "viewColorHint": "Färbt die Karte dieser Einnahme in der Ansicht der betreuten Person.",
     "viewColorNone": "Keine Farbe",
     "viewColors": {
-      "pink": "Pink (Stabilo 70/56)",
-      "blue": "Blau (Stabilo 70/31)",
-      "green": "Grün (Stabilo 70/33)",
-      "orange": "Orange (Stabilo 70/54)"
+      "pink": "Pink",
+      "blue": "Blau",
+      "green": "Grün",
+      "orange": "Orange"
     }
   },
   "prescriptions": {
