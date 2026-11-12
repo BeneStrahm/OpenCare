@@ -29,10 +29,10 @@ describe('Farben der einfachen Ansicht', () => {
     });
 });
 
-// Block L2: Farbe pro Medikament, gleiche Werte wie oben, aber ohne Gruen ("Genommen").
+// Block L2: Farbe pro Medikament nach den Stabilo-Stiften fuer den Dispenser.
 describe('Farben der Medikamente', () => {
-    it('ohne Gruen, gleiche Kennungen wie im Server', () => {
-        expect(MEDICATION_COLORS.map((c) => c.id)).not.toContain('green');
+    it('vier Stiftfarben, gleiche Kennungen wie im Server', () => {
+        expect(MEDICATION_COLORS.map((c) => c.id)).toEqual(['pink', 'blue', 'green', 'orange']);
         expect(MEDICATION_COLORS.map((c) => c.id)).toEqual([...MEDICATION_COLOR_IDS]);
     });
 
@@ -44,7 +44,7 @@ describe('Farben der Medikamente', () => {
 
     it('leer oder unbekannt ergibt keine Farbe', () => {
         expect(medicationColorOf(null)).toBeNull();
-        expect(medicationColorOf('green')).toBeNull();
-        expect(medicationColorOf('teal')?.id).toBe('teal');
+        expect(medicationColorOf('teal')).toBeNull();
+        expect(medicationColorOf('green')?.id).toBe('green');
     });
 });

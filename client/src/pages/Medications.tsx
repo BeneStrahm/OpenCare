@@ -94,6 +94,8 @@ interface Intake {
     status: IntakeStatus;
     confirmed_at: string | null;
     confirmed_source: IntakeSource | null;
+    /** Name der Person, die bestaetigt hat (nur bei Bestaetigung mit Konto). */
+    confirmed_by_name?: string | null;
     quantity: number | string | null;
     unit: string | null;
     medication_name: string;
@@ -557,12 +559,19 @@ const Medications: React.FC = () => {
     const renderIntakeState = (intake: Intake) => {
         if (intake.status === 'taken') {
             return (
-                <p className="flex items-center gap-2 text-body font-semibold text-success">
-                    <Check className="h-6 w-6 flex-shrink-0" aria-hidden="true" />
-                    {intake.confirmed_at
-                        ? t('medications:today.status.takenAt', { time: formatClock(intake.confirmed_at) })
-                        : t('medications:today.status.taken')}
-                </p>
+                <div className="space-y-1">
+                    <p className="flex items-center gap-2 text-body font-semibold text-success">
+                        <Check className="h-6 w-6 flex-shrink-0" aria-hidden="true" />
+                        {intake.confirmed_at
+                            ? t('medications:today.status.takenAt', { time: formatClock(intake.confirmed_at) })
+                            : t('medications:today.status.taken')}
+                    </p>
+                    {intake.confirmed_by_name ? (
+                        <p className="pl-8 text-caption font-semibold text-success">
+                            {t('medications:today.confirmedBy', { name: intake.confirmed_by_name })}
+                        </p>
+                    ) : null}
+                </div>
             );
         }
         if (intake.status === 'skipped') {
@@ -675,8 +684,8 @@ const Medications: React.FC = () => {
                                     return (
                                         <li key={intake.id}>
                                             <Card className={cn(isDone(intake) && 'opacity-70')}>
-                                                <CardContent className="space-y-4 p-4 sm:p-5">
-                                                    <div className="flex items-start gap-4">
+                                                <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:justify-between sm:p-5">
+                                                    <div className="flex min-w-0 flex-1 items-start gap-4">
                                                         {intake.photo_url ? (
                                                             <img
                                                                 src={intake.photo_url}
@@ -716,8 +725,10 @@ const Medications: React.FC = () => {
                                                             ) : null}
                                                         </div>
                                                     </div>
-                                                    {renderIntakeState(intake)}
-                                                    {renderIntakeActions(intake)}
+                                                    <div className="flex flex-shrink-0 flex-col gap-3 sm:items-start">
+                                                        {renderIntakeState(intake)}
+                                                        {renderIntakeActions(intake)}
+                                                    </div>
                                                 </CardContent>
                                             </Card>
                                         </li>
@@ -1674,7 +1685,7 @@ const Medications: React.FC = () => {
                                             style={color ? { backgroundColor: color.soft, borderColor: color.strong, borderWidth: 3 } : undefined}
                                             aria-hidden="true"
                                         />
-                                        {color ? t(`simpleView:colors.${color.id}`) : t('medications:form.viewColorNone')}
+                                        {color ? t(`medications:form.viewColors.${color.id}`) : t('medications:form.viewColorNone')}
                                         {selected && <Check className="h-5 w-5 shrink-0" aria-hidden="true" />}
                                     </button>
                                 );

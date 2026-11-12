@@ -41,12 +41,20 @@ export function viewColorOf(id: string | null | undefined): ViewColor {
 }
 
 /**
- * Block L2 (E21): Farbe pro Medikament, eingestellt im Medikamentenplan
+ * Block L2: Farbe pro Medikament, eingestellt im Medikamentenplan
  * (medications.view_color, Kennungen auch in server/src/lib/viewColors.ts).
- * In der einfachen Ansicht bekommt die Karte des Medikaments die helle Flaeche
- * (soft) und einen Rand in strong. Ohne Gruen, das dort nur "Genommen" bedeutet.
+ * In der einfachen Ansicht bekommt die Karte des Medikaments die Flaeche soft,
+ * das Symbol die Farbe strong. Die Farben folgen den Stabilo-Boss-Stiften, mit
+ * denen der Dispenser markiert wird (Wunsch vom 12. November, Gruen bewusst dabei).
+ * soft ist so hell wie noetig fuer 7:1 mit der Schrift, strong so dunkel wie noetig
+ * fuer 3:1 (geprueft in tests/client/viewColors.test.ts). Farbtoene angenaehert.
  */
-export const MEDICATION_COLORS: readonly ViewColor[] = VIEW_COLORS.filter((c) => c.id !== 'green');
+export const MEDICATION_COLORS: readonly ViewColor[] = [
+    { id: 'pink', strong: '#9d3363', dark: '#401528', soft: '#f992c0' },
+    { id: 'blue', strong: '#126086', dark: '#082838', soft: '#62bce9' },
+    { id: 'green', strong: '#2a6720', dark: '#112b0d', soft: '#6ac75b' },
+    { id: 'orange', strong: '#874a0e', dark: '#381f06', soft: '#ff9a35' },
+];
 
 /** Farbe eines Medikaments; leer oder unbekannt -> keine Farbe (neutrale Karte). */
 export function medicationColorOf(id: string | null | undefined): ViewColor | null {

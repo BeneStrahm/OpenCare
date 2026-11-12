@@ -36,6 +36,7 @@
     "markTaken": "Taken",
     "markSkipped": "Skip",
     "undo": "Undo",
+    "confirmedBy": "Confirmed by {{name}}",
     "take": "Take {{amount}}",
     "prnTitle": "As needed",
     "prnHint": "These medications have no fixed time: log a dose when it happens.",
@@ -194,9 +195,15 @@
     "moment": "Time of day",
     "timeKind": "When",
     "fixedTime": "Fixed time",
-    "viewColor": "Colour on the tablet",
+    "viewColor": "Colour on tablet / in dispenser",
     "viewColorHint": "Helps the person cared for recognise this medicine in their view.",
-    "viewColorNone": "No colour"
+    "viewColorNone": "No colour",
+    "viewColors": {
+      "pink": "Pink (Stabilo 70/56)",
+      "blue": "Blue (Stabilo 70/31)",
+      "green": "Green (Stabilo 70/33)",
+      "orange": "Orange (Stabilo 70/54)"
+    }
   },
   "prescriptions": {
     "add": "Add a prescription",

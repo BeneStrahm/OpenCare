@@ -629,8 +629,10 @@ router.get('/intakes', async (req: CircleRequest, res: Response) => {
         await markMissed(req.circleId!);
 
         const result = await query(
-            `SELECT ${INTAKE_DISPLAY_COLUMNS}, ${CONFIRMED_AGE_MS_SQL} AS confirmed_age_ms
+            `SELECT ${INTAKE_DISPLAY_COLUMNS}, ${CONFIRMED_AGE_MS_SQL} AS confirmed_age_ms,
+                    cu.name AS confirmed_by_name
              ${INTAKE_DISPLAY_FROM}
+             LEFT JOIN users cu ON cu.id = i.confirmed_by_user
              WHERE i.circle_id = $1
                AND i.due_at >= $2::date
                AND i.due_at < $3::date + interval '1 day'

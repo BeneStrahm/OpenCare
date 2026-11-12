@@ -36,6 +36,7 @@
     "markTaken": "Genommen",
     "markSkipped": "Überspringen",
     "undo": "Rückgängig",
+    "confirmedBy": "Bestätigt von {{name}}",
     "take": "{{amount}} nehmen",
     "prnTitle": "Bei Bedarf",
     "prnHint": "Diese Medikamente haben keine feste Uhrzeit. Tragen Sie eine Einnahme ein, wenn sie stattfindet.",
@@ -194,9 +195,15 @@
     "moment": "Tageszeit",
     "timeKind": "Wann",
     "fixedTime": "Feste Uhrzeit",
-    "viewColor": "Farbe auf dem Tablet",
+    "viewColor": "Farbe auf Tablet / in Dispenser",
     "viewColorHint": "So erkennt die betreute Person das Medikament in ihrer Ansicht leichter.",
-    "viewColorNone": "Keine Farbe"
+    "viewColorNone": "Keine Farbe",
+    "viewColors": {
+      "pink": "Pink (Stabilo 70/56)",
+      "blue": "Blau (Stabilo 70/31)",
+      "green": "Grün (Stabilo 70/33)",
+      "orange": "Orange (Stabilo 70/54)"
+    }
   },
   "prescriptions": {
     "add": "Rezept hinzufügen",

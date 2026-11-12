@@ -36,6 +36,7 @@
     "markTaken": "Tomada",
     "markSkipped": "Omitir",
     "undo": "Deshacer",
+    "confirmedBy": "Confirmado por {{name}}",
     "take": "Tomar {{amount}}",
     "prnTitle": "Si hace falta",
     "prnHint": "Estos medicamentos no tienen horario fijo: anote la toma cuando ocurra.",
@@ -194,9 +195,15 @@
     "moment": "Momento del día",
     "timeKind": "Cuándo",
     "fixedTime": "Hora fija",
-    "viewColor": "Color en la tableta",
+    "viewColor": "Color en la tableta / en el pastillero",
     "viewColorHint": "Ayuda a la persona cuidada a reconocer este medicamento en su vista.",
-    "viewColorNone": "Sin color"
+    "viewColorNone": "Sin color",
+    "viewColors": {
+      "pink": "Rosa (Stabilo 70/56)",
+      "blue": "Azul (Stabilo 70/31)",
+      "green": "Verde (Stabilo 70/33)",
+      "orange": "Naranja (Stabilo 70/54)"
+    }
   },
   "prescriptions": {
     "add": "Añadir una receta",
