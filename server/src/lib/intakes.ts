@@ -64,6 +64,12 @@ export async function generateIntakes(circleId: string, from: string, to: string
                SELECT 1 FROM medication_intakes x
                WHERE x.medication_id = m.id AND x.due_at = d::date + s.time_of_day
            )
+           -- Hoechstens eine Einnahme pro Einnahmezeit und Tag: ist sie schon erledigt und
+           -- wurde danach die Uhrzeit geaendert, gilt die neue Uhrzeit erst ab morgen.
+           AND NOT EXISTS (
+               SELECT 1 FROM medication_intakes y
+               WHERE y.schedule_id = s.id AND y.due_at::date = d::date
+           )
          ON CONFLICT (medication_id, schedule_id, due_at) DO NOTHING`,
         [circleId, from, to]
     );

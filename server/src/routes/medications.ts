@@ -61,7 +61,11 @@ const base64ByteSize = (base64: string): number => {
 const MAX_INTAKE_RANGE_DAYS = 14;
 const INTAKE_STATUSES = ['taken', 'skipped', 'pending'] as const;
 
+const SCHEDULE_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 interface ScheduleInput {
+    /** Vorhandene Einnahmezeit beim Bearbeiten, sonst null (neu anlegen) */
+    id: string | null;
     time_of_day: string;
     days_of_week: number[];
     label: string | null;
@@ -98,7 +102,7 @@ const parseSchedules = (raw: unknown, lang: Lang): { schedules?: ScheduleInput[]
         if (!item || typeof item !== 'object') {
             return { error: t(lang, 'medications.scheduleInvalid') };
         }
-        const { time_of_day, days_of_week, label, quantity, unit, time_fixed, view_color } = item as Record<string, unknown>;
+        const { id, time_of_day, days_of_week, label, quantity, unit, time_fixed, view_color } = item as Record<string, unknown>;
         if (typeof time_of_day !== 'string' || !TIME_RE.test(time_of_day)) {
             return { error: t(lang, 'medications.timeInvalid') };
         }
@@ -126,6 +130,7 @@ const parseSchedules = (raw: unknown, lang: Lang): { schedules?: ScheduleInput[]
             days = [...new Set(days_of_week as number[])].sort((a, b) => a - b);
         }
         schedules.push({
+            id: typeof id === 'string' && SCHEDULE_ID_RE.test(id) ? id : null,
             time_of_day,
             days_of_week: days,
             label: typeof label === 'string' && label.trim() ? label.trim().slice(0, 50) : null,
@@ -543,8 +548,35 @@ router.put('/:id', requireContentWriter, async (req: CircleRequest, res: Respons
         }
 
         if (parsedSchedules !== null) {
-            await client.query('DELETE FROM medication_schedules WHERE medication_id = $1', [req.params.id]);
+            // Vorhandene Einnahmezeiten aendern statt neu anlegen: heutige, schon erledigte
+            // Einnahmen behalten so ihre Einnahmezeit (Farbe, Tageszeit) und generateIntakes
+            // legt fuer diese Einnahmezeit am selben Tag keine zweite an.
+            const current = await client.query(
+                'SELECT id FROM medication_schedules WHERE medication_id = $1',
+                [req.params.id]
+            );
+            const available = new Set<string>(current.rows.map((r: { id: string }) => r.id));
+            const kept: string[] = [];
+            const added: ScheduleInput[] = [];
             for (const schedule of parsedSchedules) {
+                if (schedule.id && available.has(schedule.id)) {
+                    available.delete(schedule.id);
+                    kept.push(schedule.id);
+                    await client.query(
+                        `UPDATE medication_schedules
+                         SET time_of_day = $3, days_of_week = $4, label = $5, quantity = $6, unit = $7, time_fixed = $8, view_color = $9
+                         WHERE id = $1 AND medication_id = $2`,
+                        [schedule.id, req.params.id, schedule.time_of_day, JSON.stringify(schedule.days_of_week), schedule.label, schedule.quantity, schedule.unit, schedule.time_fixed, schedule.view_color]
+                    );
+                } else {
+                    added.push(schedule);
+                }
+            }
+            await client.query(
+                'DELETE FROM medication_schedules WHERE medication_id = $1 AND NOT (id = ANY($2::uuid[]))',
+                [req.params.id, kept]
+            );
+            for (const schedule of added) {
                 await client.query(
                     `INSERT INTO medication_schedules (medication_id, time_of_day, days_of_week, label, quantity, unit, time_fixed, view_color)
                      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,

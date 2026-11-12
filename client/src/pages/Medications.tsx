@@ -132,6 +132,8 @@ interface ContactOption {
 }
 
 interface ScheduleRow {
+    /** Vorhandene Einnahmezeit: bleibt beim Speichern erhalten (heutige Einnahmen behalten Farbe und Tageszeit) */
+    id?: string;
     time_of_day: string;
     days_of_week: number[];
     label: string;
@@ -872,6 +874,7 @@ const Medications: React.FC = () => {
             appearance: med.appearance || '',
             active_ingredient: med.active_ingredient || '',
             schedules: med.schedules.map((s) => ({
+                id: s.id,
                 time_of_day: s.time_of_day,
                 days_of_week: [...s.days_of_week],
                 label: s.label || '',
@@ -977,6 +980,7 @@ const Medications: React.FC = () => {
             appearance: medForm.appearance.trim() || null,
             active_ingredient: medForm.active_ingredient.trim() || null,
             schedules: rows.map((row) => ({
+                id: row.id,
                 time_of_day: row.time_of_day,
                 days_of_week: row.days_of_week,
                 label: row.label.trim() || null,
