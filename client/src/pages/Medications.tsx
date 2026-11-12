@@ -23,6 +23,7 @@ import { DEFAULT_UNIT_BY_FORM, MEDICATION_FORMS, MEDICATION_UNITS, formatAmount,
 import { useCircle } from '../contexts/CircleContext';
 import { circleWeekStart, orderedIsoDays, sortIsoDays } from '../lib/weekStart';
 import { useWebSocketUpdates } from '../hooks/useWebSocketUpdates';
+import { PersonCombobox } from '../components/calendar/PersonCombobox';
 import { dateLocale, formatClock, intlLocale } from '../i18n/format';
 import {
     Card,
@@ -128,6 +129,7 @@ interface Prescription {
 interface ContactOption {
     id: string;
     name: string;
+    category: string;
     organization: string | null;
 }
 
@@ -445,6 +447,20 @@ const Medications: React.FC = () => {
             .catch((err) => console.error('Failed to load contacts:', err));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeCircle?.id]);
+
+    // Vorschläge für „Verordnet von“: nur Kontakte der Kategorie Arzt, ohne doppelte Namen.
+    const prescriberSuggestions = useMemo(() => {
+        const seen = new Set<string>();
+        const list: { key: string; name: string; hint: string }[] = [];
+        for (const contact of contacts) {
+            if (contact.category !== 'doctor') continue;
+            const k = contact.name.trim().toLocaleLowerCase('de');
+            if (!k || seen.has(k)) continue;
+            seen.add(k);
+            list.push({ key: `c-${contact.id}`, name: contact.name, hint: contact.organization || '' });
+        }
+        return list;
+    }, [contacts]);
 
     useEffect(() => {
         if (!activeCircle) return;
@@ -1589,14 +1605,6 @@ const Medications: React.FC = () => {
                 ]}
             />
 
-            <datalist id="prescriber-contacts">
-                {contacts.map((contact) => (
-                    <option key={contact.id} value={contact.name}>
-                        {contact.organization || ''}
-                    </option>
-                ))}
-            </datalist>
-
             {/* Medication dialog */}
             <Dialog
                 open={medDialogOpen}
@@ -1689,14 +1697,19 @@ const Medications: React.FC = () => {
                         rows={2}
                     />
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                        <Input
-                            label={t('medications:form.prescriber')}
-                            value={medForm.prescriber}
-                            onChange={(e) => setMedForm({ ...medForm, prescriber: e.target.value })}
-                            placeholder={t('medications:form.prescriberPlaceholder')}
-                            list="prescriber-contacts"
-                            autoComplete="off"
-                        />
+                        <div className="w-full">
+                            <label htmlFor="med-prescriber" className="mb-1.5 block text-caption font-medium text-foreground">
+                                {t('medications:form.prescriber')}
+                            </label>
+                            <PersonCombobox
+                                id="med-prescriber"
+                                value={medForm.prescriber}
+                                onChange={(value) => setMedForm((f) => ({ ...f, prescriber: value }))}
+                                onPick={(value) => setMedForm((f) => ({ ...f, prescriber: value }))}
+                                options={prescriberSuggestions}
+                                placeholder={t('medications:form.prescriberPlaceholder')}
+                            />
+                        </div>
                         <DatePicker
                             label={t('medications:form.startDate')}
                             value={medForm.start_date}
@@ -2120,14 +2133,19 @@ const Medications: React.FC = () => {
                         required
                         placeholder={t('medications:prescriptions.form.titlePlaceholder')}
                     />
-                    <Input
-                        label={t('medications:prescriptions.form.prescriber')}
-                        value={rxForm.prescribed_by}
-                        onChange={(e) => setRxForm({ ...rxForm, prescribed_by: e.target.value })}
-                        placeholder={t('medications:prescriptions.form.prescriberPlaceholder')}
-                        list="prescriber-contacts"
-                        autoComplete="off"
-                    />
+                    <div className="w-full">
+                        <label htmlFor="rx-prescriber" className="mb-1.5 block text-caption font-medium text-foreground">
+                            {t('medications:prescriptions.form.prescriber')}
+                        </label>
+                        <PersonCombobox
+                            id="rx-prescriber"
+                            value={rxForm.prescribed_by}
+                            onChange={(value) => setRxForm((f) => ({ ...f, prescribed_by: value }))}
+                            onPick={(value) => setRxForm((f) => ({ ...f, prescribed_by: value }))}
+                            options={prescriberSuggestions}
+                            placeholder={t('medications:prescriptions.form.prescriberPlaceholder')}
+                        />
+                    </div>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <DatePicker
                             label={t('medications:prescriptions.form.issuedDate')}
