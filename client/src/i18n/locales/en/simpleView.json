@@ -136,7 +136,9 @@
     "choose": "What would you like to enter?"
   },
   "window": {
-    "close": "Close"
+    "close": "Close",
+    "scrollUp": "Scroll up",
+    "scrollDown": "Scroll down"
   },
   "tiles": {
     "label": "Sections",

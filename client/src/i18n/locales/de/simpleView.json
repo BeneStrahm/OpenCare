@@ -136,7 +136,9 @@
     "choose": "Was möchten Sie eintragen?"
   },
   "window": {
-    "close": "Schließen"
+    "close": "Schließen",
+    "scrollUp": "Nach oben blättern",
+    "scrollDown": "Nach unten blättern"
   },
   "tiles": {
     "label": "Bereiche",

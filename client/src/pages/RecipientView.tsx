@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
     CalendarDays, Check, CheckCheck, MapPin, MessageCircle, Phone, Pill, RotateCcw,
     Settings as SettingsIcon, ThermometerSun, Users, Backpack, Car, Volume2, Square, X,
-    Stethoscope, CalendarRange, CalendarClock, Droplet, Scale, HeartPulse, Sun, Moon, ChevronRight,
+    Stethoscope, CalendarRange, CalendarClock, Droplet, Scale, HeartPulse, Sun, Moon, ChevronRight, ChevronUp, ChevronDown,
     IdCard, ShoppingCart, CalendarPlus, Plus, Activity, SkipForward, Bell, CircleAlert, Clock,
 } from 'lucide-react';
 import { api } from '../lib/api';
@@ -253,6 +253,119 @@ const ViewWindow: React.FC<{
 );
 
 /**
+ * Sichtbarer Scrollbalken fuer ein Fenster der einfachen Ansicht (Wunsch vom 12. November,
+ * nach BFIT-Bund "Scrollbalken"): oben ein Pfeil-Schalter, dazwischen der Rollbalken mit dem
+ * ziehbaren Bildlauffeld (zeigt Position und Groesse des sichtbaren Ausschnitts), unten ein
+ * Pfeil-Schalter. Chrome auf Android zeigt den eigenen Balken nur kurz beim Wischen, darum ein
+ * eigener. Unsichtbar (Platz bleibt), wenn der Inhalt ganz in das Fenster passt.
+ */
+const ScrollBar: React.FC<{
+    target: React.RefObject<HTMLDivElement | null>;
+    upLabel: string;
+    downLabel: string;
+    text: string;
+    card: string;
+    track: string;
+    control: string;
+}> = ({ target, upLabel, downLabel, text, card, track, control }) => {
+    const trackRef = useRef<HTMLDivElement>(null);
+    const drag = useRef<{ startY: number; startTop: number } | null>(null);
+    const [m, setM] = useState({ top: 0, height: 0, client: 0, trackH: 0 });
+
+    useEffect(() => {
+        const el = target.current;
+        if (!el) return;
+        const update = () => setM({
+            top: el.scrollTop,
+            height: el.scrollHeight,
+            client: el.clientHeight,
+            trackH: trackRef.current?.clientHeight ?? 0,
+        });
+        update();
+        el.addEventListener('scroll', update, { passive: true });
+        window.addEventListener('resize', update);
+        let ro: ResizeObserver | null = null;
+        if (typeof ResizeObserver !== 'undefined') {
+            ro = new ResizeObserver(update);
+            ro.observe(el);
+            if (el.firstElementChild) ro.observe(el.firstElementChild);
+            if (trackRef.current) ro.observe(trackRef.current);
+        }
+        return () => {
+            el.removeEventListener('scroll', update);
+            window.removeEventListener('resize', update);
+            ro?.disconnect();
+        };
+    }, [target]);
+
+    const range = Math.max(0, m.height - m.client);
+    const overflow = range > 1;
+    const thumbH = overflow ? Math.min(m.trackH, Math.max(48, (m.trackH * m.client) / m.height)) : m.trackH;
+    const thumbTop = overflow ? ((m.trackH - thumbH) * m.top) / range : 0;
+    const atStart = m.top <= 1;
+    const atEnd = m.top >= range - 1;
+
+    const smooth = (): ScrollBehavior =>
+        typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+    const step = (dir: 1 | -1) => target.current?.scrollBy({ top: dir * Math.max(40, m.client * 0.75), behavior: smooth() });
+
+    const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+        const box = trackRef.current?.getBoundingClientRect();
+        if (!box || !target.current) return;
+        const y = e.clientY - box.top;
+        if (y >= thumbTop && y <= thumbTop + thumbH) {
+            drag.current = { startY: e.clientY, startTop: target.current.scrollTop };
+            e.currentTarget.setPointerCapture(e.pointerId);
+        } else {
+            step(y < thumbTop ? -1 : 1);
+        }
+    };
+    const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+        const d = drag.current;
+        if (!d || !target.current || m.trackH <= thumbH) return;
+        target.current.scrollTop = d.startTop + ((e.clientY - d.startY) * range) / (m.trackH - thumbH);
+    };
+    const endDrag = () => { drag.current = null; };
+
+    const arrow = (dir: 1 | -1, disabled: boolean) => (
+        <button
+            type="button"
+            onClick={() => step(dir)}
+            disabled={disabled}
+            aria-label={dir < 0 ? upLabel : downLabel}
+            className="flex h-14 w-full shrink-0 items-center justify-center rounded-2xl disabled:opacity-40"
+            style={{ backgroundColor: card, color: text, border: `2px solid ${control}` }}
+        >
+            {dir < 0
+                ? <ChevronUp className="h-9 w-9" strokeWidth={3} aria-hidden="true" />
+                : <ChevronDown className="h-9 w-9" strokeWidth={3} aria-hidden="true" />}
+        </button>
+    );
+
+    return (
+        <div className="flex min-h-0 flex-1 flex-col gap-2" style={{ visibility: overflow ? 'visible' : 'hidden' }}>
+            {arrow(-1, atStart)}
+            <div
+                ref={trackRef}
+                className="relative min-h-[48px] flex-1 cursor-pointer touch-none select-none"
+                aria-hidden="true"
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={endDrag}
+                onPointerCancel={endDrag}
+            >
+                <div className="absolute inset-y-0 left-1/2 w-8 -translate-x-1/2 rounded-full" style={{ backgroundColor: track, border: `2px solid ${control}` }} />
+                <div
+                    className="absolute left-1/2 w-8 -translate-x-1/2 rounded-full"
+                    style={{ top: thumbTop, height: thumbH, backgroundColor: text }}
+                />
+            </div>
+            {arrow(1, atEnd)}
+        </div>
+    );
+};
+
+/**
  * Stimme zum Vorlesen, nur wenn sie auf dem Geraet selbst arbeitet (localService).
  * Online-Stimmen des Browsers schicken den Text an einen fremden Dienst, und die
  * Antworten enthalten Gesundheitsdaten (Medikamente). Ohne lokale Stimme kein Vorlesen.
@@ -319,6 +432,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     const [skipConfirm, setSkipConfirm] = useState<Intake[] | null>(null);
     // Block M: Fenster mit den Infos zu einer Tablette (Karte antippen)
     const [infoId, setInfoId] = useState<string | null>(null);
+    const infoScrollRef = useRef<HTMLDivElement>(null);
 
     const [win, setWin] = useState<WindowId | null>(null);
     const [reminderOpen, setReminderOpen] = useState(false);
@@ -2264,7 +2378,11 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                 return (
                     <div className={dialogLayer} style={{ lineHeight: 1.5, ['--k' as string]: String(fontScale) }} role="dialog" aria-modal="true" aria-labelledby="rv-medinfo-title">
                         <div className="absolute inset-0 bg-black/40" aria-hidden="true" onClick={() => setInfoId(null)} />
-                        <div className={cn(overlayBox, 'max-w-3xl font-kiosk')} style={{ ...tile, ...intakeCardStyle(i) }}>
+                        {/* Wunsch vom 12. November: Fenster beginnt oben beim Namen, schwarzes X oben rechts
+                            (ohne Text, bewusste Ausnahme), rechts ein sichtbarer Scrollbalken. */}
+                        <div className="relative flex max-h-[90vh] w-full max-w-3xl gap-3 overflow-hidden rounded-3xl p-6 shadow-lg sm:p-8 font-kiosk" style={{ ...tile, ...intakeCardStyle(i) }}>
+                          <div ref={infoScrollRef} tabIndex={0} className="min-w-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                           <div>
                             <div className="flex flex-wrap items-start gap-5">
                                 {i.photo_url ? (
                                     <img src={i.photo_url} alt="" className="h-40 w-40 shrink-0 rounded-3xl object-cover" style={{ border: `1px solid ${C.border}` }} />
@@ -2291,12 +2409,29 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                     </div>
                                 ))}
                             </dl>
-                            <div className="mt-8 flex justify-end">
-                                <button type="button" onClick={() => setInfoId(null)} autoFocus className="flex min-h-[64px] items-center gap-2 rounded-2xl px-6 font-bold" style={{ ...fs(22), ...secondaryButton, border: `3px solid ${C.control}` }}>
-                                    <X className="h-7 w-7 shrink-0" aria-hidden="true" />
-                                    {t('simpleView:window.close')}
-                                </button>
-                            </div>
+                           </div>
+                          </div>
+                          <div className="flex w-16 shrink-0 flex-col gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setInfoId(null)}
+                                autoFocus
+                                aria-label={t('simpleView:window.close')}
+                                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl"
+                                style={{ backgroundColor: C.card, color: '#000000', border: `3px solid ${C.control}` }}
+                            >
+                                <X className="h-10 w-10" strokeWidth={3} aria-hidden="true" />
+                            </button>
+                            <ScrollBar
+                                target={infoScrollRef}
+                                upLabel={t('simpleView:window.scrollUp')}
+                                downLabel={t('simpleView:window.scrollDown')}
+                                text={C.text}
+                                card={C.card}
+                                track={C.bg}
+                                control={C.control}
+                            />
+                          </div>
                         </div>
                     </div>
                 );

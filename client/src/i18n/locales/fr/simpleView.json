@@ -136,7 +136,9 @@
     "choose": "Que voulez-vous noter ?"
   },
   "window": {
-    "close": "Fermer"
+    "close": "Fermer",
+    "scrollUp": "Défiler vers le haut",
+    "scrollDown": "Défiler vers le bas"
   },
   "tiles": {
     "label": "Rubriques",

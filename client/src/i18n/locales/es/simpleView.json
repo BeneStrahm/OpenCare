@@ -136,7 +136,9 @@
     "choose": "¿Qué quiere anotar?"
   },
   "window": {
-    "close": "Cerrar"
+    "close": "Cerrar",
+    "scrollUp": "Desplazar hacia arriba",
+    "scrollDown": "Desplazar hacia abajo"
   },
   "tiles": {
     "label": "Secciones",
