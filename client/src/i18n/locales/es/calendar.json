@@ -95,6 +95,7 @@
     "travelNeeded": "Alguien tiene que conducir",
     "driverMissing": "Pendiente: ¿quién conduce?"
   },
+  "duplicate": "Duplicar",
   "confirmDelete": "¿Eliminar este evento?",
   "deleteRecurringHint": "Se eliminarán todas las fechas de la serie.",
   "occurrence": {

@@ -95,6 +95,7 @@
     "travelNeeded": "Someone needs to drive",
     "driverMissing": "Still open: who is driving?"
   },
+  "duplicate": "Duplicate",
   "confirmDelete": "Delete this event?",
   "deleteRecurringHint": "All of its occurrences will be deleted.",
   "occurrence": {

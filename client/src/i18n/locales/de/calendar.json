@@ -95,6 +95,7 @@
     "travelNeeded": "Jemand muss fahren",
     "driverMissing": "Noch offen: Wer fährt?"
   },
+  "duplicate": "Duplizieren",
   "confirmDelete": "Diesen Termin löschen?",
   "deleteRecurringHint": "Alle Wiederholungen werden gelöscht.",
   "occurrence": {

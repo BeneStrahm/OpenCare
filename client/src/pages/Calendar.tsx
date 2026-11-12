@@ -594,32 +594,32 @@ const Calendar: React.FC = () => {
         setDialogOpen(true);
     };
 
-    const openEdit = (occ: EventOccurrence) => {
+    const formFromOccurrence = (occ: EventOccurrence): EventForm => ({
+        title: occ.title,
+        category: occ.category,
+        date: occ.start_time.slice(0, 10),
+        startTime: timeOf(occ.start_time),
+        endTime: timeOf(occ.end_time),
+        location: occ.location || '',
+        member_ids: occ.member_ids || [],
+        guests: occ.guests || [],
+        travelTo: occ.travel_to_minutes ?? null,
+        travelBack: occ.travel_back_minutes ?? null,
+        driverTo: occ.driver_to || '',
+        driverBack: occ.driver_back || '',
+        driverBackEdited: (occ.driver_back || '') !== (occ.driver_to || ''),
+        notes: occ.notes || '',
+        takeAlong: occ.take_along || '',
+        companionNeeded: isCompanionActive(occ),
+        travelNeeded: isTravelActive(occ),
+        reminder_30min: occ.reminder_30min,
+        reminder_1hour: occ.reminder_1hour,
+        recurrence: parseRRuleToForm(occ.rrule),
+    });
+
+    // Gemeinsamer Teil von Bearbeiten und Duplizieren.
+    const openFormWith = (form: EventForm) => {
         setSelected(null);
-        setEditingId(occ.id);
-        setEditingRecurring(occ.is_recurring);
-        const form: EventForm = {
-            title: occ.title,
-            category: occ.category,
-            date: occ.start_time.slice(0, 10),
-            startTime: timeOf(occ.start_time),
-            endTime: timeOf(occ.end_time),
-            location: occ.location || '',
-            member_ids: occ.member_ids || [],
-            guests: occ.guests || [],
-            travelTo: occ.travel_to_minutes ?? null,
-            travelBack: occ.travel_back_minutes ?? null,
-            driverTo: occ.driver_to || '',
-            driverBack: occ.driver_back || '',
-            driverBackEdited: (occ.driver_back || '') !== (occ.driver_to || ''),
-            notes: occ.notes || '',
-            takeAlong: occ.take_along || '',
-            companionNeeded: isCompanionActive(occ),
-            travelNeeded: isTravelActive(occ),
-            reminder_30min: occ.reminder_30min,
-            reminder_1hour: occ.reminder_1hour,
-            recurrence: parseRRuleToForm(occ.rrule),
-        };
         setFormData(form);
         setPersonInput('');
         // Ort und Teilnehmende stehen jetzt außerhalb von „Weitere Angaben“.
@@ -627,6 +627,20 @@ const Calendar: React.FC = () => {
         setShowTakeAlong(form.takeAlong.trim() !== '');
         setError('');
         setDialogOpen(true);
+    };
+
+    const openEdit = (occ: EventOccurrence) => {
+        setEditingId(occ.id);
+        setEditingRecurring(occ.is_recurring);
+        openFormWith(formFromOccurrence(occ));
+    };
+
+    // Duplizieren: Formular „Neuer Termin“ mit allen Angaben und gleichem Datum.
+    // Die Kopie ist immer ein Einzeltermin; gespeichert wird erst mit „Erstellen“.
+    const openDuplicate = (occ: EventOccurrence) => {
+        setEditingId(null);
+        setEditingRecurring(false);
+        openFormWith({ ...formFromOccurrence(occ), recurrence: emptyForm().recurrence });
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -1649,7 +1663,7 @@ const Calendar: React.FC = () => {
                                         {t('calendar:occurrence.seriesTitle')}
                                     </p>
                                 )}
-                                <div className="flex justify-end gap-2">
+                                <div className="flex flex-wrap justify-end gap-2">
                                     <Button
                                         variant="ghost"
                                         size="lg"
@@ -1658,6 +1672,10 @@ const Calendar: React.FC = () => {
                                     >
                                         <Trash2 className="mr-2 h-5 w-5" aria-hidden="true" />
                                         {t('common:actions.delete')}
+                                    </Button>
+                                    <Button variant="secondary" size="lg" onClick={() => openDuplicate(selected)}>
+                                        <Copy className="mr-2 h-5 w-5" aria-hidden="true" />
+                                        {t('calendar:duplicate')}
                                     </Button>
                                     <Button variant="secondary" size="lg" onClick={() => openEdit(selected)}>
                                         <Edit2 className="mr-2 h-5 w-5" aria-hidden="true" />
