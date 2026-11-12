@@ -1008,6 +1008,35 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
         onClose: () => { stopSpeaking(); setWin(null); },
     };
 
+    // ── Zurück-Taste (Android) ──
+    // Die einfache Ansicht hat keine eigenen Seiten. Ohne eigenen Eintrag im Verlauf
+    // würde Zurück die Web-App schließen (auf dem Tablet bleibt dann nur der
+    // Startbildschirm mit dem Logo). Zurück schließt deshalb nur die oberste
+    // Rückfrage oder das oberste Fenster, wie die sichtbare Taste, und tut auf der
+    // Startseite nichts. Die Erinnerung schließt nur über ihre eigenen Tasten.
+    const backRef = useRef<() => void>(() => {});
+    backRef.current = () => {
+        if (reminderOpen) return;
+        if (vitalForm) { setVitalForm(null); return; }
+        if (eventForm) { setEventForm(null); return; }
+        if (shopConfirm) { setShopConfirm(null); return; }
+        if (skipConfirm) { setSkipConfirm(null); return; }
+        if (infoId) { setInfoId(null); return; }
+        if (eventCard) { setEventCard(null); return; }
+        if (win === 'ask') { closeAsk(); return; }
+        if (win) windowProps.onClose();
+    };
+    useEffect(() => {
+        // Gleicher Zustand wie der aktuelle Eintrag, damit der Router nichts merkt.
+        window.history.pushState(window.history.state, '');
+        const onPop = () => {
+            window.history.pushState(window.history.state, '');
+            backRef.current();
+        };
+        window.addEventListener('popstate', onPop);
+        return () => window.removeEventListener('popstate', onPop);
+    }, []);
+
     // ── Karte einer Einnahme (Fenster Medikamente und Kachel auf der Startseite) ──
     // Farbe des Medikaments: helle Flaeche mit kraeftigem Rand; ohne Farbe neutral.
     const intakeCardStyle = (intake: Intake): React.CSSProperties => {
