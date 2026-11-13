@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     CalendarDays, Check, CheckCheck, MapPin, MessageCircle, Phone, Pill, RotateCcw,
@@ -20,7 +20,7 @@ import { displayUnit, formatVital, toStorageValue } from '../lib/units';
 import { cn } from '../lib/utils';
 import { VIEW_COLORS, medicationColorOf, viewColorOf } from '../lib/viewColors';
 import {
-    FONT_SCALES, RECIPIENT_QUESTIONS, RECIPIENT_VITAL_TYPES, groupIntakes, isCompanionActive, isTravelActive, loadFontScale,
+    FONT_SCALES, VIEW_SCALE, RECIPIENT_QUESTIONS, RECIPIENT_VITAL_TYPES, groupIntakes, isCompanionActive, isTravelActive, loadFontScale,
     effectiveDue, isOverdue, maySnooze, momentOf, showOnHome, snoozeTarget,
     localDay, parseRecipientEventForm, parseRecipientVital, saveFontScale, type IntakeGroup, type RecipientQuestion, type RecipientVitalType,
 } from '../lib/recipientView';
@@ -203,11 +203,11 @@ const QUESTION_INFO: Record<RecipientQuestion, { label: string; feature: Feature
 /** Rundes Foto, sonst der Anfangsbuchstabe. */
 const PersonPhoto: React.FC<{ name: string; url: string | null; size: number; soft: string; strong: string }> = ({ name, url, size, soft, strong }) =>
     url ? (
-        <img src={url} alt="" className="shrink-0 rounded-full object-cover" style={{ width: size, height: size, border: `3px solid ${BASE.border}` }} />
+        <img src={url} alt="" className="shrink-0 rounded-full object-cover" style={{ width: `${size / 16}rem`, height: `${size / 16}rem`, border: `3px solid ${BASE.border}` }} />
     ) : (
         <div
             className="flex shrink-0 items-center justify-center rounded-full font-bold"
-            style={{ width: size, height: size, backgroundColor: soft, color: strong, fontSize: size * 0.42 }}
+            style={{ width: `${size / 16}rem`, height: `${size / 16}rem`, backgroundColor: soft, color: strong, fontSize: `${(size * 0.42) / 16}rem` }}
             aria-hidden="true"
         >
             {(name.trim().charAt(0) || '?').toUpperCase()}
@@ -235,18 +235,18 @@ const ViewWindow: React.FC<{
 }> = ({ id, title, icon, closeLabel, onClose, style, titleStyle, closeStyle, barColor, barBorder, wide, children }) => (
     <div className="fixed inset-0 z-[70] overflow-y-auto font-kiosk" style={style} role="dialog" aria-modal="true" aria-labelledby={id}>
         <div className="sticky top-0 z-10" style={{ backgroundColor: barColor, borderBottom: `2px solid ${barBorder}` }}>
-            <div className={cn('mx-auto flex w-full items-center justify-between gap-3 px-4 py-3 sm:px-6', wide ? 'max-w-[1152px]' : 'max-w-4xl')}>
+            <div className={cn('mx-auto flex w-full items-center justify-between gap-3 px-4 py-3 min-[512px]:px-6', wide ? 'max-w-[72rem]' : 'max-w-4xl')}>
                 <h2 id={id} className="flex min-w-0 items-center gap-3 font-bold" style={titleStyle}>
                     {icon}
                     <span className="min-w-0">{title}</span>
                 </h2>
-                <button type="button" autoFocus onClick={onClose} className="flex min-h-[64px] shrink-0 items-center gap-2 rounded-2xl px-5 font-bold" style={closeStyle}>
+                <button type="button" autoFocus onClick={onClose} className="flex min-h-[4rem] shrink-0 items-center gap-2 rounded-2xl px-5 font-bold" style={closeStyle}>
                     <X className="h-9 w-9 shrink-0" strokeWidth={3} aria-hidden="true" />
                     {closeLabel}
                 </button>
             </div>
         </div>
-        <div className={cn('mx-auto flex w-full flex-col gap-5 px-4 pb-12 pt-5 sm:px-6', wide ? 'max-w-[1152px]' : 'max-w-4xl')}>
+        <div className={cn('mx-auto flex w-full flex-col gap-5 px-4 pb-12 pt-5 min-[512px]:px-6', wide ? 'max-w-[72rem]' : 'max-w-4xl')}>
             {children}
         </div>
     </div>
@@ -300,14 +300,14 @@ const ScrollBar: React.FC<{
 
     const range = Math.max(0, m.height - m.client);
     const overflow = range > 1;
-    const thumbH = overflow ? Math.min(m.trackH, Math.max(48, (m.trackH * m.client) / m.height)) : m.trackH;
+    const thumbH = overflow ? Math.min(m.trackH, Math.max(48 * VIEW_SCALE, (m.trackH * m.client) / m.height)) : m.trackH;
     const thumbTop = overflow ? ((m.trackH - thumbH) * m.top) / range : 0;
     const atStart = m.top <= 1;
     const atEnd = m.top >= range - 1;
 
     const smooth = (): ScrollBehavior =>
         typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
-    const step = (dir: 1 | -1) => target.current?.scrollBy({ top: dir * Math.max(40, m.client * 0.75), behavior: smooth() });
+    const step = (dir: 1 | -1) => target.current?.scrollBy({ top: dir * Math.max(40 * VIEW_SCALE, m.client * 0.75), behavior: smooth() });
 
     const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
         const box = trackRef.current?.getBoundingClientRect();
@@ -347,7 +347,7 @@ const ScrollBar: React.FC<{
             {arrow(-1, atStart)}
             <div
                 ref={trackRef}
-                className="relative min-h-[48px] flex-1 cursor-pointer touch-none select-none"
+                className="relative min-h-[3rem] flex-1 cursor-pointer touch-none select-none"
                 aria-hidden="true"
                 onPointerDown={onPointerDown}
                 onPointerMove={onPointerMove}
@@ -404,6 +404,15 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     });
     const [now, setNow] = useState(() => new Date(Date.now() + clockOffset));
     const [fontScale, setFontScale] = useState<number>(loadFontScale);
+
+    // Roadmap Punkt 16: Grundgroesse x 0,8 nur fuer die einfache Ansicht, vor dem ersten Zeichnen
+    // gesetzt und beim Verlassen zurueckgenommen (PC- und Handy-Ansicht bleiben unveraendert).
+    useLayoutEffect(() => {
+        const root = document.documentElement;
+        const before = root.style.fontSize;
+        root.style.fontSize = `${VIEW_SCALE * 100}%`;
+        return () => { root.style.fontSize = before; };
+    }, []);
 
     const [intakes, setIntakes] = useState<Intake[]>([]);
     const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -1147,7 +1156,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
         ['--k' as string]: String(fontScale),
     };
 
-    const overlayBox = 'relative max-h-[90vh] w-full overflow-y-auto rounded-3xl p-6 shadow-lg sm:p-8';
+    const overlayBox = 'relative max-h-[90vh] w-full overflow-y-auto rounded-3xl p-6 shadow-lg min-[512px]:p-8';
     // Rueckfragen liegen ueber den Fenstern (z-70), die Erinnerung ganz oben.
     const dialogLayer = 'fixed inset-0 z-[80] flex items-center justify-center p-4 font-kiosk';
     const windowProps = {
@@ -1255,7 +1264,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
         }
         const { Icon } = look;
         return (
-            <p className="flex min-h-[56px] items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-center font-bold" style={{ ...fs(19), lineHeight: 1.25, backgroundColor: look.bg, color: look.fg }}>
+            <p className="flex min-h-[3.5rem] items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-center font-bold" style={{ ...fs(19), lineHeight: 1.25, backgroundColor: look.bg, color: look.fg }}>
                 {Icon && <Icon className="h-6 w-6 shrink-0" strokeWidth={2.5} />}
                 {/* Nie abschneiden: ein Status muss immer ganz lesbar sein, notfalls zweizeilig */}
                 <span>{look.text}</span>
@@ -1281,13 +1290,13 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
             style={{ backgroundColor: C.card, border: `2px solid ${notice.kind === 'error' ? C.red : C.green}` }}
         >
             <p className="font-bold" style={{ ...fs(21), color: notice.kind === 'error' ? C.red : C.text }}>{notice.text}</p>
-            <button type="button" onClick={() => setNotice(null)} className="min-h-[56px] min-w-[96px] rounded-2xl px-4 font-bold" style={secondaryButton}>
+            <button type="button" onClick={() => setNotice(null)} className="min-h-[3.5rem] min-w-[6rem] rounded-2xl px-4 font-bold" style={secondaryButton}>
                 {t('simpleView:ok')}
             </button>
         </div>
     );
     // Block M: Tasten unter jeder Tablette nur mit Symbol (Ausnahme wie E20), 64 px, 12 px Abstand.
-    const iconButton = 'flex h-16 min-w-[64px] flex-1 items-center justify-center rounded-2xl px-3 disabled:opacity-70';
+    const iconButton = 'flex h-16 min-w-[4rem] flex-1 items-center justify-center rounded-2xl px-3 disabled:opacity-70';
 
     /**
      * Block M: Medikamente pro Zeitraum, gleich auf der Startseite und im Fenster "Medikamente".
@@ -1298,9 +1307,9 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                         <div className="flex flex-col gap-5">
                             {groups.map(({ group, items }) => {
                                 return (
-                                    <div key={group.key} role="group" aria-labelledby={`${idPrefix}-${group.key}`} className="rounded-2xl p-4 sm:p-5" style={tile}>
+                                    <div key={group.key} role="group" aria-labelledby={`${idPrefix}-${group.key}`} className="rounded-2xl p-4 min-[512px]:p-5" style={tile}>
                                         <h3 id={`${idPrefix}-${group.key}`} className="mb-3 font-bold" style={{ ...fs(26), lineHeight: 1.3 }}>{groupTitle(group, items)}</h3>
-                                        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                        <ul className="grid grid-cols-1 gap-4 min-[512px]:grid-cols-2 min-[819px]:grid-cols-3">
                                             {items.map((intake) => {
                                                 const label = intakeLabel(intake);
                                                 return (
@@ -1373,7 +1382,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
             key={id}
             type="button"
             onClick={() => openWindow(id)}
-            className="flex min-h-[148px] flex-col items-start justify-between gap-3 rounded-3xl p-5 text-left shadow-sm"
+            className="flex min-h-[9.25rem] flex-col items-start justify-between gap-3 rounded-3xl p-5 text-left shadow-sm"
             style={tileStyle}
         >
             <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl" style={{ backgroundColor: C.bg }} aria-hidden="true">
@@ -1388,7 +1397,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
 
     return (
         <div className="min-h-screen font-kiosk" style={rootStyle}>
-            <div className="mx-auto flex min-h-screen w-full max-w-[1200px] flex-col gap-5 px-4 pb-12 pt-3 sm:px-6">
+            <div className="mx-auto flex min-h-screen w-full max-w-[75rem] flex-col gap-5 px-4 pb-12 pt-3 min-[512px]:px-6">
                 {DEV_CLOCK && (
                     <div className="flex flex-wrap items-end gap-3 rounded-2xl p-3" style={{ backgroundColor: C.amberSoft, border: `2px dashed ${C.amber}` }}>
                         <div className="flex flex-col">
@@ -1398,12 +1407,12 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                 type="time"
                                 value={`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`}
                                 onChange={(e) => setTestClock(e.target.value)}
-                                className="min-h-[56px] rounded-xl px-3 font-bold"
+                                className="min-h-[3.5rem] rounded-xl px-3 font-bold"
                                 style={{ ...fs(20), backgroundColor: C.card, color: C.text, border: `2px solid ${C.control}` }}
                             />
                         </div>
                         {clockOffset !== 0 && (
-                            <button type="button" onClick={() => setTestClock(null)} className="min-h-[56px] rounded-2xl px-4 font-bold" style={secondaryButton}>
+                            <button type="button" onClick={() => setTestClock(null)} className="min-h-[3.5rem] rounded-2xl px-4 font-bold" style={secondaryButton}>
                                 {t('simpleView:devClock.reset')}
                             </button>
                         )}
@@ -1419,7 +1428,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                         </div>
                     </div>
                     {tileOn('emergency') && (
-                        <button type="button" onClick={() => openWindow('emergency')} className="flex min-h-[56px] items-center gap-2 rounded-2xl px-4 font-bold" style={secondaryButton}>
+                        <button type="button" onClick={() => openWindow('emergency')} className="flex min-h-[3.5rem] items-center gap-2 rounded-2xl px-4 font-bold" style={secondaryButton}>
                             <HeartPulse className="h-7 w-7 shrink-0" style={{ color: C.red }} aria-hidden="true" />
                             {t('simpleView:emergency.button')}
                         </button>
@@ -1429,10 +1438,10 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                 {/* Begruessung mit Foto */}
                 <section
                     className="relative overflow-hidden rounded-3xl"
-                    style={{ minHeight: 180, backgroundImage: `url(${HERO_IMAGE})`, backgroundSize: 'cover', backgroundPosition: 'center right' }}
+                    style={{ minHeight: '11.25rem', backgroundImage: `url(${HERO_IMAGE})`, backgroundSize: 'cover', backgroundPosition: 'center right' }}
                 >
                     <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.9) 50%, rgba(255,255,255,0.2) 80%, rgba(255,255,255,0) 100%)' }} />
-                    <div className="relative flex min-h-[180px] items-center gap-5 p-5 sm:p-7">
+                    <div className="relative flex min-h-[11.25rem] items-center gap-5 p-5 min-[512px]:p-7">
                         <PersonPhoto name={name} url={circle.recipient_photo_url} size={88} soft={C.blueSoft} strong={C.blue} />
                         <div>
                             <h1 className="font-bold" style={{ ...fs(40), color: C.blueDark, lineHeight: 1.2 }}>{greeting}</h1>
@@ -1446,7 +1455,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                     Fehler, "ohne Internet gespeichert" und Spaeter erinnern bleiben. */}
                 {medsOn && win === null && notice && notice.kind !== 'ok' && noticeBox}
                 {medsOn && homeGroups.length > 0 && (
-                    <section className="rounded-3xl p-5 sm:p-6" style={{ backgroundColor: C.blueSoft, border: `2px solid ${C.border}` }} aria-labelledby="rv-home-meds">
+                    <section className="rounded-3xl p-5 min-[512px]:p-6" style={{ backgroundColor: C.blueSoft, border: `2px solid ${C.border}` }} aria-labelledby="rv-home-meds">
                         <h2 id="rv-home-meds" className="mb-4 flex items-center gap-4" style={sectionTitle(C.blueDark)}>
                             <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-white" style={{ backgroundColor: C.blue }} aria-hidden="true">
                                 <Pill className="h-8 w-8" />
@@ -1459,7 +1468,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
 
                 {/* Tagesrueckblick ab 18 Uhr: ein Satz, keine Aufzaehlung */}
                 {showReview && (
-                    <section className="flex items-center gap-4 rounded-3xl p-5 sm:p-6" style={{ backgroundColor: C.blueSoft, border: `1px solid ${C.border}` }} aria-labelledby="rv-review">
+                    <section className="flex items-center gap-4 rounded-3xl p-5 min-[512px]:p-6" style={{ backgroundColor: C.blueSoft, border: `1px solid ${C.border}` }} aria-labelledby="rv-review">
                         <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-white" style={{ backgroundColor: C.blue }}>
                             {somethingOpen
                                 ? <Sun className="h-8 w-8" aria-hidden="true" />
@@ -1475,7 +1484,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                 {loadError && (
                     <section role="alert" className="flex flex-wrap items-center justify-between gap-4 rounded-3xl p-5" style={{ backgroundColor: C.redSoft, border: `2px solid ${C.red}` }}>
                         <p className="font-bold" style={fs(21)}>{t('simpleView:loadError')}</p>
-                        <button type="button" onClick={() => void load()} className="flex min-h-[56px] items-center gap-2 rounded-2xl px-5 font-bold" style={secondaryButton}>
+                        <button type="button" onClick={() => void load()} className="flex min-h-[3.5rem] items-center gap-2 rounded-2xl px-5 font-bold" style={secondaryButton}>
                             <RotateCcw className="h-6 w-6 shrink-0" aria-hidden="true" />
                             {t('simpleView:reload')}
                         </button>
@@ -1505,7 +1514,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                 <button
                                     type="button"
                                     onClick={() => openVitalForm(r.type)}
-                                    className="flex min-h-[64px] items-center gap-2 rounded-2xl px-5 font-bold text-white shadow-md"
+                                    className="flex min-h-[4rem] items-center gap-2 rounded-2xl px-5 font-bold text-white shadow-md"
                                     style={{ ...fs(21), backgroundColor: C.blue }}
                                 >
                                     <Icon className="h-7 w-7 shrink-0" aria-hidden="true" />
@@ -1516,8 +1525,8 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                     );
                 })}
 
-                {/* Block L1: Kacheln, jede oeffnet ein grosses Fenster. 3 Spalten ab 768 px (Tablet mit hoechstem Bildschirmzoom: 853 px). Alle Reihen so hoch wie die hoechste Kachel (1fr, keine feste Hoehe) */}
-                <nav aria-label={t('simpleView:tiles.label')} className="grid auto-rows-[1fr] grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+                {/* Block L1: Kacheln, jede oeffnet ein grosses Fenster. 3 Spalten ab 614 px (768 x 0,8, Punkt 16; Tablet mit hoechstem Bildschirmzoom: 853 px). Alle Reihen so hoch wie die hoechste Kachel (1fr, keine feste Hoehe) */}
+                <nav aria-label={t('simpleView:tiles.label')} className="grid auto-rows-[1fr] grid-cols-1 gap-4 min-[512px]:grid-cols-2 min-[614px]:grid-cols-3">
                     {medsOn && tileOn('meds') && renderTile('meds', Pill, t('simpleView:tiles.meds'), null)}
                     {ownVitalTypes.length > 0 && tileOn('health') && renderTile('health', Activity, t('simpleView:tiles.health'),
                         dueVitals.length > 0 ? t(`simpleView:vitals.${dueVitals[0].type}`) : null)}
@@ -1532,7 +1541,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                             role="group"
                             aria-disabled="true"
                             aria-label={`${t('simpleView:tiles.doctor')}: ${t('simpleView:tiles.later')}`}
-                            className="flex min-h-[148px] flex-col items-start justify-between gap-3 rounded-3xl p-5"
+                            className="flex min-h-[9.25rem] flex-col items-start justify-between gap-3 rounded-3xl p-5"
                             style={{ backgroundColor: C.bg, border: `2px dashed ${C.control}`, color: C.muted }}
                         >
                             <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl" style={{ backgroundColor: C.card }} aria-hidden="true">
@@ -1552,7 +1561,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
 
                 {/* Fotos der Familie, ruhig im Wechsel (Block D) */}
                 {currentPhoto && (
-                    <section className="rounded-3xl p-4 sm:p-5" style={tile} aria-labelledby="rv-photos">
+                    <section className="rounded-3xl p-4 min-[512px]:p-5" style={tile} aria-labelledby="rv-photos">
                         <h2 id="rv-photos" className="mb-3 flex items-center gap-3" style={sectionTitle(C.blueDark)}>
                             {t('simpleView:photos.title')}
                         </h2>
@@ -1568,7 +1577,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                 <button
                                     type="button"
                                     onClick={() => setPhotoIndex((i) => (i + 1) % photoIds.length)}
-                                    className="flex min-h-[56px] items-center gap-2 rounded-2xl px-5 font-bold"
+                                    className="flex min-h-[3.5rem] items-center gap-2 rounded-2xl px-5 font-bold"
                                     style={secondaryButton}
                                 >
                                     {t('simpleView:photos.next')}
@@ -1586,7 +1595,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                         {(emergency.state === 'error' || (emergency.state === 'done' && !emergency.data?.recipient)) && (
                             <div role="alert" className="flex flex-wrap items-center justify-between gap-4 rounded-3xl p-5" style={{ backgroundColor: C.redSoft, border: `2px solid ${C.red}` }}>
                                 <p className="font-bold" style={fs(21)}>{t('simpleView:emergency.error')}</p>
-                                <button type="button" onClick={() => void openEmergency()} className="flex min-h-[56px] items-center gap-2 rounded-2xl px-5 font-bold" style={secondaryButton}>
+                                <button type="button" onClick={() => void openEmergency()} className="flex min-h-[3.5rem] items-center gap-2 rounded-2xl px-5 font-bold" style={secondaryButton}>
                                     <RotateCcw className="h-6 w-6 shrink-0" aria-hidden="true" />
                                     {t('simpleView:reload')}
                                 </button>
@@ -1609,7 +1618,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                             ];
                             return (
                                 <>
-                                    <section className="rounded-3xl p-5 sm:p-6" style={tile}>
+                                    <section className="rounded-3xl p-5 min-[512px]:p-6" style={tile}>
                                         <p className="font-bold" style={fs(28)}>{fullName}</p>
                                         <dl className="mt-3 space-y-3">
                                             {rows.filter(([, value]) => value && value.trim()).map(([label, value]) => (
@@ -1621,7 +1630,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                         </dl>
                                     </section>
 
-                                    <section className="rounded-3xl p-5 sm:p-6" style={tile} aria-labelledby="rv-emergency-meds">
+                                    <section className="rounded-3xl p-5 min-[512px]:p-6" style={tile} aria-labelledby="rv-emergency-meds">
                                         <h3 id="rv-emergency-meds" className="mb-3 flex items-center gap-3" style={sectionTitle(C.text)}>
                                             <Pill className="h-7 w-7 shrink-0" style={{ color: C.green }} aria-hidden="true" />
                                             {t('emergency:sections.medications')}
@@ -1643,7 +1652,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                     </section>
 
                                     {sheet.contacts.length > 0 && (
-                                        <section className="rounded-3xl p-5 sm:p-6" style={tile} aria-labelledby="rv-emergency-contacts">
+                                        <section className="rounded-3xl p-5 min-[512px]:p-6" style={tile} aria-labelledby="rv-emergency-contacts">
                                             <h3 id="rv-emergency-contacts" className="mb-3 flex items-center gap-3" style={sectionTitle(C.text)}>
                                                 <Phone className="h-7 w-7 shrink-0" style={{ color: C.blue }} aria-hidden="true" />
                                                 {t('emergency:sections.contacts')}
@@ -1677,14 +1686,14 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                 style={{ backgroundColor: C.card, border: `2px solid ${notice.kind === 'error' ? C.red : C.green}` }}
                             >
                                 <p className="font-bold" style={{ ...fs(21), color: notice.kind === 'error' ? C.red : C.text }}>{notice.text}</p>
-                                <button type="button" onClick={() => setNotice(null)} className="min-h-[56px] min-w-[96px] rounded-2xl px-4 font-bold" style={secondaryButton}>
+                                <button type="button" onClick={() => setNotice(null)} className="min-h-[3.5rem] min-w-[6rem] rounded-2xl px-4 font-bold" style={secondaryButton}>
                                     {t('simpleView:ok')}
                                 </button>
                             </div>
                         )}
 
                     {intakeGroups.length === 0 ? (
-                        <section className="rounded-3xl p-5 sm:p-6" style={tile}>
+                        <section className="rounded-3xl p-5 min-[512px]:p-6" style={tile}>
                             <p style={fs(21)}>{t('simpleView:meds.empty')}</p>
                         </section>
                     ) : renderIntakeGroups(openFirst(intakeGroups), 'rv-meds')}
@@ -1693,7 +1702,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
 
             {win === 'health' && (
                 <ViewWindow id="rv-win-health" title={t('simpleView:measure.title')} icon={<Activity className="h-9 w-9 shrink-0" style={{ color: C.blue }} aria-hidden="true" />} {...windowProps} onClose={windowProps.onClose}>
-                    <section className="rounded-3xl p-5 sm:p-6" style={tile}>
+                    <section className="rounded-3xl p-5 min-[512px]:p-6" style={tile}>
                         {vitalNotice && (
                             <div
                                 role={vitalNotice.kind === 'error' ? 'alert' : 'status'}
@@ -1701,7 +1710,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                 style={{ backgroundColor: C.card, border: `2px solid ${vitalNotice.kind === 'error' ? C.red : C.green}` }}
                             >
                                 <p className="font-bold" style={{ ...fs(21), color: vitalNotice.kind === 'error' ? C.red : C.text }}>{vitalNotice.text}</p>
-                                <button type="button" onClick={() => setVitalNotice(null)} className="min-h-[56px] min-w-[96px] rounded-2xl px-4 font-bold" style={secondaryButton}>
+                                <button type="button" onClick={() => setVitalNotice(null)} className="min-h-[3.5rem] min-w-[6rem] rounded-2xl px-4 font-bold" style={secondaryButton}>
                                     {t('simpleView:ok')}
                                 </button>
                             </div>
@@ -1709,7 +1718,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
 
                         {/* Block L5: erst waehlen, was eingetragen wird */}
                         <p className="mb-4 font-bold" style={fs(22)}>{t('simpleView:measure.choose')}</p>
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-4 min-[512px]:grid-cols-2">
                             {ownVitalTypes.map((type) => {
                                 const Icon = type === 'glucose' ? Droplet : Scale;
                                 return (
@@ -1718,7 +1727,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                         type="button"
                                         onClick={() => openVitalForm(type)}
                                         disabled={busy}
-                                        className="flex min-h-[112px] items-center justify-center gap-4 rounded-3xl px-4 font-bold disabled:opacity-70"
+                                        className="flex min-h-[7rem] items-center justify-center gap-4 rounded-3xl px-4 font-bold disabled:opacity-70"
                                         style={{ ...secondaryButton, ...fs(24), border: `2px solid ${C.border}` }}
                                     >
                                         <Icon className="h-10 w-10 shrink-0" style={{ color: C.blue }} aria-hidden="true" />
@@ -1737,7 +1746,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                             {t(`simpleView:measure.entered.${v.type}`, { value: vitalText(v.type, v.value) })}
                                         </p>
                                         <div className="flex flex-wrap items-center gap-3">
-                                            <button type="button" onClick={() => void undoVital(v)} disabled={busy} className="flex min-h-[56px] items-center gap-2 rounded-2xl px-5 font-bold" style={secondaryButton}>
+                                            <button type="button" onClick={() => void undoVital(v)} disabled={busy} className="flex min-h-[3.5rem] items-center gap-2 rounded-2xl px-5 font-bold" style={secondaryButton}>
                                                 <RotateCcw className="h-6 w-6 shrink-0" aria-hidden="true" />
                                                 {t('medications:today.undo')}
                                             </button>
@@ -1800,7 +1809,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                             style={{ backgroundColor: C.card, border: `2px solid ${eventNotice.kind === 'error' ? C.red : C.border}` }}
                         >
                             <p className="font-bold" style={{ ...fs(21), color: eventNotice.kind === 'error' ? C.red : C.text }}>{eventNotice.text}</p>
-                            <button type="button" onClick={() => setEventNotice(null)} className="min-h-[56px] min-w-[96px] rounded-2xl px-4 font-bold" style={secondaryButton}>
+                            <button type="button" onClick={() => setEventNotice(null)} className="min-h-[3.5rem] min-w-[6rem] rounded-2xl px-4 font-bold" style={secondaryButton}>
                                 {t('simpleView:ok')}
                             </button>
                         </div>
@@ -1811,7 +1820,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                         type="button"
                         onClick={openEventForm}
                         disabled={busy}
-                        className="flex min-h-[64px] items-center justify-center gap-3 rounded-2xl px-5 font-bold text-white shadow-md disabled:opacity-70 sm:self-start"
+                        className="flex min-h-[4rem] items-center justify-center gap-3 rounded-2xl px-5 font-bold text-white shadow-md disabled:opacity-70 min-[512px]:self-start"
                         style={{ ...fs(22), backgroundColor: C.blue }}
                     >
                         <CalendarPlus className="h-8 w-8 shrink-0" aria-hidden="true" />
@@ -1826,7 +1835,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                         {t('simpleView:event.entered', { title: own.title, when: whenText(own.start_time) })}
                                     </p>
                                     <div className="flex flex-wrap items-center gap-3">
-                                        <button type="button" onClick={() => void undoEvent(own)} disabled={busy} className="flex min-h-[56px] items-center gap-2 rounded-2xl px-5 font-bold" style={secondaryButton}>
+                                        <button type="button" onClick={() => void undoEvent(own)} disabled={busy} className="flex min-h-[3.5rem] items-center gap-2 rounded-2xl px-5 font-bold" style={secondaryButton}>
                                             <RotateCcw className="h-6 w-6 shrink-0" aria-hidden="true" />
                                             {t('medications:today.undo')}
                                         </button>
@@ -1839,7 +1848,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                         </ul>
                     )}
 
-                    <section className="rounded-3xl p-5 sm:p-6" style={tile}>
+                    <section className="rounded-3xl p-5 min-[512px]:p-6" style={tile}>
                         {appointmentEvents.length === 0 ? (
                             <p style={fs(21)}>{t('simpleView:appointments.empty')}</p>
                         ) : (
@@ -1872,7 +1881,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                         {contacts.length === 0 ? (
                             <p style={fs(21)}>{t('simpleView:contacts.empty')}</p>
                         ) : (
-                            <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <ul className="grid grid-cols-1 gap-3 min-[614px]:grid-cols-2">
                                 {contacts.map((c) => (
                                     <li key={c.id} className="flex flex-col gap-3 rounded-2xl p-4" style={{ backgroundColor: C.bg, border: `1px solid ${C.border}` }}>
                                         <div>
@@ -1885,7 +1894,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                         {c.phone && (
                                             <a
                                                 href={`tel:${c.phone.replace(/[^\d+]/g, '')}`}
-                                                className="flex min-h-[64px] flex-wrap items-center justify-center gap-x-3 rounded-2xl px-4 font-bold text-white"
+                                                className="flex min-h-[4rem] flex-wrap items-center justify-center gap-x-3 rounded-2xl px-4 font-bold text-white"
                                                 style={{ ...fs(22), backgroundColor: C.blue }}
                                             >
                                                 <Phone className="h-7 w-7 shrink-0" aria-hidden="true" />
@@ -1905,7 +1914,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                         {question === null ? (
                             <>
                                 <p style={fs(21)}>{t('simpleView:ask.choose')}</p>
-                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <div className="grid grid-cols-1 gap-3 min-[512px]:grid-cols-2">
                                     {questions.map((q) => {
                                         const { Icon, label } = QUESTION_INFO[q];
                                         return (
@@ -1913,7 +1922,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                                 key={q}
                                                 type="button"
                                                 onClick={() => void ask(q)}
-                                                className="flex min-h-[80px] items-center gap-4 rounded-2xl px-5 py-3 text-left font-bold"
+                                                className="flex min-h-[5rem] items-center gap-4 rounded-2xl px-5 py-3 text-left font-bold"
                                                 style={{ ...fs(22), backgroundColor: C.blueSoft, color: C.blueDark, border: `2px solid ${C.blue}` }}
                                             >
                                                 <Icon className="h-8 w-8 shrink-0" />
@@ -1936,7 +1945,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                         <button
                                             type="button"
                                             onClick={() => (speaking ? stopSpeaking() : readAloud(answer.text))}
-                                            className="flex min-h-[64px] items-center gap-3 rounded-2xl px-5 font-bold text-white"
+                                            className="flex min-h-[4rem] items-center gap-3 rounded-2xl px-5 font-bold text-white"
                                             style={{ ...fs(21), backgroundColor: C.blue }}
                                         >
                                             {speaking
@@ -1948,7 +1957,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                     <button
                                         type="button"
                                         onClick={() => { stopSpeaking(); setQuestion(null); }}
-                                        className="flex min-h-[64px] items-center gap-3 rounded-2xl px-5 font-bold"
+                                        className="flex min-h-[4rem] items-center gap-3 rounded-2xl px-5 font-bold"
                                         style={secondaryButton}
                                     >
                                         <MessageCircle className="h-7 w-7 shrink-0" aria-hidden="true" />
@@ -1966,14 +1975,14 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                     {info.state === 'error' && (
                         <div role="alert" className="flex flex-wrap items-center justify-between gap-4 rounded-3xl p-5" style={{ backgroundColor: C.redSoft, border: `2px solid ${C.red}` }}>
                             <p className="font-bold" style={fs(21)}>{t('simpleView:loadError')}</p>
-                            <button type="button" onClick={() => void openInfo()} className="flex min-h-[56px] items-center gap-2 rounded-2xl px-5 font-bold" style={secondaryButton}>
+                            <button type="button" onClick={() => void openInfo()} className="flex min-h-[3.5rem] items-center gap-2 rounded-2xl px-5 font-bold" style={secondaryButton}>
                                 <RotateCcw className="h-6 w-6 shrink-0" aria-hidden="true" />
                                 {t('simpleView:reload')}
                             </button>
                         </div>
                     )}
                     {info.state === 'done' && (
-                        <section className="rounded-3xl p-5 sm:p-6" style={tile}>
+                        <section className="rounded-3xl p-5 min-[512px]:p-6" style={tile}>
                             {info.data ? (
                                 <dl className="space-y-4">
                                     <div>
@@ -1999,7 +2008,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                         </section>
                     )}
                     {info.state === 'done' && contactsOn && contacts.length > 0 && (
-                        <section className="rounded-3xl p-5 sm:p-6" style={tile} aria-labelledby="rv-info-contacts">
+                        <section className="rounded-3xl p-5 min-[512px]:p-6" style={tile} aria-labelledby="rv-info-contacts">
                             <h3 id="rv-info-contacts" className="mb-3" style={sectionTitle(C.text)}>{t('simpleView:info.contacts')}</h3>
                             <ul className="space-y-3">
                                 {contacts.map((c) => (
@@ -2029,15 +2038,15 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                             style={{ backgroundColor: C.card, border: `2px solid ${shopNotice.kind === 'error' ? C.red : C.border}` }}
                         >
                             <p className="font-bold" style={{ ...fs(21), color: shopNotice.kind === 'error' ? C.red : C.text }}>{shopNotice.text}</p>
-                            <button type="button" onClick={() => setShopNotice(null)} className="min-h-[56px] min-w-[96px] rounded-2xl px-4 font-bold" style={secondaryButton}>
+                            <button type="button" onClick={() => setShopNotice(null)} className="min-h-[3.5rem] min-w-[6rem] rounded-2xl px-4 font-bold" style={secondaryButton}>
                                 {t('simpleView:ok')}
                             </button>
                         </div>
                     )}
 
-                    <form className="rounded-3xl p-5 sm:p-6" style={tile} onSubmit={(ev) => { ev.preventDefault(); requestAdd(); }} noValidate>
+                    <form className="rounded-3xl p-5 min-[512px]:p-6" style={tile} onSubmit={(ev) => { ev.preventDefault(); requestAdd(); }} noValidate>
                         <label htmlFor="rv-shop-input" className="block font-bold" style={fs(22)}>{t('simpleView:shopping.label')}</label>
-                        <div className="mt-2 flex flex-col gap-3 sm:flex-row">
+                        <div className="mt-2 flex flex-col gap-3 min-[512px]:flex-row">
                             <input
                                 id="rv-shop-input"
                                 type="text"
@@ -2047,10 +2056,10 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                 onChange={(ev) => { setShopText(ev.target.value); setShopError(false); }}
                                 aria-invalid={shopError ? true : undefined}
                                 aria-describedby={shopError ? 'rv-shop-error' : undefined}
-                                className="min-h-[64px] w-full min-w-0 flex-1 rounded-2xl px-4 font-bold"
+                                className="min-h-[4rem] w-full min-w-0 flex-1 rounded-2xl px-4 font-bold"
                                 style={{ ...fs(24), backgroundColor: C.card, color: C.text, border: `2px solid ${shopError ? C.red : C.control}` }}
                             />
-                            <button type="submit" disabled={busy} className="flex min-h-[64px] shrink-0 items-center justify-center gap-2 rounded-2xl px-5 font-bold text-white disabled:opacity-70" style={{ ...fs(21), backgroundColor: C.blue }}>
+                            <button type="submit" disabled={busy} className="flex min-h-[4rem] shrink-0 items-center justify-center gap-2 rounded-2xl px-5 font-bold text-white disabled:opacity-70" style={{ ...fs(21), backgroundColor: C.blue }}>
                                 <Plus className="h-7 w-7 shrink-0" strokeWidth={3} aria-hidden="true" />
                                 {t('simpleView:shopping.add')}
                             </button>
@@ -2060,7 +2069,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                         )}
                     </form>
 
-                    <section className="rounded-3xl p-5 sm:p-6" style={tile} aria-labelledby="rv-shop-open">
+                    <section className="rounded-3xl p-5 min-[512px]:p-6" style={tile} aria-labelledby="rv-shop-open">
                         <h3 id="rv-shop-open" className="mb-4" style={sectionTitle(C.text)}>{t('simpleView:shopping.open')}</h3>
                         {openShopping.length === 0 ? (
                             <p style={fs(21)}>{t('simpleView:shopping.empty')}</p>
@@ -2070,14 +2079,14 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                     <li key={item.id} className="space-y-3 rounded-2xl p-4" style={{ backgroundColor: C.bg, border: `1px solid ${C.border}` }}>
                                         <div className="flex flex-wrap items-center justify-between gap-3">
                                             <p className="min-w-0 font-bold" style={fs(23)}>{item.name}{shopAmount(item)}</p>
-                                            <button type="button" onClick={() => setShopConfirm({ kind: 'check', item })} disabled={busy} className="flex min-h-[64px] items-center gap-2 rounded-2xl px-5 font-bold" style={{ ...secondaryButton, border: `2px solid ${C.blue}` }}>
+                                            <button type="button" onClick={() => setShopConfirm({ kind: 'check', item })} disabled={busy} className="flex min-h-[4rem] items-center gap-2 rounded-2xl px-5 font-bold" style={{ ...secondaryButton, border: `2px solid ${C.blue}` }}>
                                                 <Check className="h-7 w-7 shrink-0" strokeWidth={3} style={{ color: C.blue }} aria-hidden="true" />
                                                 {t('simpleView:shopping.check')}
                                             </button>
                                         </div>
                                         {canUndoAdd(item) && (
                                             <div className="flex flex-wrap items-center gap-3">
-                                                <button type="button" onClick={() => void undoShopping(item)} disabled={busy} className="flex min-h-[56px] items-center gap-2 rounded-2xl px-5 font-bold" style={secondaryButton}>
+                                                <button type="button" onClick={() => void undoShopping(item)} disabled={busy} className="flex min-h-[3.5rem] items-center gap-2 rounded-2xl px-5 font-bold" style={secondaryButton}>
                                                     <RotateCcw className="h-6 w-6 shrink-0" aria-hidden="true" />
                                                     {t('medications:today.undo')}
                                                 </button>
@@ -2093,7 +2102,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                     </section>
 
                     {doneShopping.length > 0 && (
-                        <section className="rounded-3xl p-5 sm:p-6" style={tile} aria-labelledby="rv-shop-done">
+                        <section className="rounded-3xl p-5 min-[512px]:p-6" style={tile} aria-labelledby="rv-shop-done">
                             <h3 id="rv-shop-done" className="mb-4" style={sectionTitle(C.text)}>{t('simpleView:shopping.done')}</h3>
                             <ul className="space-y-3">
                                 {doneShopping.map((item) => (
@@ -2104,7 +2113,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                         </p>
                                         {canUndoCheck(item) && (
                                             <div className="flex flex-wrap items-center gap-3">
-                                                <button type="button" onClick={() => void undoShopping(item)} disabled={busy} className="flex min-h-[56px] items-center gap-2 rounded-2xl px-5 font-bold" style={secondaryButton}>
+                                                <button type="button" onClick={() => void undoShopping(item)} disabled={busy} className="flex min-h-[3.5rem] items-center gap-2 rounded-2xl px-5 font-bold" style={secondaryButton}>
                                                     <RotateCcw className="h-6 w-6 shrink-0" aria-hidden="true" />
                                                     {t('medications:today.undo')}
                                                 </button>
@@ -2123,10 +2132,10 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
 
             {win === 'settings' && (
                 <ViewWindow id="rv-win-settings" title={t('simpleView:settings.title')} icon={<SettingsIcon className="h-9 w-9 shrink-0" style={{ color: C.blue }} aria-hidden="true" />} {...windowProps} onClose={windowProps.onClose}>
-                    <section className="rounded-3xl p-5 sm:p-6" style={tile}>
+                    <section className="rounded-3xl p-5 min-[512px]:p-6" style={tile}>
                         <fieldset className="mt-6">
                             <legend className="mb-3 font-bold" style={fs(22)}>{t('simpleView:settings.fontSize')}</legend>
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                            <div className="grid grid-cols-1 gap-3 min-[512px]:grid-cols-3">
                                 {FONT_SCALES.map((scale, idx) => {
                                     const active = fontScale === scale;
                                     return (
@@ -2135,7 +2144,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                             type="button"
                                             aria-pressed={active}
                                             onClick={() => { setFontScale(scale); saveFontScale(scale); }}
-                                            className="flex min-h-[64px] items-center justify-center gap-2 rounded-2xl px-3 font-bold"
+                                            className="flex min-h-[4rem] items-center justify-center gap-2 rounded-2xl px-3 font-bold"
                                             style={active ? activeChoice : secondaryButton}
                                         >
                                             {active && <Check className="h-6 w-6 shrink-0" strokeWidth={3} aria-hidden="true" />}
@@ -2148,7 +2157,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
 
                         <fieldset className="mt-6">
                             <legend className="mb-3 font-bold" style={fs(22)}>{t('simpleView:settings.color')}</legend>
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div className="grid grid-cols-1 gap-3 min-[512px]:grid-cols-2">
                                 {VIEW_COLORS.map((color) => {
                                     const active = accent.id === color.id;
                                     return (
@@ -2157,7 +2166,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                             type="button"
                                             aria-pressed={active}
                                             onClick={() => void chooseColor(color.id)}
-                                            className="flex min-h-[64px] items-center gap-3 rounded-2xl px-4 text-left font-bold"
+                                            className="flex min-h-[4rem] items-center gap-3 rounded-2xl px-4 text-left font-bold"
                                             style={{
                                                 ...fs(20),
                                                 backgroundColor: active ? color.soft : C.card,
@@ -2179,7 +2188,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
 
                         <fieldset className="mt-6">
                             <legend className="mb-3 font-bold" style={fs(22)}>{t('simpleView:settings.language')}</legend>
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div className="grid grid-cols-1 gap-3 min-[512px]:grid-cols-2">
                                 {SUPPORTED_LANGUAGES.map((lng) => {
                                     const active = language === lng;
                                     return (
@@ -2189,7 +2198,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                             lang={lng}
                                             aria-pressed={active}
                                             onClick={() => void changeAppLanguage(lng)}
-                                            className="flex min-h-[64px] items-center justify-center gap-2 rounded-2xl px-3 font-bold"
+                                            className="flex min-h-[4rem] items-center justify-center gap-2 rounded-2xl px-3 font-bold"
                                             style={active ? activeChoice : secondaryButton}
                                         >
                                             {active && <Check className="h-6 w-6 shrink-0" strokeWidth={3} aria-hidden="true" />}
@@ -2223,7 +2232,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                     (name || '').trim() ? t('calendar:card.driver', { name: (name || '').trim() }) : t('calendar:card.driverMissing');
                 return (
                     <ViewWindow id="rv-win-event" title={e.title} icon={<CalendarDays className="h-9 w-9 shrink-0" style={{ color: C.blue }} aria-hidden="true" />} {...windowProps} onClose={() => setEventCard(null)}>
-                        <section className="space-y-5 rounded-3xl p-5 sm:p-6" style={tile}>
+                        <section className="space-y-5 rounded-3xl p-5 min-[512px]:p-6" style={tile}>
                             {row(CalendarClock, t('simpleView:event.time'), <span className="font-bold tabular-nums" style={fs(30)}>{timeRange(e)}</span>)}
                             {e.location && row(MapPin, t('simpleView:event.place'), <span className="font-bold">{e.location}</span>)}
                             {travel && e.travel_to_minutes != null && leave && row(Car, t('simpleView:event.travelTo'), (
@@ -2278,7 +2287,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                             }}
                                             aria-invalid={eventForm.error === field ? true : undefined}
                                             aria-describedby={eventForm.error === field ? 'rv-event-error' : undefined}
-                                            className="mt-2 min-h-[64px] w-full min-w-0 rounded-2xl px-4 font-bold"
+                                            className="mt-2 min-h-[4rem] w-full min-w-0 rounded-2xl px-4 font-bold"
                                             style={{ ...fs(24), backgroundColor: C.card, color: C.text, border: `2px solid ${eventForm.error === field ? C.red : C.control}` }}
                                         />
                                         {eventForm.error === field && (
@@ -2288,11 +2297,11 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                         )}
                                     </div>
                                 ))}
-                                <div className="grid grid-cols-1 gap-3 pt-1 sm:grid-cols-2">
-                                    <button type="button" onClick={() => setEventForm(null)} className="min-h-[64px] rounded-2xl px-4 font-bold" style={secondaryButton}>
+                                <div className="grid grid-cols-1 gap-3 pt-1 min-[512px]:grid-cols-2">
+                                    <button type="button" onClick={() => setEventForm(null)} className="min-h-[4rem] rounded-2xl px-4 font-bold" style={secondaryButton}>
                                         {t('simpleView:measure.cancel')}
                                     </button>
-                                    <button type="submit" className="flex min-h-[64px] items-center justify-center gap-2 rounded-2xl px-4 font-bold text-white" style={{ ...fs(21), backgroundColor: C.blue }}>
+                                    <button type="submit" className="flex min-h-[4rem] items-center justify-center gap-2 rounded-2xl px-4 font-bold text-white" style={{ ...fs(21), backgroundColor: C.blue }}>
                                         <ChevronRight className="h-7 w-7 shrink-0" strokeWidth={3} aria-hidden="true" />
                                         {t('simpleView:measure.next')}
                                     </button>
@@ -2305,15 +2314,15 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                     <p className="font-bold" style={fs(26)}>{eventForm.title.trim()}</p>
                                     <p className="font-bold" style={fs(22)}>{whenText(`${eventForm.day}T${eventForm.time}`)}</p>
                                 </div>
-                                <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                    <button type="button" onClick={() => setEventForm({ ...eventForm, step: 'enter' })} className="min-h-[64px] rounded-2xl px-4 font-bold" style={secondaryButton}>
+                                <div className="mt-6 grid grid-cols-1 gap-3 min-[512px]:grid-cols-2">
+                                    <button type="button" onClick={() => setEventForm({ ...eventForm, step: 'enter' })} className="min-h-[4rem] rounded-2xl px-4 font-bold" style={secondaryButton}>
                                         {t('simpleView:measure.change')}
                                     </button>
                                     <button
                                         type="button"
                                         disabled={busy}
                                         onClick={() => void saveEvent()}
-                                        className="flex min-h-[64px] items-center justify-center gap-2 rounded-2xl px-4 font-bold text-white disabled:opacity-70"
+                                        className="flex min-h-[4rem] items-center justify-center gap-2 rounded-2xl px-4 font-bold text-white disabled:opacity-70"
                                         style={{ ...fs(21), backgroundColor: C.blue }}
                                     >
                                         <Check className="h-7 w-7 shrink-0" strokeWidth={3} aria-hidden="true" />
@@ -2337,15 +2346,15 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                         <p className="mt-3 rounded-2xl p-4 font-bold" style={{ ...fs(26), backgroundColor: C.blueSoft, color: C.blueDark }}>
                             {shopConfirm.kind === 'add' ? shopConfirm.name : `${shopConfirm.item.name}${shopAmount(shopConfirm.item)}`}
                         </p>
-                        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                            <button type="button" onClick={() => setShopConfirm(null)} className="min-h-[64px] rounded-2xl px-4 font-bold" style={secondaryButton}>
+                        <div className="mt-6 grid grid-cols-1 gap-3 min-[512px]:grid-cols-2">
+                            <button type="button" onClick={() => setShopConfirm(null)} className="min-h-[4rem] rounded-2xl px-4 font-bold" style={secondaryButton}>
                                 {shopConfirm.kind === 'add' ? t('simpleView:measure.change') : t('medications:today.allTakenNo')}
                             </button>
                             <button
                                 type="button"
                                 disabled={busy}
                                 onClick={() => void confirmShopping()}
-                                className="flex min-h-[64px] items-center justify-center gap-2 rounded-2xl px-4 font-bold text-white disabled:opacity-70"
+                                className="flex min-h-[4rem] items-center justify-center gap-2 rounded-2xl px-4 font-bold text-white disabled:opacity-70"
                                 style={{ ...fs(21), backgroundColor: C.blue }}
                             >
                                 <Check className="h-7 w-7 shrink-0" strokeWidth={3} aria-hidden="true" />
@@ -2380,7 +2389,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                         <div className="absolute inset-0 bg-black/40" aria-hidden="true" onClick={() => setInfoId(null)} />
                         {/* Wunsch vom 12. November: Fenster beginnt oben beim Namen, schwarzes X oben rechts
                             (ohne Text, bewusste Ausnahme), rechts ein sichtbarer Scrollbalken. */}
-                        <div className="relative flex max-h-[90vh] w-full max-w-3xl gap-3 overflow-hidden rounded-3xl p-6 shadow-lg sm:p-8 font-kiosk" style={{ ...tile, ...intakeCardStyle(i) }}>
+                        <div className="relative flex max-h-[90vh] w-full max-w-3xl gap-3 overflow-hidden rounded-3xl p-6 shadow-lg min-[512px]:p-8 font-kiosk" style={{ ...tile, ...intakeCardStyle(i) }}>
                           <div ref={infoScrollRef} tabIndex={0} className="min-w-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                            <div>
                             <div className="flex flex-wrap items-start gap-5">
@@ -2451,8 +2460,8 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                 </li>
                             ))}
                         </ul>
-                        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                            <button type="button" onClick={() => setSkipConfirm(null)} className="min-h-[64px] rounded-2xl px-4 font-bold" style={secondaryButton}>
+                        <div className="mt-6 grid grid-cols-1 gap-3 min-[512px]:grid-cols-2">
+                            <button type="button" onClick={() => setSkipConfirm(null)} className="min-h-[4rem] rounded-2xl px-4 font-bold" style={secondaryButton}>
                                 {t('simpleView:home.skipNo')}
                             </button>
                             <button
@@ -2463,7 +2472,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                     setSkipConfirm(null);
                                     void skipMany(ids);
                                 }}
-                                className="flex min-h-[64px] items-center justify-center gap-2 rounded-2xl px-4 font-bold text-white disabled:opacity-70"
+                                className="flex min-h-[4rem] items-center justify-center gap-2 rounded-2xl px-4 font-bold text-white disabled:opacity-70"
                                 style={{ ...fs(21), backgroundColor: C.blue }}
                             >
                                 <SkipForward className="h-7 w-7 shrink-0" aria-hidden="true" />
@@ -2500,7 +2509,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                         onChange={(e) => setVitalForm({ ...vitalForm, text: e.target.value, error: null })}
                                         aria-invalid={vitalForm.error ? true : undefined}
                                         aria-describedby={vitalForm.error ? 'rv-measure-error' : undefined}
-                                        className="min-h-[72px] w-full min-w-0 rounded-2xl px-4 font-bold tabular-nums"
+                                        className="min-h-[4.5rem] w-full min-w-0 rounded-2xl px-4 font-bold tabular-nums"
                                         style={{ ...fs(32), backgroundColor: C.card, color: C.text, border: `2px solid ${vitalForm.error ? C.red : C.control}` }}
                                     />
                                     <span className="shrink-0 font-bold" style={fs(24)}>{vitalUnit(vitalForm.type)}</span>
@@ -2510,11 +2519,11 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                         {t(`simpleView:measure.error.${vitalForm.error}`)}
                                     </p>
                                 )}
-                                <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                    <button type="button" onClick={() => setVitalForm(null)} className="min-h-[64px] rounded-2xl px-4 font-bold" style={secondaryButton}>
+                                <div className="mt-6 grid grid-cols-1 gap-3 min-[512px]:grid-cols-2">
+                                    <button type="button" onClick={() => setVitalForm(null)} className="min-h-[4rem] rounded-2xl px-4 font-bold" style={secondaryButton}>
                                         {t('simpleView:measure.cancel')}
                                     </button>
-                                    <button type="submit" className="flex min-h-[64px] items-center justify-center gap-2 rounded-2xl px-4 font-bold text-white" style={{ ...fs(21), backgroundColor: C.blue }}>
+                                    <button type="submit" className="flex min-h-[4rem] items-center justify-center gap-2 rounded-2xl px-4 font-bold text-white" style={{ ...fs(21), backgroundColor: C.blue }}>
                                         <ChevronRight className="h-7 w-7 shrink-0" strokeWidth={3} aria-hidden="true" />
                                         {t('simpleView:measure.next')}
                                     </button>
@@ -2529,15 +2538,15 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                         return parsed.ok ? vitalText(vitalForm.type, parsed.stored) : vitalForm.text;
                                     })()}
                                 </p>
-                                <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                    <button type="button" onClick={() => setVitalForm({ ...vitalForm, step: 'enter' })} className="min-h-[64px] rounded-2xl px-4 font-bold" style={secondaryButton}>
+                                <div className="mt-6 grid grid-cols-1 gap-3 min-[512px]:grid-cols-2">
+                                    <button type="button" onClick={() => setVitalForm({ ...vitalForm, step: 'enter' })} className="min-h-[4rem] rounded-2xl px-4 font-bold" style={secondaryButton}>
                                         {t('simpleView:measure.change')}
                                     </button>
                                     <button
                                         type="button"
                                         disabled={busy}
                                         onClick={() => void saveVital()}
-                                        className="flex min-h-[64px] items-center justify-center gap-2 rounded-2xl px-4 font-bold text-white disabled:opacity-70"
+                                        className="flex min-h-[4rem] items-center justify-center gap-2 rounded-2xl px-4 font-bold text-white disabled:opacity-70"
                                         style={{ ...fs(21), backgroundColor: C.blue }}
                                     >
                                         <Check className="h-7 w-7 shrink-0" strokeWidth={3} aria-hidden="true" />
@@ -2563,17 +2572,17 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                             <li key={i.id} className="rounded-full px-5 py-2 font-bold" style={{ ...fs(21), ...tile }}>{i.medication_name}</li>
                         ))}
                     </ul>
-                    <div className="flex w-full max-w-xl flex-col gap-3 sm:flex-row">
+                    <div className="flex w-full max-w-xl flex-col gap-3 min-[512px]:flex-row">
                         <button
                             type="button"
                             onClick={() => { setReminderOpen(false); void confirmMany(dueNow.map((i) => i.id)); }}
-                            className="flex min-h-[72px] flex-1 items-center justify-center gap-3 rounded-2xl px-4 font-bold text-white shadow-md"
+                            className="flex min-h-[4.5rem] flex-1 items-center justify-center gap-3 rounded-2xl px-4 font-bold text-white shadow-md"
                             style={{ ...fs(23), backgroundColor: C.green }}
                         >
                             <Check className="h-8 w-8 shrink-0" strokeWidth={3} aria-hidden="true" />
                             {t('simpleView:reminder.taken')}
                         </button>
-                        <button type="button" onClick={() => setReminderOpen(false)} className="min-h-[72px] flex-1 rounded-2xl px-4 font-bold" style={secondaryButton}>
+                        <button type="button" onClick={() => setReminderOpen(false)} className="min-h-[4.5rem] flex-1 rounded-2xl px-4 font-bold" style={secondaryButton}>
                             {t('simpleView:reminder.later')}
                         </button>
                     </div>

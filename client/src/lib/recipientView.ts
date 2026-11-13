@@ -199,6 +199,15 @@ export function localDay(date: Date): string {
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+/**
+ * Grundgroesse der einfachen Ansicht (Roadmap Punkt 16): alle rem-Groessen x 0,8, gesetzt als
+ * Prozent auf <html>, solange die Ansicht offen ist. Am Tablet (853 px bei hoechstem Bildschirmzoom)
+ * sieht sie damit bei Chrome-Zoom 100 % aus wie vorher bei 80 %. Prozent statt px, damit die
+ * Textvergroesserung des Browsers erhalten bleibt. Umbrueche in RecipientView.tsx ebenfalls x 0,8
+ * (512, 614, 819 px statt sm, md, lg).
+ */
+export const VIEW_SCALE = 0.8;
+
 /** Textgroessen der einfachen Ansicht (Faktor auf die rem-Groessen). */
 export const FONT_SCALES = [1, 1.15, 1.3] as const;
 const FONT_SCALE_KEY = 'opencare.recipientView.fontScale';
