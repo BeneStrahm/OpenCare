@@ -125,3 +125,6 @@ desktop.ini
 
 # Server-Doku, nur lokal (beschreibt den Aufbau des Servers)
 HOSTING-IONOS.md
+
+# Externe Unterlagen (fremdes Urheberrecht, nicht ins öffentliche Repo)
+docs/referenz/
