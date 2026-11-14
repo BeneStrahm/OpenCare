@@ -67,16 +67,20 @@
     "diastolicLabel": "Diastólica",
     "dateLabel": "Fecha y hora",
     "notesLabel": "Notas (opcional)",
-    "pulseLabel": "Pulso (opcional)"
+    "pulseLabel": "Pulso (opcional)",
+    "editTitle": "Editar medición"
   },
   "actions": {
-    "delete": "Eliminar la medición"
+    "delete": "Eliminar la medición",
+    "edit": "Editar medición",
+    "editShort": "Editar"
   },
   "confirmDelete": "¿Eliminar esta medición?",
   "toasts": {
     "saved": "Medición guardada",
     "deleted": "Medición eliminada",
-    "thresholdSaved": "Rango normal guardado"
+    "thresholdSaved": "Rango normal guardado",
+    "updated": "Medición modificada"
   },
   "errors": {
     "load": "No se pueden cargar las mediciones.",
@@ -85,7 +89,10 @@
     "valueRequired": "Escriba un valor numérico válido.",
     "threshold": "No se puede guardar el rango normal.",
     "thresholdInvalid": "Escriba unos límites numéricos válidos.",
-    "pulseInvalid": "Introduzca el pulso como número o deje el campo vacío."
+    "pulseInvalid": "Introduzca el pulso como número o deje el campo vacío.",
+    "update": "No se pudo modificar la medición.",
+    "mealTime": "Elija cuándo se tomó la medición.",
+    "mealRelation": "Elija si se midió antes o después de comer."
   },
   "restricted": {
     "title": "Acceso restringido",
@@ -98,7 +105,15 @@
     "time": "Hora",
     "value": "Valor",
     "notes": "Nota",
-    "pulse": "Pulso"
+    "pulse": "Pulso",
+    "editValue": "Editar: {{what}}",
+    "untimedAt": "{{time}}:",
+    "noteAt": "{{time}}: {{note}}",
+    "diaryIntro": "Valores en {{unit}}, 28 días cada vez, los más recientes primero",
+    "diaryEmpty": "No hay valores en este periodo.",
+    "diaryError": "No se pudieron cargar los valores. Compruebe la conexión a internet e inténtelo de nuevo.",
+    "retry": "Cargar de nuevo",
+    "more": "Cargar más"
   },
   "pulseUnit": "/min",
   "pulseShort": "Pulso {{value}}/min",
@@ -115,5 +130,19 @@
     "saved": "Recordatorio guardado",
     "saveError": "No se pudo guardar el recordatorio. Inténtelo de nuevo.",
     "timeInvalid": "Indique una hora válida, por ejemplo 07:30."
+  },
+  "meal": {
+    "timeLabel": "¿Cuándo se midió?",
+    "relationLabel": "¿Antes o después de comer?",
+    "time": {
+      "morning": "Mañana",
+      "noon": "Mediodía",
+      "evening": "Tarde",
+      "late": "Noche"
+    },
+    "relation": {
+      "before": "Antes de comer",
+      "after": "Después de comer"
+    }
   }
 }

@@ -67,16 +67,20 @@
     "diastolicLabel": "Diastolique",
     "dateLabel": "Date et heure",
     "notesLabel": "Notes (facultatif)",
-    "pulseLabel": "Pouls (facultatif)"
+    "pulseLabel": "Pouls (facultatif)",
+    "editTitle": "Modifier la mesure"
   },
   "actions": {
-    "delete": "Supprimer la mesure"
+    "delete": "Supprimer la mesure",
+    "edit": "Modifier la mesure",
+    "editShort": "Modifier"
   },
   "confirmDelete": "Supprimer cette mesure ?",
   "toasts": {
     "saved": "Mesure enregistrée",
     "deleted": "Mesure supprimée",
-    "thresholdSaved": "Plage normale enregistrée"
+    "thresholdSaved": "Plage normale enregistrée",
+    "updated": "Mesure modifiée"
   },
   "errors": {
     "load": "Impossible de charger les mesures.",
@@ -85,7 +89,10 @@
     "valueRequired": "Renseignez une valeur numérique valide.",
     "threshold": "Impossible d'enregistrer la plage normale.",
     "thresholdInvalid": "Renseignez des bornes numériques valides.",
-    "pulseInvalid": "Saisissez le pouls en chiffres ou laissez le champ vide."
+    "pulseInvalid": "Saisissez le pouls en chiffres ou laissez le champ vide.",
+    "update": "La mesure n'a pas pu être modifiée.",
+    "mealTime": "Veuillez choisir quand la mesure a été prise.",
+    "mealRelation": "Veuillez choisir si la mesure a été prise avant ou après le repas."
   },
   "restricted": {
     "title": "Accès réservé",
@@ -98,7 +105,15 @@
     "time": "Heure",
     "value": "Valeur",
     "notes": "Note",
-    "pulse": "Pouls"
+    "pulse": "Pouls",
+    "editValue": "Modifier : {{what}}",
+    "untimedAt": "{{time}} :",
+    "noteAt": "{{time}} : {{note}}",
+    "diaryIntro": "Valeurs en {{unit}}, 28 jours à la fois, les plus récentes d'abord",
+    "diaryEmpty": "Aucune valeur pour cette période.",
+    "diaryError": "Les valeurs n'ont pas pu être chargées. Vérifiez la connexion internet et réessayez.",
+    "retry": "Recharger",
+    "more": "Charger plus"
   },
   "pulseUnit": "/min",
   "pulseShort": "Pouls {{value}}/min",
@@ -115,5 +130,19 @@
     "saved": "Rappel enregistré",
     "saveError": "Le rappel n'a pas pu être enregistré. Veuillez réessayer.",
     "timeInvalid": "Indiquez une heure valide, par exemple 07:30."
+  },
+  "meal": {
+    "timeLabel": "Quand la mesure a-t-elle été prise ?",
+    "relationLabel": "Avant ou après le repas ?",
+    "time": {
+      "morning": "Matin",
+      "noon": "Midi",
+      "evening": "Soir",
+      "late": "Tard"
+    },
+    "relation": {
+      "before": "Avant le repas",
+      "after": "Après le repas"
+    }
   }
 }

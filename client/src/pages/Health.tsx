@@ -1,12 +1,14 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { format, formatDistanceToNow, subDays } from 'date-fns';
 import {
     Activity,
     AlertTriangle,
+    Apple,
     Droplet,
     Gauge,
     HeartPulse,
+    Pencil,
     Plus,
     Scale,
     Smile,
@@ -31,6 +33,7 @@ import { useFeatures } from '../lib/features';
 import { useCircle } from '../contexts/CircleContext';
 import { useWebSocketUpdates } from '../hooks/useWebSocketUpdates';
 import { Button, Dialog, Input, Select, Textarea, useToast } from '../components/ui';
+import AppleBitten from '../components/ui/AppleBitten';
 import { ChartCard, EmptyState, ListRow } from '../components/app';
 import VitalReminderSection from '../components/app/VitalReminderSection';
 import { dateLocale, formatNumber, intlLocale } from '../i18n/format';
@@ -44,6 +47,16 @@ import {
     toStorageValue,
     type UnitSystem,
 } from '../lib/units';
+import {
+    GLUCOSE_MEAL_RELATIONS,
+    GLUCOSE_MEAL_TIMES,
+    GLUCOSE_SLOTS,
+    RECIPIENT_VITAL_NOTE_MAX,
+    groupGlucoseDays,
+    type DiaryEntry,
+    type GlucoseMealRelation,
+    type GlucoseMealTime,
+} from '../lib/recipientView';
 
 // ─── Types alignés sur server/src/routes/vitals.ts ──────────────────────────
 
@@ -60,6 +73,22 @@ interface Vital {
     measured_at: string;
     recorded_by_user: string | null;
     notes: string | null;
+    /** E47/E48: Tageszeit und vor/nach dem Essen, nur beim Blutzucker. */
+    meal_time?: GlucoseMealTime | null;
+    meal_relation?: GlucoseMealRelation | null;
+}
+
+/** E48: Tabelle wie in der einfachen Ansicht (GET /api/vitals/diary), nur diese Arten. */
+type DiaryType = 'glucose' | 'weight' | 'bp';
+const DIARY_TYPES: VitalType[] = ['glucose', 'weight', 'bp'];
+interface DiaryState {
+    type: DiaryType;
+    entries: DiaryEntry[];
+    nextBefore: string | null;
+    /** Anzahl geladener Abschnitte zu je 28 Tagen (nach Aenderungen gleich viele neu laden) */
+    pages: number;
+    loading: boolean;
+    error: boolean;
 }
 
 /** Plage normale d'une constante, telle que le serveur la renvoie. */
@@ -186,7 +215,15 @@ const Health: React.FC = () => {
     const [formPulse, setFormPulse] = useState('');
     const [formMeasuredAt, setFormMeasuredAt] = useState(() => toLocalInputValue(new Date()));
     const [formNotes, setFormNotes] = useState('');
+    const [formMealTime, setFormMealTime] = useState<GlucoseMealTime | null>(null);
+    const [formMealRelation, setFormMealRelation] = useState<GlucoseMealRelation | null>(null);
+    /** E48: Messung, die gerade bearbeitet wird (null: neue Messung) */
+    const [editing, setEditing] = useState<Vital | null>(null);
     const [saving, setSaving] = useState(false);
+    const [diary, setDiary] = useState<DiaryState | null>(null);
+    // Aktueller Stand auch fuer Rueckrufe aus aelteren Darstellungen (Echtzeit-Aktualisierung).
+    const diaryRef = useRef<DiaryState | null>(null);
+    diaryRef.current = diary;
 
     const loadLatest = async () => {
         const response = await api.get<{ success: boolean; data: Vital[] }>('/api/vitals/latest');
@@ -219,10 +256,64 @@ const Health: React.FC = () => {
         if (response.success) setThresholds(response.data);
     };
 
+    // E48: Tabelle aus dem Tagebuch, je Abschnitt 28 Tage. pages > 1 laedt nach einer
+    // Aenderung so viele Abschnitte neu, wie schon zu sehen waren.
+    const fetchDiaryPage = async (type: DiaryType, before: string | null) => {
+        const params = new URLSearchParams({ type });
+        if (before) params.set('before', before);
+        const response = await api.get<{ success: boolean; data: { entries: DiaryEntry[]; next_before: string | null } }>(
+            `/api/vitals/diary?${params.toString()}`
+        );
+        return response.data;
+    };
+
+    const loadDiary = async (type: VitalType, pages = 1) => {
+        if (!DIARY_TYPES.includes(type)) {
+            setDiary(null);
+            return;
+        }
+        const diaryType = type as DiaryType;
+        setDiary((prev) => (prev && prev.type === diaryType
+            ? { ...prev, loading: true, error: false }
+            : { type: diaryType, entries: [], nextBefore: null, pages: 0, loading: true, error: false }));
+        try {
+            let entries: DiaryEntry[] = [];
+            let before: string | null = null;
+            let loaded = 0;
+            do {
+                const page = await fetchDiaryPage(diaryType, before);
+                entries = [...entries, ...page.entries];
+                before = page.next_before;
+                loaded += 1;
+            } while (loaded < pages && before);
+            setDiary({ type: diaryType, entries, nextBefore: before, pages: loaded, loading: false, error: false });
+        } catch (err) {
+            console.error('Failed to load vitals diary:', err);
+            setDiary((prev) => (prev && prev.type === diaryType ? { ...prev, loading: false, error: true } : prev));
+        }
+    };
+
+    const loadMoreDiary = async () => {
+        const current = diary;
+        if (!current || !current.nextBefore || current.loading) return;
+        setDiary({ ...current, loading: true, error: false });
+        try {
+            const page = await fetchDiaryPage(current.type, current.nextBefore);
+            setDiary((prev) => (prev && prev.type === current.type
+                ? { ...prev, entries: [...prev.entries, ...page.entries], nextBefore: page.next_before, pages: prev.pages + 1, loading: false }
+                : prev));
+        } catch (err) {
+            console.error('Failed to load more vitals:', err);
+            setDiary((prev) => (prev && prev.type === current.type ? { ...prev, loading: false, error: true } : prev));
+        }
+    };
+
     const refreshAll = async (showSpinner: boolean) => {
         if (showSpinner) setLoading(true);
         try {
             await Promise.all([loadLatest(), loadSeries(chartType, period), loadRecent(), loadThresholds()]);
+            const shown = diaryRef.current;
+            void loadDiary(chartType, shown && shown.type === chartType ? Math.max(shown.pages, 1) : 1);
             setError('');
         } catch (err) {
             console.error('Failed to load vitals:', err);
@@ -238,6 +329,13 @@ const Health: React.FC = () => {
         void refreshAll(true);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeCircle?.id]);
+
+    // E48: Tabelle folgt der Art im Verlauf, nicht dem Zeitraum.
+    useEffect(() => {
+        if (!activeCircle?.id) return;
+        void loadDiary(chartType);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [chartType]);
 
     // Recharger seulement la courbe quand le type ou la période change.
     useEffect(() => {
@@ -263,6 +361,28 @@ const Health: React.FC = () => {
         setFormPulse('');
         setFormMeasuredAt(toLocalInputValue(new Date()));
         setFormNotes('');
+        setFormMealTime(null);
+        setFormMealRelation(null);
+        setEditing(null);
+        setDialogOpen(true);
+    };
+
+    // E48: Admin und Familie bearbeiten jede Messung (Server: PUT /api/vitals/:id).
+    const canEdit = canWriteContent;
+
+    const openEdit = (vital: Vital) => {
+        const raw2 = toBound(vital.value2);
+        const pulse = toBound(vital.pulse);
+        setFormType(vital.type);
+        setFormValue(toInputValue(vital.type, toBound(vital.value), unitSystem));
+        setFormValue2(raw2 === null ? '' : toInputValue(vital.type, raw2, unitSystem));
+        setFormPulse(pulse === null ? '' : String(pulse));
+        setFormMeasuredAt(toLocalInputValue(new Date(vital.measured_at)));
+        setFormNotes(vital.notes ?? '');
+        setFormMealTime(vital.meal_time ?? null);
+        setFormMealRelation(vital.meal_relation ?? null);
+        setEditing(vital);
+        setError('');
         setDialogOpen(true);
     };
 
@@ -280,6 +400,17 @@ const Health: React.FC = () => {
             value2 = parseLocaleNumber(formValue2);
             if (!formValue2.trim() || !Number.isFinite(value2)) {
                 setError(t('health:errors.valueRequired'));
+                return;
+            }
+        }
+        // E48: beim Blutzucker Tageszeit Pflicht, vor/nach dem Essen ausser bei "Spaet".
+        if (formType === 'glucose') {
+            if (!formMealTime) {
+                setError(t('health:errors.mealTime'));
+                return;
+            }
+            if (formMealTime !== 'late' && !formMealRelation) {
+                setError(t('health:errors.mealRelation'));
                 return;
             }
         }
@@ -304,17 +435,29 @@ const Health: React.FC = () => {
                 value2: value2 === null ? null : toStorageValue(formType, value2, unitSystem),
                 unit: storageUnit(formType),
             };
-            if (pulse !== null) payload.pulse = pulse;
+            if (formType === 'glucose') {
+                payload.meal_time = formMealTime;
+                payload.meal_relation = formMealTime === 'late' ? null : formMealRelation;
+            }
             if (formMeasuredAt) payload.measured_at = new Date(formMeasuredAt).toISOString();
-            if (formNotes.trim()) payload.notes = formNotes.trim();
 
-            await api.post('/api/vitals', payload);
+            if (editing) {
+                // Beim Bearbeiten leere Felder mitschicken, damit Puls und Notiz geloescht werden koennen.
+                if (formType === 'bp') payload.pulse = pulse;
+                payload.notes = formNotes.trim() || null;
+                await api.put(`/api/vitals/${editing.id}`, payload);
+            } else {
+                if (pulse !== null) payload.pulse = pulse;
+                if (formNotes.trim()) payload.notes = formNotes.trim();
+                await api.post('/api/vitals', payload);
+            }
             setDialogOpen(false);
-            showToast({ title: t('health:toasts.saved') });
+            showToast({ title: t(editing ? 'health:toasts.updated' : 'health:toasts.saved') });
+            setEditing(null);
             await refreshAll(false);
         } catch (err) {
             console.error('Failed to save vital:', err);
-            setError(err instanceof Error ? err.message : t('health:errors.save'));
+            setError(err instanceof Error ? err.message : t(editing ? 'health:errors.update' : 'health:errors.save'));
         } finally {
             setSaving(false);
         }
@@ -584,11 +727,220 @@ const Health: React.FC = () => {
     }
 
     // Fehler im Eingabe-Dialog stehen im Dialog und sind mit dem Feld verknüpft.
-    const vitalFormError = error === t('health:errors.valueRequired') || error === t('health:errors.pulseInvalid') ? error : '';
+    const mealError = error === t('health:errors.mealTime') ? 'time' : error === t('health:errors.mealRelation') ? 'relation' : null;
+    const vitalFormError = error === t('health:errors.valueRequired') || error === t('health:errors.pulseInvalid') || mealError ? error : '';
+    // E48: Auswahltasten im Stil der Zeitraum-Tasten, aber 48 px hoch
+    const choiceClass = (active: boolean) => cn(
+        'inline-flex min-h-[48px] items-center gap-2 rounded-pill border px-4 text-body font-medium transition-colors',
+        active
+            ? 'border-primary/30 bg-primary-soft text-primary'
+            : 'border-border bg-card text-muted-foreground hover:text-foreground'
+    );
     const missingNumber = (raw: string) => !raw.trim() || !Number.isFinite(parseLocaleNumber(raw));
     const badBound = (raw: string) => error === t('health:errors.thresholdInvalid') && raw.trim() !== '' && !Number.isFinite(parseLocaleNumber(raw));
     const boundProps = (raw: string) =>
         badBound(raw) ? { 'aria-invalid': true, 'aria-describedby': 'health-error' } : {};
+
+    // ─── E48: Tabelle wie in der einfachen Ansicht (Blutzucker, Gewicht, Blutdruck) ───
+
+    const renderDiaryTable = () => {
+        const d = diary && diary.type === chartType ? diary : null;
+        if (!d || (d.loading && d.entries.length === 0 && !d.error)) {
+            return <p className="py-6 text-center text-body text-muted-foreground">{t('health:loading')}</p>;
+        }
+        const th = 'whitespace-nowrap border border-border px-3 py-3 text-center text-caption font-semibold text-foreground';
+        const td = 'border border-border px-3 py-2 text-center';
+        const dayOf = (e: DiaryEntry) => format(new Date(e.measured_at), 'yyyy-MM-dd');
+        const dayLabel = (date: Date) => new Intl.DateTimeFormat(intlLocale(), { day: '2-digit', month: '2-digit' }).format(date);
+        const clock = (iso: string) => new Date(iso).toLocaleTimeString(intlLocale(), { hour: '2-digit', minute: '2-digit' });
+        const asVital = (e: DiaryEntry): Vital => ({ ...e, unit: null, recorded_by_user: null });
+        const unit = displayUnit(d.type, unitSystem);
+        const mealText = (e: DiaryEntry) => [
+            e.meal_time ? t(`health:meal.time.${e.meal_time}`) : null,
+            e.meal_relation ? t(`health:meal.relation.${e.meal_relation}`) : null,
+        ].filter(Boolean).join(', ');
+
+        // Wert als Taste zum Bearbeiten (Admin und Familie), sonst nur Text
+        const glucoseValue = (e: DiaryEntry) => {
+            const out = isOutOfRange(asVital(e));
+            const text = shownNumber('glucose', e.value);
+            const cls = cn('font-semibold tabular-nums', out ? 'text-warning' : 'text-foreground');
+            if (!canEdit) return <span className={cls}>{text}</span>;
+            const what = [`${text} ${unit}`, dayLabel(new Date(e.measured_at)), mealText(e) || clock(e.measured_at)].join(', ');
+            return (
+                <button
+                    type="button"
+                    onClick={() => openEdit(asVital(e))}
+                    aria-label={t('health:table.editValue', { what })}
+                    className={cn(cls, 'inline-flex min-h-[48px] min-w-[48px] items-center justify-center rounded-input px-2 underline decoration-dotted underline-offset-4 hover:bg-muted')}
+                >
+                    {text}
+                </button>
+            );
+        };
+
+        const editCell = (e: DiaryEntry) => (
+            <td className={td}>
+                <Button variant="ghost" onClick={() => openEdit(asVital(e))}>
+                    <Pencil className="h-4 w-4" aria-hidden="true" />
+                    {t('health:actions.editShort')}
+                </Button>
+            </td>
+        );
+
+        let table: React.ReactNode = null;
+        if (d.entries.length > 0 && d.type === 'glucose') {
+            table = (
+                <table className="w-full border-collapse text-body">
+                    <caption className="sr-only">{t('health:table.caption', { type: t('health:vitalTypes.glucose') })}</caption>
+                    <thead className="sticky top-0 z-10 bg-muted">
+                        <tr>
+                            <td className="border border-border" />
+                            {(['morning', 'noon', 'evening'] as const).map((time) => (
+                                <th key={time} scope="colgroup" colSpan={2} className={th}>{t(`health:meal.time.${time}`)}</th>
+                            ))}
+                            <td className="border border-border" />
+                            <td className="border border-border" />
+                        </tr>
+                        <tr>
+                            <th scope="col" className={th}>{t('health:table.date')}</th>
+                            {GLUCOSE_SLOTS.filter((slot) => slot !== 'late').map((slot) => {
+                                const [time, relation] = slot.split('-');
+                                return (
+                                    <th key={slot} scope="col" className={th}>
+                                        {relation === 'before'
+                                            ? <Apple className="mx-auto h-5 w-5" aria-hidden="true" />
+                                            : <AppleBitten className="mx-auto h-5 w-5" />}
+                                        <span className="sr-only">
+                                            {t(`health:meal.time.${time}`)}, {t(`health:meal.relation.${relation}`)}
+                                        </span>
+                                    </th>
+                                );
+                            })}
+                            <th scope="col" className={th}>{t('health:meal.time.late')}</th>
+                            <th scope="col" className={th}>{t('health:table.notes')}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {groupGlucoseDays(d.entries, dayOf).map((row) => {
+                            const [y, m, dd] = row.day.split('-').map(Number);
+                            const all = [...Object.values(row.slots).flat(), ...row.untimed] as DiaryEntry[];
+                            const outOfRange = all.some((e) => isOutOfRange(asVital(e)));
+                            return (
+                                <tr key={row.day} className={cn(outOfRange && 'bg-warning/5')}>
+                                    <th scope="row" className={th}>{dayLabel(new Date(y, m - 1, dd))}</th>
+                                    {GLUCOSE_SLOTS.map((slot) => (
+                                        <td key={slot} className={td}>
+                                            {(row.slots[slot] ?? []).map((e) => <div key={e.id}>{glucoseValue(e)}</div>)}
+                                        </td>
+                                    ))}
+                                    <td className="min-w-[10rem] border border-border px-3 py-2 text-left text-muted-foreground">
+                                        {outOfRange ? <div className="mb-1">{outOfRangeTag}</div> : null}
+                                        {row.untimed.map((e) => (
+                                            <div key={e.id} className="flex flex-wrap items-center gap-1">
+                                                <span>{t('health:table.untimedAt', { time: clock(e.measured_at) })}</span>
+                                                {glucoseValue(e)}
+                                            </div>
+                                        ))}
+                                        {row.notes.map((e) => (
+                                            <div key={`n-${e.id}`}>{t('health:table.noteAt', { time: clock(e.measured_at), note: e.notes })}</div>
+                                        ))}
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            );
+        } else if (d.entries.length > 0) {
+            table = (
+                <table className="w-full border-collapse text-body">
+                    <caption className="sr-only">{t('health:table.caption', { type: t(`health:vitalTypes.${d.type}`) })}</caption>
+                    <thead className="sticky top-0 z-10 bg-muted">
+                        <tr>
+                            <th scope="col" className={th}>{t('health:table.date')}</th>
+                            <th scope="col" className={th}>{t('health:table.time')}</th>
+                            {d.type === 'weight' ? (
+                                <th scope="col" className={th}>{t('health:vitalTypes.weight')} ({unit})</th>
+                            ) : (
+                                <>
+                                    <th scope="col" className={th}>{t('health:chart.systolic')} ({unit})</th>
+                                    <th scope="col" className={th}>{t('health:chart.diastolic')} ({unit})</th>
+                                    <th scope="col" className={th}>{t('health:chart.pulse')} ({t('health:pulseUnit')})</th>
+                                </>
+                            )}
+                            <th scope="col" className={th}>{t('health:table.notes')}</th>
+                            {canEdit ? <td className="border border-border" /> : null}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {d.entries.map((e) => {
+                            const outOfRange = isOutOfRange(asVital(e));
+                            const valueClass = cn(td, 'font-semibold tabular-nums', outOfRange ? 'text-warning' : 'text-foreground');
+                            return (
+                                <tr key={e.id} className={cn(outOfRange && 'bg-warning/5')}>
+                                    <th scope="row" className={th}>{dayLabel(new Date(e.measured_at))}</th>
+                                    <td className={cn(td, 'tabular-nums')}>{clock(e.measured_at)}</td>
+                                    <td className={valueClass}>{shownNumber(d.type, e.value)}</td>
+                                    {d.type === 'bp' ? (
+                                        <>
+                                            <td className={valueClass}>{shownNumber('bp', e.value2)}</td>
+                                            <td className={valueClass}>{e.pulse === null ? '–' : formatNumber(e.pulse)}</td>
+                                        </>
+                                    ) : null}
+                                    <td className="min-w-[10rem] border border-border px-3 py-2 text-left text-muted-foreground">
+                                        <span className="flex flex-wrap items-center gap-2">
+                                            {outOfRange ? outOfRangeTag : null}
+                                            {e.notes ? <span>{e.notes}</span> : null}
+                                        </span>
+                                    </td>
+                                    {canEdit ? editCell(e) : null}
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            );
+        }
+
+        return (
+            <div className="space-y-3">
+                <p className="flex flex-wrap items-center gap-x-5 gap-y-2 text-body text-muted-foreground">
+                    {d.type === 'glucose' ? (
+                        <>
+                            <span className="flex items-center gap-2 text-foreground">
+                                <Apple className="h-5 w-5 shrink-0" aria-hidden="true" />{t('health:meal.relation.before')}
+                            </span>
+                            <span className="flex items-center gap-2 text-foreground">
+                                <AppleBitten className="h-5 w-5 shrink-0" />{t('health:meal.relation.after')}
+                            </span>
+                        </>
+                    ) : null}
+                    <span>{t('health:table.diaryIntro', { unit })}</span>
+                </p>
+                {d.entries.length === 0 && !d.error ? (
+                    <p className="py-6 text-center text-body text-muted-foreground">{t('health:table.diaryEmpty')}</p>
+                ) : null}
+                {table ? (
+                    <div className="max-h-[480px] overflow-auto rounded-card border border-border-strong">{table}</div>
+                ) : null}
+                {d.error ? (
+                    <p role="alert" className="rounded-input border border-danger/30 bg-danger/10 px-4 py-3 text-caption text-danger">
+                        {t('health:table.diaryError')}
+                    </p>
+                ) : null}
+                {d.error && d.entries.length === 0 ? (
+                    <Button variant="secondary" onClick={() => void loadDiary(d.type)} disabled={d.loading}>
+                        {t('health:table.retry')}
+                    </Button>
+                ) : d.nextBefore ? (
+                    <Button variant="secondary" onClick={() => void loadMoreDiary()} disabled={d.loading}>
+                        {t('health:table.more')}
+                    </Button>
+                ) : null}
+            </div>
+        );
+    };
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">
@@ -665,7 +1017,7 @@ const Health: React.FC = () => {
             <ChartCard
                 title={t('health:table.title')}
             >
-                {tableRows.length === 0 ? (
+                {DIARY_TYPES.includes(chartType) ? renderDiaryTable() : tableRows.length === 0 ? (
                     <p className="py-6 text-center text-body text-muted-foreground">{t('health:chart.empty')}</p>
                 ) : (
                     <>
@@ -931,19 +1283,35 @@ const Health: React.FC = () => {
                                     meta={
                                         <>
                                             {format(new Date(vital.measured_at), 'd MMM yyyy HH:mm', { locale: dateLocale() })}
+                                            {vital.meal_time ? ` · ${t(`health:meal.time.${vital.meal_time}`)}` : ''}
+                                            {vital.meal_relation ? `, ${t(`health:meal.relation.${vital.meal_relation}`)}` : ''}
                                             {vital.notes ? ` · ${vital.notes}` : ''}
                                         </>
                                     }
                                     trailing={
-                                        canManage(vital) ? (
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                aria-label={t('health:actions.delete')}
-                                                onClick={() => void handleDelete(vital)}
-                                            >
-                                                <Trash2 className="h-4 w-4 text-danger" />
-                                            </Button>
+                                        canEdit || canManage(vital) ? (
+                                            <span className="flex items-center gap-1">
+                                                {canEdit ? (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        aria-label={t('health:actions.edit')}
+                                                        onClick={() => openEdit(vital)}
+                                                    >
+                                                        <Pencil className="h-4 w-4" />
+                                                    </Button>
+                                                ) : null}
+                                                {canManage(vital) ? (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        aria-label={t('health:actions.delete')}
+                                                        onClick={() => void handleDelete(vital)}
+                                                    >
+                                                        <Trash2 className="h-4 w-4 text-danger" />
+                                                    </Button>
+                                                ) : null}
+                                            </span>
                                         ) : undefined
                                     }
                                 />
@@ -1105,7 +1473,7 @@ const Health: React.FC = () => {
             <Dialog
                 open={dialogOpen}
                 onOpenChange={setDialogOpen}
-                title={t('health:form.title')}
+                title={t(editing ? 'health:form.editTitle' : 'health:form.title')}
                 description={t('health:form.description')}
             >
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -1121,7 +1489,8 @@ const Health: React.FC = () => {
                         <Select
                             value={formType}
                             onValueChange={(value) => setFormType(value as VitalType)}
-                            options={shownTypes.map((type) => ({
+                            disabled={editing !== null}
+                            options={(editing && !shownTypes.includes(editing.type) ? [...shownTypes, editing.type] : shownTypes).map((type) => ({
                                 value: type,
                                 label: t(`health:vitalTypes.${type}`),
                             }))}
@@ -1153,6 +1522,58 @@ const Health: React.FC = () => {
                             />
                         )}
                     </div>
+                    {formType === 'glucose' && (
+                        <>
+                            <fieldset aria-describedby={mealError === 'time' ? 'vital-form-error' : undefined}>
+                                <legend className="mb-1.5 block text-caption font-medium text-foreground">
+                                    {t('health:meal.timeLabel')}
+                                </legend>
+                                <div className="flex flex-wrap gap-2">
+                                    {GLUCOSE_MEAL_TIMES.map((time) => (
+                                        <button
+                                            key={time}
+                                            type="button"
+                                            aria-pressed={formMealTime === time}
+                                            onClick={() => {
+                                                setFormMealTime(time);
+                                                if (time === 'late') setFormMealRelation(null);
+                                                if (mealError) setError('');
+                                            }}
+                                            className={choiceClass(formMealTime === time)}
+                                        >
+                                            {t(`health:meal.time.${time}`)}
+                                        </button>
+                                    ))}
+                                </div>
+                            </fieldset>
+                            {formMealTime !== 'late' && (
+                                <fieldset aria-describedby={mealError === 'relation' ? 'vital-form-error' : undefined}>
+                                    <legend className="mb-1.5 block text-caption font-medium text-foreground">
+                                        {t('health:meal.relationLabel')}
+                                    </legend>
+                                    <div className="flex flex-wrap gap-2">
+                                        {GLUCOSE_MEAL_RELATIONS.map((relation) => (
+                                            <button
+                                                key={relation}
+                                                type="button"
+                                                aria-pressed={formMealRelation === relation}
+                                                onClick={() => {
+                                                    setFormMealRelation(relation);
+                                                    if (mealError) setError('');
+                                                }}
+                                                className={choiceClass(formMealRelation === relation)}
+                                            >
+                                                {relation === 'before'
+                                                    ? <Apple className="h-5 w-5 shrink-0" aria-hidden="true" />
+                                                    : <AppleBitten className="h-5 w-5 shrink-0" />}
+                                                {t(`health:meal.relation.${relation}`)}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </fieldset>
+                            )}
+                        </>
+                    )}
                     {formType === 'bp' && (
                         <Input
                             label={`${t('health:form.pulseLabel')} (${t('health:pulseUnit')})`}
@@ -1174,6 +1595,7 @@ const Health: React.FC = () => {
                         label={t('health:form.notesLabel')}
                         value={formNotes}
                         onChange={(e) => setFormNotes(e.target.value)}
+                        maxLength={RECIPIENT_VITAL_NOTE_MAX}
                         rows={2}
                     />
                     <div className="flex justify-end gap-3 pt-2">

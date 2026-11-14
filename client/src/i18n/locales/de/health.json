@@ -67,16 +67,20 @@
     "diastolicLabel": "Diastolisch",
     "dateLabel": "Datum und Uhrzeit",
     "notesLabel": "Notizen (optional)",
-    "pulseLabel": "Puls (freiwillig)"
+    "pulseLabel": "Puls (freiwillig)",
+    "editTitle": "Messung bearbeiten"
   },
   "actions": {
-    "delete": "Messung löschen"
+    "delete": "Messung löschen",
+    "edit": "Messung bearbeiten",
+    "editShort": "Bearbeiten"
   },
   "confirmDelete": "Diese Messung löschen?",
   "toasts": {
     "saved": "Messung gespeichert",
     "deleted": "Messung gelöscht",
-    "thresholdSaved": "Normalbereich gespeichert"
+    "thresholdSaved": "Normalbereich gespeichert",
+    "updated": "Messung geändert"
   },
   "errors": {
     "load": "Die Messungen konnten nicht geladen werden.",
@@ -85,7 +89,10 @@
     "valueRequired": "Bitte geben Sie einen gültigen Zahlenwert ein.",
     "threshold": "Der Normalbereich konnte nicht gespeichert werden.",
     "thresholdInvalid": "Bitte geben Sie gültige Zahlen als Grenzen ein.",
-    "pulseInvalid": "Bitte geben Sie den Puls als Zahl ein oder lassen Sie das Feld leer."
+    "pulseInvalid": "Bitte geben Sie den Puls als Zahl ein oder lassen Sie das Feld leer.",
+    "update": "Die Messung konnte nicht geändert werden.",
+    "mealTime": "Bitte wählen Sie, wann gemessen wurde.",
+    "mealRelation": "Bitte wählen Sie, ob vor oder nach dem Essen gemessen wurde."
   },
   "restricted": {
     "title": "Eingeschränkter Zugriff",
@@ -98,7 +105,15 @@
     "time": "Uhrzeit",
     "value": "Wert",
     "notes": "Notiz",
-    "pulse": "Puls"
+    "pulse": "Puls",
+    "editValue": "Bearbeiten: {{what}}",
+    "untimedAt": "{{time}} Uhr:",
+    "noteAt": "{{time}} Uhr: {{note}}",
+    "diaryIntro": "Werte in {{unit}}, je 28 Tage, neueste zuerst",
+    "diaryEmpty": "In diesem Zeitraum gibt es keine Werte.",
+    "diaryError": "Die Werte konnten nicht geladen werden. Bitte prüfen Sie die Internetverbindung und versuchen Sie es noch einmal.",
+    "retry": "Erneut laden",
+    "more": "Weitere laden"
   },
   "pulseUnit": "/min",
   "pulseShort": "Puls {{value}}/min",
@@ -115,5 +130,19 @@
     "saved": "Erinnerung gespeichert",
     "saveError": "Die Erinnerung konnte nicht gespeichert werden. Bitte versuchen Sie es noch einmal.",
     "timeInvalid": "Bitte geben Sie eine gültige Uhrzeit ein, zum Beispiel 07:30."
+  },
+  "meal": {
+    "timeLabel": "Wann wurde gemessen?",
+    "relationLabel": "Vor oder nach dem Essen?",
+    "time": {
+      "morning": "Morgens",
+      "noon": "Mittags",
+      "evening": "Abends",
+      "late": "Spät"
+    },
+    "relation": {
+      "before": "Vor dem Essen",
+      "after": "Nach dem Essen"
+    }
   }
 }

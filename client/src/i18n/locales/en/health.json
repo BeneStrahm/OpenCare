@@ -67,16 +67,20 @@
     "diastolicLabel": "Diastolic",
     "dateLabel": "Date and time",
     "notesLabel": "Notes (optional)",
-    "pulseLabel": "Pulse (optional)"
+    "pulseLabel": "Pulse (optional)",
+    "editTitle": "Edit measurement"
   },
   "actions": {
-    "delete": "Delete measurement"
+    "delete": "Delete measurement",
+    "edit": "Edit measurement",
+    "editShort": "Edit"
   },
   "confirmDelete": "Delete this measurement?",
   "toasts": {
     "saved": "Measurement saved",
     "deleted": "Measurement deleted",
-    "thresholdSaved": "Normal range saved"
+    "thresholdSaved": "Normal range saved",
+    "updated": "Measurement updated"
   },
   "errors": {
     "load": "Could not load measurements.",
@@ -85,7 +89,10 @@
     "valueRequired": "Enter a valid numeric value.",
     "threshold": "Could not save the normal range.",
     "thresholdInvalid": "Enter valid numeric bounds.",
-    "pulseInvalid": "Please enter the pulse as a number or leave the field empty."
+    "pulseInvalid": "Please enter the pulse as a number or leave the field empty.",
+    "update": "The measurement could not be updated.",
+    "mealTime": "Please choose when the measurement was taken.",
+    "mealRelation": "Please choose whether it was measured before or after a meal."
   },
   "restricted": {
     "title": "Restricted access",
@@ -98,7 +105,15 @@
     "time": "Time",
     "value": "Value",
     "notes": "Note",
-    "pulse": "Pulse"
+    "pulse": "Pulse",
+    "editValue": "Edit: {{what}}",
+    "untimedAt": "{{time}}:",
+    "noteAt": "{{time}}: {{note}}",
+    "diaryIntro": "Values in {{unit}}, 28 days at a time, newest first",
+    "diaryEmpty": "There are no values for this period.",
+    "diaryError": "The values could not be loaded. Please check the internet connection and try again.",
+    "retry": "Load again",
+    "more": "Load more"
   },
   "pulseUnit": "/min",
   "pulseShort": "Pulse {{value}}/min",
@@ -115,5 +130,19 @@
     "saved": "Reminder saved",
     "saveError": "The reminder could not be saved. Please try again.",
     "timeInvalid": "Please enter a valid time, for example 07:30."
+  },
+  "meal": {
+    "timeLabel": "When was it measured?",
+    "relationLabel": "Before or after a meal?",
+    "time": {
+      "morning": "Morning",
+      "noon": "Midday",
+      "evening": "Evening",
+      "late": "Late"
+    },
+    "relation": {
+      "before": "Before a meal",
+      "after": "After a meal"
+    }
   }
 }
