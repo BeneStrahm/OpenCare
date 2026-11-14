@@ -76,9 +76,11 @@ async function main() {
     const api = (method, path, body) => must(method, path, body, T, C);
 
     // Weitere Konten ueber Einladungen (Rolle kommt aus der Einladung)
+    const tokens = {};
     for (const k of KONTEN.slice(1)) {
         const inv = await api('POST', '/api/invites', { role: k.rolle, first_name: k.vorname, last_name: k.nachname, expires_in_days: 1 });
-        await must('POST', '/api/auth/register', { password: PASSWORT, inviteToken: inv.token });
+        const neu = await must('POST', '/api/auth/register', { password: PASSWORT, inviteToken: inv.token });
+        tokens[k.rolle] = neu.token;
     }
 
     // Kontakte
@@ -161,14 +163,93 @@ async function main() {
         await api('POST', `/api/consultations/${gespraech.id}/questions`, { text });
     }
 
-    // Messwerte der letzten 14 Tage (gespeichert in g/L und kg)
-    for (let i = 13; i >= 0; i--) {
-        await api('POST', '/api/vitals', { type: 'glucose', value: (1.0 + ((i * 7) % 30) / 100).toFixed(2), unit: 'g/L', measured_at: tag(-i, 7, 30) });
-        await api('POST', '/api/vitals', { type: 'weight', value: (68.5 + ((i * 3) % 8) / 10).toFixed(1), unit: 'kg', measured_at: tag(-i, 7, 35) });
+    // Normalbereiche wie unter Gesundheit › Normalbereich (fiktive Testwerte, Blutzucker in g/L)
+    await api('PUT', '/api/vitals/thresholds', { type: 'glucose', min_value: 0.7, max_value: 1.8 });
+    await api('PUT', '/api/vitals/thresholds', { type: 'bp', min_value: 100, max_value: 140, min_value2: 60, max_value2: 90, min_pulse: 50, max_pulse: 100 });
+    await api('PUT', '/api/vitals/thresholds', { type: 'weight', min_value: 60, max_value: 75 });
+
+    // Gesundheitswerte der letzten 6 Wochen (E47, E48). Eingetragen abwechselnd von Admin,
+    // Familie und Fachkraft, damit Bearbeiten und Loeschen fuer alle Rollen pruefbar sind.
+    // Tag 30 bis 33 ohne Werte: "Weitere laden" (nach 28 Tagen) springt ueber die Luecke.
+    const schreiber = [T, tokens.family, tokens.professional];
+    const jetzt = new Date();
+    const vital = async (i, body) => {
+        if (new Date(body.measured_at) > jetzt) return; // heute nichts in der Zukunft
+        await must('POST', '/api/vitals', body, schreiber[i % 3], C);
+    };
+    const gL = (mgdl) => (mgdl / 100).toFixed(2);
+    const ZUCKER_SLOTS = [
+        { meal_time: 'morning', meal_relation: 'before', h: 7, m: 40, basis: 105 },
+        { meal_time: 'morning', meal_relation: 'after', h: 9, m: 10, basis: 150 },
+        { meal_time: 'noon', meal_relation: 'before', h: 12, m: 5, basis: 110 },
+        { meal_time: 'noon', meal_relation: 'after', h: 13, m: 30, basis: 155 },
+        { meal_time: 'evening', meal_relation: 'before', h: 18, m: 15, basis: 115 },
+        { meal_time: 'evening', meal_relation: 'after', h: 19, m: 40, basis: 160 },
+        { meal_time: 'late', meal_relation: null, h: 22, m: 5, basis: 130 },
+    ];
+    // Werte ausserhalb des Bereichs: "Tag-Slot" -> mg/dL
+    const ZUCKER_AUSREISSER = { '2-5': 245, '9-3': 232, '17-1': 251, '36-5': 238, '12-6': 62 };
+    const ZUCKER_BEMERKUNG = {
+        2: 'Kuchen beim Kaffee', 6: 'Nach dem Spaziergang', 9: 'Geburtstagsessen',
+        12: 'Etwas zittrig, Saft getrunken', 15: 'Neues Messgerät', 21: 'Wenig gegessen',
+        27: 'Vor dem Arzttermin', 38: 'Nach dem Mittagsschlaf',
+    };
+    for (let i = 41; i >= 0; i--) {
+        if (i >= 30 && i <= 33) continue;
+        // Pro Tag: morgens vor dem Essen, mittags und abends abwechselnd vor/nach, jeden 3. Tag spaet
+        const slots = [0, i % 2 ? 2 : 3, i % 2 ? 5 : 4];
+        if (i % 4 === 1) slots.splice(1, 0, 1);
+        if (i % 3 === 0) slots.push(6);
+        for (const [n, s] of slots.entries()) {
+            const slot = ZUCKER_SLOTS[s];
+            const mgdl = ZUCKER_AUSREISSER[`${i}-${s}`] ?? slot.basis + ((i * 37 + s * 11) % 40) - 20;
+            const letzter = n === slots.length - 1;
+            await vital(i, {
+                type: 'glucose', value: gL(mgdl), unit: 'g/L', measured_at: tag(-i, slot.h, slot.m),
+                meal_time: slot.meal_time, meal_relation: slot.meal_relation,
+                notes: letzter ? ZUCKER_BEMERKUNG[i] : undefined,
+            });
+        }
+        // Zweiter Wert im selben Feld (zwei Werte untereinander)
+        if (i === 8) {
+            await vital(i, { type: 'glucose', value: gL(128), unit: 'g/L', measured_at: tag(-i, 8, 5), meal_time: 'morning', meal_relation: 'before', notes: 'Nachgemessen' });
+        }
+        // Wert ohne Tageszeit, wie am PC ohne Auswahl eingetragen
+        if (i % 7 === 3) {
+            await vital(i + 1, { type: 'glucose', value: gL(140 + (i % 5) * 6), unit: 'g/L', measured_at: tag(-i, 16, 0), notes: i === 10 ? 'Am PC nachgetragen' : undefined });
+        }
+
+        // Blutdruck morgens, jeden 3. Tag auch abends; jeder 4. Wert ohne Puls
+        const druck = [{ h: 8, m: 0, sys: 128 + ((i * 13) % 14) - 7, dia: 78 + ((i * 7) % 10) - 5 }];
+        if (i % 3 === 0) druck.push({ h: 19, m: 30, sys: 124 + ((i * 5) % 12) - 6, dia: 76 + ((i * 3) % 8) - 4 });
+        if (i === 4) Object.assign(druck[0], { sys: 152, dia: 94, notiz: 'Kopfschmerzen' });
+        if (i === 25) Object.assign(druck[0], { sys: 156, dia: 96, notiz: 'Tablette vergessen' });
+        if (i === 12 && druck[1]) Object.assign(druck[1], { sys: 148, dia: 88 });
+        if (i === 19) Object.assign(druck[0], { puls: 108, notiz: 'Nach dem Treppensteigen' });
+        for (const [n, d] of druck.entries()) {
+            const ohnePuls = (i + n) % 4 === 1;
+            await vital(i + n, {
+                type: 'bp', value: d.sys, value2: d.dia, unit: 'mmHg', measured_at: tag(-i, d.h, d.m),
+                pulse: ohnePuls && !d.puls ? undefined : d.puls ?? 68 + ((i * 5) % 12), notes: d.notiz,
+            });
+        }
+
+        // Gewicht jeden 2. Tag
         if (i % 2 === 0) {
-            await api('POST', '/api/vitals', { type: 'bp', value: 130 + (i % 5) * 2, value2: 80 + (i % 3) * 2, unit: 'mmHg', measured_at: tag(-i, 8, 0) });
+            const kg = i === 14 ? 76.2 : 68.5 + ((i * 7) % 30) / 10;
+            const notiz = { 14: 'Nach dem Urlaub', 22: 'Mit Schuhen gewogen', 40: 'Neue Waage' }[i];
+            await vital(i + 2, { type: 'weight', value: kg.toFixed(1), unit: 'kg', measured_at: tag(-i, 7, 35), notes: notiz });
         }
     }
+
+    // Die betreute Person traegt selbst ein. Der Server setzt die Zeit auf "jetzt" (E47),
+    // Rueckgaengig geht also nur in den ersten 10 Minuten nach dem Einspielen.
+    const stunde = jetzt.getHours();
+    const tageszeit = stunde < 11 ? 'morning' : stunde < 16 ? 'noon' : stunde < 21 ? 'evening' : 'late';
+    const selbst = (body) => must('POST', '/api/vitals', body, tokens.recipient, C);
+    await selbst({ type: 'glucose', value: 2.1, meal_time: tageszeit, meal_relation: tageszeit === 'late' ? null : 'after', notes: 'Selbst gemessen' });
+    await selbst({ type: 'weight', value: 70.4 });
+    await selbst({ type: 'bp', value: 142, value2: 86, pulse: 72 });
 
     // Aufgaben, Pinnwand, Tagebuch
     await api('POST', '/api/tasks', { title: 'Rezept für Metformin abholen', due_date: datum(3) });
