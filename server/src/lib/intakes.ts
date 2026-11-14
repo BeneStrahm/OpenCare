@@ -11,7 +11,7 @@ import { query } from '../db';
  *   (la re-edition remplace les lignes et met schedule_id a NULL).
  * - markMissed : une prise en attente depuis plus de 4 h devient "manquee"
  *   (gerechnet ab der verschobenen Zeit, falls "Spaeter erinnern" gewaehlt wurde).
- * - snoozeIntakes / skipIntakes : Block M (E23), Tasten der einfachen Ansicht.
+ * - skipIntakes : Block M (E23), Taste der einfachen Ansicht.
  * - applyIntakeStatus : changement de statut + entree de journal, avec la
  *   source de confirmation (aidant, lien magique, la personne elle-meme ;
  *   kiosk et telephone restent pour les anciennes confirmations).
@@ -27,8 +27,8 @@ export const DUE_NOW_BEFORE_MS = 30 * 60 * 1000;
 export const MISSED_AFTER_MS = 4 * 60 * 60 * 1000;
 
 /**
- * Block M: Zeit, ab der eine Einnahme faellig ist. Nach "Spaeter erinnern" die
- * verschobene Zeit (snoozed_until), sonst die geplante. Erinnerung, Hinweis an
+ * Block M: Zeit, ab der eine Einnahme faellig ist. Die geplante, bei alten Eintraegen
+ * mit "Spaeter erinnern" (entfernt 14. November) die verschobene Zeit (snoozed_until). Erinnerung, Hinweis an
  * die Familie (lib/escalation.ts) und "verpasst" rechnen ab dieser Zeit.
  */
 export const effectiveDueSql = (alias = ''): string => {
@@ -296,38 +296,6 @@ export async function skipIntakes(
         skipped.push(intake);
     }
     return skipped;
-}
-
-/**
- * Block M: "Spaeter erinnern". Verschiebt jede erlaubte Einnahme um
- * minutes Minuten ab jetzt bzw. ab der bisherigen Zeit, falls die spaeter
- * liegt, und zaehlt mit. Die Erinnerung an die betreute Person kommt danach
- * erneut, der Hinweis an die Familie rechnet ab der neuen Zeit (effectiveDueSql).
- * may entscheidet, welche Einnahme verschoben werden darf (middleware/circle.ts).
- * Gibt die Anzahl der verschobenen Einnahmen zurueck.
- */
-export async function snoozeIntakes(
-    client: PoolClient,
-    circleId: string,
-    ids: string[],
-    minutes: number,
-    may: (intake: IntakeForUpdate) => boolean
-): Promise<number> {
-    let snoozed = 0;
-    for (const id of ids) {
-        const intake = await fetchIntakeForUpdate(client, id, circleId);
-        if (!intake || !may(intake)) continue;
-        await client.query(
-            `UPDATE medication_intakes
-             SET snoozed_until = GREATEST(LOCALTIMESTAMP, ${effectiveDueSql()}) + make_interval(mins => $2::int),
-                 snooze_count = COALESCE(snooze_count, 0) + 1,
-                 reminded_patient_at = NULL
-             WHERE id = $1`,
-            [intake.id, minutes]
-        );
-        snoozed += 1;
-    }
-    return snoozed;
 }
 
 export interface PatientIntakeRow {

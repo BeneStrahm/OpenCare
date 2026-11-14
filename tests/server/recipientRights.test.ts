@@ -36,10 +36,7 @@ import {
     circleMiddleware,
     recipientMayAccess,
     recipientMayChangeIntake,
-    recipientMaySnoozeIntake,
     recipientUndoMsLeft,
-    RECIPIENT_SNOOZE_MINUTES,
-    RECIPIENT_SNOOZE_MAX,
     INTAKE_CONFIRMER_ROLES,
     parseRecipientEvent,
     recipientEventUndoMsLeft,
@@ -133,8 +130,9 @@ const BLOCKED: Array<[string, string]> = [
     ['GET', '/api/medications/prescriptions'],
     ['POST', '/api/medications/med-1/intakes'],
     ['PUT', '/api/medications/med-1/stock'],
-    // Block M: nur ueberspringen und spaeter erinnern, keine Unterpfade, kein Lesen
+    // Block M: nur ueberspringen, keine Unterpfade, kein Lesen. "Spaeter erinnern" ist entfernt.
     ['POST', '/api/medications/intakes/skip/extra'],
+    ['POST', '/api/medications/intakes/snooze'],
     ['GET', '/api/medications/intakes/snooze'],
     ['POST', '/api/medications/intakes/snoozex'],
     ['DELETE', '/api/medications/intakes/einnahme-1'],
@@ -188,9 +186,8 @@ const ALLOWED: Array<[string, string]> = [
     ['GET', '/api/medications/intakes?from=2026-11-10'],
     ['PUT', '/api/medications/intakes/einnahme-1'],
     ['POST', '/api/medications/intakes/confirm'],
-    // Block M: ueberspringen und spaeter erinnern (Route prueft Status, Uhrzeit, Anzahl)
+    // Block M: ueberspringen (Route prueft den Status)
     ['POST', '/api/medications/intakes/skip'],
-    ['POST', '/api/medications/intakes/snooze'],
     ['GET', '/api/contacts'],
     ['GET', '/api/contacts/'],
     ['GET', '/api/visits'],
@@ -315,41 +312,7 @@ describe('Rueckgaengig der betreuten Person', () => {
     });
 });
 
-describe('Block M: Spaeter erinnern', () => {
-    const open = (extra: Record<string, unknown> = {}) => ({ status: 'pending', time_fixed: false, snooze_count: 0, ...extra });
-
-    it('30 Minuten, hoechstens zweimal, an einer Stelle', () => {
-        expect(RECIPIENT_SNOOZE_MINUTES).toBe(30);
-        expect(RECIPIENT_SNOOZE_MAX).toBe(2);
-    });
-
-    it('erlaubt bei Tageszeit, zweimal', () => {
-        expect(recipientMaySnoozeIntake(open())).toBe(true);
-        expect(recipientMaySnoozeIntake(open({ snooze_count: 1 }))).toBe(true);
-        // Aus der Datenbank kann die Zahl als Text kommen.
-        expect(recipientMaySnoozeIntake(open({ snooze_count: '1' }))).toBe(true);
-        expect(recipientMaySnoozeIntake(open({ snooze_count: null }))).toBe(true);
-    });
-
-    it('danach nicht mehr', () => {
-        expect(recipientMaySnoozeIntake(open({ snooze_count: 2 }))).toBe(false);
-        expect(recipientMaySnoozeIntake(open({ snooze_count: 3 }))).toBe(false);
-        expect(recipientMaySnoozeIntake(open({ snooze_count: 'kaputt' }))).toBe(false);
-        expect(recipientMaySnoozeIntake(open({ snooze_count: -1 }))).toBe(false);
-    });
-
-    it('nie bei fester Uhrzeit oder unbekannter Einnahmezeit', () => {
-        expect(recipientMaySnoozeIntake(open({ time_fixed: true }))).toBe(false);
-        expect(recipientMaySnoozeIntake(open({ time_fixed: null }))).toBe(false);
-        expect(recipientMaySnoozeIntake(open({ time_fixed: undefined }))).toBe(false);
-    });
-
-    it('nur offene Einnahmen, nicht verpasste', () => {
-        for (const status of ['taken', 'skipped', 'missed']) {
-            expect(recipientMaySnoozeIntake(open({ status })), status).toBe(false);
-        }
-    });
-
+describe('Block M: Einnahmen', () => {
     it('Einnahmen bestaetigen und ueberspringen alle ausser Freunde (neighbor)', () => {
         expect([...INTAKE_CONFIRMER_ROLES].sort()).toEqual(['admin', 'family', 'professional', 'recipient']);
         expect(INTAKE_CONFIRMER_ROLES).not.toContain('neighbor');

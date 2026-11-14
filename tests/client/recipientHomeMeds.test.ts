@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-    showOnHome, isOverdue, maySnooze, snoozeTarget, effectiveDue,
-    HOME_MEDS_LEAD_MS, HOME_MEDS_OVERDUE_MS, HOME_MEDS_HIDE_AFTER_MS, SNOOZE_MINUTES, SNOOZE_MAX, type HomeIntake,
+    showOnHome, isOverdue, effectiveDue,
+    HOME_MEDS_LEAD_MS, HOME_MEDS_OVERDUE_MS, HOME_MEDS_HIDE_AFTER_MS, type HomeIntake,
 } from '../../client/src/lib/recipientView';
 import { clockDate } from '../../client/src/lib/clock';
 
@@ -70,26 +70,5 @@ describe('Kachel: hellroter Rahmen', () => {
     it('nie bei genommenen oder uebersprungenen', () => {
         expect(isOverdue(intake({ status: 'taken' }), at('12:00'), clockDate)).toBe(false);
         expect(isOverdue(intake({ status: 'skipped' }), at('12:00'), clockDate)).toBe(false);
-    });
-});
-
-describe('Kachel: Spaeter erinnern', () => {
-    it('30 Minuten, hoechstens zweimal (wie RECIPIENT_SNOOZE_* in middleware/circle.ts)', () => {
-        expect(SNOOZE_MINUTES).toBe(30);
-        expect(SNOOZE_MAX).toBe(2);
-    });
-
-    it('hoechstens zweimal, nicht bei fester Uhrzeit, nicht verpasst', () => {
-        expect(maySnooze(intake())).toBe(true);
-        expect(maySnooze(intake({ snooze_count: 1 }))).toBe(true);
-        expect(maySnooze(intake({ snooze_count: 2 }))).toBe(false);
-        expect(maySnooze(intake({ time_fixed: true }))).toBe(false);
-        expect(maySnooze(intake({ time_fixed: undefined }))).toBe(false);
-        expect(maySnooze(intake({ status: 'missed' }))).toBe(false);
-    });
-
-    it('30 Minuten ab jetzt oder ab der spaeteren Zeit', () => {
-        expect(snoozeTarget(intake(), at('07:40'), clockDate).getTime()).toBe(at('08:30').getTime());
-        expect(snoozeTarget(intake(), at('09:00'), clockDate).getTime()).toBe(at('09:30').getTime());
     });
 });

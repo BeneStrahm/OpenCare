@@ -4,7 +4,7 @@ import {
     CalendarDays, Check, CheckCheck, MapPin, MessageCircle, Phone, Pill, RotateCcw,
     Settings as SettingsIcon, ThermometerSun, Users, Backpack, Car, Volume2, Square, X,
     Stethoscope, CalendarRange, CalendarClock, Droplet, Scale, HeartPulse, Sun, Moon, ChevronRight, ChevronUp, ChevronDown,
-    IdCard, ShoppingCart, CalendarPlus, Plus, Activity, SkipForward, Bell, CircleAlert, Clock,
+    IdCard, ShoppingCart, CalendarPlus, Plus, Activity, SkipForward, CircleAlert, Clock,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,7 +21,7 @@ import { cn } from '../lib/utils';
 import { VIEW_COLORS, medicationColorOf, viewColorOf } from '../lib/viewColors';
 import {
     FONT_SCALES, VIEW_SCALE, RECIPIENT_QUESTIONS, RECIPIENT_VITAL_TYPES, groupIntakes, isCompanionActive, isTravelActive, loadFontScale,
-    effectiveDue, isOverdue, maySnooze, momentOf, showOnHome, snoozeTarget,
+    effectiveDue, isOverdue, momentOf, showOnHome,
     localDay, parseRecipientEventForm, parseRecipientVital, saveFontScale, type IntakeGroup, type RecipientQuestion, type RecipientVitalType,
 } from '../lib/recipientView';
 
@@ -215,49 +215,79 @@ const PersonPhoto: React.FC<{ name: string; url: string | null; size: number; so
     );
 
 /**
- * Block L1: grosses Fenster ueber der ganzen Ansicht. Die Leiste oben bleibt beim
- * Blaettern stehen, damit "Schliessen" (grosses X mit Text) immer oben rechts zu sehen ist.
+ * Einheitliche Seite der einfachen Ansicht (Wunsch vom 14. November): Fenster, Eingaben,
+ * Rueckfragen und die Erinnerung sehen gleich aus, es gibt keine Pop-ups mehr. Leiste oben ueber
+ * die volle Breite: links die Uhrzeit, in der Mitte bei Bedarf Symbol und Titel, rechts das X
+ * (ohne Text, bewusste Ausnahme, fuer Screenreader "Schliessen"). Darunter der Inhalt, rechts immer
+ * der eigene Scrollbalken. X und Balken haben rechts 5 px Abstand. Nur die Startseite hat keine Leiste.
  */
+const PAGE_WIDTH = { wide: 'max-w-[72rem]', normal: 'max-w-4xl', medium: 'max-w-3xl', narrow: 'max-w-xl' } as const;
+// Rueckfragen liegen ueber den Fenstern, die Erinnerung ganz oben.
+const PAGE_LAYER = { window: 'z-[70]', dialog: 'z-[80]', reminder: 'z-[90]' } as const;
+
 const ViewWindow: React.FC<{
     id: string;
-    title: string;
-    icon: React.ReactNode;
+    title?: string;
+    icon?: React.ReactNode;
+    /** Ohne Titel in der Leiste: id der Ueberschrift im Inhalt */
+    labelledBy?: string;
+    role?: 'dialog' | 'alertdialog';
+    layer?: keyof typeof PAGE_LAYER;
+    /** wide: so breit wie die Medikamenten-Kachel der Startseite (Block M) */
+    width?: keyof typeof PAGE_WIDTH;
+    clock: string;
     closeLabel: string;
     onClose: () => void;
     style: React.CSSProperties;
+    clockStyle: React.CSSProperties;
     titleStyle: React.CSSProperties;
     closeStyle: React.CSSProperties;
     barColor: string;
     barBorder: string;
-    /** Block M: so breit wie die Medikamenten-Kachel der Startseite (Fenster Medikamente) */
-    wide?: boolean;
+    scroll: { upLabel: string; downLabel: string; text: string; card: string; track: string; control: string };
     children: React.ReactNode;
-}> = ({ id, title, icon, closeLabel, onClose, style, titleStyle, closeStyle, barColor, barBorder, wide, children }) => (
-    <div className="fixed inset-0 z-[70] overflow-y-auto font-kiosk" style={style} role="dialog" aria-modal="true" aria-labelledby={id}>
-        <div className="sticky top-0 z-10" style={{ backgroundColor: barColor, borderBottom: `2px solid ${barBorder}` }}>
-            <div className={cn('mx-auto flex w-full items-center justify-between gap-3 px-4 py-3 min-[512px]:px-6', wide ? 'max-w-[72rem]' : 'max-w-4xl')}>
-                <h2 id={id} className="flex min-w-0 items-center gap-3 font-bold" style={titleStyle}>
-                    {icon}
-                    <span className="min-w-0">{title}</span>
-                </h2>
-                <button type="button" autoFocus onClick={onClose} className="flex min-h-[4rem] shrink-0 items-center gap-2 rounded-2xl px-5 font-bold" style={closeStyle}>
-                    <X className="h-9 w-9 shrink-0" strokeWidth={3} aria-hidden="true" />
-                    {closeLabel}
-                </button>
+}> = ({ id, title, icon, labelledBy, role = 'dialog', layer = 'window', width = 'normal', clock, closeLabel, onClose, style, clockStyle, titleStyle, closeStyle, barColor, barBorder, scroll, children }) => {
+    const scrollRef = useRef<HTMLDivElement>(null);
+    return (
+        <div className={cn('fixed inset-0 flex flex-col font-kiosk', PAGE_LAYER[layer])} style={style} role={role} aria-modal="true" aria-labelledby={title ? id : labelledBy}>
+            <div className="flex shrink-0 items-center gap-3 py-[6px] pl-6 pr-[5px]" style={{ backgroundColor: barColor, borderBottom: `2px solid ${barBorder}` }}>
+                <div className="flex min-w-max flex-1 basis-0">
+                    <p className="whitespace-nowrap font-bold tabular-nums" style={clockStyle}>{clock}</p>
+                </div>
+                {title && (
+                    <h2 id={id} className="flex min-w-0 items-center justify-center gap-3 text-center font-bold" style={titleStyle}>
+                        {icon}
+                        <span className="min-w-0">{title}</span>
+                    </h2>
+                )}
+                <div className="flex min-w-max flex-1 basis-0 justify-end">
+                    <button type="button" autoFocus onClick={onClose} aria-label={closeLabel} className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl" style={closeStyle}>
+                        <X className="h-10 w-10" strokeWidth={3} aria-hidden="true" />
+                    </button>
+                </div>
+            </div>
+            <div className="flex min-h-0 flex-1 gap-3 pr-[5px]">
+                <div ref={scrollRef} tabIndex={0} className="min-w-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {/* Fenster "Medikamente" (wide): rechts kein Rand, der Scrollbalken haelt Abstand (Figma Rahmen 22) */}
+                    <div className={cn('mx-auto flex w-full flex-col gap-5 px-4 pb-12 pt-5 min-[512px]:px-6', width === 'wide' && 'pr-0 min-[512px]:pr-0', PAGE_WIDTH[width])}>
+                        {children}
+                    </div>
+                </div>
+                <div className="flex w-[2.8125rem] shrink-0 flex-col py-[5px]">
+                    <ScrollBar target={scrollRef} {...scroll} />
+                </div>
             </div>
         </div>
-        <div className={cn('mx-auto flex w-full flex-col gap-5 px-4 pb-12 pt-5 min-[512px]:px-6', wide ? 'max-w-[72rem]' : 'max-w-4xl')}>
-            {children}
-        </div>
-    </div>
-);
+    );
+};
 
 /**
  * Sichtbarer Scrollbalken fuer ein Fenster der einfachen Ansicht (Wunsch vom 12. November,
  * nach BFIT-Bund "Scrollbalken"): oben ein Pfeil-Schalter, dazwischen der Rollbalken mit dem
  * ziehbaren Bildlauffeld (zeigt Position und Groesse des sichtbaren Ausschnitts), unten ein
  * Pfeil-Schalter. Chrome auf Android zeigt den eigenen Balken nur kurz beim Wischen, darum ein
- * eigener. Unsichtbar (Platz bleibt), wenn der Inhalt ganz in das Fenster passt.
+ * eigener. Immer sichtbar (Wunsch vom 14. November): passt alles, sind beide Pfeile gesperrt und
+ * das Bildlauffeld fuellt den Rollbalken. Pfeile, Rollbalken und Bildlauffeld gleich breit (Figma).
  */
 const ScrollBar: React.FC<{
     target: React.RefObject<HTMLDivElement | null>;
@@ -343,7 +373,7 @@ const ScrollBar: React.FC<{
     );
 
     return (
-        <div className="flex min-h-0 flex-1 flex-col gap-2" style={{ visibility: overflow ? 'visible' : 'hidden' }}>
+        <div className="flex min-h-0 flex-1 flex-col gap-2">
             {arrow(-1, atStart)}
             <div
                 ref={trackRef}
@@ -354,9 +384,9 @@ const ScrollBar: React.FC<{
                 onPointerUp={endDrag}
                 onPointerCancel={endDrag}
             >
-                <div className="absolute inset-y-0 left-1/2 w-8 -translate-x-1/2 rounded-full" style={{ backgroundColor: track, border: `2px solid ${control}` }} />
+                <div className="absolute inset-0 rounded-full" style={{ backgroundColor: track, border: `2px solid ${control}` }} />
                 <div
-                    className="absolute left-1/2 w-8 -translate-x-1/2 rounded-full"
+                    className="absolute inset-x-0 rounded-full"
                     style={{ top: thumbTop, height: thumbH, backgroundColor: text }}
                 />
             </div>
@@ -441,7 +471,6 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     const [skipConfirm, setSkipConfirm] = useState<Intake[] | null>(null);
     // Block M: Fenster mit den Infos zu einer Tablette (Karte antippen)
     const [infoId, setInfoId] = useState<string | null>(null);
-    const infoScrollRef = useRef<HTMLDivElement>(null);
 
     const [win, setWin] = useState<WindowId | null>(null);
     const [reminderOpen, setReminderOpen] = useState(false);
@@ -983,34 +1012,6 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
         }
     };
 
-    // Block M: spaeter erinnern, 30 Minuten, hoechstens zweimal, nicht bei fester Uhrzeit.
-    const snoozeMany = async (items: Intake[]) => {
-        const allowed = items.filter(maySnooze);
-        if (busy || allowed.length === 0) return;
-        const at = allowed.map((i) => snoozeTarget(i, new Date(), clockDate)).reduce((a, b) => (b > a ? b : a));
-        setBusy(true);
-        setNotice(null);
-        try {
-            const ids = allowed.map((i) => i.id);
-            const res = await api.post<{ success: boolean; queued?: boolean }>('/api/medications/intakes/snooze', { intake_ids: ids });
-            if (res.queued) {
-                // Lokal verschieben, damit die Kachel gleich ruhig wird; der Server rechnet beim Senden neu.
-                setIntakes((prev) => prev.map((i) => (ids.includes(i.id)
-                    ? { ...i, snoozed_until: snoozeTarget(i, new Date(), clockDate).toISOString(), snooze_count: Number(i.snooze_count ?? 0) + 1 }
-                    : i)));
-                setNotice({ kind: 'queued', text: t('simpleView:meds.queued') });
-            } else {
-                setNotice({ kind: 'info', text: t('simpleView:home.snoozed', { time: clockOf(at) }) });
-                await loadIntakes();
-            }
-        } catch {
-            setNotice({ kind: 'error', text: t('simpleView:meds.error') });
-            void loadIntakes().catch(() => undefined);
-        } finally {
-            setBusy(false);
-        }
-    };
-
     // ── Fragen Sie mich (feste Fragen, Antwort vom Server ohne KI) ──
 
     const questions = RECIPIENT_QUESTIONS.filter((q) => {
@@ -1156,16 +1157,23 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
         ['--k' as string]: String(fontScale),
     };
 
-    const overlayBox = 'relative max-h-[90vh] w-full overflow-y-auto rounded-3xl p-6 shadow-lg min-[512px]:p-8';
-    // Rueckfragen liegen ueber den Fenstern (z-70), die Erinnerung ganz oben.
-    const dialogLayer = 'fixed inset-0 z-[80] flex items-center justify-center p-4 font-kiosk';
     const windowProps = {
         style: rootStyle,
+        clock: clockOf(now),
+        clockStyle: { ...fs(36), lineHeight: 1.2 } as React.CSSProperties,
         titleStyle: { ...fs(32), color: C.text, lineHeight: 1.25 } as React.CSSProperties,
-        closeStyle: { ...fs(22), ...secondaryButton, border: `3px solid ${C.control}` } as React.CSSProperties,
+        closeStyle: { backgroundColor: C.card, color: '#000000', border: `3px solid ${C.control}` } as React.CSSProperties,
         barColor: C.bg,
         barBorder: C.border,
         closeLabel: t('simpleView:window.close'),
+        scroll: {
+            upLabel: t('simpleView:window.scrollUp'),
+            downLabel: t('simpleView:window.scrollDown'),
+            text: C.text,
+            card: C.card,
+            track: C.bg,
+            control: C.control,
+        },
         onClose: () => { stopSpeaking(); setWin(null); },
     };
 
@@ -1303,19 +1311,22 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
      * Karte: Name, Menge, Statusfeld, eine Tastenreihe (Genommen, Ueberspringen, Spaeter erinnern
      * bzw. "Rueckgaengig"). Tasten nur im Zeitfenster; davor "Noch nicht faellig", danach "Verpasst".
      */
-    const renderIntakeGroups = (groups: Array<{ group: IntakeGroup; items: Intake[] }>, idPrefix: string) => (
+    // compact: Fenster "Medikamente" nach Figma Rahmen 22 (14. November): Gruppe links und rechts 10,8 px,
+    // Karte links und rechts 7 px, Spaltenabstand 8 px (Werte am Tablet, rem bei Grundgroesse x 0,8).
+    // Die Startseite bleibt unveraendert.
+    const renderIntakeGroups = (groups: Array<{ group: IntakeGroup; items: Intake[] }>, idPrefix: string, compact = false) => (
                         <div className="flex flex-col gap-5">
                             {groups.map(({ group, items }) => {
                                 return (
-                                    <div key={group.key} role="group" aria-labelledby={`${idPrefix}-${group.key}`} className="rounded-2xl p-4 min-[512px]:p-5" style={tile}>
+                                    <div key={group.key} role="group" aria-labelledby={`${idPrefix}-${group.key}`} className={cn('rounded-2xl p-4 min-[512px]:p-5', compact && 'px-[0.84375rem] min-[512px]:px-[0.84375rem]')} style={tile}>
                                         <h3 id={`${idPrefix}-${group.key}`} className="mb-3 font-bold" style={{ ...fs(26), lineHeight: 1.3 }}>{groupTitle(group, items)}</h3>
-                                        <ul className="grid grid-cols-1 gap-4 min-[512px]:grid-cols-2 min-[819px]:grid-cols-3">
+                                        <ul className={cn('grid grid-cols-1 gap-4 min-[512px]:grid-cols-2 min-[819px]:grid-cols-3', compact && 'gap-x-[0.625rem]')}>
                                             {items.map((intake) => {
                                                 const label = intakeLabel(intake);
                                                 return (
                                                     <li
                                                         key={intake.id}
-                                                        className="flex flex-col gap-3 rounded-2xl p-4"
+                                                        className={cn('flex flex-col gap-3 rounded-2xl p-4', compact && 'px-[0.546875rem]')}
                                                         style={intakeCardStyle(intake)}
                                                     >
                                                         {renderIntakeInfo(intake)}
@@ -1349,19 +1360,6 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                                                 >
                                                                     <SkipForward className="h-9 w-9" aria-hidden="true" />
                                                                 </button>
-                                                                {maySnooze(intake) && (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => void snoozeMany([intake])}
-                                                                        disabled={busy}
-                                                                        aria-label={t('simpleView:home.snoozeOne', { name: label })}
-                                                                        title={t('simpleView:home.snooze')}
-                                                                        className={iconButton}
-                                                                        style={secondaryButton}
-                                                                    >
-                                                                        <Bell className="h-9 w-9" aria-hidden="true" />
-                                                                    </button>
-                                                                )}
                                                             </div>
                                                         )}
                                                     </li>
@@ -1678,7 +1676,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
             )}
 
             {win === 'meds' && (
-                <ViewWindow id="rv-win-meds" wide title={t('simpleView:meds.title')} icon={<Pill className="h-9 w-9 shrink-0" style={{ color: C.blue }} aria-hidden="true" />} {...windowProps} onClose={windowProps.onClose}>
+                <ViewWindow id="rv-win-meds" width="wide" title={t('simpleView:meds.title')} icon={<Pill className="h-9 w-9 shrink-0" style={{ color: C.blue }} aria-hidden="true" />} {...windowProps} onClose={windowProps.onClose}>
                         {notice && notice.kind !== 'ok' && (
                             <div
                                 role={notice.kind === 'error' ? 'alert' : 'status'}
@@ -1696,7 +1694,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                         <section className="rounded-3xl p-5 min-[512px]:p-6" style={tile}>
                             <p style={fs(21)}>{t('simpleView:meds.empty')}</p>
                         </section>
-                    ) : renderIntakeGroups(openFirst(intakeGroups), 'rv-meds')}
+                    ) : renderIntakeGroups(openFirst(intakeGroups), 'rv-meds', true)}
 </ViewWindow>
             )}
 
@@ -2257,12 +2255,10 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
 
             {/* Block L3: neuer Termin, erst die Angaben, dann die Rueckfrage */}
             {eventForm && (
-                <div className={dialogLayer} style={{ lineHeight: 1.5, ['--k' as string]: String(fontScale) }} role="dialog" aria-modal="true" aria-labelledby="rv-event-title">
-                    <div className="absolute inset-0 bg-black/40" aria-hidden="true" />
-                    <div className={cn(overlayBox, 'max-w-xl font-kiosk')} style={tile}>
-                        <h2 id="rv-event-title" className="font-bold" style={fs(26)}>{t('simpleView:event.new')}</h2>
+                <ViewWindow id="rv-event-title" title={t('simpleView:event.new')} layer="dialog" width="narrow" {...windowProps} onClose={() => setEventForm(null)}>
+                    <div className="rounded-3xl p-6 min-[512px]:p-8" style={tile}>
                         {eventForm.step === 'enter' ? (
-                            <form className="mt-4 space-y-5" onSubmit={(ev) => { ev.preventDefault(); checkEvent(); }} noValidate>
+                            <form className="space-y-5" onSubmit={(ev) => { ev.preventDefault(); checkEvent(); }} noValidate>
                                 {([
                                     ['title', 'text', eventForm.title],
                                     ['date', 'date', eventForm.day],
@@ -2308,7 +2304,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                 </div>
                             </form>
                         ) : (
-                            <div className="mt-4">
+                            <div>
                                 <p style={fs(21)}>{t('simpleView:measure.question')}</p>
                                 <div className="mt-3 rounded-2xl p-4" style={{ backgroundColor: C.blueSoft, color: C.blueDark }}>
                                     <p className="font-bold" style={fs(26)}>{eventForm.title.trim()}</p>
@@ -2332,18 +2328,22 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                             </div>
                         )}
                     </div>
-                </div>
+                </ViewWindow>
             )}
 
             {/* Block L4: Rueckfrage vor dem Hinzufuegen und Abhaken */}
             {shopConfirm && (
-                <div className={dialogLayer} style={{ lineHeight: 1.5, ['--k' as string]: String(fontScale) }} role="alertdialog" aria-modal="true" aria-labelledby="rv-shop-confirm-title">
-                    <div className="absolute inset-0 bg-black/40" aria-hidden="true" />
-                    <div className={cn(overlayBox, 'max-w-xl font-kiosk')} style={tile}>
-                        <h2 id="rv-shop-confirm-title" className="font-bold" style={fs(26)}>
-                            {shopConfirm.kind === 'add' ? t('simpleView:shopping.addQuestion') : t('simpleView:shopping.checkQuestion')}
-                        </h2>
-                        <p className="mt-3 rounded-2xl p-4 font-bold" style={{ ...fs(26), backgroundColor: C.blueSoft, color: C.blueDark }}>
+                <ViewWindow
+                    id="rv-shop-confirm-title"
+                    title={shopConfirm.kind === 'add' ? t('simpleView:shopping.addQuestion') : t('simpleView:shopping.checkQuestion')}
+                    role="alertdialog"
+                    layer="dialog"
+                    width="narrow"
+                    {...windowProps}
+                    onClose={() => setShopConfirm(null)}
+                >
+                    <div className="rounded-3xl p-6 min-[512px]:p-8" style={tile}>
+                        <p className="rounded-2xl p-4 font-bold" style={{ ...fs(26), backgroundColor: C.blueSoft, color: C.blueDark }}>
                             {shopConfirm.kind === 'add' ? shopConfirm.name : `${shopConfirm.item.name}${shopAmount(shopConfirm.item)}`}
                         </p>
                         <div className="mt-6 grid grid-cols-1 gap-3 min-[512px]:grid-cols-2">
@@ -2362,7 +2362,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                             </button>
                         </div>
                     </div>
-                </div>
+                </ViewWindow>
             )}
 
             {/* Block M: Infos zu einer Tablette (Karte antippen), nur lesen */}
@@ -2385,13 +2385,8 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                     [t('simpleView:medInfo.endDate'), longDate(i.end_date)],
                 ];
                 return (
-                    <div className={dialogLayer} style={{ lineHeight: 1.5, ['--k' as string]: String(fontScale) }} role="dialog" aria-modal="true" aria-labelledby="rv-medinfo-title">
-                        <div className="absolute inset-0 bg-black/40" aria-hidden="true" onClick={() => setInfoId(null)} />
-                        {/* Wunsch vom 12. November: Fenster beginnt oben beim Namen, schwarzes X oben rechts
-                            (ohne Text, bewusste Ausnahme), rechts ein sichtbarer Scrollbalken. */}
-                        <div className="relative flex max-h-[90vh] w-full max-w-3xl gap-3 overflow-hidden rounded-3xl p-6 shadow-lg min-[512px]:p-8 font-kiosk" style={{ ...tile, ...intakeCardStyle(i) }}>
-                          <div ref={infoScrollRef} tabIndex={0} className="min-w-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                           <div>
+                    <ViewWindow id="rv-medinfo" labelledBy="rv-medinfo-title" width="medium" {...windowProps} onClose={() => setInfoId(null)}>
+                        <div className="rounded-3xl p-6 min-[512px]:p-8" style={{ ...tile, ...intakeCardStyle(i) }}>
                             <div className="flex flex-wrap items-start gap-5">
                                 {i.photo_url ? (
                                     <img src={i.photo_url} alt="" className="h-40 w-40 shrink-0 rounded-3xl object-cover" style={{ border: `1px solid ${C.border}` }} />
@@ -2418,41 +2413,16 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                     </div>
                                 ))}
                             </dl>
-                           </div>
-                          </div>
-                          <div className="flex w-16 shrink-0 flex-col gap-2">
-                            <button
-                                type="button"
-                                onClick={() => setInfoId(null)}
-                                autoFocus
-                                aria-label={t('simpleView:window.close')}
-                                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl"
-                                style={{ backgroundColor: C.card, color: '#000000', border: `3px solid ${C.control}` }}
-                            >
-                                <X className="h-10 w-10" strokeWidth={3} aria-hidden="true" />
-                            </button>
-                            <ScrollBar
-                                target={infoScrollRef}
-                                upLabel={t('simpleView:window.scrollUp')}
-                                downLabel={t('simpleView:window.scrollDown')}
-                                text={C.text}
-                                card={C.card}
-                                track={C.bg}
-                                control={C.control}
-                            />
-                          </div>
                         </div>
-                    </div>
+                    </ViewWindow>
                 );
             })()}
 
             {/* Block M: Rueckfrage vor dem Ueberspringen */}
             {skipConfirm && skipConfirm.length > 0 && (
-                <div className={dialogLayer} style={{ lineHeight: 1.5, ['--k' as string]: String(fontScale) }} role="alertdialog" aria-modal="true" aria-labelledby="rv-skip-title">
-                    <div className="absolute inset-0 bg-black/40" aria-hidden="true" />
-                    <div className={cn(overlayBox, 'max-w-xl font-kiosk')} style={tile}>
-                        <h2 id="rv-skip-title" className="font-bold" style={fs(26)}>{t('simpleView:home.skipTitle')}</h2>
-                        <ul className="mt-4 space-y-2">
+                <ViewWindow id="rv-skip-title" title={t('simpleView:home.skipTitle')} role="alertdialog" layer="dialog" width="narrow" {...windowProps} onClose={() => setSkipConfirm(null)}>
+                    <div className="rounded-3xl p-6 min-[512px]:p-8" style={tile}>
+                        <ul className="space-y-2">
                             {skipConfirm.map((i) => (
                                 <li key={i.id} className="flex items-start gap-3" style={fs(21)}>
                                     <Pill className="mt-1 h-6 w-6 shrink-0" style={{ color: C.blue }} aria-hidden="true" />
@@ -2480,18 +2450,15 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                             </button>
                         </div>
                     </div>
-                </div>
+                </ViewWindow>
             )}
 
             {/* Block K: Messwert eintragen, erst die Zahl, dann die Rueckfrage */}
             {vitalForm && (
-                <div className={dialogLayer} style={{ lineHeight: 1.5, ['--k' as string]: String(fontScale) }} role="dialog" aria-modal="true" aria-labelledby="rv-measure-title">
-                    <div className="absolute inset-0 bg-black/40" aria-hidden="true" />
-                    <div className={cn(overlayBox, 'max-w-xl font-kiosk')} style={tile}>
-                        <h2 id="rv-measure-title" className="font-bold" style={fs(26)}>{t(`simpleView:measure.button.${vitalForm.type}`)}</h2>
+                <ViewWindow id="rv-measure-title" title={t(`simpleView:measure.button.${vitalForm.type}`)} layer="dialog" width="narrow" {...windowProps} onClose={() => setVitalForm(null)}>
+                    <div className="rounded-3xl p-6 min-[512px]:p-8" style={tile}>
                         {vitalForm.step === 'enter' ? (
                             <form
-                                className="mt-4"
                                 onSubmit={(e) => { e.preventDefault(); checkVital(); }}
                                 noValidate
                             >
@@ -2530,7 +2497,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                 </div>
                             </form>
                         ) : (
-                            <div className="mt-4">
+                            <div>
                                 <p style={fs(21)}>{t('simpleView:measure.question')}</p>
                                 <p className="mt-3 rounded-2xl p-4 text-center font-bold tabular-nums" style={{ ...fs(36), backgroundColor: C.blueSoft, color: C.blueDark }}>
                                     {(() => {
@@ -2556,12 +2523,13 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                             </div>
                         )}
                     </div>
-                </div>
+                </ViewWindow>
             )}
 
             {/* Erinnerung (Eskalation Stufe 1): ruhig, eine klare Taste */}
             {reminderOpen && medsOn && dueNow.length > 0 && (
-                <div className="fixed inset-0 z-[90] flex flex-col items-center justify-center gap-6 overflow-y-auto p-6 text-center font-kiosk" style={rootStyle} role="alertdialog" aria-modal="true" aria-labelledby="rv-reminder-title">
+                <ViewWindow id="rv-reminder" labelledBy="rv-reminder-title" role="alertdialog" layer="reminder" {...windowProps} onClose={() => setReminderOpen(false)}>
+                    <div className="flex flex-col items-center gap-6 text-center">
                     <div className="flex h-32 w-32 items-center justify-center rounded-full" style={{ backgroundColor: C.blue }}>
                         <Pill className="h-16 w-16 text-white" aria-hidden="true" />
                     </div>
@@ -2586,7 +2554,8 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                             {t('simpleView:reminder.later')}
                         </button>
                     </div>
-                </div>
+                    </div>
+                </ViewWindow>
             )}
 
         </div>

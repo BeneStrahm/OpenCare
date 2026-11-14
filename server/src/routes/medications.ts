@@ -10,9 +10,7 @@ import {
     HEALTH_READER_ROLES,
     INTAKE_CONFIRMER_ROLES,
     recipientMayChangeIntake,
-    recipientMaySnoozeIntake,
     recipientUndoMsLeft,
-    RECIPIENT_SNOOZE_MINUTES,
     caregiverLinkMiddleware,
     CircleRequest,
     CaregiverLinkRequest,
@@ -27,7 +25,6 @@ import {
     intakeSourceForRole,
     parseConfirmIntakeIds,
     skipIntakes,
-    snoozeIntakes,
     IntakeSource,
     markMissed,
     toDateString,
@@ -818,36 +815,6 @@ router.post('/intakes/skip', requireRole(...INTAKE_CONFIRMER_ROLES), async (req:
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Skip intakes error:', error);
-        res.status(500).json({ success: false, error: 'Internal server error' });
-    } finally {
-        client.release();
-    }
-});
-
-// Block M (E23): "Spaeter erinnern" in the simple view, only for recipient (the
-// other roles confirm on the Medications page). Body { intake_ids: string[] }.
-// Moves each allowed intake by RECIPIENT_SNOOZE_MINUTES (open, no fixed time,
-// at most RECIPIENT_SNOOZE_MAX times, middleware/circle.ts); others are left as
-// they are. The reminder and the family notice follow the new time.
-router.post('/intakes/snooze', requireRole('recipient'), async (req: CircleRequest, res: Response) => {
-    const ids = parseConfirmIntakeIds(req.body?.intake_ids);
-    if (ids.length === 0) {
-        return res.status(400).json({ success: false, error: 'intake_ids required' });
-    }
-
-    const client = await getClient();
-    try {
-        await client.query('BEGIN');
-        const snoozed = await snoozeIntakes(client, req.circleId!, ids, RECIPIENT_SNOOZE_MINUTES, recipientMaySnoozeIntake);
-        await client.query('COMMIT');
-
-        if (snoozed > 0) {
-            await broadcastToCircle(req.circleId!, { type: 'update', entity: 'intakes', action: 'updated' });
-        }
-        res.json({ success: true, data: { snoozed } });
-    } catch (error) {
-        await client.query('ROLLBACK');
-        console.error('Snooze intakes error:', error);
         res.status(500).json({ success: false, error: 'Internal server error' });
     } finally {
         client.release();

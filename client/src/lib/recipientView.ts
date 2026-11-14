@@ -115,10 +115,6 @@ export const HOME_MEDS_OVERDUE_MS = 30 * 60 * 1000;
  * MISSED_AFTER_MS in server/src/lib/intakes.ts: dann gilt sie als verpasst, die Familie klaert es.
  */
 export const HOME_MEDS_HIDE_AFTER_MS = 4 * 60 * 60 * 1000;
-/** Gleich wie RECIPIENT_SNOOZE_MINUTES und RECIPIENT_SNOOZE_MAX in server/src/middleware/circle.ts. */
-export const SNOOZE_MINUTES = 30;
-export const SNOOZE_MAX = 2;
-
 export interface HomeIntake {
     due_at: string;
     status: 'pending' | 'taken' | 'skipped' | 'missed';
@@ -130,7 +126,7 @@ export interface HomeIntake {
 
 const isOpenIntake = (i: HomeIntake) => i.status === 'pending' || i.status === 'missed';
 
-/** Faellig ab: nach "Spaeter erinnern" die verschobene Zeit, sonst die geplante. */
+/** Faellig ab: die geplante Zeit, bei alten Eintraegen mit "Spaeter erinnern" (entfernt) die verschobene. */
 export function effectiveDue(intake: HomeIntake, toDate: (value: string) => Date | null): Date | null {
     return (intake.snoozed_until ? toDate(intake.snoozed_until) : null) ?? toDate(intake.due_at);
 }
@@ -158,20 +154,6 @@ export function isOverdue(intake: HomeIntake, now: Date, toDate: (value: string)
     if (!isOpenIntake(intake)) return false;
     const due = effectiveDue(intake, toDate);
     return Boolean(due) && now.getTime() > (due as Date).getTime() + HOME_MEDS_OVERDUE_MS;
-}
-
-/** "Spaeter erinnern" anbieten? Gleiche Regel wie recipientMaySnoozeIntake auf dem Server. */
-export function maySnooze(intake: HomeIntake): boolean {
-    if (intake.status !== 'pending' || intake.time_fixed !== false) return false;
-    const count = Number(intake.snooze_count ?? 0);
-    return Number.isFinite(count) && count >= 0 && count < SNOOZE_MAX;
-}
-
-/** Neue Erinnerungszeit nach "Spaeter erinnern": 30 Minuten ab jetzt oder ab der spaeteren Zeit. */
-export function snoozeTarget(intake: HomeIntake, now: Date, toDate: (value: string) => Date | null): Date {
-    const due = effectiveDue(intake, toDate);
-    const base = due && due.getTime() > now.getTime() ? due.getTime() : now.getTime();
-    return new Date(base + SNOOZE_MINUTES * 60 * 1000);
 }
 
 interface EventFlags {
