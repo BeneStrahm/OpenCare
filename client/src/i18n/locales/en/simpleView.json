@@ -311,6 +311,7 @@
       "note": "Note"
     },
     "untimed": "{{time}}: {{value}}",
+    "noteAt": "{{time}}: {{note}}",
     "more": "Load more",
     "empty": "There are no readings in this period.",
     "error": "The readings could not be loaded. Please check the internet connection and try again."

@@ -311,6 +311,7 @@
       "note": "Remarque"
     },
     "untimed": "{{time}} : {{value}}",
+    "noteAt": "{{time}} : {{note}}",
     "more": "Charger plus",
     "empty": "Aucune valeur sur cette période.",
     "error": "Les valeurs n’ont pas pu être chargées. Veuillez vérifier la connexion Internet et réessayer."

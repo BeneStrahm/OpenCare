@@ -18,6 +18,7 @@ import { formatAmount } from '../lib/medications';
 import { enabledVitalTypes, isFeatureEnabled, isViewTileOn, type FeatureId, type ViewTileId } from '../lib/features';
 import { displayUnit, formatVital, toDisplayValue, toStorageValue } from '../lib/units';
 import { cn } from '../lib/utils';
+import AppleBitten from '../components/ui/AppleBitten';
 import { VIEW_COLORS, medicationColorOf, viewColorOf } from '../lib/viewColors';
 import {
     FONT_SCALES, VIEW_SCALE, RECIPIENT_QUESTIONS, RECIPIENT_VITAL_TYPES, groupIntakes, isCompanionActive, isTravelActive, loadFontScale,
@@ -152,14 +153,6 @@ type VitalForm = {
 };
 /** E47: Tagebuch (GET /api/vitals/diary), je Abruf 28 Tage, "Weitere laden" haengt aeltere an. */
 type Diary = { type: RecipientVitalType; entries: DiaryEntry[]; nextBefore: string | null; more: boolean; loading: boolean; error: boolean };
-
-/** E47: angebissener Apfel ("nach dem Essen"), wie Symbol/apple-bitten in Figma (Lucide "apple" mit Biss). */
-const AppleBitten: React.FC<{ className?: string; style?: React.CSSProperties }> = ({ className, style }) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className} style={style} aria-hidden="true">
-        <path d="M12 6.528V3C12 2.73478 12.1054 2.48043 12.2929 2.29289C12.4804 2.10536 12.7348 2 13 2" />
-        <path d="M12 6.52787C11.1367 5.75571 10.0683 5.24992 8.92392 5.07157C7.77949 4.89321 6.6079 5.04991 5.55056 5.52275C4.49323 5.99559 3.59536 6.76435 2.96532 7.73625C2.33528 8.70815 2.00002 9.84162 1.99999 10.9999C1.99368 14.6804 3.33185 18.2365 5.76299 20.9999C6.2107 21.5007 6.81356 21.8368 7.475 21.9543C8.13644 22.0718 8.81818 21.9639 9.41099 21.6479C10.2077 21.2228 11.0969 21.0004 12 21.0004C12.9031 21.0004 13.7922 21.2228 14.589 21.6479C15.1818 21.9639 15.8635 22.0718 16.525 21.9543C17.1864 21.8368 17.7893 21.5007 18.237 20.9999C19.4925 19.4661 20.4316 17.6987 21 15.7999C20.0823 15.6829 19.2247 15.2796 18.5493 14.6473C17.874 14.015 17.4151 13.1859 17.2379 12.2778C17.0607 11.3698 17.1743 10.429 17.5624 9.58919C17.9506 8.74939 18.5936 8.05329 19.4 7.59987C18.5153 6.54084 17.2708 5.84574 15.9051 5.64791C14.5394 5.45007 13.1488 5.76343 12 6.52787Z" />
-    </svg>
-);
 
 // info: Erfolg, der auf der Startseite trotzdem gezeigt wird (Spaeter erinnern: die Karte verschwindet)
 type Notice = { kind: 'ok' | 'info' | 'error' | 'queued'; text: string } | null;
@@ -2914,7 +2907,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                                         const [y, m, dd] = row.day.split('-').map(Number);
                                                         const extra = [
                                                             ...row.untimed.map((e) => t('simpleView:diary.untimed', { time: clockOf(e.measured_at), value: num('glucose', e.value) })),
-                                                            ...row.notes,
+                                                            ...row.notes.map((e) => t('simpleView:diary.noteAt', { time: clockOf(e.measured_at), note: e.notes })),
                                                         ];
                                                         return (
                                                             <tr key={row.day}>

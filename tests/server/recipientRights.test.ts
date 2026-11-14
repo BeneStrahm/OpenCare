@@ -450,6 +450,7 @@ const fakeVitals = () => {
     const undoable: Array<{ sql: string; params: unknown[] }> = [];
     const diary: Array<{ sql: string; params: unknown[] }> = [];
     let updates = 0;
+    let lastUpdate: { sql: string; params: unknown[] } | null = null;
     const withAge = (v: FakeVital) => ({ ...v, created_age_ms: String(v.age_ms) });
     const handler = (sql: string, params: unknown[]) => {
         if (sql.includes('FROM care_circles')) return { rows: [{ settings: {} }] };
@@ -483,6 +484,7 @@ const fakeVitals = () => {
         }
         if (sql.includes('UPDATE vitals')) {
             updates += 1;
+            lastUpdate = { sql, params };
             const v = store.get(params[params.length - 2] as string);
             return { rows: v ? [v] : [] };
         }
@@ -498,7 +500,7 @@ const fakeVitals = () => {
             unit: type === 'weight' ? 'kg' : 'g/L', measured_at: 'frueher', recorded_by_user: user, notes: null, age_ms: ageMs,
         });
     };
-    return { store, inserts, undoable, diary, handler, seed, updates: () => updates };
+    return { store, inserts, undoable, diary, handler, seed, updates: () => updates, lastUpdate: () => lastUpdate };
 };
 
 /** Ganze Kette der Route: Anmeldung (ersetzt), circleMiddleware, Rollen, Handler. */
@@ -645,7 +647,7 @@ describe('E47: Eingabe pruefen (lib/recipientView.ts, checkRecipientVitalForm)',
         expect(rows.map((r) => r.day)).toEqual(['2026-11-14', '2026-11-13']);
         expect(rows[0].slots['morning-after']?.map((v) => v.id)).toEqual(['a', 'b']);
         expect(rows[0].slots.late?.map((v) => v.id)).toEqual(['c']);
-        expect(rows[0].notes).toEqual(['Kuchen']);
+        expect(rows[0].notes.map((v) => [v.id, v.notes])).toEqual([['b', 'Kuchen']]);
         expect(rows[1].untimed.map((v) => v.id)).toEqual(['x']);
     });
 });
@@ -865,25 +867,44 @@ describe('Block K Gegenprobe: andere Rollen wie bisher (routes/vitals.ts)', () =
         // Keine Grenzen gegen Tippfehler fuer diese Rollen (7 g/L Blutzucker oben angenommen).
     });
 
-    it('admin, family, professional aendern und loeschen eigene Eintraege, auch alte', async () => {
+    it('E48: admin und family aendern eigene Eintraege, professional nicht; alle loeschen eigene, auch alte', async () => {
         for (const role of writers) {
             db.seed(`alt-${role}`, 'glucose', OWN_USER, 120 * MIN);
             db.seed(`alt2-${role}`, 'weight', OWN_USER, 120 * MIN);
-            expect((await callVitals(role, OWN_USER, 'PUT', `/alt-${role}`, { notes: 'geaendert' })).status, role).toBe(200);
+            const expected = role === 'professional' ? 403 : 200;
+            expect((await callVitals(role, OWN_USER, 'PUT', `/alt-${role}`, { notes: 'geaendert' })).status, role).toBe(expected);
             expect((await callVitals(role, OWN_USER, 'DELETE', `/alt2-${role}`)).status, role).toBe(200);
             expect(db.store.has(`alt2-${role}`), role).toBe(false);
         }
     });
 
-    it('fremde Eintraege: nur admin aendert und loescht', async () => {
+    it('E48: fremde Eintraege aendern admin und family, loeschen nur admin', async () => {
         for (const role of writers) {
             db.seed(`fremd-${role}`, 'glucose', RECIPIENT_USER, 1 * MIN);
             const put = await callVitals(role, OWN_USER, 'PUT', `/fremd-${role}`, { notes: 'geaendert' });
             const del = await callVitals(role, OWN_USER, 'DELETE', `/fremd-${role}`);
-            const expected = role === 'admin' ? 200 : 403;
-            expect(put.status, role).toBe(expected);
-            expect(del.status, role).toBe(expected);
+            expect(put.status, role).toBe(role === 'professional' ? 403 : 200);
+            expect(del.status, role).toBe(role === 'admin' ? 200 : 403);
             expect(db.store.has(`fremd-${role}`), role).toBe(role !== 'admin');
+        }
+    });
+
+    it('E48: Bearbeiten setzt Tageszeit beim Blutzucker, geprueft; andere Arten ohne', async () => {
+        for (const role of ['admin', 'family'] as CircleRole[]) {
+            db.seed(`bz-${role}`, 'glucose', RECIPIENT_USER, 120 * MIN);
+            db.seed(`kg-${role}`, 'weight', RECIPIENT_USER, 120 * MIN);
+            expect((await callVitals(role, OWN_USER, 'PUT', `/bz-${role}`, { meal_time: 'evening', meal_relation: 'after' })).status, role).toBe(200);
+            const upd = db.lastUpdate();
+            expect(upd?.sql, role).toContain('meal_time = $1');
+            expect(upd?.sql, role).toContain('meal_relation = $2');
+            expect(upd?.params.slice(0, 2), role).toEqual(['evening', 'after']);
+            const before = db.updates();
+            expect((await callVitals(role, OWN_USER, 'PUT', `/bz-${role}`, { meal_time: 'late', meal_relation: 'before' })).status, role).toBe(400);
+            expect((await callVitals(role, OWN_USER, 'PUT', `/bz-${role}`, { meal_time: 'nachts' })).status, role).toBe(400);
+            expect((await callVitals(role, OWN_USER, 'PUT', `/kg-${role}`, { meal_time: 'noon' })).status, role).toBe(400);
+            expect(db.updates(), role).toBe(before);
+            expect((await callVitals(role, OWN_USER, 'PUT', `/bz-${role}`, { type: 'weight', value: 70 })).status, role).toBe(200);
+            expect(db.lastUpdate()?.sql, role).toContain('meal_time = NULL');
         }
     });
 

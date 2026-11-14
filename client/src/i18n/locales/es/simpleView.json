@@ -311,6 +311,7 @@
       "note": "Comentario"
     },
     "untimed": "{{time}}: {{value}}",
+    "noteAt": "{{time}}: {{note}}",
     "more": "Cargar más",
     "empty": "No hay valores en este periodo.",
     "error": "No se han podido cargar los valores. Por favor, compruebe la conexión a internet e inténtelo de nuevo."

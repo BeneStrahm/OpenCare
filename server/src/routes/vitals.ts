@@ -556,25 +556,42 @@ router.post('/', requireVitalWriter, async (req: CircleRequest, res: Response) =
     }
 });
 
-// Update a measurement: its author (recorded_by_user) or an admin
-router.put('/:id', async (req: CircleRequest, res: Response) => {
+// E48: Messung bearbeiten duerfen admin und family (jeden Wert des Kreises), sonst niemand.
+// professional und neighbor nicht, recipient erreicht die Route nicht (middleware/circle.ts).
+router.put('/:id', requireRole('admin', 'family'), async (req: CircleRequest, res: Response) => {
     try {
         const existing = await query(
-            'SELECT id, recorded_by_user FROM vitals WHERE id = $1 AND circle_id = $2',
+            'SELECT id, type FROM vitals WHERE id = $1 AND circle_id = $2',
             [req.params.id, req.circleId]
         );
         if (existing.rows.length === 0) {
             return res.status(404).json({ success: false, error: 'Vital not found' });
         }
-        const isAuthor = existing.rows[0].recorded_by_user === req.userId;
-        if (!isAuthor && req.circleRole !== 'admin') {
-            return res.status(403).json({ success: false, error: 'Insufficient role' });
-        }
 
-        const { type, value, value2, pulse, unit, measured_at, notes } = req.body;
+        const { type, value, value2, pulse, unit, measured_at, notes, meal_time, meal_relation } = req.body;
         const fields: string[] = [];
         const values: unknown[] = [];
         let idx = 1;
+
+        // E48: Tageszeit und vor/nach nur beim Blutzucker; bei anderer Art immer leer.
+        const finalType = type !== undefined ? type : existing.rows[0].type;
+        if (finalType === 'glucose') {
+            if (meal_time !== undefined || meal_relation !== undefined) {
+                const meal = parseGlucoseMeal(meal_time, meal_relation);
+                if (!meal.ok) {
+                    return res.status(400).json({ success: false, error: 'Invalid meal' });
+                }
+                fields.push(`meal_time = $${idx++}`, `meal_relation = $${idx++}`);
+                values.push(meal.meal_time, meal.meal_relation);
+            }
+        } else {
+            if ((meal_time !== undefined && meal_time !== null) || (meal_relation !== undefined && meal_relation !== null)) {
+                return res.status(400).json({ success: false, error: 'Invalid meal' });
+            }
+            if (type !== undefined) {
+                fields.push('meal_time = NULL', 'meal_relation = NULL');
+            }
+        }
 
         if (type !== undefined) {
             if (typeof type !== 'string' || !VITAL_TYPES.includes(type)) {

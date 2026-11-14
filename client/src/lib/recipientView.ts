@@ -383,7 +383,8 @@ export interface GlucoseDayRow {
     slots: Partial<Record<GlucoseSlot, DiaryEntry[]>>;
     /** Werte ohne Tageszeit (z. B. am PC eingetragen), stehen bei der Bemerkung */
     untimed: DiaryEntry[];
-    notes: string[];
+    /** Werte mit Bemerkung, aelteste zuerst; die Tabelle zeigt die Uhrzeit davor (E48) */
+    notes: DiaryEntry[];
 }
 
 /**
@@ -410,7 +411,7 @@ export function groupGlucoseDays(entries: DiaryEntry[], dayOf: (entry: DiaryEntr
         } else {
             row.untimed.unshift(entry);
         }
-        if (entry.notes) row.notes.unshift(entry.notes);
+        if (entry.notes) row.notes.unshift(entry);
     }
     return rows;
 }
