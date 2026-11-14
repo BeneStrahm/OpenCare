@@ -86,6 +86,16 @@ async function main() {
     await api('POST', '/api/contacts', { name: 'Pflegedienst Sonnenschein', category: 'nurse', phone: '01234 111222' });
     await api('POST', '/api/contacts', { name: 'Apotheke am Markt', category: 'pharmacy', phone: '01234 333444' });
 
+    // Angaben zur betreuten Person (Notfallblatt, "Meine Informationen" in der einfachen Ansicht)
+    await api('PUT', `/api/circles/${C}/recipient`, {
+        birth_date: '1941-03-12', address: 'Lindenstraße 5, 12345 Musterstadt', phone: '01234 765432',
+        blood_type: 'A+', allergies: 'Penicillin', medical_history: 'Diabetes Typ 2, Bluthochdruck',
+        advance_directives: 'Liegt im Ordner im Wohnzimmerschrank.', insurance_info: 'Musterkasse, Versichertennummer A123456789',
+        gp_name: 'Dr. Paula Beispiel', gp_phone: '01234 567890',
+    });
+    await api('GET', '/api/emergency/sheet'); // legt das Notfallblatt an
+    await api('PUT', '/api/emergency/sheet', { extra_notes: 'Trägt links ein Hörgerät.' });
+
     // Medikamente: Tageszeit, feste Uhrzeit, bei Bedarf
     const metformin = await api('POST', '/api/medications', {
         name: 'Metformin', active_ingredient: 'Metforminhydrochlorid', dosage: '500 mg', form: 'tablet',
@@ -133,6 +143,10 @@ async function main() {
         travel_needed: true, travel_to_minutes: 30, travel_back_minutes: 15, driver_to: 'Sabine Muster',
         take_along: 'Versichertenkarte und Brille',
     });
+    // Heute, damit "Wer heute kommt" Pflegedienst und Haushaltshilfe zeigt
+    await api('POST', '/api/events', {
+        title: 'Haushaltshilfe', category: 'aide', start_time: tag(0, 11, 0), end_time: tag(0, 12, 0),
+    });
 
     // Arztgespraech in Vorbereitung, mit Kalendertermin
     const gespraech = await api('POST', '/api/consultations', {
@@ -160,6 +174,10 @@ async function main() {
     await api('POST', '/api/tasks', { title: 'Rezept für Metformin abholen', due_date: datum(3) });
     await api('POST', '/api/tasks', { title: 'Termin für die Fußpflege vereinbaren', due_date: datum(7) });
     await api('POST', '/api/tasks', { title: 'Batterien für das Hörgerät kaufen' });
+    // Einkaufsliste: drei offen, einer erledigt
+    for (const name of ['Milch', 'Vollkornbrot', 'Äpfel']) await api('POST', '/api/shopping', { name });
+    const kaffee = await api('POST', '/api/shopping', { name: 'Kaffee' });
+    await api('PUT', `/api/shopping/${kaffee.id}`, { is_checked: true });
     await api('POST', '/api/notes', { content: 'Die Brille liegt im Wohnzimmer auf dem Regal.', color: 'yellow' });
     await api('POST', '/api/notes', { content: 'Der Pflegedienst kommt am Freitag eine halbe Stunde später.', color: 'blue' });
     await api('POST', '/api/journal', { type: 'note', content: 'Heute gut geschlafen und mit Appetit gefrühstückt.' });

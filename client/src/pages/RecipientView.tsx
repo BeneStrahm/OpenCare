@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
     CalendarDays, Check, CheckCheck, MapPin, MessageCircle, Phone, Pill, RotateCcw,
     Settings as SettingsIcon, ThermometerSun, Users, Backpack, Car, Volume2, Square, X,
-    Stethoscope, CalendarRange, CalendarClock, Droplet, Scale, HeartPulse, Moon, ChevronRight, ChevronUp, ChevronDown,
+    Stethoscope, CalendarRange, CalendarClock, Droplet, Scale, HeartPulse, Moon, ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
     IdCard, ShoppingCart, CalendarPlus, Plus, Activity, SkipForward, CircleAlert, Clock,
 } from 'lucide-react';
 import { api } from '../lib/api';
@@ -610,6 +610,35 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     useWebSocketUpdates('vitals', () => void load());
     useWebSocketUpdates('shopping', () => void load());
 
+    // Fenster "Termine": mit den Pfeilen durch die Tage blaettern. Gezaehlt ab heute, damit
+    // um Mitternacht nichts verrutscht; beim Schliessen des Fensters wieder heute.
+    const [apptOffset, setApptOffset] = useState(0);
+    const [apptEvents, setApptEvents] = useState<CalendarEvent[] | null>(null);
+    const [apptError, setApptError] = useState(false);
+    const apptDate = useMemo(() => {
+        const d = new Date(now);
+        d.setDate(d.getDate() + apptOffset);
+        return d;
+    }, [now, apptOffset]);
+    const apptDay = localDay(apptDate);
+    useEffect(() => { if (win !== 'appointments') setApptOffset(0); }, [win]);
+    const loadApptDay = useCallback(async () => {
+        if (!calendarOn || win !== 'appointments' || apptOffset === 0) return;
+        try {
+            const res = await api.get<{ success: boolean; data: CalendarEvent[] }>(`/api/events?from=${apptDay}&to=${apptDay}`);
+            setApptEvents(res.data ?? []);
+            setApptError(false);
+        } catch {
+            setApptError(true);
+        }
+    }, [calendarOn, win, apptOffset, apptDay]);
+    useEffect(() => {
+        setApptEvents(null);
+        setApptError(false);
+        void loadApptDay();
+    }, [loadApptDay]);
+    useWebSocketUpdates('events', () => void loadApptDay());
+
     // ── Fotos der Familie (Block D) ──
     // Eigener Abruf: Fehlt ein Foto, ist das kein Grund fuer die Fehlermeldung oben.
     const loadPhotos = useCallback(async () => {
@@ -1072,6 +1101,11 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     const tile: React.CSSProperties = { backgroundColor: C.card, border: `1px solid ${C.border}`, color: C.text };
     const sectionTitle = (color: string): React.CSSProperties => ({ ...fs(26), color, fontWeight: 700, lineHeight: 1.3 });
     const secondaryButton: React.CSSProperties = { ...fs(20), backgroundColor: C.card, color: C.text, border: `2px solid ${C.control}` };
+    // Meldungen: Fehler rot, Erfolg einheitlich hellgruen mit gruenem Rahmen, sonst weiss mit `other` als Rahmen.
+    const noticeStyle = (kind: NonNullable<Notice>['kind'], other: string): React.CSSProperties => ({
+        backgroundColor: kind === 'ok' ? C.greenSoft : C.card,
+        border: `2px solid ${kind === 'error' ? C.red : kind === 'ok' ? C.green : other}`,
+    });
     const activeChoice: React.CSSProperties = { ...fs(20), backgroundColor: C.blue, color: '#ffffff', border: `2px solid ${C.blue}` };
 
     // Block L3: Besuche und Dienste unter "Wer heute kommt", Arzt und Sonstige unter "Termine heute"
@@ -1079,6 +1113,9 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     const VISIT_CATEGORIES = ['visit', 'nurse', 'aide'];
     const visitorEvents = events.filter((e) => VISIT_CATEGORIES.includes(e.category));
     const appointmentEvents = events.filter((e) => !VISIT_CATEGORIES.includes(e.category));
+    // Fenster "Termine": heute aus `events`, andere Tage aus dem eigenen Abruf.
+    const windowEvents = apptOffset === 0 ? appointmentEvents : (apptEvents ?? []).filter((e) => !VISIT_CATEGORIES.includes(e.category));
+    const apptDateLabel = new Intl.DateTimeFormat(intlLocale(), { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }).format(apptDate);
     const heatActive = Boolean(heat?.enabled && heat?.active);
     // Block E: Messwert-Erinnerung zeigen, sobald die Uhrzeit erreicht ist und solange heute kein Wert da ist.
     const nowHm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -1277,7 +1314,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
         <div
             role={notice.kind === 'error' ? 'alert' : 'status'}
             className="flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4"
-            style={{ backgroundColor: C.card, border: `2px solid ${notice.kind === 'error' ? C.red : C.green}` }}
+            style={noticeStyle(notice.kind, C.green)}
         >
             <p className="font-bold" style={{ ...fs(21), color: notice.kind === 'error' ? C.red : C.text }}>{notice.text}</p>
             <button type="button" onClick={() => setNotice(null)} className="min-h-[3.5rem] min-w-[6rem] rounded-2xl px-4 font-bold" style={secondaryButton}>
@@ -1695,7 +1732,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                             <div
                                 role={notice.kind === 'error' ? 'alert' : 'status'}
                                 className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4"
-                                style={{ backgroundColor: C.card, border: `2px solid ${notice.kind === 'error' ? C.red : C.green}` }}
+                                style={noticeStyle(notice.kind, C.green)}
                             >
                                 <p className="font-bold" style={{ ...fs(21), color: notice.kind === 'error' ? C.red : C.text }}>{notice.text}</p>
                                 <button type="button" onClick={() => setNotice(null)} className="min-h-[3.5rem] min-w-[6rem] rounded-2xl px-4 font-bold" style={secondaryButton}>
@@ -1719,7 +1756,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                             <div
                                 role={vitalNotice.kind === 'error' ? 'alert' : 'status'}
                                 className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4"
-                                style={{ backgroundColor: C.card, border: `2px solid ${vitalNotice.kind === 'error' ? C.red : C.green}` }}
+                                style={noticeStyle(vitalNotice.kind, C.green)}
                             >
                                 <p className="font-bold" style={{ ...fs(21), color: vitalNotice.kind === 'error' ? C.red : C.text }}>{vitalNotice.text}</p>
                                 <button type="button" onClick={() => setVitalNotice(null)} className="min-h-[3.5rem] min-w-[6rem] rounded-2xl px-4 font-bold" style={secondaryButton}>
@@ -1813,12 +1850,49 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
             )}
 
             {win === 'appointments' && (
-                <ViewWindow id="rv-win-appointments" title={t('simpleView:appointments.title')} icon={<CalendarDays className="h-9 w-9 shrink-0" style={{ color: C.blue }} aria-hidden="true" />} {...windowProps} onClose={windowProps.onClose}>
+                <ViewWindow id="rv-win-appointments" title={t('simpleView:appointments.windowTitle')} icon={<CalendarDays className="h-9 w-9 shrink-0" style={{ color: C.blue }} aria-hidden="true" />} {...windowProps} onClose={windowProps.onClose}>
+                    {/* Tag waehlen (links) und Termin selbst anlegen (rechts, Block L3) */}
+                    <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl p-2" style={tile}>
+                            <button
+                                type="button"
+                                onClick={() => setApptOffset((o) => o - 1)}
+                                aria-label={t('simpleView:appointments.prevDay')}
+                                className="flex min-h-[4rem] min-w-[4rem] shrink-0 items-center justify-center rounded-2xl"
+                                style={secondaryButton}
+                            >
+                                <ChevronLeft className="h-8 w-8 shrink-0" strokeWidth={3} aria-hidden="true" />
+                            </button>
+                            <p className="min-w-0 flex-1 text-center font-bold" style={{ ...fs(22), color: C.text }} aria-live="polite">
+                                {apptDateLabel}
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => setApptOffset((o) => o + 1)}
+                                aria-label={t('simpleView:appointments.nextDay')}
+                                className="flex min-h-[4rem] min-w-[4rem] shrink-0 items-center justify-center rounded-2xl"
+                                style={secondaryButton}
+                            >
+                                <ChevronRight className="h-8 w-8 shrink-0" strokeWidth={3} aria-hidden="true" />
+                            </button>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={openEventForm}
+                            disabled={busy}
+                            className="flex min-h-[4rem] shrink-0 items-center justify-center gap-3 rounded-2xl px-5 font-bold text-white shadow-md disabled:opacity-70"
+                            style={{ ...fs(22), backgroundColor: C.blue }}
+                        >
+                            <CalendarPlus className="h-8 w-8 shrink-0" aria-hidden="true" />
+                            {t('simpleView:event.new')}
+                        </button>
+                    </div>
+
                     {eventNotice && (
                         <div
                             role={eventNotice.kind === 'error' ? 'alert' : 'status'}
                             className="flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4"
-                            style={{ backgroundColor: C.card, border: `2px solid ${eventNotice.kind === 'error' ? C.red : C.border}` }}
+                            style={noticeStyle(eventNotice.kind, C.border)}
                         >
                             <p className="font-bold" style={{ ...fs(21), color: eventNotice.kind === 'error' ? C.red : C.text }}>{eventNotice.text}</p>
                             <button type="button" onClick={() => setEventNotice(null)} className="min-h-[3.5rem] min-w-[6rem] rounded-2xl px-4 font-bold" style={secondaryButton}>
@@ -1826,18 +1900,6 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                             </button>
                         </div>
                     )}
-
-                    {/* Block L3: Termin selbst anlegen */}
-                    <button
-                        type="button"
-                        onClick={openEventForm}
-                        disabled={busy}
-                        className="flex min-h-[4rem] items-center justify-center gap-3 rounded-2xl px-5 font-bold text-white shadow-md disabled:opacity-70 min-[512px]:self-start"
-                        style={{ ...fs(22), backgroundColor: C.blue }}
-                    >
-                        <CalendarPlus className="h-8 w-8 shrink-0" aria-hidden="true" />
-                        {t('simpleView:event.new')}
-                    </button>
 
                     {undoableEvents.length > 0 && (
                         <ul className="space-y-3">
@@ -1861,11 +1923,13 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                     )}
 
                     <section className="rounded-3xl p-5 min-[512px]:p-6" style={tile}>
-                        {appointmentEvents.length === 0 ? (
-                            <p style={fs(21)}>{t('simpleView:appointments.empty')}</p>
+                        {apptOffset !== 0 && apptError ? (
+                            <p className="font-bold" style={{ ...fs(21), color: C.red }} role="alert">{t('simpleView:loadError')}</p>
+                        ) : apptOffset !== 0 && apptEvents === null ? null : windowEvents.length === 0 ? (
+                            <p style={fs(21)}>{apptOffset === 0 ? t('simpleView:appointments.empty') : t('simpleView:appointments.emptyDay')}</p>
                         ) : (
                             <ul className="space-y-3">
-                                {appointmentEvents.map((e) => (
+                                {windowEvents.map((e) => (
                                     <li key={`${e.id}-${e.start_time}`}>
                                         <button
                                             type="button"
@@ -2047,7 +2111,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                         <div
                             role={shopNotice.kind === 'error' ? 'alert' : 'status'}
                             className="flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4"
-                            style={{ backgroundColor: C.card, border: `2px solid ${shopNotice.kind === 'error' ? C.red : C.border}` }}
+                            style={noticeStyle(shopNotice.kind, C.border)}
                         >
                             <p className="font-bold" style={{ ...fs(21), color: shopNotice.kind === 'error' ? C.red : C.text }}>{shopNotice.text}</p>
                             <button type="button" onClick={() => setShopNotice(null)} className="min-h-[3.5rem] min-w-[6rem] rounded-2xl px-4 font-bold" style={secondaryButton}>

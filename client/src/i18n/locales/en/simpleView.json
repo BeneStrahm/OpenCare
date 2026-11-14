@@ -28,7 +28,11 @@
   "appointments": {
     "title": "Today's appointments",
     "empty": "No appointment today.",
-    "companion": "Coming with you: {{names}}"
+    "companion": "Coming with you: {{names}}",
+    "windowTitle": "Appointments",
+    "prevDay": "Previous day",
+    "nextDay": "Next day",
+    "emptyDay": "No appointment on this day."
   },
   "contacts": {
     "title": "People I can call",

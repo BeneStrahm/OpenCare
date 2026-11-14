@@ -28,7 +28,11 @@
   "appointments": {
     "title": "Citas de hoy",
     "empty": "Hoy no hay ninguna cita.",
-    "companion": "Le acompaña: {{names}}"
+    "companion": "Le acompaña: {{names}}",
+    "windowTitle": "Citas",
+    "prevDay": "Día anterior",
+    "nextDay": "Día siguiente",
+    "emptyDay": "No hay citas este día."
   },
   "contacts": {
     "title": "Personas a las que puedo llamar",

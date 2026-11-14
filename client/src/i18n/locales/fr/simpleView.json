@@ -28,7 +28,11 @@
   "appointments": {
     "title": "Rendez-vous du jour",
     "empty": "Pas de rendez-vous aujourd'hui.",
-    "companion": "Vous accompagne : {{names}}"
+    "companion": "Vous accompagne : {{names}}",
+    "windowTitle": "Rendez-vous",
+    "prevDay": "Jour précédent",
+    "nextDay": "Jour suivant",
+    "emptyDay": "Aucun rendez-vous ce jour-là."
   },
   "contacts": {
     "title": "Les personnes que je peux appeler",

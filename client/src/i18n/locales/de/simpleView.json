@@ -28,7 +28,11 @@
   "appointments": {
     "title": "Termine heute",
     "empty": "Heute kein Termin.",
-    "companion": "Es kommt mit: {{names}}"
+    "companion": "Es kommt mit: {{names}}",
+    "windowTitle": "Termine",
+    "prevDay": "Vorheriger Tag",
+    "nextDay": "Nächster Tag",
+    "emptyDay": "An diesem Tag kein Termin."
   },
   "contacts": {
     "title": "Wen ich anrufen kann",
