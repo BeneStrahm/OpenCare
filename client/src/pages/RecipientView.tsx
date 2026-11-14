@@ -929,12 +929,9 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     // Block M: Kachel auf der Startseite. Offene Einnahmen ab 30 Minuten vor der Zeit bis
     // Tagesende, dazu eigene Wahl, solange Rueckgaengig moeglich ist.
     const homeIntakes = intakes.filter((i) => showOnHome(i, now, clockDate) || canUndo(i));
-    // Offene zuerst; genommene und uebersprungene rutschen nach rechts bzw. ans Ende (stabile Sortierung).
-    const openFirst = (groups: Array<{ group: IntakeGroup; items: Intake[] }>) => groups.map((g) => ({
-        ...g,
-        items: [...g.items].sort((a, b) => Number(!isOpen(a)) - Number(!isOpen(b))),
-    }));
-    const homeGroups = openFirst(groupIntakes(homeIntakes, clockDate));
+    // Feste Plaetze: Reihenfolge nur nach Uhrzeit und Name (groupIntakes), genommene und
+    // uebersprungene Karten bleiben an ihrer Stelle.
+    const homeGroups = groupIntakes(homeIntakes, clockDate);
     const infoIntake = infoId ? intakes.find((i) => i.id === infoId) ?? null : null;
 
     /** Offline in der Warteschlange: lokal als genommen bzw. uebersprungen zeigen, ohne Rueckgaengig. */
@@ -1666,7 +1663,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                         <section className="rounded-3xl p-5 min-[512px]:p-6" style={tile}>
                             <p style={fs(21)}>{t('simpleView:meds.empty')}</p>
                         </section>
-                    ) : renderIntakeGroups(openFirst(intakeGroups), 'rv-meds', true)}
+                    ) : renderIntakeGroups(intakeGroups, 'rv-meds', true)}
 </ViewWindow>
             )}
 
