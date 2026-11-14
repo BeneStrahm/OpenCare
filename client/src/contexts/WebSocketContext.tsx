@@ -34,7 +34,6 @@ export type WsEntity =
     | 'care_plan'
     | 'help_requests'
     | 'consultations'
-    | 'reminder'
     | 'view_photos';
 
 export type WsAction = 'created' | 'updated' | 'deleted' | 'synced';
@@ -139,11 +138,6 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
         ws.onmessage = (event: MessageEvent) => {
             try {
                 const msg = JSON.parse(event.data as string) as WsUpdateMessage;
-                // Erinnerung an eine Einnahme (Eskalation): nur die einfache Ansicht der betreuten Person zeigt sie.
-                if ((msg as { type?: string }).type === 'reminder') {
-                    notify('reminder');
-                    return;
-                }
                 if (msg.type === 'update' && msg.entity) {
                     // Les mises à jour d'un autre cercle que le cercle actif sont ignorées
                     // (les entités par utilisateur, comme les notifications, n'ont pas de circleId).

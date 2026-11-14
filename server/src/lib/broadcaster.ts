@@ -35,18 +35,10 @@ export interface WsUpdatePayload {
     circleId?: string;
 }
 
-/** Erinnerung an die Einnahme (Eskalation Stufe 1): die einfache Ansicht der betreuten Person zeigt sie an, die normale App ignoriert sie. */
-export interface WsReminderPayload {
-    type: 'reminder';
-    kind: 'medication';
-    count: number;
-    circleId?: string;
-}
-
-export type WsPayload = WsUpdatePayload | WsReminderPayload;
+export type WsPayload = WsUpdatePayload;
 
 /** Meme union, sans circleId (pose par broadcastToCircle). Omit ne se distribue pas sur une union. */
-export type WsBroadcast = Omit<WsUpdatePayload, 'circleId'> | Omit<WsReminderPayload, 'circleId'>;
+export type WsBroadcast = Omit<WsUpdatePayload, 'circleId'>;
 
 /** Registered WebSocket connections keyed by userId */
 export const clients = new Map<string, Set<WebSocket>>();

@@ -6,7 +6,6 @@
   "minutes": "Min.",
   "medication": {
     "title": "Verspätete Medikamente",
-    "patient": "Ihren Angehörigen in der einfachen Ansicht erinnern nach",
     "primary": "Hauptpflegende benachrichtigen nach",
     "secondary": "Vertretung benachrichtigen nach",
     "off": "Mit 0 schalten Sie eine Stufe aus. Nach vier Stunden gilt die Einnahme als verpasst, und die Eskalation endet."

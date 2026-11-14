@@ -54,11 +54,7 @@
     "close": "Fermer"
   },
   "reminder": {
-    "title": "C'est l'heure de tes médicaments",
-    "subtitle_one": "{{count}} prise à prendre maintenant",
-    "subtitle_other": "{{count}} prises à prendre maintenant",
-    "taken": "J'ai tout pris",
-    "later": "D'accord, dans un instant"
+    "title": "C'est l'heure de tes médicaments"
   },
   "settings": {
     "fontSize": "Taille du texte",

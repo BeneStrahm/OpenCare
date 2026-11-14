@@ -54,11 +54,7 @@
     "close": "Schließen"
   },
   "reminder": {
-    "title": "Es ist Zeit für Ihre Medikamente",
-    "subtitle_one": "Jetzt {{count}} Einnahme",
-    "subtitle_other": "Jetzt {{count}} Einnahmen",
-    "taken": "Ich habe alles genommen",
-    "later": "Gut, gleich"
+    "title": "Es ist Zeit für Ihre Medikamente"
   },
   "settings": {
     "fontSize": "Schriftgröße",

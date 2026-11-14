@@ -216,14 +216,13 @@ const PersonPhoto: React.FC<{ name: string; url: string | null; size: number; so
 
 /**
  * Einheitliche Seite der einfachen Ansicht (Wunsch vom 14. November): Fenster, Eingaben,
- * Rueckfragen und die Erinnerung sehen gleich aus, es gibt keine Pop-ups mehr. Leiste oben ueber
+ * Rueckfragen sehen gleich aus, es gibt keine Pop-ups mehr. Leiste oben ueber
  * die volle Breite: links die Uhrzeit, in der Mitte bei Bedarf Symbol und Titel, rechts das X
  * (ohne Text, bewusste Ausnahme, fuer Screenreader "Schliessen"). Darunter der Inhalt, rechts immer
  * der eigene Scrollbalken. X und Balken haben rechts 5 px Abstand. Nur die Startseite hat keine Leiste.
  */
-const PAGE_WIDTH = { wide: 'max-w-[72rem]', normal: 'max-w-4xl', medium: 'max-w-3xl', narrow: 'max-w-xl' } as const;
-// Rueckfragen liegen ueber den Fenstern, die Erinnerung ganz oben.
-const PAGE_LAYER = { window: 'z-[70]', dialog: 'z-[80]', reminder: 'z-[90]' } as const;
+// Rueckfragen liegen ueber den Fenstern.
+const PAGE_LAYER = { window: 'z-[70]', dialog: 'z-[80]' } as const;
 
 const ViewWindow: React.FC<{
     id: string;
@@ -233,8 +232,8 @@ const ViewWindow: React.FC<{
     labelledBy?: string;
     role?: 'dialog' | 'alertdialog';
     layer?: keyof typeof PAGE_LAYER;
-    /** wide: so breit wie die Medikamenten-Kachel der Startseite (Block M) */
-    width?: keyof typeof PAGE_WIDTH;
+    /** Rechts ohne Rand, der Scrollbalken haelt Abstand (Medikamente, Notfallblatt; Figma Rahmen 18 und 22) */
+    flushRight?: boolean;
     clock: string;
     closeLabel: string;
     onClose: () => void;
@@ -246,7 +245,7 @@ const ViewWindow: React.FC<{
     barBorder: string;
     scroll: { upLabel: string; downLabel: string; text: string; card: string; track: string; control: string };
     children: React.ReactNode;
-}> = ({ id, title, icon, labelledBy, role = 'dialog', layer = 'window', width = 'normal', clock, closeLabel, onClose, style, clockStyle, titleStyle, closeStyle, barColor, barBorder, scroll, children }) => {
+}> = ({ id, title, icon, labelledBy, role = 'dialog', layer = 'window', flushRight = false, clock, closeLabel, onClose, style, clockStyle, titleStyle, closeStyle, barColor, barBorder, scroll, children }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
     return (
         <div className={cn('fixed inset-0 flex flex-col font-kiosk', PAGE_LAYER[layer])} style={style} role={role} aria-modal="true" aria-labelledby={title ? id : labelledBy}>
@@ -268,8 +267,8 @@ const ViewWindow: React.FC<{
             </div>
             <div className="flex min-h-0 flex-1 gap-3 pr-[5px]">
                 <div ref={scrollRef} tabIndex={0} className="min-w-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    {/* Fenster "Medikamente" (wide): rechts kein Rand, der Scrollbalken haelt Abstand (Figma Rahmen 22) */}
-                    <div className={cn('mx-auto flex w-full flex-col gap-5 px-4 pb-12 pt-5 min-[512px]:px-6', width === 'wide' && 'pr-0 min-[512px]:pr-0', PAGE_WIDTH[width])}>
+                    {/* Alle Fenster volle Breite (Figma, 14. November) */}
+                    <div className={cn('mx-auto flex w-full max-w-[72rem] flex-col gap-5 px-4 pb-12 pt-5 min-[512px]:px-6', flushRight && 'pr-0 min-[512px]:pr-0')}>
                         {children}
                     </div>
                 </div>
@@ -473,7 +472,6 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     const [infoId, setInfoId] = useState<string | null>(null);
 
     const [win, setWin] = useState<WindowId | null>(null);
-    const [reminderOpen, setReminderOpen] = useState(false);
     const [info, setInfo] = useState<{ state: 'loading' | 'done' | 'error'; data: OwnInfo | null }>({ state: 'loading', data: null });
     const [question, setQuestion] = useState<RecipientQuestion | null>(null);
     const [answer, setAnswer] = useState<{ state: 'loading' | 'done' | 'error'; text: string }>({ state: 'loading', text: '' });
@@ -609,10 +607,6 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     useWebSocketUpdates('heatwave', () => void load());
     useWebSocketUpdates('vitals', () => void load());
     useWebSocketUpdates('shopping', () => void load());
-    useWebSocketUpdates('reminder', () => {
-        void load();
-        setReminderOpen(true);
-    });
 
     // ── Fotos der Familie (Block D) ──
     // Eigener Abruf: Fehlt ein Foto, ist das kein Grund fuer die Fehlermeldung oben.
@@ -969,27 +963,6 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
         }
     };
 
-    const confirmMany = async (ids: string[]) => {
-        if (busy || ids.length === 0) return;
-        setBusy(true);
-        setNotice(null);
-        try {
-            const res = await api.post<{ success: boolean; queued?: boolean }>('/api/medications/intakes/confirm', { intake_ids: ids });
-            if (res.queued) {
-                markLocally(ids);
-                setNotice({ kind: 'queued', text: t('simpleView:meds.queued') });
-            } else {
-                setNotice({ kind: 'ok', text: t('simpleView:meds.saved') });
-                await loadIntakes();
-            }
-        } catch {
-            setNotice({ kind: 'error', text: t('simpleView:meds.error') });
-            void loadIntakes().catch(() => undefined);
-        } finally {
-            setBusy(false);
-        }
-    };
-
     // Block M: ueberspringen (nach der Rueckfrage), einzeln oder alle eines Zeitraums.
     const skipMany = async (ids: string[]) => {
         if (busy || ids.length === 0) return;
@@ -1182,10 +1155,9 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     // würde Zurück die Web-App schließen (auf dem Tablet bleibt dann nur der
     // Startbildschirm mit dem Logo). Zurück schließt deshalb nur die oberste
     // Rückfrage oder das oberste Fenster, wie die sichtbare Taste, und tut auf der
-    // Startseite nichts. Die Erinnerung schließt nur über ihre eigenen Tasten.
+    // Startseite nichts.
     const backRef = useRef<() => void>(() => {});
     backRef.current = () => {
-        if (reminderOpen) return;
         if (vitalForm) { setVitalForm(null); return; }
         if (eventForm) { setEventForm(null); return; }
         if (shopConfirm) { setShopConfirm(null); return; }
@@ -1320,7 +1292,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                 return (
                                     <div key={group.key} role="group" aria-labelledby={`${idPrefix}-${group.key}`} className={cn('rounded-2xl p-4 min-[512px]:p-5', compact && 'px-[0.84375rem] min-[512px]:px-[0.84375rem]')} style={tile}>
                                         <h3 id={`${idPrefix}-${group.key}`} className="mb-3 font-bold" style={{ ...fs(26), lineHeight: 1.3 }}>{groupTitle(group, items)}</h3>
-                                        <ul className={cn('grid grid-cols-1 gap-4 min-[512px]:grid-cols-2 min-[819px]:grid-cols-3', compact && 'gap-x-[0.625rem]')}>
+                                        <ul className={cn('grid grid-cols-1 items-start gap-4 min-[512px]:grid-cols-2 min-[819px]:grid-cols-3', compact && 'gap-x-[0.625rem]')}>
                                             {items.map((intake) => {
                                                 const label = intakeLabel(intake);
                                                 return (
@@ -1380,7 +1352,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
             key={id}
             type="button"
             onClick={() => openWindow(id)}
-            className="flex min-h-[9.25rem] flex-col items-start justify-between gap-3 rounded-3xl p-5 text-left shadow-sm"
+            className="flex min-h-[13.1875rem] flex-col items-start justify-between gap-3 rounded-3xl p-5 text-left shadow-sm"
             style={tileStyle}
         >
             <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl" style={{ backgroundColor: C.bg }} aria-hidden="true">
@@ -1539,7 +1511,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                             role="group"
                             aria-disabled="true"
                             aria-label={`${t('simpleView:tiles.doctor')}: ${t('simpleView:tiles.later')}`}
-                            className="flex min-h-[9.25rem] flex-col items-start justify-between gap-3 rounded-3xl p-5"
+                            className="flex min-h-[13.1875rem] flex-col items-start justify-between gap-3 rounded-3xl p-5"
                             style={{ backgroundColor: C.bg, border: `2px dashed ${C.control}`, color: C.muted }}
                         >
                             <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl" style={{ backgroundColor: C.card }} aria-hidden="true">
@@ -1588,7 +1560,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
             </div>
 
             {win === 'emergency' && (
-                <ViewWindow id="rv-win-emergency" title={t('emergency:title')} icon={<HeartPulse className="h-9 w-9 shrink-0" style={{ color: C.red }} aria-hidden="true" />} {...windowProps} onClose={windowProps.onClose}>
+                <ViewWindow id="rv-win-emergency" flushRight title={t('emergency:title')} icon={<HeartPulse className="h-9 w-9 shrink-0" style={{ color: C.red }} aria-hidden="true" />} {...windowProps} onClose={windowProps.onClose}>
                         {emergency.state === 'loading' && <p style={fs(22)}>{t('simpleView:ask.loading')}</p>}
                         {(emergency.state === 'error' || (emergency.state === 'done' && !emergency.data?.recipient)) && (
                             <div role="alert" className="flex flex-wrap items-center justify-between gap-4 rounded-3xl p-5" style={{ backgroundColor: C.redSoft, border: `2px solid ${C.red}` }}>
@@ -1676,7 +1648,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
             )}
 
             {win === 'meds' && (
-                <ViewWindow id="rv-win-meds" width="wide" title={t('simpleView:meds.title')} icon={<Pill className="h-9 w-9 shrink-0" style={{ color: C.blue }} aria-hidden="true" />} {...windowProps} onClose={windowProps.onClose}>
+                <ViewWindow id="rv-win-meds" flushRight title={t('simpleView:meds.title')} icon={<Pill className="h-9 w-9 shrink-0" style={{ color: C.blue }} aria-hidden="true" />} {...windowProps} onClose={windowProps.onClose}>
                         {notice && notice.kind !== 'ok' && (
                             <div
                                 role={notice.kind === 'error' ? 'alert' : 'status'}
@@ -1879,9 +1851,9 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                         {contacts.length === 0 ? (
                             <p style={fs(21)}>{t('simpleView:contacts.empty')}</p>
                         ) : (
-                            <ul className="grid grid-cols-1 gap-3 min-[614px]:grid-cols-2">
+                            <ul className="grid grid-cols-1 gap-3 min-[614px]:grid-cols-2 min-[819px]:grid-cols-3">
                                 {contacts.map((c) => (
-                                    <li key={c.id} className="flex flex-col gap-3 rounded-2xl p-4" style={{ backgroundColor: C.bg, border: `1px solid ${C.border}` }}>
+                                    <li key={c.id} className="flex flex-col justify-between gap-3 rounded-2xl p-4" style={{ backgroundColor: C.bg, border: `1px solid ${C.border}` }}>
                                         <div>
                                             <p className="font-bold" style={fs(23)}>{c.name}</p>
                                             <p style={{ ...fs(18), color: C.muted }}>
@@ -1892,11 +1864,11 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                         {c.phone && (
                                             <a
                                                 href={`tel:${c.phone.replace(/[^\d+]/g, '')}`}
+                                                aria-label={`${t('simpleView:contacts.call')}: ${c.phone}`}
                                                 className="flex min-h-[4rem] flex-wrap items-center justify-center gap-x-3 rounded-2xl px-4 font-bold text-white"
                                                 style={{ ...fs(22), backgroundColor: C.blue }}
                                             >
                                                 <Phone className="h-7 w-7 shrink-0" aria-hidden="true" />
-                                                <span>{t('simpleView:contacts.call')}</span>
                                                 <span className="tabular-nums">{c.phone}</span>
                                             </a>
                                         )}
@@ -2255,7 +2227,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
 
             {/* Block L3: neuer Termin, erst die Angaben, dann die Rueckfrage */}
             {eventForm && (
-                <ViewWindow id="rv-event-title" title={t('simpleView:event.new')} layer="dialog" width="narrow" {...windowProps} onClose={() => setEventForm(null)}>
+                <ViewWindow id="rv-event-title" title={t('simpleView:event.new')} layer="dialog" {...windowProps} onClose={() => setEventForm(null)}>
                     <div className="rounded-3xl p-6 min-[512px]:p-8" style={tile}>
                         {eventForm.step === 'enter' ? (
                             <form className="space-y-5" onSubmit={(ev) => { ev.preventDefault(); checkEvent(); }} noValidate>
@@ -2338,7 +2310,6 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                     title={shopConfirm.kind === 'add' ? t('simpleView:shopping.addQuestion') : t('simpleView:shopping.checkQuestion')}
                     role="alertdialog"
                     layer="dialog"
-                    width="narrow"
                     {...windowProps}
                     onClose={() => setShopConfirm(null)}
                 >
@@ -2385,7 +2356,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                     [t('simpleView:medInfo.endDate'), longDate(i.end_date)],
                 ];
                 return (
-                    <ViewWindow id="rv-medinfo" labelledBy="rv-medinfo-title" width="medium" {...windowProps} onClose={() => setInfoId(null)}>
+                    <ViewWindow id="rv-medinfo" labelledBy="rv-medinfo-title" {...windowProps} onClose={() => setInfoId(null)}>
                         <div className="rounded-3xl p-6 min-[512px]:p-8" style={{ ...tile, ...intakeCardStyle(i) }}>
                             <div className="flex flex-wrap items-start gap-5">
                                 {i.photo_url ? (
@@ -2420,7 +2391,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
 
             {/* Block M: Rueckfrage vor dem Ueberspringen */}
             {skipConfirm && skipConfirm.length > 0 && (
-                <ViewWindow id="rv-skip-title" title={t('simpleView:home.skipTitle')} role="alertdialog" layer="dialog" width="narrow" {...windowProps} onClose={() => setSkipConfirm(null)}>
+                <ViewWindow id="rv-skip-title" title={t('simpleView:home.skipTitle')} role="alertdialog" layer="dialog" {...windowProps} onClose={() => setSkipConfirm(null)}>
                     <div className="rounded-3xl p-6 min-[512px]:p-8" style={tile}>
                         <ul className="space-y-2">
                             {skipConfirm.map((i) => (
@@ -2455,7 +2426,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
 
             {/* Block K: Messwert eintragen, erst die Zahl, dann die Rueckfrage */}
             {vitalForm && (
-                <ViewWindow id="rv-measure-title" title={t(`simpleView:measure.button.${vitalForm.type}`)} layer="dialog" width="narrow" {...windowProps} onClose={() => setVitalForm(null)}>
+                <ViewWindow id="rv-measure-title" title={t(`simpleView:measure.button.${vitalForm.type}`)} layer="dialog" {...windowProps} onClose={() => setVitalForm(null)}>
                     <div className="rounded-3xl p-6 min-[512px]:p-8" style={tile}>
                         {vitalForm.step === 'enter' ? (
                             <form
@@ -2526,37 +2497,6 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                 </ViewWindow>
             )}
 
-            {/* Erinnerung (Eskalation Stufe 1): ruhig, eine klare Taste */}
-            {reminderOpen && medsOn && dueNow.length > 0 && (
-                <ViewWindow id="rv-reminder" labelledBy="rv-reminder-title" role="alertdialog" layer="reminder" {...windowProps} onClose={() => setReminderOpen(false)}>
-                    <div className="flex flex-col items-center gap-6 text-center">
-                    <div className="flex h-32 w-32 items-center justify-center rounded-full" style={{ backgroundColor: C.blue }}>
-                        <Pill className="h-16 w-16 text-white" aria-hidden="true" />
-                    </div>
-                    <h2 id="rv-reminder-title" className="font-bold" style={{ ...fs(36), lineHeight: 1.3 }}>{t('simpleView:reminder.title')}</h2>
-                    <p style={fs(24)}>{t('simpleView:reminder.subtitle', { count: dueNow.length })}</p>
-                    <ul className="flex flex-wrap justify-center gap-2">
-                        {dueNow.map((i) => (
-                            <li key={i.id} className="rounded-full px-5 py-2 font-bold" style={{ ...fs(21), ...tile }}>{i.medication_name}</li>
-                        ))}
-                    </ul>
-                    <div className="flex w-full max-w-xl flex-col gap-3 min-[512px]:flex-row">
-                        <button
-                            type="button"
-                            onClick={() => { setReminderOpen(false); void confirmMany(dueNow.map((i) => i.id)); }}
-                            className="flex min-h-[4.5rem] flex-1 items-center justify-center gap-3 rounded-2xl px-4 font-bold text-white shadow-md"
-                            style={{ ...fs(23), backgroundColor: C.green }}
-                        >
-                            <Check className="h-8 w-8 shrink-0" strokeWidth={3} aria-hidden="true" />
-                            {t('simpleView:reminder.taken')}
-                        </button>
-                        <button type="button" onClick={() => setReminderOpen(false)} className="min-h-[4.5rem] flex-1 rounded-2xl px-4 font-bold" style={secondaryButton}>
-                            {t('simpleView:reminder.later')}
-                        </button>
-                    </div>
-                    </div>
-                </ViewWindow>
-            )}
 
         </div>
     );

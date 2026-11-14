@@ -8,9 +8,10 @@ import { pick, pickLang, type Lang } from './i18n';
 
 /**
  * Escalade configurable des alertes (regles par cercle, table escalation_rules) :
- *  - prise de medicament en retard : rappel au proche dans la vue simple
- *    (message WebSocket "reminder"), puis aidants principaux, puis aidants de
- *    relais, chacun apres un delai en minutes (0 = palier desactive) ;
+ *  - prise de medicament en retard : aidants principaux, puis aidants de
+ *    relais, chacun apres un delai en minutes (0 = palier desactive).
+ *    E40 : plus de rappel au proche dans la vue simple ; med_patient_min reste
+ *    stocke mais n'est plus utilise ;
  *  - demandes d'aide encore ouvertes (table help_requests, prise en charge par
  *    POST /api/escalation/help/:id/ack) : aidants de relais si personne ne les
  *    a prises en charge. Launch Block C : plus aucune nouvelle demande (le
@@ -337,24 +338,6 @@ async function escalateIntakes(rule: RuleRow, level: 'primary' | 'secondary'): P
     logger.info('escalation.intakes', { circleId: rule.circle_id, level, intakes: intakes.length, recipients: targets.length });
 }
 
-async function remindPatient(rule: RuleRow): Promise<void> {
-    if (rule.med_patient_min <= 0) return;
-    if (!(await featureEnabledForCircle(rule.circle_id, 'medications'))) return;
-    const { rows } = await query(
-        `UPDATE medication_intakes SET reminded_patient_at = CURRENT_TIMESTAMP
-         WHERE circle_id = $1 AND status = 'pending' AND reminded_patient_at IS NULL
-           AND COALESCE(snoozed_until, due_at) <= NOW() - make_interval(mins => $2::int)
-           AND COALESCE(snoozed_until, due_at) > NOW() - interval '${MISSED_AFTER}'
-         RETURNING id`,
-        [rule.circle_id, rule.med_patient_min]
-    );
-    if (rows.length === 0) return;
-    // La vue simple de la personne accompagnee affiche le rappel ; l'app des
-    // aidants ignore ce message.
-    await broadcastToCircle(rule.circle_id, { type: 'reminder', kind: 'medication', count: rows.length });
-    logger.info('escalation.patient_reminder', { circleId: rule.circle_id, intakes: rows.length });
-}
-
 async function escalateHelp(rule: RuleRow): Promise<void> {
     if (rule.help_ack_min <= 0) return;
     const { rows } = await query(
@@ -394,7 +377,6 @@ export async function runEscalationTick(): Promise<void> {
         );
         for (const raw of rows as Array<Record<string, unknown>>) {
             const rule: RuleRow = { ...normalize(raw), circle_id: String(raw.circle_id), first_name: (raw.first_name as string | null) ?? null };
-            await remindPatient(rule);
             await escalateIntakes(rule, 'primary');
             await escalateIntakes(rule, 'secondary');
             await escalateHelp(rule);

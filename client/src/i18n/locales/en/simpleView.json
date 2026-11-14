@@ -54,11 +54,7 @@
     "close": "Close"
   },
   "reminder": {
-    "title": "It is time for your medication",
-    "subtitle_one": "{{count}} dose to take now",
-    "subtitle_other": "{{count}} doses to take now",
-    "taken": "I took everything",
-    "later": "Okay, in a moment"
+    "title": "It is time for your medication"
   },
   "settings": {
     "fontSize": "Text size",

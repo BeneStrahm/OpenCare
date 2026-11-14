@@ -54,11 +54,7 @@
     "close": "Cerrar"
   },
   "reminder": {
-    "title": "Es la hora de tus medicamentos",
-    "subtitle_one": "{{count}} toma pendiente ahora",
-    "subtitle_other": "{{count}} tomas pendientes ahora",
-    "taken": "Ya lo tomé todo",
-    "later": "De acuerdo, en un momento"
+    "title": "Es la hora de tus medicamentos"
   },
   "settings": {
     "fontSize": "Tamaño del texto",

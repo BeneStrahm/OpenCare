@@ -150,8 +150,7 @@ const EscalationCard: React.FC = () => {
                     <div className="mt-5 space-y-6">
                         <section className="space-y-3">
                             <h4 className="text-caption font-semibold text-foreground">{t('escalation:medication.title')}</h4>
-                            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                                {minuteField('med_patient_min', t('escalation:medication.patient'))}
+                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                                 {minuteField('med_primary_min', t('escalation:medication.primary'))}
                                 {minuteField('med_secondary_min', t('escalation:medication.secondary'))}
                             </div>
