@@ -21,7 +21,7 @@ import { cn } from '../lib/utils';
 import { VIEW_COLORS, medicationColorOf, viewColorOf } from '../lib/viewColors';
 import {
     FONT_SCALES, VIEW_SCALE, RECIPIENT_QUESTIONS, RECIPIENT_VITAL_TYPES, groupIntakes, isCompanionActive, isTravelActive, loadFontScale,
-    effectiveDue, isOverdue, momentOf, showOnHome,
+    isOverdue, momentOf, showOnHome,
     localDay, parseRecipientEventForm, parseRecipientVital, saveFontScale, type IntakeGroup, type RecipientQuestion, type RecipientVitalType,
 } from '../lib/recipientView';
 
@@ -921,9 +921,6 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     const intakeGroups = useMemo(() => groupIntakes(intakes, clockDate), [intakes]);
     const groupTitle = (group: IntakeGroup, items: Intake[]) =>
         group.kind === 'moment' ? t(`medications:moments.${group.moment}`) : t('simpleView:meds.at', { time: clockOf(items[0].due_at) });
-    // Block M: nach "Spaeter erinnern" zaehlt die verschobene Zeit.
-    // Nur innerhalb der Nachholfrist (4 Stunden): Erinnerung und Tagesrueckblick fordern nie eine verpasste Einnahme an.
-    const dueNow = intakes.filter((i) => showOnHome(i, now, clockDate) && (effectiveDue(i, clockDate)?.getTime() ?? Infinity) <= now.getTime());
     // Block M: Kachel auf der Startseite. Offene Einnahmen ab 30 Minuten vor der Zeit bis
     // Tagesende, dazu eigene Wahl, solange Rueckgaengig moeglich ist.
     const homeIntakes = intakes.filter((i) => showOnHome(i, now, clockDate) || canUndo(i));
@@ -1072,10 +1069,13 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     // Block E: Messwert-Erinnerung zeigen, sobald die Uhrzeit erreicht ist und solange heute kein Wert da ist.
     const nowHm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     const dueVitals = openVitals.filter((r) => r.remind_time <= nowHm);
-    // Block D: Tagesrueckblick ab 18 Uhr. Offen heisst: eine jetzt faellige Einnahme ist
-    // nicht bestaetigt oder ein Messwert von heute fehlt. Nie aufzaehlen, nie vorwerfen.
+    // Block D: Tagesrueckblick ab 18 Uhr. Offen heisst: fuer heute steht noch etwas an, auch spaeter am
+    // Abend. Eine Einnahme von heute ist offen oder verpasst (Ueberspringen zaehlt als erledigt), ein
+    // Gesundheitswert von heute fehlt (egal zu welcher Erinnerungszeit) oder ein Termin von heute ist
+    // noch nicht vorbei. Nie aufzaehlen, nie vorwerfen.
     const showReview = now.getHours() >= REVIEW_FROM_HOUR;
-    const somethingOpen = (medsOn && dueNow.length > 0) || (healthOn && dueVitals.length > 0);
+    const eventAhead = events.some((e) => (clockDate(e.end_time || e.start_time)?.getTime() ?? 0) > now.getTime());
+    const somethingOpen = (medsOn && intakes.some(isOpen)) || (healthOn && openVitals.length > 0) || (calendarOn && eventAhead);
     const praiseNumber = (Number(day.replace(/-/g, '')) % 3) + 1;
     const reviewText = somethingOpen ? t('simpleView:review.open') : t(`simpleView:review.praise${praiseNumber}`);
     const heatRed = heat?.level === 'red';
