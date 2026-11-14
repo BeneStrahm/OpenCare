@@ -3,7 +3,8 @@ import { query } from '../db';
 import { authMiddleware } from '../middleware/auth';
 import {
     circleMiddleware, requireRole, CircleRequest, HEALTH_READER_ROLES,
-    RECIPIENT_UNDO_MS, recipientMayRecordVital, recipientVitalUndoMsLeft,
+    RECIPIENT_UNDO_MS, RECIPIENT_VITAL_TYPES, recipientMayRecordVital, recipientVitalUndoMsLeft,
+    parseGlucoseMeal, parseRecipientVitalEntry,
 } from '../middleware/circle';
 import { broadcastToCircle } from '../lib/broadcaster';
 import { createNotification } from '../lib/notifications';
@@ -20,7 +21,7 @@ const router = Router();
 
 // Donnees de sante: la matrice de docs/SPEC.md exclut le role neighbor
 // (ecriture pour admin/family/professional; recipient siehe middleware/circle.ts:
-// nur die freigegebenen Routen, schreibt nur Blutzucker und Gewicht, Block K).
+// nur die freigegebenen Routen, schreibt nur Blutzucker, Gewicht und Blutdruck, Block K und E47).
 router.use(authMiddleware, circleMiddleware, requireRole(...HEALTH_READER_ROLES));
 
 const requireHealthWriter = requireRole('admin', 'family', 'professional');
@@ -30,7 +31,7 @@ const CREATED_AGE_MS_SQL = 'EXTRACT(EPOCH FROM (LOCALTIMESTAMP - created_at)) * 
 
 /**
  * Block K (E20): Schreiben wie bisher fuer admin, family, professional; dazu
- * recipient, aber nur Blutzucker und Gewicht (RECIPIENT_VITAL_TYPES).
+ * recipient, aber nur Blutzucker, Gewicht und Blutdruck (RECIPIENT_VITAL_TYPES).
  */
 const requireVitalWriter = (req: CircleRequest, res: Response, next: NextFunction) => {
     if (req.circleRole === 'recipient') {
@@ -43,6 +44,10 @@ const requireVitalWriter = (req: CircleRequest, res: Response, next: NextFunctio
 };
 
 const VITAL_TYPES = ['weight', 'bp', 'pain', 'mood', 'temperature', 'glucose'];
+
+/** E47: Tagebuch der Gesundheitswerte, je Abruf so viele Tage. */
+export const DIARY_DAYS = 28;
+const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 const parseDate = (value: unknown): Date | null => {
     if (typeof value !== 'string' && typeof value !== 'number') return null;
@@ -358,10 +363,10 @@ router.put('/reminders', requireRole('admin', 'family'), async (req: CircleReque
 router.get('/mine/undoable', async (req: CircleRequest, res: Response) => {
     try {
         const { rows } = await query(
-            `SELECT id, type, value, unit, measured_at, recorded_by_user, ${CREATED_AGE_MS_SQL} AS created_age_ms
+            `SELECT id, type, value, value2, unit, measured_at, recorded_by_user, ${CREATED_AGE_MS_SQL} AS created_age_ms
              FROM vitals
              WHERE circle_id = $1 AND recorded_by_user = $2
-               AND type IN ('glucose', 'weight')
+               AND type IN ('glucose', 'weight', 'bp')
                AND created_at > LOCALTIMESTAMP - ($3 || ' milliseconds')::interval
              ORDER BY created_at DESC`,
             [req.circleId, req.userId, String(RECIPIENT_UNDO_MS)]
@@ -371,6 +376,7 @@ router.get('/mine/undoable', async (req: CircleRequest, res: Response) => {
                 id: row.id as string,
                 type: row.type as string,
                 value: Number(row.value),
+                value2: row.value2 === null || row.value2 === undefined ? null : Number(row.value2),
                 unit: row.unit as string | null,
                 measured_at: row.measured_at,
                 undo_ms_left: recipientVitalUndoMsLeft(row, req.userId),
@@ -383,17 +389,90 @@ router.get('/mine/undoable', async (req: CircleRequest, res: Response) => {
     }
 });
 
+// E47: Tagebuch der Gesundheitswerte (Blutzucker, Gewicht, Blutdruck) fuer die einfache Ansicht.
+// ?type= Pflicht, ?before=YYYY-MM-DD (ohne: morgen). Liefert die Werte der DIARY_DAYS Tage vor
+// "before", neueste zuerst, und next_before fuer "Weitere laden" (Tag nach dem juengsten
+// aelteren Wert, null wenn es keine aelteren gibt). Lesen duerfen alle Rollen mit Zugriff auf
+// Gesundheitsdaten (admin, family, professional, recipient), neighbor nicht (router.use oben).
+router.get('/diary', async (req: CircleRequest, res: Response) => {
+    try {
+        const type = req.query.type;
+        if (typeof type !== 'string' || !(RECIPIENT_VITAL_TYPES as readonly string[]).includes(type)) {
+            return res.status(400).json({ success: false, error: 'Invalid vital type' });
+        }
+        let before: string | null = null;
+        if (typeof req.query.before === 'string' && req.query.before) {
+            before = req.query.before;
+            const day = new Date(`${before}T00:00:00Z`);
+            if (!DAY_PATTERN.test(before) || Number.isNaN(day.getTime()) || day.toISOString().slice(0, 10) !== before) {
+                return res.status(400).json({ success: false, error: 'Invalid before date' });
+            }
+        }
+        const bound = `COALESCE($3::date, CURRENT_DATE + 1)`;
+        const { rows } = await query(
+            `SELECT id, type, value, value2, pulse, measured_at, notes, meal_time, meal_relation
+             FROM vitals
+             WHERE circle_id = $1 AND type = $2
+               AND measured_at < ${bound}
+               AND measured_at >= ${bound} - ${DIARY_DAYS}
+             ORDER BY measured_at DESC
+             LIMIT 1000`,
+            [req.circleId, type, before]
+        );
+        const older = await query(
+            `SELECT (MAX(measured_at))::date + 1 AS next_before
+             FROM vitals
+             WHERE circle_id = $1 AND type = $2 AND measured_at < ${bound} - ${DIARY_DAYS}`,
+            [req.circleId, type, before]
+        );
+        const num = (v: unknown) => (v === null || v === undefined ? null : Number(v));
+        res.json({
+            success: true,
+            data: {
+                entries: rows.map((row) => ({
+                    id: row.id as string,
+                    type: row.type as string,
+                    value: Number(row.value),
+                    value2: num(row.value2),
+                    pulse: num(row.pulse),
+                    measured_at: row.measured_at,
+                    notes: (row.notes as string | null) ?? null,
+                    meal_time: (row.meal_time as string | null) ?? null,
+                    meal_relation: (row.meal_relation as string | null) ?? null,
+                })),
+                next_before: (older.rows[0]?.next_before as string | null | undefined) ?? null,
+            },
+        });
+    } catch (error) {
+        console.error('Vitals diary error:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
+
 router.post('/', requireVitalWriter, async (req: CircleRequest, res: Response) => {
     try {
         const isRecipient = req.circleRole === 'recipient';
-        const { type, value } = req.body;
-        // Block K: Die betreute Person traegt nur einen Wert "jetzt" ein, ohne
-        // zweiten Wert, Puls, Zeit oder Notiz; die Einheit ist die gespeicherte.
-        const value2 = isRecipient ? undefined : req.body.value2;
-        const pulse = isRecipient ? undefined : req.body.pulse;
-        const measured_at = isRecipient ? undefined : req.body.measured_at;
-        const notes = isRecipient ? undefined : req.body.notes;
-        const unit = isRecipient ? (type === 'glucose' ? 'g/L' : 'kg') : req.body.unit;
+        // Block K, E47: Die betreute Person traegt immer "jetzt" ein, die Einheit ist die
+        // gespeicherte; Werte, Grenzen, Tageszeit und Bemerkung prueft parseRecipientVitalEntry.
+        const recipientEntry = isRecipient ? parseRecipientVitalEntry(req.body) : null;
+        if (recipientEntry && !recipientEntry.ok) {
+            return res.status(400).json({ success: false, error: recipientEntry.error });
+        }
+        const own = recipientEntry?.ok ? recipientEntry.entry : null;
+        const type = own ? own.type : req.body.type;
+        const value = own ? own.value : req.body.value;
+        const value2 = own ? own.value2 : req.body.value2;
+        const pulse = own ? own.pulse : req.body.pulse;
+        const measured_at = own ? undefined : req.body.measured_at;
+        const notes = own ? own.notes : req.body.notes;
+        const unit = own ? own.unit : req.body.unit;
+        // E47: Tageszeit und vor/nach dem Essen, nur beim Blutzucker (alle Rollen, freiwillig).
+        const meal = type === 'glucose'
+            ? (own ? { ok: true as const, meal_time: own.meal_time, meal_relation: own.meal_relation } : parseGlucoseMeal(req.body.meal_time, req.body.meal_relation))
+            : { ok: true as const, meal_time: null, meal_relation: null };
+        if (!meal.ok) {
+            return res.status(400).json({ success: false, error: 'Invalid meal' });
+        }
 
         if (typeof type !== 'string' || !VITAL_TYPES.includes(type)) {
             return res.status(400).json({ success: false, error: 'Invalid vital type' });
@@ -433,8 +512,8 @@ router.post('/', requireVitalWriter, async (req: CircleRequest, res: Response) =
         }
 
         const result = await query(
-            `INSERT INTO vitals (circle_id, type, value, value2, pulse, unit, measured_at, recorded_by_user, notes)
-             VALUES ($1, $2, $3, $4, $9, $5, COALESCE($6, CURRENT_TIMESTAMP), $7, $8)
+            `INSERT INTO vitals (circle_id, type, value, value2, pulse, unit, measured_at, recorded_by_user, notes, meal_time, meal_relation)
+             VALUES ($1, $2, $3, $4, $9, $5, COALESCE($6, CURRENT_TIMESTAMP), $7, $8, $10, $11)
              RETURNING *`,
             [
                 req.circleId,
@@ -446,6 +525,8 @@ router.post('/', requireVitalWriter, async (req: CircleRequest, res: Response) =
                 req.userId,
                 typeof notes === 'string' && notes.trim() ? notes.trim() : null,
                 numPulse,
+                meal.meal_time,
+                meal.meal_relation,
             ]
         );
 

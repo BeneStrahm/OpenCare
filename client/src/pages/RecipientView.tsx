@@ -4,7 +4,7 @@ import {
     CalendarDays, Check, CheckCheck, MapPin, MessageCircle, Phone, Pill, RotateCcw,
     Settings as SettingsIcon, ThermometerSun, Users, Backpack, Car, Volume2, Square, X,
     Stethoscope, CalendarRange, CalendarClock, Droplet, Scale, HeartPulse, Moon, ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
-    IdCard, ShoppingCart, CalendarPlus, Plus, Activity, SkipForward, CircleAlert, Clock,
+    IdCard, ShoppingCart, CalendarPlus, Plus, Activity, SkipForward, CircleAlert, Clock, CircleHelp, Apple,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -16,13 +16,16 @@ import { SUPPORTED_LANGUAGES, LANGUAGE_NAMES } from '../i18n';
 import { changeAppLanguage } from '../lib/language';
 import { formatAmount } from '../lib/medications';
 import { enabledVitalTypes, isFeatureEnabled, isViewTileOn, type FeatureId, type ViewTileId } from '../lib/features';
-import { displayUnit, formatVital, toStorageValue } from '../lib/units';
+import { displayUnit, formatVital, toDisplayValue, toStorageValue } from '../lib/units';
 import { cn } from '../lib/utils';
 import { VIEW_COLORS, medicationColorOf, viewColorOf } from '../lib/viewColors';
 import {
     FONT_SCALES, VIEW_SCALE, RECIPIENT_QUESTIONS, RECIPIENT_VITAL_TYPES, groupIntakes, isCompanionActive, isTravelActive, loadFontScale,
     isOverdue, momentOf, showOnHome,
-    localDay, parseRecipientEventForm, parseRecipientVital, saveFontScale, type IntakeGroup, type RecipientQuestion, type RecipientVitalType,
+    localDay, parseRecipientEventForm, saveFontScale, type IntakeGroup, type RecipientQuestion, type RecipientVitalType,
+    checkRecipientVitalForm, groupGlucoseDays, vitalInputDecimals, GLUCOSE_MEAL_TIMES, GLUCOSE_MEAL_RELATIONS, GLUCOSE_SLOTS,
+    RECIPIENT_VITAL_LIMITS, RECIPIENT_VITAL_NOTE_MAX, type DiaryEntry, type GlucoseMealTime, type GlucoseMealRelation,
+    type RecipientVitalErrors, type RecipientVitalField, type RecipientVitalLimit,
 } from '../lib/recipientView';
 
 // Einfache Ansicht der betreuten Person (Rolle recipient), Launch Block C.
@@ -134,9 +137,29 @@ interface Heatwave { enabled: boolean; active: boolean; level: string | null }
 /** Block E: offene Messwert-Erinnerung von heute (GET /api/vitals/reminders/today) */
 interface OpenVitalReminder { type: 'glucose' | 'weight'; remind_time: string; note: string | null }
 /** Block K: eigener Eintrag, noch rueckgaengig zu machen (GET /api/vitals/mine/undoable) */
-interface OwnVital { id: string; type: RecipientVitalType; value: number; undo_ms_left: number; undo_until?: number }
-/** Block K: Eingabe eines Messwerts, erst Zahl, dann Rueckfrage */
-type VitalForm = { type: RecipientVitalType; step: 'enter' | 'confirm'; text: string; error: 'empty' | 'invalid' | null };
+interface OwnVital { id: string; type: RecipientVitalType; value: number; value2?: number | null; undo_ms_left: number; undo_until?: number }
+/** Block K, E47: Eingabe eines Gesundheitswerts, erst die Angaben, dann die Rueckfrage "Ist das richtig?" */
+type VitalForm = {
+    type: RecipientVitalType;
+    step: 'enter' | 'confirm';
+    text: string;
+    text2: string;
+    pulse: string;
+    note: string;
+    mealTime: GlucoseMealTime | null;
+    mealRelation: GlucoseMealRelation | null;
+    errors: RecipientVitalErrors;
+};
+/** E47: Tagebuch (GET /api/vitals/diary), je Abruf 28 Tage, "Weitere laden" haengt aeltere an. */
+type Diary = { type: RecipientVitalType; entries: DiaryEntry[]; nextBefore: string | null; more: boolean; loading: boolean; error: boolean };
+
+/** E47: angebissener Apfel ("nach dem Essen"), wie Symbol/apple-bitten in Figma (Lucide "apple" mit Biss). */
+const AppleBitten: React.FC<{ className?: string; style?: React.CSSProperties }> = ({ className, style }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className} style={style} aria-hidden="true">
+        <path d="M12 6.528V3C12 2.73478 12.1054 2.48043 12.2929 2.29289C12.4804 2.10536 12.7348 2 13 2" />
+        <path d="M12 6.52787C11.1367 5.75571 10.0683 5.24992 8.92392 5.07157C7.77949 4.89321 6.6079 5.04991 5.55056 5.52275C4.49323 5.99559 3.59536 6.76435 2.96532 7.73625C2.33528 8.70815 2.00002 9.84162 1.99999 10.9999C1.99368 14.6804 3.33185 18.2365 5.76299 20.9999C6.2107 21.5007 6.81356 21.8368 7.475 21.9543C8.13644 22.0718 8.81818 21.9639 9.41099 21.6479C10.2077 21.2228 11.0969 21.0004 12 21.0004C12.9031 21.0004 13.7922 21.2228 14.589 21.6479C15.1818 21.9639 15.8635 22.0718 16.525 21.9543C17.1864 21.8368 17.7893 21.5007 18.237 20.9999C19.4925 19.4661 20.4316 17.6987 21 15.7999C20.0823 15.6829 19.2247 15.2796 18.5493 14.6473C17.874 14.015 17.4151 13.1859 17.2379 12.2778C17.0607 11.3698 17.1743 10.429 17.5624 9.58919C17.9506 8.74939 18.5936 8.05329 19.4 7.59987C18.5153 6.54084 17.2708 5.84574 15.9051 5.64791C14.5394 5.45007 13.1488 5.76343 12 6.52787Z" />
+    </svg>
+);
 
 // info: Erfolg, der auf der Startseite trotzdem gezeigt wird (Spaeter erinnern: die Karte verschwindet)
 type Notice = { kind: 'ok' | 'info' | 'error' | 'queued'; text: string } | null;
@@ -242,8 +265,10 @@ const ViewWindow: React.FC<{
     barColor: string;
     barBorder: string;
     scroll: { upLabel: string; downLabel: string; text: string; card: string; track: string; control: string };
+    /** E47: weitere Taste links neben dem X (z. B. "Hilfe") */
+    action?: React.ReactNode;
     children: React.ReactNode;
-}> = ({ id, title, icon, labelledBy, role = 'dialog', layer = 'window', clock, closeLabel, onClose, style, clockStyle, titleStyle, closeStyle, barColor, barBorder, scroll, children }) => {
+}> = ({ id, title, icon, labelledBy, role = 'dialog', layer = 'window', clock, closeLabel, onClose, style, clockStyle, titleStyle, closeStyle, barColor, barBorder, scroll, action, children }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
     return (
         <div className={cn('fixed inset-0 flex flex-col font-kiosk', PAGE_LAYER[layer])} style={style} role={role} aria-modal="true" aria-labelledby={title ? id : labelledBy}>
@@ -257,7 +282,8 @@ const ViewWindow: React.FC<{
                         <span className="min-w-0">{title}</span>
                     </h2>
                 )}
-                <div className="flex min-w-max flex-1 basis-0 justify-end">
+                <div className="flex min-w-max flex-1 basis-0 items-center justify-end gap-3">
+                    {action}
                     <button type="button" autoFocus onClick={onClose} aria-label={closeLabel} className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl" style={closeStyle}>
                         <X className="h-10 w-10" strokeWidth={3} aria-hidden="true" />
                     </button>
@@ -451,6 +477,9 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     const [ownVitals, setOwnVitals] = useState<OwnVital[]>([]);
     const [vitalForm, setVitalForm] = useState<VitalForm | null>(null);
     const [vitalNotice, setVitalNotice] = useState<Notice>(null);
+    // E47: Hilfe zum Blutzucker und Tagebuch der Gesundheitswerte
+    const [vitalHelp, setVitalHelp] = useState(false);
+    const [diary, setDiary] = useState<Diary | null>(null);
     // Block L3: Terminkarte, neuer Termin, Rueckgaengig
     const [eventCard, setEventCard] = useState<CalendarEvent | null>(null);
     const [eventForm, setEventForm] = useState<EventForm | null>(null);
@@ -882,35 +911,38 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
 
     const undoableVitals = ownVitals.filter((v) => v.undo_until && v.undo_until > undoClock);
     const vitalUnit = (type: RecipientVitalType) => displayUnit(type, unitSystem);
-    const vitalText = (type: RecipientVitalType, stored: number) =>
-        formatVital(type, stored, null, unitSystem, intlLocale());
+    const vitalText = (type: RecipientVitalType, stored: number, stored2: number | null = null) =>
+        formatVital(type, stored, stored2, unitSystem, intlLocale());
+    const vitalToStorage = (type: RecipientVitalType) => (shown: number) => toStorageValue(type, shown, unitSystem);
+    const VITAL_ICONS: Record<RecipientVitalType, typeof Droplet> = { glucose: Droplet, weight: Scale, bp: HeartPulse };
 
     const openVitalForm = (type: RecipientVitalType) => {
-        // Block L5: das Fenster Gesundheitswert liegt darunter, dort steht danach das Rueckgaengig.
+        // Block L5: das Fenster Gesundheitswerte liegt darunter, dort steht danach das Rueckgaengig.
         setWin('health');
         setVitalNotice(null);
-        setVitalForm({ type, step: 'enter', text: '', error: null });
+        setVitalHelp(false);
+        setVitalForm({ type, step: 'enter', text: '', text2: '', pulse: '', note: '', mealTime: null, mealRelation: null, errors: {} });
     };
 
-    /** Zahl pruefen; stimmt sie, kommt die Rueckfrage. */
+    /** Angaben pruefen; stimmen sie, kommt die Rueckfrage "Ist das richtig?". */
     const checkVital = () => {
         if (!vitalForm) return;
-        const parsed = parseRecipientVital(vitalForm.type, vitalForm.text, (shown) => toStorageValue(vitalForm.type, shown, unitSystem));
-        setVitalForm({ ...vitalForm, step: parsed.ok ? 'confirm' : 'enter', error: parsed.ok ? null : parsed.error });
+        const checked = checkRecipientVitalForm(vitalForm, vitalToStorage(vitalForm.type));
+        setVitalForm({ ...vitalForm, step: checked.ok ? 'confirm' : 'enter', errors: checked.ok ? {} : checked.errors });
     };
 
     const saveVital = async () => {
         if (!vitalForm || busy) return;
-        const parsed = parseRecipientVital(vitalForm.type, vitalForm.text, (shown) => toStorageValue(vitalForm.type, shown, unitSystem));
-        if (!parsed.ok) {
-            setVitalForm({ ...vitalForm, step: 'enter', error: parsed.error });
+        const checked = checkRecipientVitalForm(vitalForm, vitalToStorage(vitalForm.type));
+        if (!checked.ok) {
+            setVitalForm({ ...vitalForm, step: 'enter', errors: checked.errors });
             return;
         }
         const type = vitalForm.type;
         setBusy(true);
         setVitalNotice(null);
         try {
-            const res = await api.post<{ success: boolean; queued?: boolean }>('/api/vitals', { type, value: parsed.stored });
+            const res = await api.post<{ success: boolean; queued?: boolean }>('/api/vitals', checked.payload);
             setVitalForm(null);
             // Erinnerungszeile sofort weg; der Server sieht den Wert von heute ebenso.
             setOpenVitals((prev) => prev.filter((r) => r.type !== type));
@@ -925,6 +957,43 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
         } finally {
             setBusy(false);
         }
+    };
+
+    /** E47: Tagebuch oeffnen (die letzten 28 Tage) oder mit "Weitere laden" aeltere anhaengen. */
+    const loadDiary = async (type: RecipientVitalType, before: string | null) => {
+        setDiary((prev) => (before && prev && prev.type === type
+            ? { ...prev, loading: true, error: false }
+            : { type, entries: [], nextBefore: null, more: false, loading: true, error: false }));
+        try {
+            const query = `type=${encodeURIComponent(type)}${before ? `&before=${encodeURIComponent(before)}` : ''}`;
+            const res = await api.get<{ success: boolean; data: { entries: DiaryEntry[]; next_before: string | null } }>(`/api/vitals/diary?${query}`);
+            const entries = Array.isArray(res.data?.entries) ? res.data.entries : [];
+            const nextBefore = res.data?.next_before ?? null;
+            setDiary((prev) => (prev && prev.type === type
+                ? { ...prev, entries: before ? [...prev.entries, ...entries] : entries, nextBefore, more: Boolean(before), loading: false, error: false }
+                : prev));
+        } catch {
+            setDiary((prev) => (prev && prev.type === type ? { ...prev, loading: false, error: true } : prev));
+        }
+    };
+
+    /** Feldfehler als Satz. Grenzen in der angezeigten Einheit. */
+    const vitalErrorText = (field: RecipientVitalField, type: RecipientVitalType): string | null => {
+        const error = vitalForm?.errors[field];
+        if (!error) return null;
+        if (error === 'choose') return t(field === 'mealTime' ? 'simpleView:measure.error.mealTime' : 'simpleView:measure.error.mealRelation');
+        if (error === 'order') return t('simpleView:measure.error.order');
+        if (error === 'empty') return t('simpleView:measure.error.empty');
+        const limit: RecipientVitalLimit = field === 'value2' ? 'bp2' : field === 'pulse' ? 'pulse' : type;
+        const examples: Record<RecipientVitalLimit, string> = { glucose: '112', weight: formatNumber(72.5), bp: '132', bp2: '78', pulse: '68' };
+        if (error === 'format') {
+            return t(vitalInputDecimals(limit) > 0 ? 'simpleView:measure.error.formatDecimal' : 'simpleView:measure.error.format', { example: examples[limit] });
+        }
+        const { min, max } = RECIPIENT_VITAL_LIMITS[limit];
+        const shown = (n: number) => (limit === 'glucose' || limit === 'weight'
+            ? formatNumber(Math.round(toDisplayValue(limit, n, unitSystem)))
+            : formatNumber(n));
+        return t('simpleView:measure.error.range', { min: shown(min), max: shown(max) });
     };
 
     const undoVital = async (vital: OwnVital) => {
@@ -1205,7 +1274,9 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     // Startseite nichts.
     const backRef = useRef<() => void>(() => {});
     backRef.current = () => {
+        if (vitalHelp) { setVitalHelp(false); return; }
         if (vitalForm) { setVitalForm(null); return; }
+        if (diary) { setDiary(null); return; }
         if (eventForm) { setEventForm(null); return; }
         if (shopConfirm) { setShopConfirm(null); return; }
         if (skipConfirm) { setSkipConfirm(null); return; }
@@ -1767,20 +1838,21 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
 
                         {/* Block L5: erst waehlen, was eingetragen wird */}
                         <p className="mb-4 font-bold" style={fs(22)}>{t('simpleView:measure.choose')}</p>
-                        <div className="grid grid-cols-1 gap-4 min-[512px]:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-4 min-[512px]:grid-cols-2 min-[614px]:grid-cols-3">
                             {ownVitalTypes.map((type) => {
-                                const Icon = type === 'glucose' ? Droplet : Scale;
+                                const Icon = VITAL_ICONS[type];
                                 return (
                                     <button
                                         key={type}
                                         type="button"
                                         onClick={() => openVitalForm(type)}
                                         disabled={busy}
+                                        aria-label={t(`simpleView:measure.button.${type}`)}
                                         className="flex min-h-[7rem] items-center justify-center gap-4 rounded-3xl px-4 font-bold disabled:opacity-70"
                                         style={{ ...secondaryButton, ...fs(24), border: `2px solid ${C.border}` }}
                                     >
                                         <Icon className="h-10 w-10 shrink-0" style={{ color: C.blue }} aria-hidden="true" />
-                                        {t(`simpleView:measure.button.${type}`)}
+                                        {t(`simpleView:measure.tile.${type}`)}
                                     </button>
                                 );
                             })}
@@ -1792,7 +1864,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                     <li key={v.id} className="space-y-3 rounded-2xl p-4" style={tile}>
                                         <p className="flex items-center gap-2 font-bold" style={{ ...fs(21), color: C.green }}>
                                             <Check className="h-7 w-7 shrink-0" strokeWidth={3} aria-hidden="true" />
-                                            {t(`simpleView:measure.entered.${v.type}`, { value: vitalText(v.type, v.value) })}
+                                            {t(`simpleView:measure.entered.${v.type}`, { value: vitalText(v.type, v.value, v.value2 ?? null) })}
                                         </p>
                                         <div className="flex flex-wrap items-center gap-3">
                                             <button type="button" onClick={() => void undoVital(v)} disabled={busy} className="flex min-h-[3.5rem] items-center gap-2 rounded-2xl px-5 font-bold" style={secondaryButton}>
@@ -1807,6 +1879,29 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                 ))}
                             </ul>
                         )}
+                    </section>
+
+                    {/* E47: Tagebuch, die Tabellen der letzten 28 Tage */}
+                    <section className="rounded-3xl p-5 min-[512px]:p-6" style={tile}>
+                        <p className="mb-4 font-bold" style={fs(22)}>{t('simpleView:measure.diaryChoose')}</p>
+                        <div className="grid grid-cols-1 gap-4 min-[512px]:grid-cols-2 min-[614px]:grid-cols-3">
+                            {ownVitalTypes.map((type) => {
+                                const Icon = VITAL_ICONS[type];
+                                return (
+                                    <button
+                                        key={type}
+                                        type="button"
+                                        onClick={() => void loadDiary(type, null)}
+                                        aria-label={t(`simpleView:diary.title.${type}`)}
+                                        className="flex min-h-[7rem] items-center justify-center gap-4 rounded-3xl px-4 font-bold"
+                                        style={{ ...secondaryButton, ...fs(24), border: `2px solid ${C.border}` }}
+                                    >
+                                        <Icon className="h-10 w-10 shrink-0" style={{ color: C.blue }} aria-hidden="true" />
+                                        {t(`simpleView:measure.tile.${type}`)}
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </section>
                 </ViewWindow>
             )}
@@ -2530,60 +2625,185 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                 </ViewWindow>
             )}
 
-            {/* Block K: Messwert eintragen, erst die Zahl, dann die Rueckfrage */}
-            {vitalForm && (
-                <ViewWindow id="rv-measure-title" title={t(`simpleView:measure.button.${vitalForm.type}`)} layer="dialog" {...windowProps} onClose={() => setVitalForm(null)}>
-                    <div className="rounded-3xl p-6 min-[512px]:p-8" style={tile}>
-                        {vitalForm.step === 'enter' ? (
-                            <form
-                                onSubmit={(e) => { e.preventDefault(); checkVital(); }}
-                                noValidate
-                            >
-                                <label htmlFor="rv-measure-input" className="block font-bold" style={fs(21)}>
-                                    {t(`simpleView:measure.label.${vitalForm.type}`, { unit: vitalUnit(vitalForm.type) })}
-                                </label>
-                                <div className="mt-2 flex items-center gap-3">
-                                    <input
-                                        id="rv-measure-input"
-                                        type="text"
-                                        inputMode="decimal"
-                                        autoComplete="off"
-                                        autoFocus
-                                        value={vitalForm.text}
-                                        onChange={(e) => setVitalForm({ ...vitalForm, text: e.target.value, error: null })}
-                                        aria-invalid={vitalForm.error ? true : undefined}
-                                        aria-describedby={vitalForm.error ? 'rv-measure-error' : undefined}
-                                        className="min-h-[4.5rem] w-full min-w-0 rounded-2xl px-4 font-bold tabular-nums"
-                                        style={{ ...fs(32), backgroundColor: C.card, color: C.text, border: `2px solid ${vitalForm.error ? C.red : C.control}` }}
-                                    />
-                                    <span className="shrink-0 font-bold" style={fs(24)}>{vitalUnit(vitalForm.type)}</span>
-                                </div>
-                                {vitalForm.error && (
-                                    <p id="rv-measure-error" role="alert" className="mt-2 font-bold" style={{ ...fs(20), color: C.red }}>
-                                        {t(`simpleView:measure.error.${vitalForm.error}`)}
-                                    </p>
+            {/* Block K, E47: Gesundheitswert eintragen, erst die Angaben, dann die Rueckfrage "Ist das richtig?" */}
+            {vitalForm && (() => {
+                const f = vitalForm;
+                const set = (patch: Partial<VitalForm>, clear: RecipientVitalField[] = []) => {
+                    const errors = { ...f.errors };
+                    for (const field of clear) delete errors[field];
+                    setVitalForm({ ...f, ...patch, errors });
+                };
+                const fieldError = (field: RecipientVitalField, id: string) => {
+                    const text = vitalErrorText(field, f.type);
+                    return text ? <p id={id} role="alert" className="mt-2 font-bold" style={{ ...fs(20), color: C.red }}>{text}</p> : null;
+                };
+                const numberInput = (id: string, field: 'value' | 'value2' | 'pulse', value: string, onChange: (v: string) => void, unit: string, autoFocus = false) => (
+                    <div className="mt-2 flex items-center gap-3">
+                        <input
+                            id={id}
+                            type="text"
+                            inputMode={field === 'value' && f.type === 'weight' ? 'decimal' : 'numeric'}
+                            autoComplete="off"
+                            autoFocus={autoFocus}
+                            value={value}
+                            onChange={(e) => onChange(e.target.value)}
+                            aria-invalid={f.errors[field] ? true : undefined}
+                            aria-describedby={f.errors[field] ? `${id}-error` : undefined}
+                            className="min-h-[4.5rem] w-full min-w-0 rounded-2xl px-4 font-bold tabular-nums"
+                            style={{ ...fs(32), backgroundColor: C.card, color: C.text, border: `2px solid ${f.errors[field] ? C.red : C.control}` }}
+                        />
+                        <span className="shrink-0 font-bold" style={fs(24)}>{unit}</span>
+                    </div>
+                );
+                const choice = (active: boolean, onClick: () => void, label: string, icon?: React.ReactNode) => (
+                    <button
+                        type="button"
+                        aria-pressed={active}
+                        onClick={onClick}
+                        className="flex min-h-[4rem] items-center justify-center gap-2 rounded-2xl px-3 font-bold"
+                        style={active ? activeChoice : secondaryButton}
+                    >
+                        {active && <Check className="h-6 w-6 shrink-0" strokeWidth={3} aria-hidden="true" />}
+                        {icon}
+                        {label}
+                    </button>
+                );
+                const buttons = (
+                    <div className="mt-6 grid grid-cols-1 gap-3 min-[512px]:grid-cols-2">
+                        <button type="button" onClick={() => setVitalForm(null)} className="min-h-[4rem] rounded-2xl px-4 font-bold" style={secondaryButton}>
+                            {t('simpleView:measure.back')}
+                        </button>
+                        <button type="submit" className="flex min-h-[4rem] items-center justify-center gap-2 rounded-2xl px-4 font-bold text-white" style={{ ...fs(21), backgroundColor: C.blue }}>
+                            <Check className="h-7 w-7 shrink-0" strokeWidth={3} aria-hidden="true" />
+                            {t('simpleView:measure.enter')}
+                        </button>
+                    </div>
+                );
+                const checked = f.step === 'confirm' ? checkRecipientVitalForm(f, vitalToStorage(f.type)) : null;
+                const payload = checked && checked.ok ? checked.payload : null;
+                return (
+                    <ViewWindow
+                        id="rv-measure-title"
+                        title={t(`simpleView:measure.button.${f.type}`)}
+                        layer="dialog"
+                        {...windowProps}
+                        onClose={() => setVitalForm(null)}
+                        action={f.type === 'glucose' && f.step === 'enter' ? (
+                            <button type="button" onClick={() => setVitalHelp(true)} className="flex h-16 items-center gap-2 rounded-2xl px-4 font-bold" style={secondaryButton}>
+                                <CircleHelp className="h-7 w-7 shrink-0" aria-hidden="true" />
+                                {t('simpleView:measure.help')}
+                            </button>
+                        ) : undefined}
+                    >
+                        {f.step === 'enter' ? (
+                            <form className="flex flex-col gap-5" onSubmit={(e) => { e.preventDefault(); checkVital(); }} noValidate>
+                                {f.type === 'bp' ? (
+                                    <div className="grid grid-cols-1 gap-4 rounded-3xl p-5 min-[512px]:grid-cols-3 min-[512px]:p-6" style={tile}>
+                                        <div className="min-w-0">
+                                            <label htmlFor="rv-measure-input" className="block font-bold" style={fs(21)}>{t('simpleView:measure.label.systolic')}</label>
+                                            {numberInput('rv-measure-input', 'value', f.text, (v) => set({ text: v }, ['value', 'value2']), vitalUnit('bp'), true)}
+                                            {fieldError('value', 'rv-measure-input-error')}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <label htmlFor="rv-measure-input2" className="block font-bold" style={fs(21)}>{t('simpleView:measure.label.diastolic')}</label>
+                                            {numberInput('rv-measure-input2', 'value2', f.text2, (v) => set({ text2: v }, ['value2']), vitalUnit('bp'))}
+                                            {fieldError('value2', 'rv-measure-input2-error')}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <label htmlFor="rv-measure-pulse" className="block font-bold" style={fs(21)}>{t('simpleView:measure.label.pulse')}</label>
+                                            {numberInput('rv-measure-pulse', 'pulse', f.pulse, (v) => set({ pulse: v }, ['pulse']), t('simpleView:measure.perMinute'))}
+                                            {fieldError('pulse', 'rv-measure-pulse-error')}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="rounded-3xl p-5 min-[512px]:p-6" style={tile}>
+                                        <label htmlFor="rv-measure-input" className="block font-bold" style={fs(21)}>
+                                            {t(`simpleView:measure.label.${f.type}`, { unit: vitalUnit(f.type) })}
+                                        </label>
+                                        {numberInput('rv-measure-input', 'value', f.text, (v) => set({ text: v }, ['value']), vitalUnit(f.type), true)}
+                                        {fieldError('value', 'rv-measure-input-error')}
+                                    </div>
                                 )}
-                                <div className="mt-6 grid grid-cols-1 gap-3 min-[512px]:grid-cols-2">
-                                    <button type="button" onClick={() => setVitalForm(null)} className="min-h-[4rem] rounded-2xl px-4 font-bold" style={secondaryButton}>
-                                        {t('simpleView:measure.cancel')}
-                                    </button>
-                                    <button type="submit" className="flex min-h-[4rem] items-center justify-center gap-2 rounded-2xl px-4 font-bold text-white" style={{ ...fs(21), backgroundColor: C.blue }}>
-                                        <ChevronRight className="h-7 w-7 shrink-0" strokeWidth={3} aria-hidden="true" />
-                                        {t('simpleView:measure.next')}
-                                    </button>
+
+                                {f.type === 'glucose' && (
+                                    <div className="grid grid-cols-1 gap-5 min-[614px]:grid-cols-2">
+                                        <fieldset className="rounded-3xl p-5 min-[512px]:p-6" style={tile} aria-describedby={f.errors.mealTime ? 'rv-measure-time-error' : undefined}>
+                                            <legend className="sr-only">{t('simpleView:measure.label.mealTime')}</legend>
+                                            <p className="mb-3 font-bold" style={fs(21)} aria-hidden="true">{t('simpleView:measure.label.mealTime')}</p>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                {GLUCOSE_MEAL_TIMES.map((time) => (
+                                                    <React.Fragment key={time}>
+                                                        {choice(f.mealTime === time, () => set(
+                                                            { mealTime: time, mealRelation: time === 'late' ? null : f.mealRelation },
+                                                            ['mealTime', 'mealRelation'],
+                                                        ), t(`simpleView:measure.mealTime.${time}`))}
+                                                    </React.Fragment>
+                                                ))}
+                                            </div>
+                                            {fieldError('mealTime', 'rv-measure-time-error')}
+                                        </fieldset>
+                                        {f.mealTime !== 'late' && (
+                                            <fieldset className="rounded-3xl p-5 min-[512px]:p-6" style={tile} aria-describedby={f.errors.mealRelation ? 'rv-measure-meal-error' : undefined}>
+                                                <legend className="sr-only">{t('simpleView:measure.label.mealRelation')}</legend>
+                                                <p className="mb-3 font-bold" style={fs(21)} aria-hidden="true">{t('simpleView:measure.label.mealRelation')}</p>
+                                                <div className="grid grid-cols-1 gap-3">
+                                                    {GLUCOSE_MEAL_RELATIONS.map((relation) => (
+                                                        <React.Fragment key={relation}>
+                                                            {choice(f.mealRelation === relation, () => set({ mealRelation: relation }, ['mealRelation']),
+                                                                t(`simpleView:measure.mealRelation.${relation}`),
+                                                                relation === 'before'
+                                                                    ? <Apple className="h-6 w-6 shrink-0" aria-hidden="true" />
+                                                                    : <AppleBitten className="h-6 w-6 shrink-0" />)}
+                                                        </React.Fragment>
+                                                    ))}
+                                                </div>
+                                                {fieldError('mealRelation', 'rv-measure-meal-error')}
+                                            </fieldset>
+                                        )}
+                                    </div>
+                                )}
+
+                                <div className="rounded-3xl p-5 min-[512px]:p-6" style={tile}>
+                                    <label htmlFor="rv-measure-note" className="block font-bold" style={fs(21)}>{t('simpleView:measure.label.note')}</label>
+                                    <input
+                                        id="rv-measure-note"
+                                        type="text"
+                                        autoComplete="off"
+                                        maxLength={RECIPIENT_VITAL_NOTE_MAX}
+                                        value={f.note}
+                                        onChange={(e) => set({ note: e.target.value })}
+                                        className="mt-2 min-h-[4rem] w-full min-w-0 rounded-2xl px-4"
+                                        style={{ ...fs(22), backgroundColor: C.card, color: C.text, border: `2px solid ${C.control}` }}
+                                    />
+                                    {buttons}
                                 </div>
                             </form>
                         ) : (
-                            <div>
+                            <div className="rounded-3xl p-6 min-[512px]:p-8" style={tile}>
                                 <p style={fs(21)}>{t('simpleView:measure.question')}</p>
-                                <p className="mt-3 rounded-2xl p-4 text-center font-bold tabular-nums" style={{ ...fs(36), backgroundColor: C.blueSoft, color: C.blueDark }}>
-                                    {(() => {
-                                        const parsed = parseRecipientVital(vitalForm.type, vitalForm.text, (shown) => toStorageValue(vitalForm.type, shown, unitSystem));
-                                        return parsed.ok ? vitalText(vitalForm.type, parsed.stored) : vitalForm.text;
-                                    })()}
-                                </p>
+                                <div className="mt-3 rounded-2xl p-4 text-center" style={{ backgroundColor: C.blueSoft, color: C.blueDark }}>
+                                    <p className="font-bold tabular-nums" style={fs(36)}>
+                                        {payload ? vitalText(f.type, payload.value, payload.value2) : f.text}
+                                    </p>
+                                    {payload && payload.meal_time && (
+                                        <p className="mt-2 font-bold" style={fs(22)}>
+                                            {payload.meal_relation
+                                                ? t('simpleView:measure.summaryMeal', {
+                                                    time: t(`simpleView:measure.mealTime.${payload.meal_time}`),
+                                                    relation: t(`simpleView:measure.mealRelation.${payload.meal_relation}`),
+                                                })
+                                                : t(`simpleView:measure.mealTime.${payload.meal_time}`)}
+                                        </p>
+                                    )}
+                                    {payload && payload.pulse !== null && (
+                                        <p className="mt-2 font-bold" style={fs(22)}>{t('simpleView:measure.summaryPulse', { value: formatNumber(payload.pulse) })}</p>
+                                    )}
+                                    {payload && payload.notes && (
+                                        <p className="mt-2" style={fs(21)}>{t('simpleView:measure.summaryNote', { text: payload.notes })}</p>
+                                    )}
+                                </div>
                                 <div className="mt-6 grid grid-cols-1 gap-3 min-[512px]:grid-cols-2">
-                                    <button type="button" onClick={() => setVitalForm({ ...vitalForm, step: 'enter' })} className="min-h-[4rem] rounded-2xl px-4 font-bold" style={secondaryButton}>
+                                    <button type="button" onClick={() => setVitalForm({ ...f, step: 'enter' })} className="min-h-[4rem] rounded-2xl px-4 font-bold" style={secondaryButton}>
                                         {t('simpleView:measure.change')}
                                     </button>
                                     <button
@@ -2599,10 +2819,183 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                 </div>
                             </div>
                         )}
-                    </div>
+                    </ViewWindow>
+                );
+            })()}
+
+            {/* E47: Hilfe zum Blutzucker, eigene Seite, Schliessen ueber das X */}
+            {vitalHelp && (
+                <ViewWindow id="rv-measure-help" title={t('simpleView:measure.helpTitle')} layer="dialog" {...windowProps} onClose={() => setVitalHelp(false)}>
+                    {([
+                        ['before', <Apple key="a" className="h-9 w-9 shrink-0" style={{ color: C.blue }} aria-hidden="true" />],
+                        ['after', <AppleBitten key="b" className="h-9 w-9 shrink-0" style={{ color: C.blue }} />],
+                        ['times', <Clock key="c" className="h-9 w-9 shrink-0" style={{ color: C.blue }} aria-hidden="true" />],
+                        ['note', <MessageCircle key="d" className="h-9 w-9 shrink-0" style={{ color: C.blue }} aria-hidden="true" />],
+                    ] as const).map(([part, icon]) => (
+                        <section key={part} className="flex gap-4 rounded-3xl p-5 min-[512px]:p-6" style={tile}>
+                            {icon}
+                            <div className="min-w-0">
+                                <h3 className="font-bold" style={fs(22)}>{t(`simpleView:measure.helpParts.${part}.title`)}</h3>
+                                <p className="mt-1" style={fs(21)}>{t(`simpleView:measure.helpParts.${part}.text`)}</p>
+                            </div>
+                        </section>
+                    ))}
                 </ViewWindow>
             )}
 
+            {/* E47: Tagebuch, neueste zuerst, je 28 Tage, darunter "Weitere laden" */}
+            {diary && (() => {
+                const d = diary;
+                const dateOf = (e: DiaryEntry) => clockDate(e.measured_at);
+                const dayKey = (e: DiaryEntry) => {
+                    const date = dateOf(e);
+                    return date ? localDay(date) : e.measured_at.slice(0, 10);
+                };
+                const dayLabel = (date: Date | null) => (date
+                    ? new Intl.DateTimeFormat(intlLocale(), { day: '2-digit', month: '2-digit' }).format(date)
+                    : '');
+                const num = (type: RecipientVitalType, stored: number) => formatNumber(toDisplayValue(type, stored, unitSystem), { maximumFractionDigits: type === 'weight' ? 1 : 0 });
+                const cell = 'px-2 py-2 text-center tabular-nums';
+                const head = 'px-2 py-2 text-center font-bold';
+                const border = { border: `1px solid ${C.border}` };
+                const IntroIcon = VITAL_ICONS[d.type];
+                return (
+                    <ViewWindow
+                        id="rv-diary-title"
+                        title={t(`simpleView:diary.title.${d.type}`)}
+                        icon={<IntroIcon className="h-9 w-9 shrink-0" style={{ color: C.blue }} aria-hidden="true" />}
+                        layer="dialog"
+                        {...windowProps}
+                        onClose={() => setDiary(null)}
+                    >
+                        <section className="rounded-3xl p-5 min-[512px]:p-6" style={tile}>
+                            <p className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-2" style={fs(20)}>
+                                {d.type === 'glucose' && (
+                                    <>
+                                        <span className="flex items-center gap-2"><Apple className="h-6 w-6 shrink-0" aria-hidden="true" />{t('simpleView:measure.mealRelation.before')}</span>
+                                        <span className="flex items-center gap-2"><AppleBitten className="h-6 w-6 shrink-0" />{t('simpleView:measure.mealRelation.after')}</span>
+                                    </>
+                                )}
+                                <span>{t(`simpleView:diary.${d.more ? 'introAll' : 'intro'}.${d.type}`)}</span>
+                            </p>
+
+                            {d.entries.length > 0 && (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full border-collapse" style={{ ...fs(20), ...border }}>
+                                        {d.type === 'glucose' ? (
+                                            <>
+                                                <thead style={{ backgroundColor: C.bg }}>
+                                                    <tr>
+                                                        <td style={border} />
+                                                        {(['morning', 'noon', 'evening'] as const).map((time) => (
+                                                            <th key={time} scope="colgroup" colSpan={2} className={head} style={border}>{t(`simpleView:measure.mealTime.${time}`)}</th>
+                                                        ))}
+                                                        <td style={border} />
+                                                        <td style={border} />
+                                                    </tr>
+                                                    <tr>
+                                                        <th scope="col" className={head} style={border}>{t('simpleView:diary.col.date')}</th>
+                                                        {GLUCOSE_SLOTS.filter((slot) => slot !== 'late').map((slot) => (
+                                                            <th key={slot} scope="col" className={head} style={border}>
+                                                                {slot.endsWith('before')
+                                                                    ? <Apple className="mx-auto h-6 w-6" aria-hidden="true" />
+                                                                    : <AppleBitten className="mx-auto h-6 w-6" />}
+                                                                <span className="sr-only">
+                                                                    {t(`simpleView:measure.mealTime.${slot.split('-')[0]}`)}, {t(`simpleView:measure.mealRelation.${slot.split('-')[1]}`)}
+                                                                </span>
+                                                            </th>
+                                                        ))}
+                                                        <th scope="col" className={head} style={border}>{t('simpleView:diary.col.late')}</th>
+                                                        <th scope="col" className={head} style={border}>{t('simpleView:diary.col.note')}</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {groupGlucoseDays(d.entries, dayKey).map((row) => {
+                                                        const [y, m, dd] = row.day.split('-').map(Number);
+                                                        const extra = [
+                                                            ...row.untimed.map((e) => t('simpleView:diary.untimed', { time: clockOf(e.measured_at), value: num('glucose', e.value) })),
+                                                            ...row.notes,
+                                                        ];
+                                                        return (
+                                                            <tr key={row.day}>
+                                                                <th scope="row" className={head} style={border}>{dayLabel(y && m && dd ? new Date(y, m - 1, dd) : null)}</th>
+                                                                {GLUCOSE_SLOTS.map((slot) => (
+                                                                    <td key={slot} className={cell} style={border}>
+                                                                        {(row.slots[slot] ?? []).map((e) => <div key={e.id}>{num('glucose', e.value)}</div>)}
+                                                                    </td>
+                                                                ))}
+                                                                <td className="px-2 py-2" style={border}>
+                                                                    {extra.map((text, i) => <div key={i}>{text}</div>)}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <thead style={{ backgroundColor: C.bg }}>
+                                                    <tr>
+                                                        <th scope="col" className={head} style={border}>{t('simpleView:diary.col.date')}</th>
+                                                        <th scope="col" className={head} style={border}>{t('simpleView:diary.col.time')}</th>
+                                                        {d.type === 'weight' ? (
+                                                            <th scope="col" className={head} style={border}>{t('simpleView:diary.col.weight')}</th>
+                                                        ) : (
+                                                            <>
+                                                                <th scope="col" className={head} style={border}>{t('simpleView:measure.label.systolic')}</th>
+                                                                <th scope="col" className={head} style={border}>{t('simpleView:measure.label.diastolic')}</th>
+                                                                <th scope="col" className={head} style={border}>{t('simpleView:diary.col.pulse')}</th>
+                                                            </>
+                                                        )}
+                                                        <th scope="col" className={head} style={border}>{t('simpleView:diary.col.note')}</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {d.entries.map((e) => (
+                                                        <tr key={e.id}>
+                                                            <th scope="row" className={head} style={border}>{dayLabel(dateOf(e))}</th>
+                                                            <td className={cell} style={border}>{clockOf(e.measured_at)}</td>
+                                                            {d.type === 'weight' ? (
+                                                                <td className={cell} style={border}>{`${num('weight', e.value)} ${vitalUnit('weight')}`}</td>
+                                                            ) : (
+                                                                <>
+                                                                    <td className={cell} style={border}>{num('bp', e.value)}</td>
+                                                                    <td className={cell} style={border}>{e.value2 !== null ? num('bp', e.value2) : ''}</td>
+                                                                    <td className={cell} style={border}>{e.pulse !== null ? formatNumber(e.pulse) : ''}</td>
+                                                                </>
+                                                            )}
+                                                            <td className="px-2 py-2" style={border}>{e.notes ?? ''}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </>
+                                        )}
+                                    </table>
+                                </div>
+                            )}
+
+                            {!d.loading && !d.error && d.entries.length === 0 && (
+                                <p className="font-bold" style={fs(21)}>{t('simpleView:diary.empty')}</p>
+                            )}
+                            {d.error && (
+                                <p role="alert" className="font-bold" style={{ ...fs(21), color: C.red }}>{t('simpleView:diary.error')}</p>
+                            )}
+                            {d.nextBefore && (
+                                <button
+                                    type="button"
+                                    disabled={d.loading}
+                                    onClick={() => void loadDiary(d.type, d.nextBefore)}
+                                    className="mt-4 flex min-h-[4rem] w-full items-center justify-center gap-2 rounded-2xl px-4 font-bold disabled:opacity-70"
+                                    style={secondaryButton}
+                                >
+                                    <ChevronDown className="h-7 w-7 shrink-0" aria-hidden="true" />
+                                    {t('simpleView:diary.more')}
+                                </button>
+                            )}
+                        </section>
+                    </ViewWindow>
+                );
+            })()}
 
         </div>
     );

@@ -209,43 +209,210 @@ export function saveFontScale(scale: number): void {
     } catch { /* Speicher gesperrt: gilt dann nur bis zum Neuladen */ }
 }
 
-// ── Block K (E20): Blutzucker und Gewicht selbst eintragen ──
+// ── Block K (E20), E47: Blutzucker, Gewicht und Blutdruck selbst eintragen ──
 
 /** Diese Messwerte traegt die betreute Person selbst ein (wie RECIPIENT_VITAL_TYPES im Server). */
-export const RECIPIENT_VITAL_TYPES = ['glucose', 'weight'] as const;
+export const RECIPIENT_VITAL_TYPES = ['glucose', 'weight', 'bp'] as const;
 export type RecipientVitalType = (typeof RECIPIENT_VITAL_TYPES)[number];
 
+/** E47: Tageszeit einer Blutzucker-Messung und vor/nach dem Essen (wie GLUCOSE_MEAL_* im Server). */
+export const GLUCOSE_MEAL_TIMES = ['morning', 'noon', 'evening', 'late'] as const;
+export const GLUCOSE_MEAL_RELATIONS = ['before', 'after'] as const;
+export type GlucoseMealTime = (typeof GLUCOSE_MEAL_TIMES)[number];
+export type GlucoseMealRelation = (typeof GLUCOSE_MEAL_RELATIONS)[number];
+
+/** Laengste Bemerkung (wie RECIPIENT_VITAL_NOTE_MAX im Server). */
+export const RECIPIENT_VITAL_NOTE_MAX = 300;
+
 /**
- * Grenzen gegen Tippfehler, in der gespeicherten Einheit (Blutzucker g/L, Gewicht kg).
+ * Grenzen gegen Tippfehler, in der gespeicherten Einheit (wie RECIPIENT_VITAL_LIMITS im Server).
  * Eigene Annahme, keine medizinische Vorgabe: was ausserhalb liegt, ist fast sicher vertippt.
- * Blutzucker 20 bis 600 mg/dL, Gewicht 20 bis 250 kg.
+ * Blutzucker 20 bis 600 mg/dL, Gewicht 20 bis 250 kg, Blutdruck systolisch 50 bis 260 und
+ * diastolisch 30 bis 160 mmHg, Puls 30 bis 220 pro Minute.
  */
-export const RECIPIENT_VITAL_LIMITS: Record<RecipientVitalType, { min: number; max: number }> = {
+export const RECIPIENT_VITAL_LIMITS = {
     glucose: { min: 0.2, max: 6 },
     weight: { min: 20, max: 250 },
-};
+    bp: { min: 50, max: 260 },
+    bp2: { min: 30, max: 160 },
+    pulse: { min: 30, max: 220 },
+} as const;
+export type RecipientVitalLimit = keyof typeof RECIPIENT_VITAL_LIMITS;
+
+/** Fehler einer Zahl: leer, falsche Schreibweise, ausserhalb der Grenzen. */
+export type RecipientNumberError = 'empty' | 'format' | 'range';
 
 export type RecipientVitalInput =
     | { ok: true; shown: number; stored: number }
-    | { ok: false; error: 'empty' | 'invalid' };
+    | { ok: false; error: RecipientNumberError };
+
+/** Nachkommastellen bei der Eingabe: Gewicht eine, sonst keine. */
+export const vitalInputDecimals = (limit: RecipientVitalLimit): number => (limit === 'weight' ? 1 : 0);
 
 /**
- * Eingabe pruefen: Komma oder Punkt als Dezimalzeichen, Leerzeichen egal.
- * toStorage rechnet die angezeigte Einheit in die gespeicherte um (lib/units.ts).
+ * Eine Zahl pruefen: Komma oder Punkt als Dezimalzeichen, Leerzeichen egal, nur Ziffern,
+ * beim Gewicht hoechstens eine Stelle nach dem Komma. toStorage rechnet die angezeigte
+ * Einheit in die gespeicherte um (lib/units.ts); die Grenzen gelten fuer den gespeicherten Wert.
  */
 export function parseRecipientVital(
-    type: RecipientVitalType,
+    limit: RecipientVitalLimit,
     text: string,
     toStorage: (shown: number) => number
 ): RecipientVitalInput {
     const clean = text.replace(/\s+/g, '').replace(',', '.');
     if (!clean) return { ok: false, error: 'empty' };
-    if (!/^\d+(\.\d+)?$/.test(clean)) return { ok: false, error: 'invalid' };
+    const decimals = vitalInputDecimals(limit);
+    const pattern = decimals > 0 ? new RegExp(`^\\d+(\\.\\d{1,${decimals}})?$`) : /^\d+$/;
+    if (!pattern.test(clean)) return { ok: false, error: 'format' };
     const shown = Number(clean);
     const stored = toStorage(shown);
-    const { min, max } = RECIPIENT_VITAL_LIMITS[type];
-    if (!Number.isFinite(stored) || stored < min || stored > max) return { ok: false, error: 'invalid' };
+    const { min, max } = RECIPIENT_VITAL_LIMITS[limit];
+    if (!Number.isFinite(stored) || stored < min || stored > max) return { ok: false, error: 'range' };
     return { ok: true, shown, stored };
+}
+
+/** Eingaben der Seite "... eintragen" (E47). */
+export interface RecipientVitalFormInput {
+    type: RecipientVitalType;
+    /** Blutzucker, Gewicht oder Blutdruck systolisch */
+    text: string;
+    /** Blutdruck diastolisch */
+    text2: string;
+    /** Blutdruck: Puls, freiwillig */
+    pulse: string;
+    note: string;
+    mealTime: GlucoseMealTime | null;
+    mealRelation: GlucoseMealRelation | null;
+}
+
+export type RecipientVitalField = 'value' | 'value2' | 'pulse' | 'mealTime' | 'mealRelation';
+export type RecipientVitalFieldError = RecipientNumberError | 'order' | 'choose';
+export type RecipientVitalErrors = Partial<Record<RecipientVitalField, RecipientVitalFieldError>>;
+
+/** So geht der Eintrag an POST /api/vitals (Werte in der gespeicherten Einheit). */
+export interface RecipientVitalPayload {
+    type: RecipientVitalType;
+    value: number;
+    value2: number | null;
+    pulse: number | null;
+    notes: string | null;
+    meal_time: GlucoseMealTime | null;
+    meal_relation: GlucoseMealRelation | null;
+}
+
+/**
+ * Ganze Eingabe pruefen. Blutzucker: Tageszeit Pflicht, vor/nach dem Essen Pflicht ausser bei
+ * "Spaet" (dann faellt die Frage weg). Blutdruck: beide Werte Pflicht, systolisch groesser als
+ * diastolisch, Puls freiwillig. Bemerkung freiwillig, Leerzeichen zusammengezogen.
+ */
+export function checkRecipientVitalForm(
+    input: RecipientVitalFormInput,
+    toStorage: (shown: number) => number
+): { ok: true; payload: RecipientVitalPayload } | { ok: false; errors: RecipientVitalErrors } {
+    const errors: RecipientVitalErrors = {};
+    const first = parseRecipientVital(input.type, input.text, toStorage);
+    if (!first.ok) errors.value = first.error;
+
+    let value2: number | null = null;
+    let pulse: number | null = null;
+    if (input.type === 'bp') {
+        const second = parseRecipientVital('bp2', input.text2, (n) => n);
+        if (!second.ok) errors.value2 = second.error;
+        else value2 = second.stored;
+        if (first.ok && second.ok && second.stored >= first.stored) errors.value2 = 'order';
+        if (input.pulse.trim()) {
+            const p = parseRecipientVital('pulse', input.pulse, (n) => n);
+            if (!p.ok) errors.pulse = p.error;
+            else pulse = p.stored;
+        }
+    }
+
+    let mealTime: GlucoseMealTime | null = null;
+    let mealRelation: GlucoseMealRelation | null = null;
+    if (input.type === 'glucose') {
+        if (!input.mealTime) errors.mealTime = 'choose';
+        else mealTime = input.mealTime;
+        if (input.mealTime !== 'late') {
+            if (!input.mealRelation) errors.mealRelation = 'choose';
+            else mealRelation = input.mealRelation;
+        }
+    }
+
+    if (!first.ok || Object.keys(errors).length > 0) return { ok: false, errors };
+    const note = input.note.replace(/\s+/g, ' ').trim().slice(0, RECIPIENT_VITAL_NOTE_MAX);
+    return {
+        ok: true,
+        payload: {
+            type: input.type,
+            value: first.stored,
+            value2,
+            pulse,
+            notes: note || null,
+            meal_time: mealTime,
+            meal_relation: mealRelation,
+        },
+    };
+}
+
+/** E47: ein Wert im Tagebuch (GET /api/vitals/diary). */
+export interface DiaryEntry {
+    id: string;
+    type: RecipientVitalType;
+    value: number;
+    value2: number | null;
+    pulse: number | null;
+    measured_at: string;
+    notes: string | null;
+    meal_time: GlucoseMealTime | null;
+    meal_relation: GlucoseMealRelation | null;
+}
+
+/** Spalte einer Blutzucker-Zeile: Tageszeit plus vor/nach, "late" ohne vor/nach. */
+export type GlucoseSlot = 'morning-before' | 'morning-after' | 'noon-before' | 'noon-after' | 'evening-before' | 'evening-after' | 'late';
+export const GLUCOSE_SLOTS: GlucoseSlot[] = ['morning-before', 'morning-after', 'noon-before', 'noon-after', 'evening-before', 'evening-after', 'late'];
+
+export const glucoseSlotOf = (entry: Pick<DiaryEntry, 'meal_time' | 'meal_relation'>): GlucoseSlot | null => {
+    if (entry.meal_time === 'late') return 'late';
+    if (!entry.meal_time || !entry.meal_relation) return null;
+    return `${entry.meal_time}-${entry.meal_relation}` as GlucoseSlot;
+};
+
+/** Eine Zeile der Blutzucker-Tabelle (wie das Papierheft): ein Tag, Werte je Spalte. */
+export interface GlucoseDayRow {
+    day: string;
+    slots: Partial<Record<GlucoseSlot, DiaryEntry[]>>;
+    /** Werte ohne Tageszeit (z. B. am PC eingetragen), stehen bei der Bemerkung */
+    untimed: DiaryEntry[];
+    notes: string[];
+}
+
+/**
+ * Blutzucker-Werte (neueste zuerst) nach Tag gruppieren. dayOf liefert den Tag eines
+ * Werts als "YYYY-MM-DD". In einer Spalte stehen mehrere Werte eines Tages untereinander,
+ * aelteste zuerst; die Tage bleiben neueste zuerst.
+ */
+export function groupGlucoseDays(entries: DiaryEntry[], dayOf: (entry: DiaryEntry) => string): GlucoseDayRow[] {
+    const rows: GlucoseDayRow[] = [];
+    const byDay = new Map<string, GlucoseDayRow>();
+    for (const entry of entries) {
+        const day = dayOf(entry);
+        let row = byDay.get(day);
+        if (!row) {
+            row = { day, slots: {}, untimed: [], notes: [] };
+            byDay.set(day, row);
+            rows.push(row);
+        }
+        const slot = glucoseSlotOf(entry);
+        if (slot) {
+            const list = row.slots[slot] ?? [];
+            list.unshift(entry);
+            row.slots[slot] = list;
+        } else {
+            row.untimed.unshift(entry);
+        }
+        if (entry.notes) row.notes.unshift(entry.notes);
+    }
+    return rows;
 }
 
 // ── Block L3 (E21): Termin selbst anlegen ──

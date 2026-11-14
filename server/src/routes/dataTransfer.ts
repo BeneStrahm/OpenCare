@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { getClient, query } from '../db';
 import { authMiddleware } from '../middleware/auth';
-import { circleMiddleware, requireAdmin, CircleRequest } from '../middleware/circle';
+import { circleMiddleware, requireAdmin, CircleRequest, parseGlucoseMeal } from '../middleware/circle';
 import { broadcastToCircle } from '../lib/broadcaster';
 import { FILE_DATA_URL_REGEX, IMAGE_DATA_URL_REGEX, cleanImportedAttachments } from '../lib/dataUrls';
 import { cleanAidType } from '../lib/circleSettings';
@@ -319,13 +319,16 @@ router.post('/import', async (req: CircleRequest, res: Response) => {
                 bump(skipped, 'vitals');
                 continue;
             }
+            // E47: Tageszeit und vor/nach dem Essen nur beim Blutzucker, ungueltige Angaben leer
+            const meal = row.type === 'glucose' ? parseGlucoseMeal(row.meal_time, row.meal_relation) : null;
             await insert('vitals',
-                ['circle_id', 'type', 'value', 'value2', 'pulse', 'unit', 'measured_at', 'journal_entry_id', 'recorded_by_user', 'notes', 'created_at'],
+                ['circle_id', 'type', 'value', 'value2', 'pulse', 'unit', 'measured_at', 'journal_entry_id', 'recorded_by_user', 'notes', 'created_at', 'meal_time', 'meal_relation'],
                 [circleId, row.type, value, numberOrNull(row.value2), numberOrNull(row.pulse), textOrNull(row.unit),
                     row.measured_at ?? tsOrNow(row.created_at),
                     mapOrNull(journalMap, row.journal_entry_id),
                     await userOrNull(row.recorded_by_user),
-                    textOrNull(row.notes), tsOrNow(row.created_at)]
+                    textOrNull(row.notes), tsOrNow(row.created_at),
+                    meal?.ok ? meal.meal_time : null, meal?.ok ? meal.meal_relation : null]
             );
             bump(imported, 'vitals');
         }

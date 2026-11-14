@@ -108,15 +108,22 @@
     "slate": "Slate grey"
   },
   "measure": {
-    "title": "Enter readings",
+    "title": "Health readings",
     "now": "Enter now",
     "button": {
       "glucose": "Enter blood sugar",
-      "weight": "Enter weight"
+      "weight": "Enter weight",
+      "bp": "Enter blood pressure"
     },
     "label": {
       "glucose": "Your blood sugar in {{unit}}",
-      "weight": "Your weight in {{unit}}"
+      "weight": "Your weight in {{unit}}",
+      "systolic": "Systolic",
+      "diastolic": "Diastolic",
+      "pulse": "Pulse (optional)",
+      "note": "Note (optional)",
+      "mealTime": "When did you measure?",
+      "mealRelation": "Before or after eating?"
     },
     "cancel": "Cancel",
     "next": "Next",
@@ -126,13 +133,61 @@
     "saved": "Saved, well done!",
     "entered": {
       "glucose": "Blood sugar entered: {{value}}",
-      "weight": "Weight entered: {{value}}"
+      "weight": "Weight entered: {{value}}",
+      "bp": "Blood pressure entered: {{value}}"
     },
     "error": {
       "empty": "Please type in a number.",
-      "invalid": "This number does not look right. Please check the reading and type it in again."
+      "format": "Please type in digits only, for example {{example}}.",
+      "formatDecimal": "Please type in digits only, with at most one digit after the decimal point, for example {{example}}.",
+      "range": "This reading is unusually high or low (possible: {{min}} to {{max}}). Please check it.",
+      "order": "The upper reading (systolic) must be higher than the lower one (diastolic). Please check both readings.",
+      "mealTime": "Please choose when you measured.",
+      "mealRelation": "Please choose: before or after eating."
     },
-    "choose": "What would you like to enter?"
+    "choose": "What would you like to enter?",
+    "diaryChoose": "Diary: what would you like to see?",
+    "tile": {
+      "glucose": "Blood sugar",
+      "weight": "Weight",
+      "bp": "Blood pressure"
+    },
+    "mealTime": {
+      "morning": "Morning",
+      "noon": "Midday",
+      "evening": "Evening",
+      "late": "Late"
+    },
+    "mealRelation": {
+      "before": "Before eating",
+      "after": "After eating"
+    },
+    "perMinute": "/ min",
+    "back": "Back",
+    "enter": "Enter",
+    "help": "Help",
+    "helpTitle": "Help: blood sugar",
+    "helpParts": {
+      "before": {
+        "title": "Whole apple: before eating",
+        "text": "You measured before you ate. For example in the morning before breakfast."
+      },
+      "after": {
+        "title": "Bitten apple: after eating",
+        "text": "You measured after eating, about 2 hours later."
+      },
+      "times": {
+        "title": "Morning, Midday, Evening, Late",
+        "text": "Tap the meal the reading belongs to. \"Late\" means before going to bed. Then there is no question about eating."
+      },
+      "note": {
+        "title": "Note",
+        "text": "Optional. For example: \"Had cake\" or \"I felt shaky\"."
+      }
+    },
+    "summaryMeal": "{{time}}, {{relation}}",
+    "summaryPulse": "Pulse: {{value}} per minute",
+    "summaryNote": "Note: {{text}}"
   },
   "window": {
     "close": "Close",
@@ -230,5 +285,34 @@
     "medsButton": "Go to medication",
     "event": "Today at {{time}}: {{title}}",
     "eventButton": "View"
+  },
+  "diary": {
+    "title": {
+      "glucose": "History: blood sugar",
+      "weight": "History: weight",
+      "bp": "History: blood pressure"
+    },
+    "intro": {
+      "glucose": "Readings in mg/dL, last 28 days, newest first",
+      "weight": "Last 28 days, newest first",
+      "bp": "Blood pressure in mmHg, pulse per minute, last 28 days, newest first"
+    },
+    "introAll": {
+      "glucose": "Readings in mg/dL, newest first",
+      "weight": "Newest first",
+      "bp": "Blood pressure in mmHg, pulse per minute, newest first"
+    },
+    "col": {
+      "date": "Date",
+      "time": "Time",
+      "weight": "Weight",
+      "pulse": "Pulse",
+      "late": "late",
+      "note": "Note"
+    },
+    "untimed": "{{time}}: {{value}}",
+    "more": "Load more",
+    "empty": "There are no readings in this period.",
+    "error": "The readings could not be loaded. Please check the internet connection and try again."
   }
 }

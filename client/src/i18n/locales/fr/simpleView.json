@@ -108,15 +108,22 @@
     "slate": "Gris ardoise"
   },
   "measure": {
-    "title": "Saisir les mesures",
+    "title": "Mesures de santé",
     "now": "Saisir maintenant",
     "button": {
       "glucose": "Saisir la glycémie",
-      "weight": "Saisir le poids"
+      "weight": "Saisir le poids",
+      "bp": "Saisir la tension"
     },
     "label": {
       "glucose": "Votre glycémie en {{unit}}",
-      "weight": "Votre poids en {{unit}}"
+      "weight": "Votre poids en {{unit}}",
+      "systolic": "Systolique",
+      "diastolic": "Diastolique",
+      "pulse": "Pouls (facultatif)",
+      "note": "Remarque (facultatif)",
+      "mealTime": "Quand avez-vous mesuré ?",
+      "mealRelation": "Avant ou après le repas ?"
     },
     "cancel": "Annuler",
     "next": "Suivant",
@@ -126,13 +133,61 @@
     "saved": "Enregistré, très bien !",
     "entered": {
       "glucose": "Glycémie saisie : {{value}}",
-      "weight": "Poids saisi : {{value}}"
+      "weight": "Poids saisi : {{value}}",
+      "bp": "Tension saisie : {{value}}"
     },
     "error": {
       "empty": "Veuillez saisir un nombre.",
-      "invalid": "Ce nombre ne convient pas. Veuillez vérifier la mesure et la saisir à nouveau."
+      "format": "Veuillez saisir uniquement des chiffres, par exemple {{example}}.",
+      "formatDecimal": "Veuillez saisir uniquement des chiffres, avec au plus un chiffre après la virgule, par exemple {{example}}.",
+      "range": "Cette valeur est inhabituellement haute ou basse (possible : de {{min}} à {{max}}). Veuillez la vérifier.",
+      "order": "La valeur haute (systolique) doit être supérieure à la valeur basse (diastolique). Veuillez vérifier les deux valeurs.",
+      "mealTime": "Veuillez choisir quand vous avez mesuré.",
+      "mealRelation": "Veuillez choisir : avant ou après le repas."
     },
-    "choose": "Que voulez-vous noter ?"
+    "choose": "Que voulez-vous noter ?",
+    "diaryChoose": "Carnet : que voulez-vous voir ?",
+    "tile": {
+      "glucose": "Glycémie",
+      "weight": "Poids",
+      "bp": "Tension"
+    },
+    "mealTime": {
+      "morning": "Matin",
+      "noon": "Midi",
+      "evening": "Soir",
+      "late": "Tard"
+    },
+    "mealRelation": {
+      "before": "Avant le repas",
+      "after": "Après le repas"
+    },
+    "perMinute": "/ min",
+    "back": "Retour",
+    "enter": "Saisir",
+    "help": "Aide",
+    "helpTitle": "Aide : glycémie",
+    "helpParts": {
+      "before": {
+        "title": "Pomme entière : avant le repas",
+        "text": "Vous avez mesuré avant de manger. Par exemple le matin à jeun."
+      },
+      "after": {
+        "title": "Pomme croquée : après le repas",
+        "text": "Vous avez mesuré après le repas, environ 2 heures après."
+      },
+      "times": {
+        "title": "Matin, Midi, Soir, Tard",
+        "text": "Touchez le repas auquel la mesure se rapporte. « Tard » veut dire : avant le coucher. La question sur le repas disparaît alors."
+      },
+      "note": {
+        "title": "Remarque",
+        "text": "Facultatif. Par exemple : « Gâteau mangé » ou « Je tremblais »."
+      }
+    },
+    "summaryMeal": "{{time}}, {{relation}}",
+    "summaryPulse": "Pouls : {{value}} par minute",
+    "summaryNote": "Remarque : {{text}}"
   },
   "window": {
     "close": "Fermer",
@@ -230,5 +285,34 @@
     "medsButton": "Voir les médicaments",
     "event": "Aujourd'hui à {{time}} : {{title}}",
     "eventButton": "Voir"
+  },
+  "diary": {
+    "title": {
+      "glucose": "Historique : glycémie",
+      "weight": "Historique : poids",
+      "bp": "Historique : tension"
+    },
+    "intro": {
+      "glucose": "Valeurs en mg/dL, 28 derniers jours, les plus récentes en premier",
+      "weight": "28 derniers jours, les plus récentes en premier",
+      "bp": "Tension en mmHg, pouls par minute, 28 derniers jours, les plus récentes en premier"
+    },
+    "introAll": {
+      "glucose": "Valeurs en mg/dL, les plus récentes en premier",
+      "weight": "Les plus récentes en premier",
+      "bp": "Tension en mmHg, pouls par minute, les plus récentes en premier"
+    },
+    "col": {
+      "date": "Date",
+      "time": "Heure",
+      "weight": "Poids",
+      "pulse": "Pouls",
+      "late": "tard",
+      "note": "Remarque"
+    },
+    "untimed": "{{time}} : {{value}}",
+    "more": "Charger plus",
+    "empty": "Aucune valeur sur cette période.",
+    "error": "Les valeurs n’ont pas pu être chargées. Veuillez vérifier la connexion Internet et réessayer."
   }
 }

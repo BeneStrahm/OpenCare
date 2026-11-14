@@ -108,15 +108,22 @@
     "slate": "Gris pizarra"
   },
   "measure": {
-    "title": "Anotar mediciones",
+    "title": "Mediciones de salud",
     "now": "Anotar ahora",
     "button": {
       "glucose": "Anotar glucemia",
-      "weight": "Anotar peso"
+      "weight": "Anotar peso",
+      "bp": "Anotar tensión"
     },
     "label": {
       "glucose": "Su glucemia en {{unit}}",
-      "weight": "Su peso en {{unit}}"
+      "weight": "Su peso en {{unit}}",
+      "systolic": "Sistólica",
+      "diastolic": "Diastólica",
+      "pulse": "Pulso (opcional)",
+      "note": "Comentario (opcional)",
+      "mealTime": "¿Cuándo ha medido?",
+      "mealRelation": "¿Antes o después de comer?"
     },
     "cancel": "Cancelar",
     "next": "Siguiente",
@@ -126,13 +133,61 @@
     "saved": "¡Guardado, muy bien!",
     "entered": {
       "glucose": "Glucemia anotada: {{value}}",
-      "weight": "Peso anotado: {{value}}"
+      "weight": "Peso anotado: {{value}}",
+      "bp": "Tensión anotada: {{value}}"
     },
     "error": {
       "empty": "Por favor, escriba un número.",
-      "invalid": "Este número no parece correcto. Por favor, revise la medición y escríbala de nuevo."
+      "format": "Por favor, escriba solo cifras, por ejemplo {{example}}.",
+      "formatDecimal": "Por favor, escriba solo cifras, con como máximo un decimal, por ejemplo {{example}}.",
+      "range": "Este valor es inusualmente alto o bajo (posible: de {{min}} a {{max}}). Por favor, revíselo.",
+      "order": "El valor alto (sistólica) debe ser mayor que el bajo (diastólica). Por favor, revise ambos valores.",
+      "mealTime": "Por favor, elija cuándo ha medido.",
+      "mealRelation": "Por favor, elija: antes o después de comer."
     },
-    "choose": "¿Qué quiere anotar?"
+    "choose": "¿Qué quiere anotar?",
+    "diaryChoose": "Diario: ¿qué quiere ver?",
+    "tile": {
+      "glucose": "Glucemia",
+      "weight": "Peso",
+      "bp": "Tensión"
+    },
+    "mealTime": {
+      "morning": "Mañana",
+      "noon": "Mediodía",
+      "evening": "Noche",
+      "late": "Tarde"
+    },
+    "mealRelation": {
+      "before": "Antes de comer",
+      "after": "Después de comer"
+    },
+    "perMinute": "/ min",
+    "back": "Volver",
+    "enter": "Anotar",
+    "help": "Ayuda",
+    "helpTitle": "Ayuda: glucemia",
+    "helpParts": {
+      "before": {
+        "title": "Manzana entera: antes de comer",
+        "text": "Ha medido antes de comer. Por ejemplo, por la mañana en ayunas."
+      },
+      "after": {
+        "title": "Manzana mordida: después de comer",
+        "text": "Ha medido después de comer, unas 2 horas después."
+      },
+      "times": {
+        "title": "Mañana, Mediodía, Noche, Tarde",
+        "text": "Toque la comida a la que corresponde la medición. «Tarde» significa: antes de acostarse. Entonces no hay pregunta sobre la comida."
+      },
+      "note": {
+        "title": "Comentario",
+        "text": "Opcional. Por ejemplo: «Comí pastel» o «Me sentía tembloroso»."
+      }
+    },
+    "summaryMeal": "{{time}}, {{relation}}",
+    "summaryPulse": "Pulso: {{value}} por minuto",
+    "summaryNote": "Comentario: {{text}}"
   },
   "window": {
     "close": "Cerrar",
@@ -230,5 +285,34 @@
     "medsButton": "Ir a los medicamentos",
     "event": "Hoy a las {{time}}: {{title}}",
     "eventButton": "Ver"
+  },
+  "diary": {
+    "title": {
+      "glucose": "Historial: glucemia",
+      "weight": "Historial: peso",
+      "bp": "Historial: tensión"
+    },
+    "intro": {
+      "glucose": "Valores en mg/dL, últimos 28 días, los más recientes primero",
+      "weight": "Últimos 28 días, los más recientes primero",
+      "bp": "Tensión en mmHg, pulso por minuto, últimos 28 días, los más recientes primero"
+    },
+    "introAll": {
+      "glucose": "Valores en mg/dL, los más recientes primero",
+      "weight": "Los más recientes primero",
+      "bp": "Tensión en mmHg, pulso por minuto, los más recientes primero"
+    },
+    "col": {
+      "date": "Fecha",
+      "time": "Hora",
+      "weight": "Peso",
+      "pulse": "Pulso",
+      "late": "tarde",
+      "note": "Comentario"
+    },
+    "untimed": "{{time}}: {{value}}",
+    "more": "Cargar más",
+    "empty": "No hay valores en este periodo.",
+    "error": "No se han podido cargar los valores. Por favor, compruebe la conexión a internet e inténtelo de nuevo."
   }
 }

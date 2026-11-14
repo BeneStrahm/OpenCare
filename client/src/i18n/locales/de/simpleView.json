@@ -108,15 +108,22 @@
     "slate": "Schiefergrau"
   },
   "measure": {
-    "title": "Gesundheitswert eintragen",
+    "title": "Gesundheitswerte",
     "now": "Jetzt eintragen",
     "button": {
       "glucose": "Blutzucker eintragen",
-      "weight": "Gewicht eintragen"
+      "weight": "Gewicht eintragen",
+      "bp": "Blutdruck eintragen"
     },
     "label": {
       "glucose": "Ihr Blutzucker in {{unit}}",
-      "weight": "Ihr Gewicht in {{unit}}"
+      "weight": "Ihr Gewicht in {{unit}}",
+      "systolic": "Systolisch",
+      "diastolic": "Diastolisch",
+      "pulse": "Puls (freiwillig)",
+      "note": "Bemerkung (freiwillig)",
+      "mealTime": "Wann haben Sie gemessen?",
+      "mealRelation": "Vor oder nach dem Essen?"
     },
     "cancel": "Abbrechen",
     "next": "Weiter",
@@ -126,13 +133,61 @@
     "saved": "Gespeichert, sehr gut!",
     "entered": {
       "glucose": "Blutzucker eingetragen: {{value}}",
-      "weight": "Gewicht eingetragen: {{value}}"
+      "weight": "Gewicht eingetragen: {{value}}",
+      "bp": "Blutdruck eingetragen: {{value}}"
     },
     "error": {
       "empty": "Bitte tippen Sie eine Zahl ein.",
-      "invalid": "Diese Zahl passt nicht. Bitte prüfen Sie den Wert und tippen Sie ihn noch einmal ein."
+      "format": "Bitte tippen Sie nur Ziffern ein, zum Beispiel {{example}}.",
+      "formatDecimal": "Bitte tippen Sie nur Ziffern und höchstens eine Stelle nach dem Komma ein, zum Beispiel {{example}}.",
+      "range": "Dieser Wert ist ungewöhnlich hoch oder niedrig (möglich sind {{min}} bis {{max}}). Bitte prüfen Sie ihn.",
+      "order": "Der obere Wert (systolisch) muss größer sein als der untere (diastolisch). Bitte prüfen Sie beide Werte.",
+      "mealTime": "Bitte wählen Sie, wann Sie gemessen haben.",
+      "mealRelation": "Bitte wählen Sie: vor oder nach dem Essen."
     },
-    "choose": "Was möchten Sie eintragen?"
+    "choose": "Was möchten Sie eintragen?",
+    "diaryChoose": "Tagebuch: Was möchten Sie ansehen?",
+    "tile": {
+      "glucose": "Blutzucker",
+      "weight": "Gewicht",
+      "bp": "Blutdruck"
+    },
+    "mealTime": {
+      "morning": "Morgens",
+      "noon": "Mittags",
+      "evening": "Abends",
+      "late": "Spät"
+    },
+    "mealRelation": {
+      "before": "Vor dem Essen",
+      "after": "Nach dem Essen"
+    },
+    "perMinute": "/ min",
+    "back": "Zurück",
+    "enter": "Eintragen",
+    "help": "Hilfe",
+    "helpTitle": "Hilfe: Blutzucker",
+    "helpParts": {
+      "before": {
+        "title": "Ganzer Apfel: vor dem Essen",
+        "text": "Sie haben gemessen, bevor Sie gegessen haben. Zum Beispiel morgens nüchtern."
+      },
+      "after": {
+        "title": "Angebissener Apfel: nach dem Essen",
+        "text": "Sie haben nach dem Essen gemessen, etwa 2 Stunden danach."
+      },
+      "times": {
+        "title": "Morgens, Mittags, Abends, Spät",
+        "text": "Tippen Sie an, zu welcher Mahlzeit die Messung gehört. „Spät“ heißt: vor dem Schlafengehen. Dann fällt die Frage nach dem Essen weg."
+      },
+      "note": {
+        "title": "Bemerkung",
+        "text": "Freiwillig. Zum Beispiel: „Kuchen gegessen“ oder „Mir war zittrig“."
+      }
+    },
+    "summaryMeal": "{{time}}, {{relation}}",
+    "summaryPulse": "Puls: {{value}} pro Minute",
+    "summaryNote": "Bemerkung: {{text}}"
   },
   "window": {
     "close": "Schließen",
@@ -230,5 +285,34 @@
     "medsButton": "Zu den Medikamenten",
     "event": "Heute um {{time}} Uhr: {{title}}",
     "eventButton": "Ansehen"
+  },
+  "diary": {
+    "title": {
+      "glucose": "Verlauf: Blutzucker",
+      "weight": "Verlauf: Gewicht",
+      "bp": "Verlauf: Blutdruck"
+    },
+    "intro": {
+      "glucose": "Werte in mg/dL, letzte 28 Tage, neueste zuerst",
+      "weight": "Letzte 28 Tage, neueste zuerst",
+      "bp": "Blutdruck in mmHg, Puls pro Minute, letzte 28 Tage, neueste zuerst"
+    },
+    "introAll": {
+      "glucose": "Werte in mg/dL, neueste zuerst",
+      "weight": "Neueste zuerst",
+      "bp": "Blutdruck in mmHg, Puls pro Minute, neueste zuerst"
+    },
+    "col": {
+      "date": "Datum",
+      "time": "Uhrzeit",
+      "weight": "Gewicht",
+      "pulse": "Puls",
+      "late": "spät",
+      "note": "Bemerkung"
+    },
+    "untimed": "{{time}} Uhr: {{value}}",
+    "more": "Weitere laden",
+    "empty": "In diesem Zeitraum gibt es keine Werte.",
+    "error": "Die Werte konnten nicht geladen werden. Bitte prüfen Sie die Internetverbindung und versuchen Sie es noch einmal."
   }
 }

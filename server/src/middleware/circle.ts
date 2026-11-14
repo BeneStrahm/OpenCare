@@ -23,10 +23,13 @@ export const CIRCLE_ROLES: CircleRole[] = ['admin', 'family', 'professional', 'n
  *   die Familie bekommt einen Hinweis). "Spaeter erinnern" ist entfernt (14. November).
  *   Eine eigene Bestaetigung oder ein eigenes Ueberspringen (Quelle self) darf sie
  *   RECIPIENT_INTAKE_UNDO_SECONDS lang selbst zuruecksetzen (recipientMayChangeIntake).
- *   Block K (E20): traegt Blutzucker und Gewicht selbst ein (RECIPIENT_VITAL_TYPES,
- *   POST /api/vitals). Nur diese zwei Werte, immer mit der Zeit "jetzt", ohne
- *   Notiz. Einen eigenen Eintrag darf sie RECIPIENT_UNDO_MINUTES lang loeschen
- *   (recipientVitalUndoMsLeft), aendern nicht. Andere Messwerte liest sie nicht.
+ *   Block K (E20, erweitert E47): traegt Blutzucker, Gewicht und Blutdruck selbst ein
+ *   (RECIPIENT_VITAL_TYPES, POST /api/vitals), immer mit der Zeit "jetzt", mit Bemerkung,
+ *   beim Blutzucker mit Tageszeit und vor/nach dem Essen, beim Blutdruck mit Puls
+ *   (parseRecipientVitalEntry, Grenzen gegen Tippfehler RECIPIENT_VITAL_LIMITS).
+ *   Einen eigenen Eintrag darf sie RECIPIENT_UNDO_MINUTES lang loeschen
+ *   (recipientVitalUndoMsLeft), aendern nicht. Lesen nur diese drei Arten, nur ueber
+ *   GET /api/vitals/diary (Tagebuch, je 28 Tage), keine anderen Messwerte.
  *   Block L3 (E21): legt selbst einen Termin an, nur Titel und Beginn, Kategorie
  *   "Sonstige", ohne Serie und ohne Teilnehmende (parseRecipientEvent). Den eigenen
  *   neuen Termin darf sie RECIPIENT_UNDO_MINUTES lang loeschen
@@ -72,10 +75,12 @@ export const RECIPIENT_ALLOWED_REQUESTS: Array<{ method: 'GET' | 'POST' | 'PUT' 
     { method: 'GET', path: new RegExp(`^/api/view-photos(/${SEGMENT})?$`) },
     // Block E: offene Messwert-Erinnerungen von heute (nur Art und Uhrzeit, keine Werte)
     { method: 'GET', path: /^\/api\/vitals\/reminders\/today$/ },
-    // Block K: Blutzucker und Gewicht selbst eintragen, eigene Eintraege 10 Minuten
-    // rueckgaengig machen. Die Route prueft Art, Urheber und Zeit (routes/vitals.ts).
+    // Block K, E47: Blutzucker, Gewicht und Blutdruck selbst eintragen, eigene Eintraege 10 Minuten
+    // rueckgaengig machen. Die Route prueft Art, Werte, Urheber und Zeit (routes/vitals.ts).
     { method: 'POST', path: /^\/api\/vitals$/ },
     { method: 'GET', path: /^\/api\/vitals\/mine\/undoable$/ },
+    // E47: Tagebuch der Gesundheitswerte lesen (Blutzucker, Gewicht, Blutdruck, je 28 Tage).
+    { method: 'GET', path: /^\/api\/vitals\/diary$/ },
     { method: 'DELETE', path: new RegExp(`^/api/vitals/${SEGMENT}$`) },
     // Block L3: eigenen Termin anlegen und 10 Minuten rueckgaengig machen.
     // Die Route prueft Felder, Urheber und Zeit (routes/events.ts).
@@ -134,11 +139,118 @@ export function recipientMayChangeIntake(
     return false;
 }
 
-/** Block K: diese Messwerte traegt die betreute Person selbst ein. */
-export const RECIPIENT_VITAL_TYPES = ['glucose', 'weight'] as const;
+/** Block K, E47: diese Messwerte traegt die betreute Person selbst ein und liest sie im Tagebuch. */
+export const RECIPIENT_VITAL_TYPES = ['glucose', 'weight', 'bp'] as const;
+export type RecipientVitalType = (typeof RECIPIENT_VITAL_TYPES)[number];
 
 export const recipientMayRecordVital = (type: unknown): boolean =>
     typeof type === 'string' && (RECIPIENT_VITAL_TYPES as readonly string[]).includes(type);
+
+/** E47: Tageszeit einer Blutzucker-Messung (wie im Papierheft) und vor/nach dem Essen. */
+export const GLUCOSE_MEAL_TIMES = ['morning', 'noon', 'evening', 'late'] as const;
+export const GLUCOSE_MEAL_RELATIONS = ['before', 'after'] as const;
+export type GlucoseMealTime = (typeof GLUCOSE_MEAL_TIMES)[number];
+export type GlucoseMealRelation = (typeof GLUCOSE_MEAL_RELATIONS)[number];
+
+/** Laengste Bemerkung zu einem Gesundheitswert der betreuten Person. */
+export const RECIPIENT_VITAL_NOTE_MAX = 300;
+
+/**
+ * Grenzen gegen Tippfehler in der gespeicherten Einheit (gleich in client/src/lib/recipientView.ts).
+ * Eigene Annahme, keine medizinische Vorgabe: was ausserhalb liegt, ist fast sicher vertippt.
+ * Blutzucker 20 bis 600 mg/dL (0,2 bis 6 g/L), Gewicht 20 bis 250 kg, Blutdruck systolisch
+ * 50 bis 260 und diastolisch 30 bis 160 mmHg, Puls 30 bis 220 pro Minute.
+ */
+export const RECIPIENT_VITAL_LIMITS = {
+    glucose: { min: 0.2, max: 6 },
+    weight: { min: 20, max: 250 },
+    bp: { min: 50, max: 260 },
+    bp2: { min: 30, max: 160 },
+    pulse: { min: 30, max: 220 },
+} as const;
+
+/** Gepruefter Eintrag der betreuten Person, so wie er in vitals gespeichert wird. */
+export interface RecipientVitalEntry {
+    type: RecipientVitalType;
+    value: number;
+    value2: number | null;
+    pulse: number | null;
+    unit: string;
+    notes: string | null;
+    meal_time: GlucoseMealTime | null;
+    meal_relation: GlucoseMealRelation | null;
+}
+
+const inLimits = (n: number, limits: { min: number; max: number }) => n >= limits.min && n <= limits.max;
+const toNumber = (raw: unknown): number | null => {
+    if (raw === undefined || raw === null || raw === '') return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : NaN;
+};
+
+/**
+ * Tageszeit und vor/nach dem Essen pruefen (nur Blutzucker, alle Rollen).
+ * Beides darf fehlen (aeltere Eintraege, Normalansicht). Bei "late" (spaet) gibt es kein vor/nach.
+ */
+export function parseGlucoseMeal(
+    mealTime: unknown, mealRelation: unknown
+): { ok: true; meal_time: GlucoseMealTime | null; meal_relation: GlucoseMealRelation | null } | { ok: false } {
+    const time = mealTime === undefined || mealTime === null || mealTime === '' ? null : mealTime;
+    const relation = mealRelation === undefined || mealRelation === null || mealRelation === '' ? null : mealRelation;
+    if (time !== null && !(GLUCOSE_MEAL_TIMES as readonly unknown[]).includes(time)) return { ok: false };
+    if (relation !== null && !(GLUCOSE_MEAL_RELATIONS as readonly unknown[]).includes(relation)) return { ok: false };
+    if (relation !== null && (time === null || time === 'late')) return { ok: false };
+    return { ok: true, meal_time: time as GlucoseMealTime | null, meal_relation: relation as GlucoseMealRelation | null };
+}
+
+/**
+ * E47: Eintrag der betreuten Person pruefen. Zeit immer "jetzt" (nicht hier), Einheit fest.
+ * Blutdruck: value systolisch, value2 diastolisch (Pflicht, kleiner als systolisch), Puls freiwillig.
+ * Blutzucker: Tageszeit und vor/nach dem Essen freiwillig (die einfache Ansicht verlangt sie;
+ * offline gepufferte Eintraege aelterer Fassungen kommen ohne). Bemerkung freiwillig.
+ */
+export function parseRecipientVitalEntry(body: unknown): { ok: true; entry: RecipientVitalEntry } | { ok: false; error: string } {
+    const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
+    if (!recipientMayRecordVital(b.type)) return { ok: false, error: 'Invalid vital type' };
+    const type = b.type as RecipientVitalType;
+    const value = toNumber(b.value);
+    if (value === null || Number.isNaN(value)) return { ok: false, error: 'Invalid value' };
+    const limit = type === 'glucose' ? RECIPIENT_VITAL_LIMITS.glucose : type === 'weight' ? RECIPIENT_VITAL_LIMITS.weight : RECIPIENT_VITAL_LIMITS.bp;
+    if (!inLimits(value, limit)) return { ok: false, error: 'Invalid value' };
+
+    let value2: number | null = null;
+    let pulse: number | null = null;
+    if (type === 'bp') {
+        value2 = toNumber(b.value2);
+        if (value2 === null || Number.isNaN(value2) || !inLimits(value2, RECIPIENT_VITAL_LIMITS.bp2) || value2 >= value) {
+            return { ok: false, error: 'Invalid value2' };
+        }
+        pulse = toNumber(b.pulse);
+        if (pulse !== null && (Number.isNaN(pulse) || !inLimits(pulse, RECIPIENT_VITAL_LIMITS.pulse))) {
+            return { ok: false, error: 'Invalid pulse' };
+        }
+    }
+
+    let meal_time: GlucoseMealTime | null = null;
+    let meal_relation: GlucoseMealRelation | null = null;
+    if (type === 'glucose') {
+        const meal = parseGlucoseMeal(b.meal_time, b.meal_relation);
+        if (!meal.ok) return { ok: false, error: 'Invalid meal' };
+        meal_time = meal.meal_time;
+        meal_relation = meal.meal_relation;
+    }
+
+    let notes: string | null = null;
+    if (b.notes !== undefined && b.notes !== null) {
+        if (typeof b.notes !== 'string') return { ok: false, error: 'Invalid notes' };
+        const clean = b.notes.replace(/\s+/g, ' ').trim();
+        if (clean.length > RECIPIENT_VITAL_NOTE_MAX) return { ok: false, error: 'Invalid notes' };
+        notes = clean || null;
+    }
+
+    const unit = type === 'glucose' ? 'g/L' : type === 'weight' ? 'kg' : 'mmHg';
+    return { ok: true, entry: { type, value, value2, pulse, unit, notes, meal_time, meal_relation } };
+}
 
 /** Felder eines Messwerts, die fuer das Rueckgaengig der betreuten Person zaehlen. */
 export interface VitalEntryInfo {
@@ -150,7 +262,7 @@ export interface VitalEntryInfo {
 
 /**
  * Restzeit in ms, in der recipient diesen Messwert selbst loeschen darf: nur ein
- * eigener Eintrag (Blutzucker oder Gewicht), hoechstens RECIPIENT_UNDO_MS alt. Sonst 0.
+ * eigener Eintrag (Blutzucker, Gewicht oder Blutdruck), hoechstens RECIPIENT_UNDO_MS alt. Sonst 0.
  */
 export function recipientVitalUndoMsLeft(vital: VitalEntryInfo, userId: string | undefined): number {
     if (!recipientMayRecordVital(vital.type)) return 0;

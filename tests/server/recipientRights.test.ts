@@ -51,8 +51,13 @@ import {
     RECIPIENT_INTAKE_UNDO_SECONDS,
     RECIPIENT_INTAKE_UNDO_MS,
     RECIPIENT_VITAL_TYPES,
+    RECIPIENT_VITAL_LIMITS as SERVER_RECIPIENT_VITAL_LIMITS,
+    GLUCOSE_MEAL_TIMES,
+    GLUCOSE_MEAL_RELATIONS,
+    RECIPIENT_VITAL_NOTE_MAX,
     recipientMayRecordVital,
     recipientVitalUndoMsLeft,
+    parseGlucoseMeal,
     type CircleRequest,
     type CircleRole,
 } from '../../server/src/middleware/circle';
@@ -60,7 +65,14 @@ import vitalsRouter from '../../server/src/routes/vitals';
 import {
     RECIPIENT_VITAL_TYPES as CLIENT_RECIPIENT_VITAL_TYPES,
     RECIPIENT_VITAL_LIMITS,
+    GLUCOSE_MEAL_TIMES as CLIENT_GLUCOSE_MEAL_TIMES,
+    GLUCOSE_MEAL_RELATIONS as CLIENT_GLUCOSE_MEAL_RELATIONS,
+    RECIPIENT_VITAL_NOTE_MAX as CLIENT_RECIPIENT_VITAL_NOTE_MAX,
     parseRecipientVital,
+    checkRecipientVitalForm,
+    groupGlucoseDays,
+    type DiaryEntry,
+    type RecipientVitalFormInput,
 } from '../../client/src/lib/recipientView';
 
 const run = async (role: CircleRole, method: string, url: string) => {
@@ -216,6 +228,8 @@ const ALLOWED: Array<[string, string]> = [
     ['POST', '/api/vitals'],
     ['GET', '/api/vitals/mine/undoable'],
     ['DELETE', '/api/vitals/vital-1'],
+    // E47: Tagebuch der Gesundheitswerte (Route prueft Art und Tag)
+    ['GET', '/api/vitals/diary'],
 ];
 
 describe('recipient: gesperrte Bereiche (403 auf dem Server)', () => {
@@ -434,6 +448,7 @@ const fakeVitals = () => {
     const store = new Map<string, FakeVital>();
     const inserts: Array<{ sql: string; params: unknown[] }> = [];
     const undoable: Array<{ sql: string; params: unknown[] }> = [];
+    const diary: Array<{ sql: string; params: unknown[] }> = [];
     let updates = 0;
     const withAge = (v: FakeVital) => ({ ...v, created_age_ms: String(v.age_ms) });
     const handler = (sql: string, params: unknown[]) => {
@@ -449,6 +464,14 @@ const fakeVitals = () => {
             };
             store.set(row.id, row);
             return { rows: [row] };
+        }
+        if (sql.includes('AS next_before')) {
+            diary.push({ sql, params });
+            return { rows: [{ next_before: '2026-09-30' }] };
+        }
+        if (sql.includes('measured_at >= COALESCE')) {
+            diary.push({ sql, params });
+            return { rows: [...store.values()].filter((v) => v.circle_id === params[0] && v.type === params[1]) };
         }
         if (sql.includes('created_at > LOCALTIMESTAMP')) {
             undoable.push({ sql, params });
@@ -475,12 +498,13 @@ const fakeVitals = () => {
             unit: type === 'weight' ? 'kg' : 'g/L', measured_at: 'frueher', recorded_by_user: user, notes: null, age_ms: ageMs,
         });
     };
-    return { store, inserts, undoable, handler, seed, updates: () => updates };
+    return { store, inserts, undoable, diary, handler, seed, updates: () => updates };
 };
 
 /** Ganze Kette der Route: Anmeldung (ersetzt), circleMiddleware, Rollen, Handler. */
 const callVitals = (
-    role: CircleRole, userId: string, method: string, path: string, body: Record<string, unknown> = {}
+    role: CircleRole, userId: string, method: string, path: string, body: Record<string, unknown> = {},
+    query: Record<string, string> = {}
 ) => new Promise<{ status: number; body: { success?: boolean; error?: string; data?: { undo_ms_left?: number } } | null }>((resolve, reject) => {
     membership.role = role;
     let status = 200;
@@ -495,7 +519,7 @@ const callVitals = (
         headers: { 'x-circle-id': 'kreis-1', 'x-test-user': userId },
         body,
         params: {},
-        query: {},
+        query,
     };
     (vitalsRouter as unknown as { handle: (q: unknown, r: unknown, out: (err?: unknown) => void) => void })
         .handle(req, res, (err) => (err ? reject(err) : resolve({ status: 404, body: null })));
@@ -505,10 +529,14 @@ const MIN = 60 * 1000;
 const ALL_VITAL_TYPES = ['weight', 'bp', 'pain', 'mood', 'temperature', 'glucose'];
 
 describe('Block K: Regeln fuer Gesundheitswerte (middleware/circle.ts)', () => {
-    it('nur Blutzucker und Gewicht, gleich in Server und einfacher Ansicht', () => {
-        expect([...RECIPIENT_VITAL_TYPES]).toEqual(['glucose', 'weight']);
+    it('E47: Blutzucker, Gewicht und Blutdruck, gleich in Server und einfacher Ansicht', () => {
+        expect([...RECIPIENT_VITAL_TYPES]).toEqual(['glucose', 'weight', 'bp']);
         expect([...CLIENT_RECIPIENT_VITAL_TYPES]).toEqual([...RECIPIENT_VITAL_TYPES]);
-        for (const type of ['bp', 'pain', 'mood', 'temperature', '', 'GLUCOSE', undefined, null, 1]) {
+        expect([...CLIENT_GLUCOSE_MEAL_TIMES]).toEqual([...GLUCOSE_MEAL_TIMES]);
+        expect([...CLIENT_GLUCOSE_MEAL_RELATIONS]).toEqual([...GLUCOSE_MEAL_RELATIONS]);
+        expect(CLIENT_RECIPIENT_VITAL_NOTE_MAX).toBe(RECIPIENT_VITAL_NOTE_MAX);
+        expect(RECIPIENT_VITAL_LIMITS).toEqual(SERVER_RECIPIENT_VITAL_LIMITS);
+        for (const type of ['pain', 'mood', 'temperature', '', 'GLUCOSE', undefined, null, 1]) {
             expect(recipientMayRecordVital(type), String(type)).toBe(false);
         }
     });
@@ -523,7 +551,8 @@ describe('Block K: Regeln fuer Gesundheitswerte (middleware/circle.ts)', () => {
         expect(recipientVitalUndoMsLeft(own(null), RECIPIENT_USER)).toBe(0);
         expect(recipientVitalUndoMsLeft(own(-1), RECIPIENT_USER)).toBe(0);
         expect(recipientVitalUndoMsLeft(own('kaputt'), RECIPIENT_USER)).toBe(0);
-        expect(recipientVitalUndoMsLeft(own(0, 'bp'), RECIPIENT_USER)).toBe(0);
+        expect(recipientVitalUndoMsLeft(own(0, 'bp'), RECIPIENT_USER)).toBe(RECIPIENT_UNDO_MS);
+        expect(recipientVitalUndoMsLeft(own(0, 'pain'), RECIPIENT_USER)).toBe(0);
         expect(recipientVitalUndoMsLeft(own(0), FAMILY_USER)).toBe(0);
         expect(recipientVitalUndoMsLeft(own(0), undefined)).toBe(0);
     });
@@ -533,27 +562,101 @@ describe('Block K: Grenzen gegen Tippfehler in der einfachen Ansicht (lib/recipi
     const mgdlToGl = (shown: number) => shown / 100;
     const kg = (shown: number) => shown;
 
-    it('Grenzen in der gespeicherten Einheit: Blutzucker 0,2 bis 6 g/L, Gewicht 20 bis 250 kg', () => {
-        expect(RECIPIENT_VITAL_LIMITS).toEqual({ glucose: { min: 0.2, max: 6 }, weight: { min: 20, max: 250 } });
+    it('Grenzen in der gespeicherten Einheit (E47 mit Blutdruck und Puls)', () => {
+        expect(RECIPIENT_VITAL_LIMITS).toEqual({
+            glucose: { min: 0.2, max: 6 },
+            weight: { min: 20, max: 250 },
+            bp: { min: 50, max: 260 },
+            bp2: { min: 30, max: 160 },
+            pulse: { min: 30, max: 220 },
+        });
     });
 
-    it('Blutzucker 20 bis 600 mg/dL', () => {
+    it('Blutzucker 20 bis 600 mg/dL, nur Ziffern; Schreibweise und Bereich getrennt', () => {
         for (const text of ['20', '600', '95', '1 1 0']) {
             expect(parseRecipientVital('glucose', text, mgdlToGl).ok, text).toBe(true);
         }
-        for (const text of ['19', '601', '0', '-5', 'abc', '1e3']) {
-            expect(parseRecipientVital('glucose', text, mgdlToGl), text).toEqual({ ok: false, error: 'invalid' });
+        for (const text of ['19', '601', '0']) {
+            expect(parseRecipientVital('glucose', text, mgdlToGl), text).toEqual({ ok: false, error: 'range' });
+        }
+        for (const text of ['-5', 'abc', '1e3', '95,5', '12a']) {
+            expect(parseRecipientVital('glucose', text, mgdlToGl), text).toEqual({ ok: false, error: 'format' });
         }
         expect(parseRecipientVital('glucose', '  ', mgdlToGl)).toEqual({ ok: false, error: 'empty' });
     });
 
-    it('Gewicht 20 bis 250 kg, Komma oder Punkt', () => {
+    it('Gewicht 20 bis 250 kg, Komma oder Punkt, hoechstens eine Nachkommastelle', () => {
         expect(parseRecipientVital('weight', '72,5', kg)).toEqual({ ok: true, shown: 72.5, stored: 72.5 });
         for (const text of ['20', '250', '250.0']) {
             expect(parseRecipientVital('weight', text, kg).ok, text).toBe(true);
         }
         for (const text of ['19,9', '250,1', '0']) {
-            expect(parseRecipientVital('weight', text, kg), text).toEqual({ ok: false, error: 'invalid' });
+            expect(parseRecipientVital('weight', text, kg), text).toEqual({ ok: false, error: 'range' });
+        }
+        for (const text of ['72,55', '72,', ',5', '7x']) {
+            expect(parseRecipientVital('weight', text, kg), text).toEqual({ ok: false, error: 'format' });
+        }
+    });
+});
+
+describe('E47: Eingabe pruefen (lib/recipientView.ts, checkRecipientVitalForm)', () => {
+    const base: RecipientVitalFormInput = { type: 'glucose', text: '', text2: '', pulse: '', note: '', mealTime: null, mealRelation: null };
+    const mgdlToGl = (shown: number) => shown / 100;
+    const same = (shown: number) => shown;
+
+    it('Blutzucker: Tageszeit und vor/nach dem Essen Pflicht', () => {
+        expect(checkRecipientVitalForm({ ...base, text: '112' }, mgdlToGl)).toEqual({ ok: false, errors: { mealTime: 'choose', mealRelation: 'choose' } });
+        const ok = checkRecipientVitalForm({ ...base, text: '112', mealTime: 'morning', mealRelation: 'before', note: '  Kuchen   gegessen ' }, mgdlToGl);
+        expect(ok).toEqual({ ok: true, payload: { type: 'glucose', value: 1.12, value2: null, pulse: null, notes: 'Kuchen gegessen', meal_time: 'morning', meal_relation: 'before' } });
+    });
+
+    it('Blutzucker spaet: ohne vor/nach dem Essen', () => {
+        const r = checkRecipientVitalForm({ ...base, text: '131', mealTime: 'late', mealRelation: 'after' }, mgdlToGl);
+        expect(r.ok && r.payload).toMatchObject({ meal_time: 'late', meal_relation: null });
+    });
+
+    it('Blutdruck: beide Werte Pflicht, systolisch groesser, Puls freiwillig', () => {
+        const bp = { ...base, type: 'bp' as const };
+        expect(checkRecipientVitalForm({ ...bp, text: '132' }, same)).toEqual({ ok: false, errors: { value2: 'empty' } });
+        expect(checkRecipientVitalForm({ ...bp, text: '78', text2: '132' }, same)).toEqual({ ok: false, errors: { value2: 'order' } });
+        expect(checkRecipientVitalForm({ ...bp, text: '132', text2: '78', pulse: '250' }, same)).toEqual({ ok: false, errors: { pulse: 'range' } });
+        expect(checkRecipientVitalForm({ ...bp, text: '270', text2: '78' }, same)).toEqual({ ok: false, errors: { value: 'range' } });
+        const ok = checkRecipientVitalForm({ ...bp, text: '132', text2: '78', pulse: '68', mealTime: 'morning' }, same);
+        expect(ok).toEqual({ ok: true, payload: { type: 'bp', value: 132, value2: 78, pulse: 68, notes: null, meal_time: null, meal_relation: null } });
+        const noPulse = checkRecipientVitalForm({ ...bp, text: '132', text2: '78' }, same);
+        expect(noPulse.ok && noPulse.payload.pulse).toBeNull();
+    });
+
+    it('Gewicht: ohne Tageszeit', () => {
+        const ok = checkRecipientVitalForm({ ...base, type: 'weight', text: '72,5' }, same);
+        expect(ok).toEqual({ ok: true, payload: { type: 'weight', value: 72.5, value2: null, pulse: null, notes: null, meal_time: null, meal_relation: null } });
+    });
+
+    it('Tagebuch Blutzucker: ein Tag pro Zeile, Werte ohne Tageszeit bei der Bemerkung', () => {
+        const e = (id: string, day: string, meal_time: DiaryEntry['meal_time'], meal_relation: DiaryEntry['meal_relation'], notes: string | null = null): DiaryEntry =>
+            ({ id, type: 'glucose', value: 1.1, value2: null, pulse: null, measured_at: `${day}T08:00:00`, notes, meal_time, meal_relation });
+        // neueste zuerst, wie vom Server
+        const rows = groupGlucoseDays([
+            e('c', '2026-11-14', 'late', null),
+            e('b', '2026-11-14', 'morning', 'after', 'Kuchen'),
+            e('a', '2026-11-14', 'morning', 'after'),
+            e('x', '2026-11-13', null, null),
+        ], (entry) => entry.measured_at.slice(0, 10));
+        expect(rows.map((r) => r.day)).toEqual(['2026-11-14', '2026-11-13']);
+        expect(rows[0].slots['morning-after']?.map((v) => v.id)).toEqual(['a', 'b']);
+        expect(rows[0].slots.late?.map((v) => v.id)).toEqual(['c']);
+        expect(rows[0].notes).toEqual(['Kuchen']);
+        expect(rows[1].untimed.map((v) => v.id)).toEqual(['x']);
+    });
+});
+
+describe('E47: Tageszeit beim Blutzucker (middleware/circle.ts, parseGlucoseMeal)', () => {
+    it('beides freiwillig, gueltige Werte, spaet ohne vor/nach', () => {
+        expect(parseGlucoseMeal(undefined, undefined)).toEqual({ ok: true, meal_time: null, meal_relation: null });
+        expect(parseGlucoseMeal('noon', 'after')).toEqual({ ok: true, meal_time: 'noon', meal_relation: 'after' });
+        expect(parseGlucoseMeal('late', null)).toEqual({ ok: true, meal_time: 'late', meal_relation: null });
+        for (const [time, relation] of [['late', 'before'], [null, 'before'], ['nachts', null], ['morning', 'waehrend']]) {
+            expect(parseGlucoseMeal(time, relation).ok, `${time} ${relation}`).toBe(false);
         }
     });
 });
@@ -563,19 +666,20 @@ describe('Block K: Gesundheitswerte der betreuten Person (routes/vitals.ts)', ()
     beforeEach(() => { db = fakeVitals(); vitalsDb.handler = db.handler; });
     afterEach(() => { vitalsDb.handler = null; });
 
-    it('POST: nur Blutzucker und Gewicht, andere Arten 403 ohne Eintrag', async () => {
-        for (const type of ['bp', 'pain', 'mood', 'temperature', 'unbekannt', undefined]) {
+    it('POST: Blutzucker, Gewicht und Blutdruck, andere Arten 403 ohne Eintrag', async () => {
+        for (const type of ['pain', 'mood', 'temperature', 'unbekannt', undefined]) {
             const r = await callVitals('recipient', RECIPIENT_USER, 'POST', '/', { type, value: 5 });
             expect(r.status, String(type)).toBe(403);
         }
         expect(db.inserts).toHaveLength(0);
-        expect((await callVitals('recipient', RECIPIENT_USER, 'POST', '/', { type: 'glucose', value: 1.1 })).status).toBe(200);
+        expect((await callVitals('recipient', RECIPIENT_USER, 'POST', '/', { type: 'glucose', value: 1.1, meal_time: 'morning', meal_relation: 'before' })).status).toBe(200);
         expect((await callVitals('recipient', RECIPIENT_USER, 'POST', '/', { type: 'weight', value: 70 })).status).toBe(200);
-        expect(db.inserts).toHaveLength(2);
+        expect((await callVitals('recipient', RECIPIENT_USER, 'POST', '/', { type: 'bp', value: 132, value2: 78, pulse: 68 })).status).toBe(200);
+        expect(db.inserts).toHaveLength(3);
     });
 
-    it('POST: Zeit immer jetzt, ohne zweiten Wert, Puls und Notiz, Einheit fest', async () => {
-        const extra = { value2: 80, pulse: 70, notes: 'Notiz', unit: 'mg/dL' };
+    it('POST: Zeit immer jetzt, Einheit fest, Bemerkung erlaubt, zweiter Wert und Puls nur beim Blutdruck', async () => {
+        const extra = { value2: 80, pulse: 70, notes: '  Kuchen   gegessen ', unit: 'mg/dL' };
         for (const measured_at of ['2020-01-01T08:00:00', 'kaputt']) {
             const r = await callVitals('recipient', RECIPIENT_USER, 'POST', '/', { type: 'glucose', value: 1.1, measured_at, ...extra });
             expect(r.status, measured_at).toBe(200);
@@ -588,10 +692,45 @@ describe('Block K: Gesundheitswerte der betreuten Person (routes/vitals.ts)', ()
             expect(params[5]).toBeNull(); // measured_at
             expect(params[3]).toBeNull(); // value2
             expect(params[8]).toBeNull(); // pulse
-            expect(params[7]).toBeNull(); // notes
+            expect(params[7]).toBe('Kuchen gegessen'); // notes
             expect(params[6]).toBe(RECIPIENT_USER);
         }
         expect(db.inserts.map((i) => i.params[4])).toEqual(['g/L', 'g/L', 'kg']);
+
+        await callVitals('recipient', RECIPIENT_USER, 'POST', '/', { type: 'bp', value: 132, value2: 78, pulse: 68, measured_at: '2020-01-01', unit: 'cmHg' });
+        const { params } = db.inserts[db.inserts.length - 1];
+        expect(params.slice(2, 6)).toEqual([132, 78, 'mmHg', null]);
+        expect(params[8]).toBe(68);
+    });
+
+    it('POST: Tageszeit und vor/nach dem Essen beim Blutzucker gespeichert, sonst leer', async () => {
+        await callVitals('recipient', RECIPIENT_USER, 'POST', '/', { type: 'glucose', value: 1.12, meal_time: 'evening', meal_relation: 'after' });
+        await callVitals('recipient', RECIPIENT_USER, 'POST', '/', { type: 'glucose', value: 1.31, meal_time: 'late' });
+        await callVitals('recipient', RECIPIENT_USER, 'POST', '/', { type: 'weight', value: 70, meal_time: 'morning', meal_relation: 'before' });
+        expect(db.inserts.map((i) => [i.params[9], i.params[10]])).toEqual([['evening', 'after'], ['late', null], [null, null]]);
+        for (const body of [
+            { type: 'glucose', value: 1.1, meal_time: 'late', meal_relation: 'before' },
+            { type: 'glucose', value: 1.1, meal_time: 'nachts' },
+            { type: 'glucose', value: 1.1, meal_relation: 'after' },
+        ]) {
+            expect((await callVitals('recipient', RECIPIENT_USER, 'POST', '/', body)).status, JSON.stringify(body)).toBe(400);
+        }
+        expect(db.inserts).toHaveLength(3);
+    });
+
+    it('POST: Blutdruck nur mit diastolisch kleiner als systolisch, Puls in den Grenzen, Bemerkung hoechstens 300 Zeichen', async () => {
+        for (const body of [
+            { type: 'bp', value: 132 },
+            { type: 'bp', value: 78, value2: 132 },
+            { type: 'bp', value: 132, value2: 132 },
+            { type: 'bp', value: 132, value2: 78, pulse: 29 },
+            { type: 'bp', value: 132, value2: 78, pulse: 'abc' },
+            { type: 'weight', value: 70, notes: 'x'.repeat(RECIPIENT_VITAL_NOTE_MAX + 1) },
+            { type: 'weight', value: 70, notes: 5 },
+        ]) {
+            expect((await callVitals('recipient', RECIPIENT_USER, 'POST', '/', body)).status, JSON.stringify(body).slice(0, 60)).toBe(400);
+        }
+        expect(db.inserts).toHaveLength(0);
     });
 
     it('POST: leere, null, negative und unlesbare Werte abgelehnt', async () => {
@@ -606,16 +745,21 @@ describe('Block K: Gesundheitswerte der betreuten Person (routes/vitals.ts)', ()
         for (const [type, value] of [['glucose', 0.2], ['glucose', 6], ['weight', 20], ['weight', 250]] as const) {
             expect((await callVitals('recipient', RECIPIENT_USER, 'POST', '/', { type, value })).status, `${type} ${value}`).toBe(200);
         }
+        for (const [value, value2, pulse] of [[50, 30, 30], [260, 160, 220]]) {
+            expect((await callVitals('recipient', RECIPIENT_USER, 'POST', '/', { type: 'bp', value, value2, pulse })).status, `bp ${value}`).toBe(200);
+        }
     });
 
-    // FEHLER IM CODE (gemeldet, nicht behoben): Der Server prueft die Grenzen gegen Tippfehler
-    // nicht, nur die einfache Ansicht (parseRecipientVital). routes/vitals.ts lehnt fuer
-    // recipient nur Werte <= 0 ab. Sobald der Server die Grenzen prueft, schlaegt dieser Test
-    // fehl: dann "it.fails" durch "it" ersetzen.
-    it.fails('POST: Werte ausserhalb der Grenzen lehnt auch der Server ab (Blutzucker 0,2-6 g/L, Gewicht 20-250 kg)', async () => {
-        for (const [type, value] of [['glucose', 0.19], ['glucose', 6.01], ['weight', 19.9], ['weight', 250.1]] as const) {
-            expect((await callVitals('recipient', RECIPIENT_USER, 'POST', '/', { type, value })).status, `${type} ${value}`).toBe(400);
+    // Roadmap Punkt 8, behoben mit E47: der Server prueft die Grenzen gegen Tippfehler selbst.
+    it('POST: Werte ausserhalb der Grenzen lehnt auch der Server ab', async () => {
+        for (const [type, value] of [['glucose', 0.19], ['glucose', 6.01], ['weight', 19.9], ['weight', 250.1], ['bp', 49], ['bp', 261]] as const) {
+            const body = type === 'bp' ? { type, value, value2: 40 } : { type, value };
+            expect((await callVitals('recipient', RECIPIENT_USER, 'POST', '/', body)).status, `${type} ${value}`).toBe(400);
         }
+        for (const [value2, pulse] of [[29, null], [161, null], [80, 221]]) {
+            expect((await callVitals('recipient', RECIPIENT_USER, 'POST', '/', { type: 'bp', value: 200, value2, pulse })).status, `bp2 ${value2} ${pulse}`).toBe(400);
+        }
+        expect(db.inserts).toHaveLength(0);
     });
 
     it('GET /mine/undoable: nur eigene Eintraege der letzten 10 Minuten', async () => {
@@ -630,7 +774,7 @@ describe('Block K: Gesundheitswerte der betreuten Person (routes/vitals.ts)', ()
         const r = await callVitals('recipient', RECIPIENT_USER, 'GET', '/mine/undoable');
         expect(r.status).toBe(200);
         const data = r.body?.data as unknown as Array<{ id: string; undo_ms_left: number }>;
-        expect(data.map((v) => v.id).sort()).toEqual(['eigen-gewicht', 'eigen-neu']);
+        expect(data.map((v) => v.id).sort()).toEqual(['eigen-blutdruck', 'eigen-gewicht', 'eigen-neu']);
         expect(data.find((v) => v.id === 'eigen-neu')?.undo_ms_left).toBe(RECIPIENT_UNDO_MS - MIN);
         // Die Datenbank-Abfrage selbst filtert schon auf Kreis, Konto und Zeit.
         const { sql, params } = db.undoable[0];
@@ -655,6 +799,32 @@ describe('Block K: Gesundheitswerte der betreuten Person (routes/vitals.ts)', ()
         expect(db.store.has('eigen-alt')).toBe(true);
         expect(db.store.has('fremd')).toBe(true);
         expect((await callVitals('recipient', RECIPIENT_USER, 'DELETE', '/gibt-es-nicht')).status).toBe(404);
+    });
+
+    it('GET /diary (E47): Werte einer Art, 28 Tage, neueste zuerst, mit next_before', async () => {
+        db.seed('zucker', 'glucose', FAMILY_USER, 120 * MIN);
+        db.seed('gewicht', 'weight', RECIPIENT_USER, 120 * MIN);
+        db.seed('anderer-kreis', 'glucose', RECIPIENT_USER, 1 * MIN, 'kreis-2');
+        const r = await callVitals('recipient', RECIPIENT_USER, 'GET', '/diary', {}, { type: 'glucose' });
+        expect(r.status).toBe(200);
+        const data = r.body?.data as unknown as { entries: Array<{ id: string }>; next_before: string | null };
+        // auch von der Familie eingetragene Werte: es ist das Tagebuch der betreuten Person
+        expect(data.entries.map((e) => e.id)).toEqual(['zucker']);
+        expect(data.next_before).toBe('2026-09-30');
+        const [list] = db.diary;
+        expect(list.params).toEqual(['kreis-1', 'glucose', null]);
+        expect(list.sql).toContain('ORDER BY measured_at DESC');
+        expect(list.sql).toContain('- 28');
+        const older = await callVitals('recipient', RECIPIENT_USER, 'GET', '/diary', {}, { type: 'weight', before: '2026-10-17' });
+        expect(older.status).toBe(200);
+        expect(db.diary[db.diary.length - 1].params).toEqual(['kreis-1', 'weight', '2026-10-17']);
+    });
+
+    it('GET /diary: andere Arten und falsche Tage 400', async () => {
+        for (const query of [{}, { type: 'pain' }, { type: 'glucose', before: '2026-02-31' }, { type: 'glucose', before: 'gestern' }]) {
+            expect((await callVitals('recipient', RECIPIENT_USER, 'GET', '/diary', {}, query)).status, JSON.stringify(query)).toBe(400);
+        }
+        expect(db.diary).toHaveLength(0);
     });
 
     it('PUT: immer gesperrt, auch fuer den eigenen neuen Eintrag', async () => {
@@ -717,10 +887,26 @@ describe('Block K Gegenprobe: andere Rollen wie bisher (routes/vitals.ts)', () =
         }
     });
 
+    it('E47: Tageszeit beim Blutzucker auch fuer diese Rollen, freiwillig und geprueft', async () => {
+        for (const role of writers) {
+            expect((await callVitals(role, OWN_USER, 'POST', '/', { type: 'glucose', value: 1.1, meal_time: 'noon', meal_relation: 'before' })).status, role).toBe(200);
+            expect(db.inserts[db.inserts.length - 1].params.slice(9, 11), role).toEqual(['noon', 'before']);
+            expect((await callVitals(role, OWN_USER, 'POST', '/', { type: 'glucose', value: 1.1, meal_time: 'late', meal_relation: 'after' })).status, role).toBe(400);
+            expect((await callVitals(role, OWN_USER, 'POST', '/', { type: 'bp', value: 130, value2: 80, meal_time: 'noon' })).status, role).toBe(200);
+            expect(db.inserts[db.inserts.length - 1].params.slice(9, 11), role).toEqual([null, null]);
+        }
+    });
+
+    it('E47: Tagebuch lesen admin, family, professional', async () => {
+        for (const role of writers) {
+            expect((await callVitals(role, OWN_USER, 'GET', '/diary', {}, { type: 'bp' })).status, role).toBe(200);
+        }
+    });
+
     it('neighbor (Freunde) hat keinen Zugang zu Gesundheitswerten', async () => {
         db.seed('eintrag', 'glucose', OWN_USER, 1 * MIN);
-        for (const [method, path] of [['POST', '/'], ['GET', '/mine/undoable'], ['PUT', '/eintrag'], ['DELETE', '/eintrag']]) {
-            const r = await callVitals('neighbor', OWN_USER, method, path, { type: 'glucose', value: 1.1, notes: 'x' });
+        for (const [method, path] of [['POST', '/'], ['GET', '/mine/undoable'], ['GET', '/diary'], ['PUT', '/eintrag'], ['DELETE', '/eintrag']]) {
+            const r = await callVitals('neighbor', OWN_USER, method, path, { type: 'glucose', value: 1.1, notes: 'x' }, { type: 'glucose' });
             expect(r.status, `${method} ${path}`).toBe(403);
         }
         expect(db.inserts).toHaveLength(0);
