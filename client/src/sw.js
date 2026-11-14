@@ -13,7 +13,8 @@ const precacheManifest = self.__WB_MANIFEST;
 // anciens caches a l'activation (voir handler 'activate'). Indispensable pour
 // eviter qu'un ancien bundle (ex. pointant vers une mauvaise URL d'API) reste
 // servi indefiniment apres une mise a jour de l'application.
-const CACHE_NAME = 'opencare-v3';
+// v4: v3 blieb wegen doppelter Einträge (index.html und /index.html) leer.
+const CACHE_NAME = 'opencare-v4';
 const API_CACHE_NAME = 'opencare-api-v3';
 const OFFLINE_URL = '/index.html';
 
@@ -56,14 +57,20 @@ const trimCache = async (cacheName, maxEntries) => {
 sw.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
-            const urls = precacheManifest
-                .filter((entry) => entry.url && !entry.url.startsWith('http'))
-                .map((entry) => entry.url);
+            // Adressen vereinheitlichen: das Manifest nennt „index.html“, OFFLINE_URL ist „/index.html“.
+            // Doppelte Einträge lassen cache.addAll in Chrome komplett scheitern.
+            const urls = new Set(
+                precacheManifest
+                    .filter((entry) => entry.url && !entry.url.startsWith('http'))
+                    .map((entry) => new URL(entry.url, sw.registration.scope).href)
+            );
             // Always keep the app shell available for offline navigation.
-            if (!urls.includes(OFFLINE_URL)) urls.push(OFFLINE_URL);
-            return cache.addAll(urls).catch(() => {
-                // Ignore individual failures (missing assets, etc.)
-            });
+            urls.add(new URL(OFFLINE_URL, sw.registration.scope).href);
+            // Einzeln speichern, damit eine fehlende Datei nicht alle anderen verhindert.
+            // cache: 'reload' umgeht den HTTP-Cache des Browsers (sonst evtl. alte index.html).
+            return Promise.allSettled(
+                [...urls].map((url) => cache.add(new Request(url, { cache: 'reload' })))
+            );
         }).then(() => sw.skipWaiting())
     );
 });
