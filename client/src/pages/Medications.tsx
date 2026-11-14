@@ -169,6 +169,9 @@ interface HistoryChange {
 
 interface HistoryEntry {
     id: string;
+    medication_name: string;
+    /** Nur im Reiter "Änderungen": Form des Medikaments (null, wenn gelöscht) */
+    medication_form?: string | null;
     action: 'created' | 'updated' | 'deleted';
     changes: HistoryChange[];
     changed_at: string;
@@ -192,6 +195,15 @@ const HISTORY_FIELD_LABELS: Record<string, string> = {
     photo: 'medications:form.photo',
     active: 'medications:history.fields.active',
     schedule: 'medications:history.fields.schedule',
+};
+
+/** Lädt Daten erst, wenn der Reiter angezeigt wird (Radix-Tabs hängen inaktive Reiter aus). */
+const OnMount: React.FC<{ onMount: () => void; children: React.ReactNode }> = ({ onMount, children }) => {
+    useEffect(() => {
+        onMount();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+    return <>{children}</>;
 };
 
 // ─── Constants and helpers ────────────────────────────────────────────────────
@@ -514,6 +526,8 @@ const Medications: React.FC = () => {
     }, [activeCircle?.id, showArchived]);
 
     useWebSocketUpdates('medications', () => {
+        // Reiter "Änderungen" nur neu laden, wenn er schon einmal angezeigt wurde
+        if (allHistoryShown.current) void loadAllHistory();
         void loadMedications();
         void loadPrescriptions();
         void loadIntakes();
@@ -1140,6 +1154,26 @@ const Medications: React.FC = () => {
         }
     };
 
+    // Reiter "Änderungen": alle Medikamente des Kreises
+    const [allHistory, setAllHistory] = useState<HistoryEntry[]>([]);
+    const [allHistoryLoading, setAllHistoryLoading] = useState(false);
+    const [allHistoryError, setAllHistoryError] = useState('');
+    const allHistoryShown = useRef(false);
+
+    const loadAllHistory = async () => {
+        setAllHistoryError('');
+        setAllHistoryLoading(true);
+        try {
+            const response = await api.get<{ success: boolean; data: HistoryEntry[] }>('/api/medications/history');
+            if (response.success) setAllHistory(response.data);
+        } catch (err) {
+            console.error('Failed to load medication history:', err);
+            setAllHistoryError(t('medications:history.loadError'));
+        } finally {
+            setAllHistoryLoading(false);
+        }
+    };
+
     const historyScheduleText = (s: HistorySchedule, form: string | null) => {
         const when = s.time_fixed === false
             ? t(`medications:moments.${momentOf(parseInt(s.time_of_day.slice(0, 2), 10))}`)
@@ -1196,6 +1230,66 @@ const Medications: React.FC = () => {
             </li>
         );
     };
+
+    /** Ein Eintrag der Historie; showName im Reiter "Änderungen" (Name des Medikaments als Überschrift). */
+    const renderHistoryEntry = (entry: HistoryEntry, form: string | null, showName: boolean) => (
+        <li key={entry.id} className="rounded-input border border-border p-4">
+            <p className="text-body font-semibold text-foreground">
+                {showName
+                    ? `${entry.medication_name}: ${t(`medications:history.actions.${entry.action}`)}`
+                    : t(`medications:history.actions.${entry.action}`)}
+            </p>
+            <p className="text-caption text-muted-foreground">
+                {t('medications:history.when', {
+                    date: fmtDate(entry.changed_at),
+                    time: formatClock(entry.changed_at),
+                    name: entry.changed_by_name ?? t('medications:history.unknownUser'),
+                })}
+            </p>
+            {entry.changes.length > 0 && (
+                <ul className="mt-2 space-y-1 text-body text-foreground">
+                    {entry.changes.map((change, index) => renderHistoryChange(change, entry.action, form, index))}
+                </ul>
+            )}
+        </li>
+    );
+
+    const historySection = (
+        <OnMount
+            onMount={() => {
+                allHistoryShown.current = true;
+                void loadAllHistory();
+            }}
+        >
+            <div className="space-y-4">
+                <p className="text-body text-muted-foreground">{t('medications:history.allDescription')}</p>
+                {allHistoryLoading && allHistory.length === 0 ? (
+                    <p className="text-body text-foreground">{t('common:states.loading')}</p>
+                ) : allHistoryError ? (
+                    <div className="space-y-3">
+                        <div role="alert" className="rounded-input border border-danger/30 bg-danger/10 px-4 py-3 text-body text-danger">
+                            {allHistoryError}
+                        </div>
+                        <Button variant="secondary" size="lg" onClick={() => void loadAllHistory()}>
+                            <RotateCcw className="mr-2 h-5 w-5" aria-hidden="true" />
+                            {t('common:actions.retry')}
+                        </Button>
+                    </div>
+                ) : allHistory.length === 0 ? (
+                    <Card>
+                        <CardContent className="p-8 text-center">
+                            <History className="mx-auto mb-3 h-12 w-12 text-muted-foreground opacity-50" aria-hidden="true" />
+                            <p className="text-body text-foreground">{t('medications:history.empty')}</p>
+                        </CardContent>
+                    </Card>
+                ) : (
+                    <ol className="space-y-4">
+                        {allHistory.map((entry) => renderHistoryEntry(entry, entry.medication_form ?? null, true))}
+                    </ol>
+                )}
+            </div>
+        </OnMount>
+    );
 
     const stockActionLabel = (med: Medication) =>
         stockNumber(med.stock_quantity) === null
@@ -1336,8 +1430,21 @@ const Medications: React.FC = () => {
                                                     </p>
                                                 )}
                                             </div>
-                                            {canWriteContent && (
+                                            {(canWriteContent || canReadHistory) && (
                                                 <div className="flex flex-shrink-0 items-center gap-1">
+                                            {canReadHistory && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-12 w-12"
+                                                    onClick={() => void openHistory(med)}
+                                                    aria-label={t('medications:history.open')}
+                                                    title={t('medications:history.open')}
+                                                >
+                                                    <History className="h-5 w-5" aria-hidden="true" />
+                                                </Button>
+                                            )}
+                                            {canWriteContent && (<>
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
@@ -1370,6 +1477,7 @@ const Medications: React.FC = () => {
                                                     <ArchiveRestore className="h-5 w-5" />
                                                 )}
                                             </Button>
+                                            </>)}
                                         </div>
                                             )}
                                         </div>
@@ -1391,12 +1499,6 @@ const Medications: React.FC = () => {
                                                     );
                                                 })}
                                             </dl>
-                                        )}
-                                        {canReadHistory && (
-                                            <Button variant="secondary" size="lg" onClick={() => void openHistory(med)}>
-                                                <History className="mr-2 h-5 w-5" aria-hidden="true" />
-                                                {t('medications:history.open')}
-                                            </Button>
                                         )}
                                     </CardContent>
                                 </Card>
@@ -1726,6 +1828,9 @@ const Medications: React.FC = () => {
                         content: treatmentsSection,
                     },
                     { value: 'stock', label: t('medications:tabs.stock'), content: stockSection },
+                    ...(canReadHistory
+                        ? [{ value: 'history', label: t('medications:tabs.history'), content: historySection }]
+                        : []),
                     // Reiter Rezepte vorerst ausgeblendet (Code und Daten bleiben)
                     ...(SHOW_PRESCRIPTIONS
                         ? [
@@ -2353,27 +2458,7 @@ const Medications: React.FC = () => {
                     <p className="text-body text-foreground">{t('medications:history.empty')}</p>
                 ) : (
                     <ol className="space-y-4">
-                        {historyEntries.map((entry) => (
-                            <li key={entry.id} className="rounded-input border border-border p-4">
-                                <p className="text-body font-semibold text-foreground">
-                                    {t(`medications:history.actions.${entry.action}`)}
-                                </p>
-                                <p className="text-caption text-muted-foreground">
-                                    {t('medications:history.when', {
-                                        date: fmtDate(entry.changed_at),
-                                        time: formatClock(entry.changed_at),
-                                        name: entry.changed_by_name ?? t('medications:history.unknownUser'),
-                                    })}
-                                </p>
-                                {entry.changes.length > 0 && (
-                                    <ul className="mt-2 space-y-1 text-body text-foreground">
-                                        {entry.changes.map((change, index) =>
-                                            renderHistoryChange(change, entry.action, historyMed?.form ?? null, index)
-                                        )}
-                                    </ul>
-                                )}
-                            </li>
-                        ))}
+                        {historyEntries.map((entry) => renderHistoryEntry(entry, historyMed?.form ?? null, false))}
                     </ol>
                 )}
                 <div className="flex justify-end pt-6">

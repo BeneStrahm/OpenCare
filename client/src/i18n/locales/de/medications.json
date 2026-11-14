@@ -6,7 +6,8 @@
     "today": "Heute",
     "treatments": "Medikamentenplan",
     "prescriptions": "Rezepte",
-    "stock": "Vorrat"
+    "stock": "Vorrat",
+    "history": "Änderungen"
   },
   "moments": {
     "morning": "Morgens",
@@ -277,7 +278,7 @@
     "any": "Mit oder ohne Essen"
   },
   "history": {
-    "open": "Änderungen",
+    "open": "Änderungen anzeigen",
     "title": "Änderungen: {{name}}",
     "description": "Wer hat wann was im Medikamentenplan geändert. Neueste zuerst.",
     "empty": "Noch keine Änderungen erfasst. Erfasst wird ab jetzt bei jedem Speichern.",
@@ -304,6 +305,7 @@
       "yes": "Ja",
       "no": "Nein",
       "empty": "(leer)"
-    }
+    },
+    "allDescription": "Alle Änderungen am Medikamentenplan, neueste zuerst (höchstens 200)."
   }
 }

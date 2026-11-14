@@ -6,7 +6,8 @@
     "today": "Today",
     "treatments": "Treatments",
     "prescriptions": "Prescriptions",
-    "stock": "Stock"
+    "stock": "Stock",
+    "history": "Changes"
   },
   "moments": {
     "morning": "Morning",
@@ -277,7 +278,7 @@
     "any": "With or without food"
   },
   "history": {
-    "open": "Changes",
+    "open": "Show changes",
     "title": "Changes: {{name}}",
     "description": "Who changed what in the medication plan, and when. Newest first.",
     "empty": "No changes recorded yet. From now on every save is recorded.",
@@ -304,6 +305,7 @@
       "yes": "Yes",
       "no": "No",
       "empty": "(empty)"
-    }
+    },
+    "allDescription": "All changes to the medication plan, newest first (up to 200)."
   }
 }

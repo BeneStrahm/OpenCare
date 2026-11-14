@@ -621,6 +621,28 @@ router.put('/:id', requireContentWriter, async (req: CircleRequest, res: Respons
     }
 });
 
+// Änderungshistorie aller Medikamente des Kreises (Reiter "Änderungen"): admin, family, professional.
+// Neueste zuerst, höchstens 200 Einträge. Form des Medikaments für die Einheit (leer, wenn gelöscht).
+router.get('/history', requireRole('admin', 'family', 'professional'), async (req: CircleRequest, res: Response) => {
+    try {
+        const result = await query(
+            `SELECT h.id, h.medication_id, h.medication_name, h.action, h.changes, h.changed_at,
+                    u.name AS changed_by_name, m.form AS medication_form
+             FROM medication_history h
+             LEFT JOIN users u ON u.id = h.changed_by
+             LEFT JOIN medications m ON m.id = h.medication_id
+             WHERE h.circle_id = $1
+             ORDER BY h.changed_at DESC
+             LIMIT 200`,
+            [req.circleId]
+        );
+        res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('Medication history error:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
+
 // Änderungshistorie eines Medikaments (PC und Handy): admin, family, professional.
 // Bleibt nach dem Löschen erhalten. Neueste zuerst, höchstens 200 Einträge.
 router.get('/:id/history', requireRole('admin', 'family', 'professional'), async (req: CircleRequest, res: Response) => {

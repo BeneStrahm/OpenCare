@@ -6,7 +6,8 @@
     "today": "Aujourd'hui",
     "treatments": "Traitements",
     "prescriptions": "Ordonnances",
-    "stock": "Stock"
+    "stock": "Stock",
+    "history": "Modifications"
   },
   "moments": {
     "morning": "Matin",
@@ -277,7 +278,7 @@
     "any": "Avec ou sans repas"
   },
   "history": {
-    "open": "Modifications",
+    "open": "Afficher les modifications",
     "title": "Modifications : {{name}}",
     "description": "Qui a modifié quoi dans le plan de médicaments, et quand. Les plus récentes d'abord.",
     "empty": "Aucune modification enregistrée pour l'instant. Chaque enregistrement est désormais conservé.",
@@ -304,6 +305,7 @@
       "yes": "Oui",
       "no": "Non",
       "empty": "(vide)"
-    }
+    },
+    "allDescription": "Toutes les modifications du plan de médicaments, les plus récentes d'abord (200 au maximum)."
   }
 }

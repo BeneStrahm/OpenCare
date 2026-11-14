@@ -6,7 +6,8 @@
     "today": "Hoy",
     "treatments": "Tratamientos",
     "prescriptions": "Recetas",
-    "stock": "Existencias"
+    "stock": "Existencias",
+    "history": "Cambios"
   },
   "moments": {
     "morning": "Mañana",
@@ -277,7 +278,7 @@
     "any": "Con o sin comida"
   },
   "history": {
-    "open": "Cambios",
+    "open": "Mostrar cambios",
     "title": "Cambios: {{name}}",
     "description": "Quién cambió qué en el plan de medicamentos y cuándo. Los más recientes primero.",
     "empty": "Todavía no hay cambios registrados. A partir de ahora se registra cada vez que se guarda.",
@@ -304,6 +305,7 @@
       "yes": "Sí",
       "no": "No",
       "empty": "(vacío)"
-    }
+    },
+    "allDescription": "Todos los cambios del plan de medicamentos, los más recientes primero (máximo 200)."
   }
 }
