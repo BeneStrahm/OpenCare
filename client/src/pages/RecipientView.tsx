@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
     CalendarDays, Check, CheckCheck, MapPin, MessageCircle, Phone, Pill, RotateCcw,
     Settings as SettingsIcon, ThermometerSun, Users, Backpack, Car, Volume2, Square, X,
-    Stethoscope, CalendarRange, CalendarClock, Droplet, Scale, HeartPulse, Sun, Moon, ChevronRight, ChevronUp, ChevronDown,
+    Stethoscope, CalendarRange, CalendarClock, Droplet, Scale, HeartPulse, Moon, ChevronRight, ChevronUp, ChevronDown,
     IdCard, ShoppingCart, CalendarPlus, Plus, Activity, SkipForward, CircleAlert, Clock,
 } from 'lucide-react';
 import { api } from '../lib/api';
@@ -445,6 +445,8 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     const [events, setEvents] = useState<CalendarEvent[]>([]);
     const [contacts, setContacts] = useState<Contact[]>([]);
     const [heat, setHeat] = useState<Heatwave | null>(null);
+    // Hitze-Meldung mit OK weggetippt: Tag (YYYY-MM-DD), gespeichert am Konto
+    const [heatDismissed, setHeatDismissed] = useState<string | null>(null);
     const [openVitals, setOpenVitals] = useState<OpenVitalReminder[]>([]);
     const [ownVitals, setOwnVitals] = useState<OwnVital[]>([]);
     const [vitalForm, setVitalForm] = useState<VitalForm | null>(null);
@@ -582,6 +584,8 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
         if (heatOn) {
             jobs.push(api.get<{ success: boolean; data: Heatwave }>('/api/heatwave')
                 .then((res) => setHeat(res.data ?? null)));
+            jobs.push(api.get<{ success: boolean; data: { day: string | null } }>('/api/auth/heat-dismissed')
+                .then((res) => setHeatDismissed(res.data?.day ?? null)));
         }
         if (healthOn) {
             jobs.push(api.get<{ success: boolean; data: OpenVitalReminder[] }>('/api/vitals/reminders/today')
@@ -921,12 +925,22 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     const intakeGroups = useMemo(() => groupIntakes(intakes, clockDate), [intakes]);
     const groupTitle = (group: IntakeGroup, items: Intake[]) =>
         group.kind === 'moment' ? t(`medications:moments.${group.moment}`) : t('simpleView:meds.at', { time: clockOf(items[0].due_at) });
-    // Block M: Kachel auf der Startseite. Offene Einnahmen ab 30 Minuten vor der Zeit bis
-    // Tagesende, dazu eigene Wahl, solange Rueckgaengig moeglich ist.
-    const homeIntakes = intakes.filter((i) => showOnHome(i, now, clockDate) || canUndo(i));
-    // Feste Plaetze: Reihenfolge nur nach Uhrzeit und Name (groupIntakes), genommene und
-    // uebersprungene Karten bleiben an ihrer Stelle.
-    const homeGroups = groupIntakes(homeIntakes, clockDate);
+    // Meldungen auf der Startseite (14. November): statt der Karten nur eine Meldung mit Taste zum
+    // Fenster "Medikamente". Faellig heisst: offen in der Frist (30 Minuten vorher bis 4 Stunden danach)
+    // oder verpasst und noch nicht uebersprungen.
+    const isDueOrMissed = (i: Intake) => isOpen(i) && (showOnHome(i, now, clockDate) || pastDeadline(i));
+    const medsDue = intakes.some(isDueOrMissed);
+    // Fenster "Medikamente": beim Oeffnen (Kachel oder Meldung) zur fruehesten faelligen oder verpassten Einnahme springen.
+    useEffect(() => {
+        if (win !== 'meds') return;
+        const target = intakes
+            .filter(isDueOrMissed)
+            .sort((a, b) => (clockDate(a.due_at)?.getTime() ?? 0) - (clockDate(b.due_at)?.getTime() ?? 0))[0];
+        if (!target) return;
+        const frame = requestAnimationFrame(() => document.getElementById(`rv-meds-intake-${target.id}`)?.scrollIntoView({ block: 'center' }));
+        return () => cancelAnimationFrame(frame);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [win]);
     const infoIntake = infoId ? intakes.find((i) => i.id === infoId) ?? null : null;
 
     /** Offline in der Warteschlange: lokal als genommen bzw. uebersprungen zeigen, ohne Rueckgaengig. */
@@ -1077,7 +1091,8 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     const eventAhead = events.some((e) => (clockDate(e.end_time || e.start_time)?.getTime() ?? 0) > now.getTime());
     const somethingOpen = (medsOn && intakes.some(isOpen)) || (healthOn && openVitals.length > 0) || (calendarOn && eventAhead);
     const praiseNumber = (Number(day.replace(/-/g, '')) % 3) + 1;
-    const reviewText = somethingOpen ? t('simpleView:review.open') : t(`simpleView:review.praise${praiseNumber}`);
+    // Nur das Lob: steht noch etwas an, erscheint kein Rueckblick (14. November, Wunsch von Benedikt).
+    const reviewText = t(`simpleView:review.praise${praiseNumber}`);
     const heatRed = heat?.level === 'red';
 
     const timeRange = (e: CalendarEvent) =>
@@ -1293,6 +1308,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                                 return (
                                                     <li
                                                         key={intake.id}
+                                                        id={`${idPrefix}-intake-${intake.id}`}
                                                         className={cn('flex flex-col gap-3 rounded-2xl p-4', compact && 'px-[0.546875rem]')}
                                                         style={intakeCardStyle(intake)}
                                                     >
@@ -1302,9 +1318,10 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                                         {/* Nach der eigenen Wahl werden die Tasten zu "Rueckgaengig" (30 Sekunden) */}
                                                         {renderUndo(intake)}
 
-                                                        {/* Tasten nur im Zeitfenster (30 Minuten vorher bis 4 Stunden danach) */}
-                                                        {isOpen(intake) && showOnHome(intake, now, clockDate) && (
+                                                        {/* Tasten im Zeitfenster (30 Minuten vorher bis 4 Stunden danach). Verpasst: nur Ueberspringen */}
+                                                        {isOpen(intake) && (showOnHome(intake, now, clockDate) || pastDeadline(intake)) && (
                                                             <div className="flex gap-3">
+                                                                {showOnHome(intake, now, clockDate) && (
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => void setStatus(intake, 'taken')}
@@ -1316,6 +1333,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                                                 >
                                                                     <Check className="h-9 w-9" strokeWidth={3} aria-hidden="true" />
                                                                 </button>
+                                                                )}
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => setSkipConfirm([intake])}
@@ -1339,6 +1357,45 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                             })}
                         </div>
     );
+
+    // ── Meldungen auf der Startseite: Symbol, ein Satz, eine Taste (wie die Mess-Meldung, Block E) ──
+    type NoticeIcon = React.FC<{ className?: string; style?: React.CSSProperties }>;
+    const renderNotice = (key: string, Icon: NoticeIcon, text: string,
+        button: { label: string; onClick: () => void; Icon?: NoticeIcon },
+        look: { bg: string; icon: string } = { bg: C.blueSoft, icon: C.blue }) => {
+        const ButtonIcon = button.Icon;
+        return (
+            <section key={key} className="flex flex-wrap items-center justify-between gap-4 rounded-3xl p-5" style={{ backgroundColor: look.bg, border: `1px solid ${C.border}` }}>
+                <div className="flex items-center gap-4">
+                    <Icon className="h-12 w-12 shrink-0" style={{ color: look.icon }} aria-hidden="true" />
+                    <p className="font-bold" style={fs(22)}>{text}</p>
+                </div>
+                <button
+                    type="button"
+                    onClick={button.onClick}
+                    className="flex min-h-[4rem] items-center gap-2 rounded-2xl px-5 font-bold text-white shadow-md"
+                    style={{ ...fs(21), backgroundColor: C.blue }}
+                >
+                    {ButtonIcon && <ButtonIcon className="h-7 w-7 shrink-0" aria-hidden="true" />}
+                    {button.label}
+                </button>
+            </section>
+        );
+    };
+    // Termine: ab 1 Stunde vor Beginn (bei Fahrt vor der Abfahrt) bis zum Ende, ohne Endzeit bis 1 Stunde nach Beginn.
+    const NOTICE_HOUR_MS = 60 * 60_000;
+    const noticeEvents = calendarOn ? appointmentEvents.filter((e) => {
+        const start = clockDate(e.start_time);
+        if (!start) return false;
+        const from = start.getTime() - (e.travel_to_minutes ?? 0) * 60_000 - NOTICE_HOUR_MS;
+        const end = (e.end_time ? clockDate(e.end_time)?.getTime() : undefined) ?? start.getTime() + NOTICE_HOUR_MS;
+        return now.getTime() >= from && now.getTime() < end;
+    }) : [];
+    // Hitze: OK blendet die Meldung fuer heute aus, am Konto gespeichert (alle Geraete).
+    const dismissHeat = () => {
+        setHeatDismissed(day);
+        api.put('/api/auth/heat-dismissed', { day }).catch(() => { /* bleibt in dieser Sitzung ausgeblendet */ });
+    };
 
     // ── Kacheln (Block L1): alle gleich, weiss mit gleichem Rand; Farbe nur mit Bedeutung ──
     const tileStyle: React.CSSProperties = { backgroundColor: C.card, border: `2px solid ${C.border}`, color: C.text };
@@ -1419,50 +1476,13 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                 {/* Keine Erfolgsmeldung nach Genommen, Ueberspringen, Rueckgaengig: die Karte zeigt es selbst.
                     Fehler, "ohne Internet gespeichert" und Spaeter erinnern bleiben. */}
                 {medsOn && win === null && notice && notice.kind !== 'ok' && noticeBox}
-                {medsOn && homeGroups.length > 0 && (
-                    <section className="rounded-3xl p-5 min-[512px]:p-6" style={{ backgroundColor: C.blueSoft, border: `2px solid ${C.border}` }} aria-labelledby="rv-home-meds">
-                        <h2 id="rv-home-meds" className="mb-4 flex items-center gap-4" style={sectionTitle(C.blueDark)}>
-                            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-white" style={{ backgroundColor: C.blue }} aria-hidden="true">
-                                <Pill className="h-8 w-8" />
-                            </span>
-                            {t('simpleView:reminder.title')}
-                        </h2>
-                        {renderIntakeGroups(homeGroups, 'rv-home')}
-                    </section>
-                )}
-
-                {/* Tagesrueckblick ab 18 Uhr: ein Satz, keine Aufzaehlung */}
-                {showReview && (
-                    <section className="flex items-center gap-4 rounded-3xl p-5 min-[512px]:p-6" style={{ backgroundColor: C.blueSoft, border: `1px solid ${C.border}` }} aria-labelledby="rv-review">
-                        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-white" style={{ backgroundColor: C.blue }}>
-                            {somethingOpen
-                                ? <Sun className="h-8 w-8" aria-hidden="true" />
-                                : <Moon className="h-8 w-8" aria-hidden="true" />}
-                        </span>
-                        <div>
-                            <h2 id="rv-review" style={sectionTitle(C.blueDark)}>{t('simpleView:review.title')}</h2>
-                            <p className="font-bold" style={fs(22)}>{reviewText}</p>
-                        </div>
-                    </section>
-                )}
-
-                {loadError && (
-                    <section role="alert" className="flex flex-wrap items-center justify-between gap-4 rounded-3xl p-5" style={{ backgroundColor: C.redSoft, border: `2px solid ${C.red}` }}>
-                        <p className="font-bold" style={fs(21)}>{t('simpleView:loadError')}</p>
-                        <button type="button" onClick={() => void load()} className="flex min-h-[3.5rem] items-center gap-2 rounded-2xl px-5 font-bold" style={secondaryButton}>
-                            <RotateCcw className="h-6 w-6 shrink-0" aria-hidden="true" />
-                            {t('simpleView:reload')}
-                        </button>
-                    </section>
-                )}
-
-                {heatOn && heatActive && (
-                    <section className="flex items-center gap-4 rounded-3xl p-5" style={{ backgroundColor: heatRed ? C.redSoft : C.amberSoft, border: `1px solid ${C.border}` }}>
-                        <ThermometerSun className="h-12 w-12 shrink-0" style={{ color: heatRed ? C.red : C.amber }} aria-hidden="true" />
-                        <p className="font-bold" style={fs(22)}>{t('simpleView:heat.banner')}</p>
-                    </section>
-                )}
-
+                {/* Meldungen (14. November): einheitlich Symbol, ein Satz, eine Taste. Reihenfolge Medikamente,
+                    Termine, Gesundheitswerte, Hitze */}
+                {medsOn && medsDue && renderNotice('meds', Pill, t('simpleView:notices.meds'),
+                    { label: t('simpleView:notices.medsButton'), Icon: Pill, onClick: () => openWindow('meds') })}
+                {noticeEvents.map((e) => renderNotice(`event-${e.id}`, CalendarDays,
+                    t('simpleView:notices.event', { time: clockOf(e.start_time), title: e.title }),
+                    { label: t('simpleView:notices.eventButton'), Icon: CalendarDays, onClick: () => setEventCard(e) }))}
                 {/* Block E: freundliche Zeile, solange ein Messwert von heute fehlt; Block K: mit Taste zum Eintragen */}
                 {healthOn && dueVitals.map((r) => {
                     const Icon = r.type === 'glucose' ? Droplet : Scale;
@@ -1489,6 +1509,33 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                         </section>
                     );
                 })}
+
+                {heatOn && heatActive && heatDismissed !== day && renderNotice('heat', ThermometerSun, t('simpleView:heat.banner'),
+                    { label: t('simpleView:ok'), onClick: () => dismissHeat() },
+                    { bg: heatRed ? C.redSoft : C.amberSoft, icon: heatRed ? C.red : C.amber })}
+
+                {/* Tagesrueckblick ab 18 Uhr: ein Satz, keine Aufzaehlung */}
+                {showReview && !somethingOpen && (
+                    <section className="flex items-center gap-4 rounded-3xl p-5 min-[512px]:p-6" style={{ backgroundColor: C.blueSoft, border: `1px solid ${C.border}` }} aria-labelledby="rv-review">
+                        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-white" style={{ backgroundColor: C.blue }}>
+                            <Moon className="h-8 w-8" aria-hidden="true" />
+                        </span>
+                        <div>
+                            <h2 id="rv-review" style={sectionTitle(C.blueDark)}>{t('simpleView:review.title')}</h2>
+                            <p className="font-bold" style={fs(22)}>{reviewText}</p>
+                        </div>
+                    </section>
+                )}
+
+                {loadError && (
+                    <section role="alert" className="flex flex-wrap items-center justify-between gap-4 rounded-3xl p-5" style={{ backgroundColor: C.redSoft, border: `2px solid ${C.red}` }}>
+                        <p className="font-bold" style={fs(21)}>{t('simpleView:loadError')}</p>
+                        <button type="button" onClick={() => void load()} className="flex min-h-[3.5rem] items-center gap-2 rounded-2xl px-5 font-bold" style={secondaryButton}>
+                            <RotateCcw className="h-6 w-6 shrink-0" aria-hidden="true" />
+                            {t('simpleView:reload')}
+                        </button>
+                    </section>
+                )}
 
                 {/* Block L1: Kacheln, jede oeffnet ein grosses Fenster. 3 Spalten ab 614 px (768 x 0,8, Punkt 16; Tablet mit hoechstem Bildschirmzoom: 853 px). Alle Reihen so hoch wie die hoechste Kachel (1fr, keine feste Hoehe) */}
                 <nav aria-label={t('simpleView:tiles.label')} className="grid auto-rows-[1fr] grid-cols-1 gap-4 min-[512px]:grid-cols-2 min-[614px]:grid-cols-3">

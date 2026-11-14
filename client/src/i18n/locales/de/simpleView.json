@@ -86,8 +86,7 @@
     "title": "Ihr Tag",
     "praise1": "Das haben Sie heute gut gemacht. Einen schönen Abend!",
     "praise2": "Ein schöner Tag geht zu Ende. Sie haben alles prima geschafft.",
-    "praise3": "Sehr gut gemacht heute. Ruhen Sie sich jetzt schön aus.",
-    "open": "Für heute steht noch etwas an. Ganz in Ruhe, Sie finden es auf dieser Seite."
+    "praise3": "Sehr gut gemacht heute. Ruhen Sie sich jetzt schön aus."
   },
   "photos": {
     "title": "Fotos von der Familie",
@@ -221,5 +220,11 @@
   "devClock": {
     "label": "Testuhr (nur beim lokalen Testen)",
     "reset": "Echte Zeit"
+  },
+  "notices": {
+    "meds": "Es ist Zeit für Ihre Medikamente.",
+    "medsButton": "Zu den Medikamenten",
+    "event": "Heute um {{time}} Uhr: {{title}}",
+    "eventButton": "Ansehen"
   }
 }

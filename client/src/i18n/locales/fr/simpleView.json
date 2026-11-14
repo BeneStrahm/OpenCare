@@ -86,8 +86,7 @@
     "title": "Votre journée",
     "praise1": "Vous avez bien fait les choses aujourd'hui. Belle soirée !",
     "praise2": "Une belle journée se termine. Vous avez tout très bien réussi.",
-    "praise3": "Très bien aujourd'hui. Reposez-vous bien maintenant.",
-    "open": "Il reste encore quelque chose pour aujourd'hui. Sans vous presser, vous le trouverez sur cette page."
+    "praise3": "Très bien aujourd'hui. Reposez-vous bien maintenant."
   },
   "photos": {
     "title": "Photos de la famille",
@@ -221,5 +220,11 @@
   "devClock": {
     "label": "Horloge de test (tests locaux seulement)",
     "reset": "Heure réelle"
+  },
+  "notices": {
+    "meds": "C'est l'heure de vos médicaments.",
+    "medsButton": "Voir les médicaments",
+    "event": "Aujourd'hui à {{time}} : {{title}}",
+    "eventButton": "Voir"
   }
 }

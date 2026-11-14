@@ -86,8 +86,7 @@
     "title": "Your day",
     "praise1": "You did well today. Have a lovely evening!",
     "praise2": "A good day is coming to an end. You managed everything nicely.",
-    "praise3": "Well done today. Now have a good rest.",
-    "open": "There is still something left for today. No hurry, you will find it on this page."
+    "praise3": "Well done today. Now have a good rest."
   },
   "photos": {
     "title": "Photos from the family",
@@ -221,5 +220,11 @@
   "devClock": {
     "label": "Test clock (local testing only)",
     "reset": "Real time"
+  },
+  "notices": {
+    "meds": "It is time for your medication.",
+    "medsButton": "Go to medication",
+    "event": "Today at {{time}}: {{title}}",
+    "eventButton": "View"
   }
 }

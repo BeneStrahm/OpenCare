@@ -438,6 +438,8 @@ export const runMigrations = async () => {
         // Fork, Block D: Farbe der einfachen Ansicht, am Konto der betreuten Person
         // (Kennung aus client/src/lib/viewColors.ts, NULL = Standardfarbe Blau).
         `ALTER TABLE users ADD COLUMN IF NOT EXISTS view_color VARCHAR(20);`,
+        // Hitze-Meldung der einfachen Ansicht mit OK fuer diesen Tag weggetippt (Tag als YYYY-MM-DD)
+        `ALTER TABLE users ADD COLUMN IF NOT EXISTS heat_dismissed_on VARCHAR(10);`,
         // Fork, Block D: Fotos fuer die einfache Ansicht (ruhig im Wechsel), hochgeladen
         // von Familie und Admin. JPEG als data URL wie die uebrigen Fotos, im Browser
         // verkleinert, Metadaten (Ortsdaten) entfernt (lib/viewPhotos.ts).

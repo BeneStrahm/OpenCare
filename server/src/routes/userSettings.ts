@@ -38,6 +38,33 @@ router.put('/language', authMiddleware, async (req: AuthRequest, res) => {
     }
 });
 
+// Hitze-Meldung der einfachen Ansicht: mit OK fuer einen Tag weggetippt, gilt am Konto (alle Geraete).
+// GET /api/auth/heat-dismissed -> { day: "YYYY-MM-DD" | null }
+// PUT /api/auth/heat-dismissed. Body: { "day": "YYYY-MM-DD" } (Tag des Geraets)
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+router.get('/heat-dismissed', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const result = await query('SELECT heat_dismissed_on FROM users WHERE id = $1', [req.userId]);
+        return res.json({ success: true, data: { day: result.rows[0]?.heat_dismissed_on ?? null } });
+    } catch (error) {
+        console.error('Read heat dismissed error:', error);
+        return res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
+router.put('/heat-dismissed', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const { day } = req.body as { day?: unknown };
+        if (typeof day !== 'string' || !DAY_RE.test(day)) {
+            return res.status(400).json({ success: false, error: 'Invalid day. Expected YYYY-MM-DD' });
+        }
+        await query('UPDATE users SET heat_dismissed_on = $1 WHERE id = $2', [day, req.userId]);
+        return res.json({ success: true, data: { day } });
+    } catch (error) {
+        console.error('Update heat dismissed error:', error);
+        return res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
+
 // Farbe der einfachen Ansicht (Block D, lib/viewColors.ts).
 // PUT /api/auth/view-color. Body: { "color": "<Kennung>" | null } (null = Standard)
 // Jedes Konto stellt nur die eigene Farbe ein, auch die betreute Person.

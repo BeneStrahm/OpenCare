@@ -86,8 +86,7 @@
     "title": "Su día",
     "praise1": "Hoy lo ha hecho muy bien. ¡Que pase una buena tarde!",
     "praise2": "Termina un buen día. Lo ha conseguido todo muy bien.",
-    "praise3": "Muy bien hecho hoy. Ahora descanse tranquilamente.",
-    "open": "Todavía queda algo para hoy. Con calma, lo encontrará en esta página."
+    "praise3": "Muy bien hecho hoy. Ahora descanse tranquilamente."
   },
   "photos": {
     "title": "Fotos de la familia",
@@ -221,5 +220,11 @@
   "devClock": {
     "label": "Reloj de prueba (solo pruebas locales)",
     "reset": "Hora real"
+  },
+  "notices": {
+    "meds": "Es hora de tomar sus medicamentos.",
+    "medsButton": "Ir a los medicamentos",
+    "event": "Hoy a las {{time}}: {{title}}",
+    "eventButton": "Ver"
   }
 }
