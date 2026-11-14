@@ -466,6 +466,19 @@ export const runMigrations = async () => {
          FROM medications m
          WHERE s.medication_id = m.id AND m.view_color IS NOT NULL AND s.view_color IS NULL;`,
         `UPDATE medications SET view_color = NULL WHERE view_color IS NOT NULL;`,
+        // Änderungshistorie des Medikamentenplans (lib/medicationHistory.ts). Ohne Fremdschlüssel
+        // auf medications, damit die Einträge nach dem Löschen eines Medikaments bleiben.
+        `CREATE TABLE IF NOT EXISTS medication_history (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            circle_id UUID NOT NULL REFERENCES care_circles(id) ON DELETE CASCADE,
+            medication_id UUID NOT NULL,
+            medication_name VARCHAR(255) NOT NULL,
+            action VARCHAR(10) NOT NULL CHECK (action IN ('created', 'updated', 'deleted')),
+            changes JSONB NOT NULL DEFAULT '[]',
+            changed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+            changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );`,
+        `CREATE INDEX IF NOT EXISTS idx_medication_history_med ON medication_history(medication_id, changed_at DESC);`,
         // Fork, Block L4: wer wann abgehakt hat (10 Minuten Rueckgaengig fuer die betreute Person).
         `ALTER TABLE shopping_items ADD COLUMN IF NOT EXISTS checked_by UUID REFERENCES users(id) ON DELETE SET NULL;`,
         `ALTER TABLE shopping_items ADD COLUMN IF NOT EXISTS checked_at TIMESTAMP;`,

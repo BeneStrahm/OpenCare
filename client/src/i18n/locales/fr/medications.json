@@ -275,5 +275,35 @@
     "with": "Pendant le repas",
     "without": "En dehors des repas",
     "any": "Avec ou sans repas"
+  },
+  "history": {
+    "open": "Modifications",
+    "title": "Modifications : {{name}}",
+    "description": "Qui a modifié quoi dans le plan de médicaments, et quand. Les plus récentes d'abord.",
+    "empty": "Aucune modification enregistrée pour l'instant. Chaque enregistrement est désormais conservé.",
+    "loadError": "Les modifications n'ont pas pu être chargées. Vérifiez la connexion internet et réessayez.",
+    "unknownUser": "inconnu",
+    "when": "{{date}}, {{time}}, par {{name}}",
+    "changedTo": "remplacé par",
+    "atTime": "À {{time}}",
+    "scheduleAdded": "Horaire ajouté :",
+    "scheduleRemoved": "Horaire supprimé :",
+    "actions": {
+      "created": "Créé",
+      "updated": "Modifié",
+      "deleted": "Supprimé"
+    },
+    "fields": {
+      "active": "Statut",
+      "schedule": "Horaire"
+    },
+    "values": {
+      "active": "Actif",
+      "photo": "Photo présente",
+      "noPhoto": "Pas de photo",
+      "yes": "Oui",
+      "no": "Non",
+      "empty": "(vide)"
+    }
   }
 }

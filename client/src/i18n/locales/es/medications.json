@@ -275,5 +275,35 @@
     "with": "Durante la comida",
     "without": "Fuera de las comidas",
     "any": "Con o sin comida"
+  },
+  "history": {
+    "open": "Cambios",
+    "title": "Cambios: {{name}}",
+    "description": "Quién cambió qué en el plan de medicamentos y cuándo. Los más recientes primero.",
+    "empty": "Todavía no hay cambios registrados. A partir de ahora se registra cada vez que se guarda.",
+    "loadError": "No se pudieron cargar los cambios. Compruebe la conexión a internet e inténtelo de nuevo.",
+    "unknownUser": "desconocido",
+    "when": "{{date}}, {{time}}, por {{name}}",
+    "changedTo": "cambiado a",
+    "atTime": "A las {{time}}",
+    "scheduleAdded": "Horario añadido:",
+    "scheduleRemoved": "Horario eliminado:",
+    "actions": {
+      "created": "Creado",
+      "updated": "Modificado",
+      "deleted": "Eliminado"
+    },
+    "fields": {
+      "active": "Estado",
+      "schedule": "Horario"
+    },
+    "values": {
+      "active": "Activo",
+      "photo": "Con foto",
+      "noPhoto": "Sin foto",
+      "yes": "Sí",
+      "no": "No",
+      "empty": "(vacío)"
+    }
   }
 }

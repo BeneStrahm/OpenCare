@@ -34,6 +34,7 @@ import {
 } from '../lib/intakes';
 import { langFromRequest, t, type Lang } from '../lib/i18n';
 import { MEDICATION_COLOR_IDS } from '../lib/viewColors';
+import { diffMedication, recordMedicationHistory } from '../lib/medicationHistory';
 
 const router = Router();
 
@@ -395,6 +396,14 @@ router.post('/', requireContentWriter, async (req: CircleRequest, res: Response)
         }
 
         const medication = await fetchMedicationWithSchedules(client, medicationId);
+        await recordMedicationHistory(client, {
+            circleId: req.circleId!,
+            medicationId,
+            medicationName: medication.name,
+            action: 'created',
+            changes: diffMedication(null, medication),
+            userId: req.userId,
+        });
         await client.query('COMMIT');
 
         await broadcastToCircle(req.circleId!, { type: 'update', entity: 'medications', action: 'created' });
@@ -535,6 +544,7 @@ router.put('/:id', requireContentWriter, async (req: CircleRequest, res: Respons
             await client.query('ROLLBACK');
             return res.status(404).json({ success: false, error: t(lang, 'medications.notFound') });
         }
+        const before = await fetchMedicationWithSchedules(client, req.params.id);
 
         if (fields.length > 0) {
             values.push(req.params.id, req.circleId);
@@ -590,6 +600,14 @@ router.put('/:id', requireContentWriter, async (req: CircleRequest, res: Respons
         }
 
         const medication = await fetchMedicationWithSchedules(client, req.params.id);
+        await recordMedicationHistory(client, {
+            circleId: req.circleId!,
+            medicationId: req.params.id,
+            medicationName: medication.name,
+            action: 'updated',
+            changes: diffMedication(before, medication),
+            userId: req.userId,
+        });
         await client.query('COMMIT');
 
         await broadcastToCircle(req.circleId!, { type: 'update', entity: 'medications', action: 'updated' });
@@ -603,13 +621,43 @@ router.put('/:id', requireContentWriter, async (req: CircleRequest, res: Respons
     }
 });
 
+// Änderungshistorie eines Medikaments (PC und Handy): admin, family, professional.
+// Bleibt nach dem Löschen erhalten. Neueste zuerst, höchstens 200 Einträge.
+router.get('/:id/history', requireRole('admin', 'family', 'professional'), async (req: CircleRequest, res: Response) => {
+    try {
+        if (!SCHEDULE_ID_RE.test(req.params.id)) {
+            return res.json({ success: true, data: [] });
+        }
+        const result = await query(
+            `SELECT h.id, h.medication_id, h.medication_name, h.action, h.changes, h.changed_at,
+                    u.name AS changed_by_name
+             FROM medication_history h
+             LEFT JOIN users u ON u.id = h.changed_by
+             WHERE h.medication_id = $1 AND h.circle_id = $2
+             ORDER BY h.changed_at DESC
+             LIMIT 200`,
+            [req.params.id, req.circleId]
+        );
+        res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('Medication history error:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
+
 // Delete a medication (admin and family). Cascades to schedules and intakes.
 router.delete('/:id', requireContentWriter, async (req: CircleRequest, res: Response) => {
     const lang = langFromRequest(req);
     try {
+        // Löschen und Eintrag in der Änderungshistorie in einer Anweisung (lib/medicationHistory.ts).
         const result = await query(
-            'DELETE FROM medications WHERE id = $1 AND circle_id = $2 RETURNING id',
-            [req.params.id, req.circleId]
+            `WITH deleted AS (
+                 DELETE FROM medications WHERE id = $1 AND circle_id = $2 RETURNING id, name
+             )
+             INSERT INTO medication_history (circle_id, medication_id, medication_name, action, changes, changed_by)
+             SELECT $2, id, name, 'deleted', '[]'::jsonb, $3 FROM deleted
+             RETURNING medication_id AS id`,
+            [req.params.id, req.circleId, req.userId ?? null]
         );
         if (result.rows.length === 0) {
             return res.status(404).json({ success: false, error: t(lang, 'medications.notFound') });

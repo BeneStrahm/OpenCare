@@ -15,6 +15,7 @@ import {
     Clock,
     PlusCircle,
     Package,
+    History,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { cn } from '../lib/utils';
@@ -148,6 +149,50 @@ interface ScheduleRow {
     /** E28: Farbe dieser Einnahmezeit, '' = keine */
     view_color: string;
 }
+
+/** Änderungshistorie des Medikamentenplans (server/src/lib/medicationHistory.ts). */
+interface HistorySchedule {
+    time_of_day: string;
+    time_fixed: boolean;
+    days_of_week: number[];
+    quantity: number;
+    unit: string | null;
+    view_color: string | null;
+    label: string | null;
+}
+
+interface HistoryChange {
+    field: string;
+    old: unknown;
+    new: unknown;
+}
+
+interface HistoryEntry {
+    id: string;
+    action: 'created' | 'updated' | 'deleted';
+    changes: HistoryChange[];
+    changed_at: string;
+    changed_by_name: string | null;
+}
+
+/** Feldname in der Historie -> Beschriftung (vorhandene Texte des Formulars). */
+const HISTORY_FIELD_LABELS: Record<string, string> = {
+    name: 'medications:form.name',
+    active_ingredient: 'medications:form.activeIngredient',
+    dosage: 'medications:form.dosage',
+    form: 'medications:form.form',
+    instructions: 'medications:form.instructions',
+    prescriber: 'medications:form.prescriber',
+    start_date: 'medications:form.startDate',
+    end_date: 'medications:form.endDate',
+    prn: 'medications:form.prn',
+    with_food: 'medications:form.withFood',
+    reason: 'medications:form.reason',
+    appearance: 'medications:form.appearance',
+    photo: 'medications:form.photo',
+    active: 'medications:history.fields.active',
+    schedule: 'medications:history.fields.schedule',
+};
 
 // ─── Constants and helpers ────────────────────────────────────────────────────
 
@@ -1069,6 +1114,89 @@ const Medications: React.FC = () => {
         await saveStock(stockMed, quantity);
     };
 
+    // ─── Änderungshistorie ────────────────────────────────────────────────────
+
+    const canReadHistory = myRole === 'admin' || myRole === 'family' || myRole === 'professional';
+    const [historyMed, setHistoryMed] = useState<Medication | null>(null);
+    const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
+    const [historyLoading, setHistoryLoading] = useState(false);
+    const [historyError, setHistoryError] = useState('');
+
+    const openHistory = async (med: Medication) => {
+        setHistoryMed(med);
+        setHistoryEntries([]);
+        setHistoryError('');
+        setHistoryLoading(true);
+        try {
+            const response = await api.get<{ success: boolean; data: HistoryEntry[] }>(
+                `/api/medications/${med.id}/history`
+            );
+            if (response.success) setHistoryEntries(response.data);
+        } catch (err) {
+            console.error('Failed to load medication history:', err);
+            setHistoryError(t('medications:history.loadError'));
+        } finally {
+            setHistoryLoading(false);
+        }
+    };
+
+    const historyScheduleText = (s: HistorySchedule, form: string | null) => {
+        const when = s.time_fixed === false
+            ? t(`medications:moments.${momentOf(parseInt(s.time_of_day.slice(0, 2), 10))}`)
+            : t('medications:history.atTime', { time: formatClock(s.time_of_day) });
+        const parts = [`${when}: ${amountLabel(s.quantity, s.unit, form)}`];
+        if (Array.isArray(s.days_of_week) && s.days_of_week.length < 7) {
+            parts.push(sortIsoDays(s.days_of_week, weekStart).map((d) => daysShort[d - 1]).join(', '));
+        }
+        const color = medicationColorOf(s.view_color);
+        if (color) parts.push(t(`medications:form.viewColors.${color.id}`));
+        if (s.label) parts.push(s.label);
+        return parts.join(' · ');
+    };
+
+    const historyValueText = (field: string, value: unknown, form: string | null): string => {
+        if (field === 'active') return value ? t('medications:history.values.active') : t('medications:treatments.archived');
+        if (field === 'photo') return value ? t('medications:history.values.photo') : t('medications:history.values.noPhoto');
+        if (field === 'prn') return value ? t('medications:history.values.yes') : t('medications:history.values.no');
+        if (value === null || value === undefined || value === '') return t('medications:history.values.empty');
+        if (field === 'schedule') return historyScheduleText(value as HistorySchedule, form);
+        if (field === 'form') return formLabel(String(value));
+        if (field === 'with_food') return t(`medications:withFood.${String(value)}`, { defaultValue: String(value) });
+        if (field === 'start_date' || field === 'end_date') return fmtDate(String(value));
+        return String(value);
+    };
+
+    /** Form des Medikaments zum Zeitpunkt der Änderung ist nicht gespeichert: aktuelle Form für die Einheit. */
+    const renderHistoryChange = (change: HistoryChange, action: HistoryEntry['action'], form: string | null, key: number) => {
+        const label = t(HISTORY_FIELD_LABELS[change.field] ?? change.field, { defaultValue: change.field });
+        if (change.field === 'schedule' && (change.old === null || change.new === null)) {
+            const added = change.old === null;
+            return (
+                <li key={key}>
+                    <span className="font-semibold">
+                        {added ? t('medications:history.scheduleAdded') : t('medications:history.scheduleRemoved')}
+                    </span>{' '}
+                    {historyValueText('schedule', added ? change.new : change.old, form)}
+                </li>
+            );
+        }
+        if (action === 'created') {
+            return (
+                <li key={key}>
+                    <span className="font-semibold">{label}:</span> {historyValueText(change.field, change.new, form)}
+                </li>
+            );
+        }
+        return (
+            <li key={key}>
+                <span className="font-semibold">{label}:</span> {historyValueText(change.field, change.old, form)}
+                <span aria-hidden="true"> → </span>
+                <span className="sr-only"> {t('medications:history.changedTo')} </span>
+                {historyValueText(change.field, change.new, form)}
+            </li>
+        );
+    };
+
     const stockActionLabel = (med: Medication) =>
         stockNumber(med.stock_quantity) === null
             ? t('medications:stock.start')
@@ -1263,6 +1391,12 @@ const Medications: React.FC = () => {
                                                     );
                                                 })}
                                             </dl>
+                                        )}
+                                        {canReadHistory && (
+                                            <Button variant="secondary" size="lg" onClick={() => void openHistory(med)}>
+                                                <History className="mr-2 h-5 w-5" aria-hidden="true" />
+                                                {t('medications:history.open')}
+                                            </Button>
                                         )}
                                     </CardContent>
                                 </Card>
@@ -2191,6 +2325,62 @@ const Medications: React.FC = () => {
                         </Button>
                     </div>
                 </form>
+            </Dialog>
+
+            <Dialog
+                open={historyMed !== null}
+                onOpenChange={(open) => {
+                    if (!open) setHistoryMed(null);
+                }}
+                title={historyMed ? t('medications:history.title', { name: historyMed.name }) : ''}
+                description={t('medications:history.description')}
+            >
+                {historyLoading ? (
+                    <p className="text-body text-foreground">{t('common:states.loading')}</p>
+                ) : historyError ? (
+                    <div className="space-y-3">
+                        <div role="alert" className="rounded-input border border-danger/30 bg-danger/10 px-4 py-3 text-body text-danger">
+                            {historyError}
+                        </div>
+                        {historyMed && (
+                            <Button variant="secondary" size="lg" onClick={() => void openHistory(historyMed)}>
+                                <RotateCcw className="mr-2 h-5 w-5" aria-hidden="true" />
+                                {t('common:actions.retry')}
+                            </Button>
+                        )}
+                    </div>
+                ) : historyEntries.length === 0 ? (
+                    <p className="text-body text-foreground">{t('medications:history.empty')}</p>
+                ) : (
+                    <ol className="space-y-4">
+                        {historyEntries.map((entry) => (
+                            <li key={entry.id} className="rounded-input border border-border p-4">
+                                <p className="text-body font-semibold text-foreground">
+                                    {t(`medications:history.actions.${entry.action}`)}
+                                </p>
+                                <p className="text-caption text-muted-foreground">
+                                    {t('medications:history.when', {
+                                        date: fmtDate(entry.changed_at),
+                                        time: formatClock(entry.changed_at),
+                                        name: entry.changed_by_name ?? t('medications:history.unknownUser'),
+                                    })}
+                                </p>
+                                {entry.changes.length > 0 && (
+                                    <ul className="mt-2 space-y-1 text-body text-foreground">
+                                        {entry.changes.map((change, index) =>
+                                            renderHistoryChange(change, entry.action, historyMed?.form ?? null, index)
+                                        )}
+                                    </ul>
+                                )}
+                            </li>
+                        ))}
+                    </ol>
+                )}
+                <div className="flex justify-end pt-6">
+                    <Button variant="secondary" size="lg" onClick={() => setHistoryMed(null)}>
+                        {t('common:actions.close')}
+                    </Button>
+                </div>
             </Dialog>
         </div>
     );

@@ -275,5 +275,35 @@
     "with": "With food",
     "without": "Without food",
     "any": "With or without food"
+  },
+  "history": {
+    "open": "Changes",
+    "title": "Changes: {{name}}",
+    "description": "Who changed what in the medication plan, and when. Newest first.",
+    "empty": "No changes recorded yet. From now on every save is recorded.",
+    "loadError": "The changes could not be loaded. Please check the internet connection and try again.",
+    "unknownUser": "unknown",
+    "when": "{{date}}, {{time}}, by {{name}}",
+    "changedTo": "changed to",
+    "atTime": "At {{time}}",
+    "scheduleAdded": "Intake time added:",
+    "scheduleRemoved": "Intake time removed:",
+    "actions": {
+      "created": "Created",
+      "updated": "Changed",
+      "deleted": "Deleted"
+    },
+    "fields": {
+      "active": "Status",
+      "schedule": "Intake time"
+    },
+    "values": {
+      "active": "Active",
+      "photo": "Photo added",
+      "noPhoto": "No photo",
+      "yes": "Yes",
+      "no": "No",
+      "empty": "(empty)"
+    }
   }
 }
