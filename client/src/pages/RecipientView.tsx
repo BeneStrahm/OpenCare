@@ -232,8 +232,6 @@ const ViewWindow: React.FC<{
     labelledBy?: string;
     role?: 'dialog' | 'alertdialog';
     layer?: keyof typeof PAGE_LAYER;
-    /** Rechts ohne Rand, der Scrollbalken haelt Abstand (Medikamente, Notfallblatt; Figma Rahmen 18 und 22) */
-    flushRight?: boolean;
     clock: string;
     closeLabel: string;
     onClose: () => void;
@@ -245,7 +243,7 @@ const ViewWindow: React.FC<{
     barBorder: string;
     scroll: { upLabel: string; downLabel: string; text: string; card: string; track: string; control: string };
     children: React.ReactNode;
-}> = ({ id, title, icon, labelledBy, role = 'dialog', layer = 'window', flushRight = false, clock, closeLabel, onClose, style, clockStyle, titleStyle, closeStyle, barColor, barBorder, scroll, children }) => {
+}> = ({ id, title, icon, labelledBy, role = 'dialog', layer = 'window', clock, closeLabel, onClose, style, clockStyle, titleStyle, closeStyle, barColor, barBorder, scroll, children }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
     return (
         <div className={cn('fixed inset-0 flex flex-col font-kiosk', PAGE_LAYER[layer])} style={style} role={role} aria-modal="true" aria-labelledby={title ? id : labelledBy}>
@@ -267,8 +265,8 @@ const ViewWindow: React.FC<{
             </div>
             <div className="flex min-h-0 flex-1 gap-3 pr-[5px]">
                 <div ref={scrollRef} tabIndex={0} className="min-w-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    {/* Alle Fenster volle Breite (Figma, 14. November) */}
-                    <div className={cn('mx-auto flex w-full max-w-[72rem] flex-col gap-5 px-4 pb-12 pt-5 min-[512px]:px-6', flushRight && 'pr-0 min-[512px]:pr-0')}>
+                    {/* Alle Fenster volle Breite, rechts kein Rand, der Scrollbalken haelt Abstand (Figma, 14. November) */}
+                    <div className="mx-auto flex w-full max-w-[72rem] flex-col gap-5 pb-12 pl-4 pt-5 min-[512px]:pl-6">
                         {children}
                     </div>
                 </div>
@@ -1557,7 +1555,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
             </div>
 
             {win === 'emergency' && (
-                <ViewWindow id="rv-win-emergency" flushRight title={t('emergency:title')} icon={<HeartPulse className="h-9 w-9 shrink-0" style={{ color: C.red }} aria-hidden="true" />} {...windowProps} onClose={windowProps.onClose}>
+                <ViewWindow id="rv-win-emergency" title={t('emergency:title')} icon={<HeartPulse className="h-9 w-9 shrink-0" style={{ color: C.red }} aria-hidden="true" />} {...windowProps} onClose={windowProps.onClose}>
                         {emergency.state === 'loading' && <p style={fs(22)}>{t('simpleView:ask.loading')}</p>}
                         {(emergency.state === 'error' || (emergency.state === 'done' && !emergency.data?.recipient)) && (
                             <div role="alert" className="flex flex-wrap items-center justify-between gap-4 rounded-3xl p-5" style={{ backgroundColor: C.redSoft, border: `2px solid ${C.red}` }}>
@@ -1645,7 +1643,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
             )}
 
             {win === 'meds' && (
-                <ViewWindow id="rv-win-meds" flushRight title={t('simpleView:meds.title')} icon={<Pill className="h-9 w-9 shrink-0" style={{ color: C.blue }} aria-hidden="true" />} {...windowProps} onClose={windowProps.onClose}>
+                <ViewWindow id="rv-win-meds" title={t('simpleView:meds.title')} icon={<Pill className="h-9 w-9 shrink-0" style={{ color: C.blue }} aria-hidden="true" />} {...windowProps} onClose={windowProps.onClose}>
                         {notice && notice.kind !== 'ok' && (
                             <div
                                 role={notice.kind === 'error' ? 'alert' : 'status'}
