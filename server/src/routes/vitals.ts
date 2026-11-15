@@ -13,7 +13,7 @@ import { getPublicSettings } from '../lib/circleSettings';
 import { formatVital, isVitalType, numberLocale } from '../lib/units';
 import { isVitalTypeEnabled, loadCircleSettings } from '../lib/features';
 import {
-    cleanNote, cleanRemindTime, isVitalReminderType, loadVitalReminderSettings,
+    cleanNote, cleanRemindTime, cleanRemindTimes, isVitalReminderType, loadVitalReminderSettings,
     openVitalRemindersToday, saveVitalReminderSetting,
 } from '../lib/vitalReminders';
 
@@ -313,7 +313,7 @@ router.put('/thresholds', requireRole('admin', 'family'), async (req: CircleRequ
 });
 
 // Fork, Block E: Messwert-Erinnerungen (lib/vitalReminders.ts).
-// GET /api/vitals/reminders : Einstellungen fuer Blutzucker und Gewicht.
+// GET /api/vitals/reminders : Einstellungen fuer Blutzucker und Gewicht, je bis zu 6 Uhrzeiten.
 router.get('/reminders', async (req: CircleRequest, res: Response) => {
     try {
         res.json({ success: true, data: await loadVitalReminderSettings(req.circleId!) });
@@ -323,7 +323,7 @@ router.get('/reminders', async (req: CircleRequest, res: Response) => {
     }
 });
 
-// GET /api/vitals/reminders/today : eingeschaltete Erinnerungen ohne Wert von heute.
+// GET /api/vitals/reminders/today : eingeschaltete Uhrzeiten von heute ohne passenden Wert.
 // Auch fuer recipient freigegeben (einfache Ansicht), liefert keine Messwerte.
 router.get('/reminders/today', async (req: CircleRequest, res: Response) => {
     try {
@@ -335,20 +335,26 @@ router.get('/reminders/today', async (req: CircleRequest, res: Response) => {
     }
 });
 
-// PUT /api/vitals/reminders : { type, enabled, remind_time 'HH:MM', note } (admin/family)
+// PUT /api/vitals/reminders : { type, enabled, times: [{ time 'HH:MM', note }] } (admin/family).
+// Die alte Form { remind_time, note } (eine Uhrzeit) wird weiter angenommen.
 router.put('/reminders', requireRole('admin', 'family'), async (req: CircleRequest, res: Response) => {
     const lang = langFromRequest(req);
     try {
         const type = req.body?.type;
-        const remindTime = cleanRemindTime(req.body?.remind_time);
         if (!isVitalReminderType(type)) {
             return res.status(400).json({ success: false, error: t(lang, 'vitals.thresholdType') });
         }
-        if (!remindTime) {
-            return res.status(400).json({ success: false, error: t(lang, 'vitals.reminderTime') });
+        const rawTimes = Array.isArray(req.body?.times)
+            ? req.body.times
+            : [{ time: cleanRemindTime(req.body?.remind_time), note: cleanNote(req.body?.note) }];
+        const checked = cleanRemindTimes(rawTimes);
+        if ('error' in checked) {
+            const key = checked.error === 'count' ? 'vitals.reminderCount'
+                : checked.error === 'duplicate' ? 'vitals.reminderDuplicate' : 'vitals.reminderTime';
+            return res.status(400).json({ success: false, error: t(lang, key) });
         }
         const saved = await saveVitalReminderSetting(
-            req.circleId!, type, req.body?.enabled === true, remindTime, cleanNote(req.body?.note)
+            req.circleId!, type, req.body?.enabled === true, checked.times
         );
         await broadcastToCircle(req.circleId!, { type: 'update', entity: 'vitals', action: 'updated' });
         res.json({ success: true, data: saved });

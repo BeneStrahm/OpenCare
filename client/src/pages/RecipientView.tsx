@@ -1187,9 +1187,12 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     const windowEvents = apptOffset === 0 ? appointmentEvents : (apptEvents ?? []).filter((e) => !VISIT_CATEGORIES.includes(e.category));
     const apptDateLabel = new Intl.DateTimeFormat(intlLocale(), { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }).format(apptDate);
     const heatActive = Boolean(heat?.enabled && heat?.active);
-    // Block E: Messwert-Erinnerung zeigen, sobald die Uhrzeit erreicht ist und solange heute kein Wert da ist.
+    // Block E: Messwert-Erinnerung zeigen, sobald die Uhrzeit erreicht ist und solange kein passender Wert da ist
+    // (der Server liefert nur Uhrzeiten, deren 2-Stunden-Fenster noch offen ist). Je Messwert hoechstens eine Zeile.
     const nowHm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-    const dueVitals = openVitals.filter((r) => r.remind_time <= nowHm);
+    const dueVitals = openVitals
+        .filter((r) => r.remind_time <= nowHm)
+        .filter((r, i, all) => all.findIndex((x) => x.type === r.type) === i);
     // Block D: Tagesrueckblick ab 18 Uhr. Offen heisst: fuer heute steht noch etwas an, auch spaeter am
     // Abend. Eine Einnahme von heute ist offen oder verpasst (Ueberspringen zaehlt als erledigt), ein
     // Gesundheitswert von heute fehlt (egal zu welcher Erinnerungszeit) oder ein Termin von heute ist
@@ -1618,13 +1621,13 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                     { label: t('simpleView:notices.eventButton'), Icon: CalendarDays, onClick: () => setEventCard(e) },
                     undefined, () => dismissNotice(`event-${e.id}`)))}
                 {/* Block E: freundliche Zeile, solange ein Messwert von heute fehlt; Block K: mit Taste zum Eintragen */}
-                {healthOn && dueVitals.filter((r) => !isDismissed(`vital-${r.type}`)).map((r) => {
+                {healthOn && dueVitals.filter((r) => !isDismissed(`vital-${r.type}-${r.remind_time}`)).map((r) => {
                     const Icon = r.type === 'glucose' ? Droplet : Scale;
-                    return renderNotice(`vital-${r.type}`, Icon, t(`simpleView:vitals.${r.type}`),
+                    return renderNotice(`vital-${r.type}-${r.remind_time}`, Icon, t(`simpleView:vitals.${r.type}`),
                         (ownVitalTypes as readonly string[]).includes(r.type)
                             ? { label: t('simpleView:measure.now'), Icon, onClick: () => openVitalForm(r.type) }
                             : null,
-                        undefined, () => dismissNotice(`vital-${r.type}`));
+                        undefined, () => dismissNotice(`vital-${r.type}-${r.remind_time}`));
                 })}
 
                 {heatOn && heatActive && heatDismissed !== day && renderNotice('heat', ThermometerSun, t('simpleView:heat.banner'),

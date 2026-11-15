@@ -119,17 +119,22 @@
   "pulseShort": "Pouls {{value}}/min",
   "reminders": {
     "title": "Rappel de mesure",
-    "description": "La personne accompagnée reçoit chaque jour un rappel à l'heure choisie. Si aucune valeur n'est saisie 2 heures plus tard, la famille reçoit une alerte.",
+    "description": "La personne accompagnée reçoit chaque jour un rappel aux heures choisies. Si aucune valeur n'est saisie 2 heures après une heure, la famille reçoit une alerte.",
     "readOnly": "Les rappels de mesure sont réglés par les administrateurs et la famille.",
     "statusOn": "Tous les jours à {{time}}",
     "statusOff": "Aucun rappel",
     "enable": "Rappeler chaque jour",
     "timeLabel": "Heure",
     "noteLabel": "Remarque (facultatif), par exemple : avant le petit-déjeuner",
-    "hint": "Le rappel est terminé dès qu'une valeur est saisie aujourd'hui.",
+    "hint": "Une valeur compte pour une heure si elle est saisie jusqu'à 2 heures avant ou après.",
     "saved": "Rappel enregistré",
     "saveError": "Le rappel n'a pas pu être enregistré. Veuillez réessayer.",
-    "timeInvalid": "Indiquez une heure valide, par exemple 07:30."
+    "timeInvalid": "Indiquez une heure valide, par exemple 07:30.",
+    "timeDuplicate": "Chaque heure ne peut être saisie qu’une fois. Modifiez ou retirez l’heure en double.",
+    "addTime": "Ajouter une heure",
+    "removeTime": "Retirer",
+    "removeTimeLabel": "Retirer l'heure {{time}}",
+    "maxTimes": "{{count}} heures au maximum."
   },
   "meal": {
     "timeLabel": "Quand la mesure a-t-elle été prise ?",

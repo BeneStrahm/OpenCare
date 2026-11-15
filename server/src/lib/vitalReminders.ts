@@ -1,20 +1,22 @@
-import { query } from '../db';
+import { getClient, query } from '../db';
 import { createNotification } from './notifications';
 import { claimReminder } from './reminderLog';
 import { featureEnabledForCircle, isVitalTypeEnabled, loadCircleSettings } from './features';
 import { pickLang, type Lang } from './i18n';
 import logger from './logger';
 
-// Fork, Block E: Messwert-Erinnerungen (Tabelle vital_reminders, db.ts).
-// - Zur eingestellten Uhrzeit (Standard 7:30) bekommt die betreute Person
-//   (Rolle recipient) eine Erinnerung, den Wert zu messen.
-// - Erledigt, sobald heute ein Wert dieser Art eingetragen ist, egal von wem
-//   und auf welchem Weg (Messwerte, Tagebuch, Sprachbefehl: alles landet in vitals).
+// Fork, Block E: Messwert-Erinnerungen (Tabellen vital_reminders und
+// vital_reminder_times, db.ts).
+// - Je Messwert bis zu 6 Uhrzeiten (Standard 7:30), je Uhrzeit ein Hinweis. Zu jeder
+//   Uhrzeit bekommt die betreute Person (Rolle recipient) eine Erinnerung.
+// - Eine Uhrzeit ist erledigt, sobald ein Wert dieser Art bis zu 2 Stunden davor oder
+//   danach eingetragen ist, egal von wem und auf welchem Weg (Messwerte, Tagebuch,
+//   Sprachbefehl: alles landet in vitals).
 // - Fehlt der Wert 2 Stunden nach der Uhrzeit noch, bekommen admin und family
 //   einmal einen Hinweis.
-// - Jede Erinnerung hoechstens einmal pro Tag und Person (reminder_log).
+// - Jede Erinnerung hoechstens einmal pro Tag, Uhrzeit und Person (reminder_log).
 // - Wurde die Erinnerung heute erst nach der Uhrzeit eingeschaltet oder die Uhrzeit
-//   geaendert (changed_at), beginnt sie erst morgen: kein Schwall beim Einrichten.
+//   neu eingetragen (changed_at), beginnt sie erst morgen: kein Schwall beim Einrichten.
 // Alle Zeiten rechnet die Datenbank (CURRENT_DATE, LOCALTIMESTAMP) in derselben
 // Zeitzone wie vitals.measured_at (db.ts setzt die Zeitzone der Sitzung).
 
@@ -22,7 +24,10 @@ export const VITAL_REMINDER_TYPES = ['glucose', 'weight'] as const;
 export type VitalReminderType = (typeof VITAL_REMINDER_TYPES)[number];
 
 export const DEFAULT_REMIND_TIME = '07:30';
-export const FAMILY_DELAY_MINUTES = 120;
+/** Ein Wert zaehlt fuer eine Uhrzeit, wenn er hoechstens so viele Minuten davor oder danach liegt.
+ *  Am Ende dieses Fensters bekommt die Familie den Hinweis. */
+export const MEASURE_WINDOW_MINUTES = 120;
+export const MAX_REMIND_TIMES = 6;
 export const MAX_NOTE_LENGTH = 80;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -44,72 +49,154 @@ export function cleanNote(value: unknown): string | null {
     return note || null;
 }
 
+export interface VitalReminderTime {
+    /** 'HH:MM' */
+    time: string;
+    note: string | null;
+}
+
 export interface VitalReminderSetting {
     type: VitalReminderType;
     enabled: boolean;
+    /** Aufsteigend sortiert, mindestens eine Uhrzeit. */
+    times: VitalReminderTime[];
+}
+
+/** Eine faellige Uhrzeit (einfache Ansicht, Planer). */
+export interface VitalReminderSlot {
+    type: VitalReminderType;
     /** 'HH:MM' */
     remind_time: string;
     note: string | null;
 }
 
+/**
+ * Prueft die Liste der Uhrzeiten aus der Anfrage: 1 bis MAX_REMIND_TIMES, gueltig,
+ * jede nur einmal. Gibt die sortierte Liste oder einen Fehlerschluessel zurueck.
+ */
+export function cleanRemindTimes(value: unknown): { times: VitalReminderTime[] } | { error: 'time' | 'count' | 'duplicate' } {
+    if (!Array.isArray(value) || value.length === 0 || value.length > MAX_REMIND_TIMES) return { error: 'count' };
+    const times: VitalReminderTime[] = [];
+    for (const item of value) {
+        const time = cleanRemindTime(item && typeof item === 'object' ? (item as { time?: unknown }).time : undefined);
+        if (!time) return { error: 'time' };
+        if (times.some((t) => t.time === time)) return { error: 'duplicate' };
+        times.push({ time, note: cleanNote((item as { note?: unknown }).note) });
+    }
+    times.sort((a, b) => a.time.localeCompare(b.time));
+    return { times };
+}
+
 /** Einstellungen beider Messwerte, fehlende Zeilen mit Standardwerten (aus). */
 export async function loadVitalReminderSettings(circleId: string): Promise<VitalReminderSetting[]> {
-    const { rows } = await query(
-        `SELECT type, enabled, to_char(remind_time, 'HH24:MI') AS remind_time, note
-         FROM vital_reminders WHERE circle_id = $1`,
+    const { rows: heads } = await query(
+        'SELECT type, enabled FROM vital_reminders WHERE circle_id = $1',
         [circleId]
     );
-    const byType = new Map((rows as VitalReminderSetting[]).map((r) => [r.type, r]));
-    return VITAL_REMINDER_TYPES.map((type) => byType.get(type) ?? {
-        type, enabled: false, remind_time: DEFAULT_REMIND_TIME, note: null,
+    const { rows: timeRows } = await query(
+        `SELECT type, to_char(remind_time, 'HH24:MI') AS time, note
+         FROM vital_reminder_times WHERE circle_id = $1
+         ORDER BY remind_time`,
+        [circleId]
+    );
+    const enabledByType = new Map((heads as { type: string; enabled: boolean }[]).map((r) => [r.type, r.enabled]));
+    return VITAL_REMINDER_TYPES.map((type) => {
+        const times = (timeRows as { type: string; time: string; note: string | null }[])
+            .filter((r) => r.type === type)
+            .map(({ time, note }) => ({ time, note }));
+        return {
+            type,
+            enabled: enabledByType.get(type) ?? false,
+            times: times.length > 0 ? times : [{ time: DEFAULT_REMIND_TIME, note: null }],
+        };
     });
 }
 
-/** Speichert eine Einstellung. changed_at nur, wenn Ein/Aus oder Uhrzeit sich aendern. */
+/**
+ * Speichert eine Einstellung in einer Transaktion. changed_at einer Uhrzeit wird neu
+ * gesetzt, wenn sie neu ist oder Ein/Aus sich aendert; ein geaenderter Hinweis allein
+ * zaehlt nicht. vital_reminders.remind_time und note halten die erste Uhrzeit.
+ */
 export async function saveVitalReminderSetting(
     circleId: string,
     type: VitalReminderType,
     enabled: boolean,
-    remindTime: string,
-    note: string | null
+    times: VitalReminderTime[]
 ): Promise<VitalReminderSetting> {
-    const { rows } = await query(
-        `INSERT INTO vital_reminders (circle_id, type, enabled, remind_time, note)
-         VALUES ($1, $2, $3, $4::time, $5)
-         ON CONFLICT (circle_id, type) DO UPDATE SET
-           enabled = EXCLUDED.enabled,
-           remind_time = EXCLUDED.remind_time,
-           note = EXCLUDED.note,
-           changed_at = CASE
-             WHEN vital_reminders.enabled IS DISTINCT FROM EXCLUDED.enabled
-               OR vital_reminders.remind_time IS DISTINCT FROM EXCLUDED.remind_time
-             THEN CURRENT_TIMESTAMP ELSE vital_reminders.changed_at END
-         RETURNING type, enabled, to_char(remind_time, 'HH24:MI') AS remind_time, note`,
-        [circleId, type, enabled, remindTime, note]
-    );
-    return rows[0] as VitalReminderSetting;
+    const client = await getClient();
+    try {
+        await client.query('BEGIN');
+        const before = await client.query(
+            'SELECT enabled FROM vital_reminders WHERE circle_id = $1 AND type = $2 FOR UPDATE',
+            [circleId, type]
+        );
+        const toggled = before.rows.length === 0 || before.rows[0].enabled !== enabled;
+        await client.query(
+            `INSERT INTO vital_reminders (circle_id, type, enabled, remind_time, note)
+             VALUES ($1, $2, $3, $4::time, $5)
+             ON CONFLICT (circle_id, type) DO UPDATE SET
+               enabled = EXCLUDED.enabled,
+               remind_time = EXCLUDED.remind_time,
+               note = EXCLUDED.note,
+               changed_at = CASE WHEN vital_reminders.enabled IS DISTINCT FROM EXCLUDED.enabled
+                 THEN CURRENT_TIMESTAMP ELSE vital_reminders.changed_at END`,
+            [circleId, type, enabled, times[0].time, times[0].note]
+        );
+        await client.query(
+            `DELETE FROM vital_reminder_times
+             WHERE circle_id = $1 AND type = $2 AND NOT (to_char(remind_time, 'HH24:MI') = ANY($3::text[]))`,
+            [circleId, type, times.map((t) => t.time)]
+        );
+        for (const t of times) {
+            await client.query(
+                `INSERT INTO vital_reminder_times (circle_id, type, remind_time, note)
+                 VALUES ($1, $2, $3::time, $4)
+                 ON CONFLICT (circle_id, type, remind_time) DO UPDATE SET note = EXCLUDED.note`,
+                [circleId, type, t.time, t.note]
+            );
+        }
+        if (toggled) {
+            await client.query(
+                'UPDATE vital_reminder_times SET changed_at = CURRENT_TIMESTAMP WHERE circle_id = $1 AND type = $2',
+                [circleId, type]
+            );
+        }
+        await client.query('COMMIT');
+    } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+    } finally {
+        client.release();
+    }
+    return { type, enabled, times };
 }
 
+/** SQL: Gibt es fuer diese Uhrzeit (Alias t, heute) einen Wert im Fenster? Parameter $FENSTER = Minuten. */
+const valueInWindow = (windowParam: string) => `EXISTS (
+    SELECT 1 FROM vitals v
+    WHERE v.circle_id = t.circle_id AND v.type = t.type
+      AND v.measured_at >= CURRENT_DATE + t.remind_time - make_interval(mins => ${windowParam}::int)
+      AND v.measured_at <= CURRENT_DATE + t.remind_time + make_interval(mins => ${windowParam}::int)
+)`;
+
 /**
- * Eingeschaltete Erinnerungen, fuer die heute noch kein Wert eingetragen ist
- * (nur eingeschaltete Messwerte des Kreises). Fuer die einfache Ansicht: Sie
- * zeigt eine Zeile, sobald die Uhrzeit erreicht ist. Enthaelt keine Messwerte.
+ * Eingeschaltete Uhrzeiten von heute ohne passenden Wert, deren Fenster noch nicht
+ * vorbei ist (nur eingeschaltete Messwerte des Kreises). Fuer die einfache Ansicht:
+ * Sie zeigt eine Zeile, sobald die Uhrzeit erreicht ist. Enthaelt keine Messwerte.
  */
-export async function openVitalRemindersToday(circleId: string): Promise<VitalReminderSetting[]> {
+export async function openVitalRemindersToday(circleId: string): Promise<VitalReminderSlot[]> {
     const { rows } = await query(
-        `SELECT vr.type, vr.enabled, to_char(vr.remind_time, 'HH24:MI') AS remind_time, vr.note
-         FROM vital_reminders vr
-         WHERE vr.circle_id = $1 AND vr.enabled = TRUE
-           AND NOT EXISTS (
-             SELECT 1 FROM vitals v
-             WHERE v.circle_id = vr.circle_id AND v.type = vr.type
-               AND v.measured_at >= CURRENT_DATE AND v.measured_at < CURRENT_DATE + 1
-           )
-         ORDER BY vr.remind_time, vr.type`,
-        [circleId]
+        `SELECT t.type, to_char(t.remind_time, 'HH24:MI') AS remind_time, t.note
+         FROM vital_reminder_times t
+         JOIN vital_reminders vr ON vr.circle_id = t.circle_id AND vr.type = t.type
+         WHERE t.circle_id = $1 AND vr.enabled = TRUE
+           AND LOCALTIMESTAMP < CURRENT_DATE + t.remind_time + make_interval(mins => $2::int)
+           AND NOT ${valueInWindow('$2')}
+         ORDER BY t.remind_time, t.type`,
+        [circleId, MEASURE_WINDOW_MINUTES]
     );
     const settings = await loadCircleSettings(circleId);
-    return (rows as VitalReminderSetting[]).filter((r) => isVitalTypeEnabled(settings, r.type));
+    return (rows as VitalReminderSlot[]).filter((r) => isVitalTypeEnabled(settings, r.type));
 }
 
 // ── Texte ──
@@ -175,6 +262,8 @@ interface DueRow {
     note: string | null;
     /** 'YYYY-MM-DD' (lokaler Tag) */
     today: string;
+    /** Fenster noch offen: Erinnerung an die betreute Person lohnt sich noch. */
+    recipient_due: boolean;
     family_due: boolean;
 }
 
@@ -190,34 +279,36 @@ async function membersWithRoles(circleId: string, roles: string[]): Promise<Memb
     return rows as MemberRow[];
 }
 
-/** Jede Minute: Erinnerungen an die betreute Person und Hinweise an die Familie. */
+/** Jede Minute: Erinnerungen an die betreute Person und Hinweise an die Familie, je Uhrzeit. */
 export async function checkVitalReminders(): Promise<void> {
     try {
         const { rows } = await query(
-            `SELECT vr.circle_id, vr.type, to_char(vr.remind_time, 'HH24:MI') AS remind_time, vr.note,
+            `SELECT t.circle_id, t.type, to_char(t.remind_time, 'HH24:MI') AS remind_time, t.note,
                     to_char(CURRENT_DATE, 'YYYY-MM-DD') AS today,
-                    LOCALTIMESTAMP >= LEAST(CURRENT_DATE + vr.remind_time + make_interval(mins => $1::int),
+                    LOCALTIMESTAMP < CURRENT_DATE + t.remind_time + make_interval(mins => $1::int) AS recipient_due,
+                    LOCALTIMESTAMP >= LEAST(CURRENT_DATE + t.remind_time + make_interval(mins => $1::int),
                                             CURRENT_DATE + TIME '23:59') AS family_due
-             FROM vital_reminders vr
+             FROM vital_reminder_times t
+             JOIN vital_reminders vr ON vr.circle_id = t.circle_id AND vr.type = t.type
              WHERE vr.enabled = TRUE
-               AND LOCALTIMESTAMP >= CURRENT_DATE + vr.remind_time
-               AND vr.changed_at <= CURRENT_DATE + vr.remind_time
-               AND NOT EXISTS (
-                 SELECT 1 FROM vitals v
-                 WHERE v.circle_id = vr.circle_id AND v.type = vr.type
-                   AND v.measured_at >= CURRENT_DATE AND v.measured_at < CURRENT_DATE + 1
-               )`,
-            [FAMILY_DELAY_MINUTES]
+               AND LOCALTIMESTAMP >= CURRENT_DATE + t.remind_time
+               AND t.changed_at <= CURRENT_DATE + t.remind_time
+               AND NOT ${valueInWindow('$1')}`,
+            [MEASURE_WINDOW_MINUTES]
         );
 
         for (const row of rows as DueRow[]) {
             if (!(await featureEnabledForCircle(row.circle_id, 'health'))) continue;
             if (!isVitalTypeEnabled(await loadCircleSettings(row.circle_id), row.type)) continue;
 
-            // 1. Erinnerung an die betreute Person (einmal pro Tag)
+            // Ein Eintrag je Tag und Uhrzeit, z. B. '2026-11-15 07:30'
+            const slot = `${row.today} ${row.remind_time}`;
+
+            // 1. Erinnerung an die betreute Person (einmal je Uhrzeit, solange das Fenster offen ist)
             let sent = 0;
-            for (const member of await membersWithRoles(row.circle_id, ['recipient'])) {
-                if (!(await claimReminder(`vital_due_${row.type}`, row.circle_id, row.today, member.user_id))) continue;
+            const recipients = row.recipient_due ? await membersWithRoles(row.circle_id, ['recipient']) : [];
+            for (const member of recipients) {
+                if (!(await claimReminder(`vital_due_${row.type}`, row.circle_id, slot, member.user_id))) continue;
                 const { title, body } = recipientTexts(row.type, row.note, member.language);
                 await createNotification({
                     userId: member.user_id,
@@ -227,19 +318,19 @@ export async function checkVitalReminders(): Promise<void> {
                     type: 'vital_reminder',
                     relatedId: row.circle_id,
                     url: '/',
-                    tag: `vital-reminder-${row.type}`,
+                    tag: `vital-reminder-${row.type}-${row.remind_time}`,
                 });
                 sent++;
             }
-            if (sent > 0) logger.info('reminder.vital_sent', { circleId: row.circle_id, type: row.type, recipients: sent });
+            if (sent > 0) logger.info('reminder.vital_sent', { circleId: row.circle_id, type: row.type, time: row.remind_time, recipients: sent });
 
-            // 2. Nach 2 Stunden ohne Wert: einmal Hinweis an admin und family
+            // 2. Nach 2 Stunden ohne Wert: einmal je Uhrzeit Hinweis an admin und family
             if (!row.family_due) continue;
             const recipient = await query('SELECT first_name FROM care_recipients WHERE circle_id = $1', [row.circle_id]);
             const firstName: string = recipient.rows[0]?.first_name?.trim() || '';
             let hinted = 0;
             for (const member of await membersWithRoles(row.circle_id, ['admin', 'family'])) {
-                if (!(await claimReminder(`vital_missing_${row.type}`, row.circle_id, row.today, member.user_id))) continue;
+                if (!(await claimReminder(`vital_missing_${row.type}`, row.circle_id, slot, member.user_id))) continue;
                 const { title, body } = familyTexts(row.type, row.remind_time, firstName, member.language);
                 await createNotification({
                     userId: member.user_id,
@@ -249,11 +340,11 @@ export async function checkVitalReminders(): Promise<void> {
                     type: 'vital_missing',
                     relatedId: row.circle_id,
                     url: '/health',
-                    tag: `vital-missing-${row.type}`,
+                    tag: `vital-missing-${row.type}-${row.remind_time}`,
                 });
                 hinted++;
             }
-            if (hinted > 0) logger.info('reminder.vital_missing_sent', { circleId: row.circle_id, type: row.type, recipients: hinted });
+            if (hinted > 0) logger.info('reminder.vital_missing_sent', { circleId: row.circle_id, type: row.type, time: row.remind_time, recipients: hinted });
         }
     } catch (err) {
         logger.error('reminder.vital_error', { error: err instanceof Error ? err.message : String(err) });

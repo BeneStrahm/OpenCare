@@ -391,6 +391,25 @@ export const runMigrations = async () => {
             changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (circle_id, type)
         );`,
+        // Fork, Block E: bis zu 6 Uhrzeiten je Messwert, je Uhrzeit ein Hinweis
+        // (lib/vitalReminders.ts). vital_reminders.remind_time und note halten nur noch
+        // die erste Uhrzeit (Altbestand). changed_at je Uhrzeit: heute erst ab dann erinnern.
+        `CREATE TABLE IF NOT EXISTS vital_reminder_times (
+            circle_id UUID NOT NULL,
+            type VARCHAR(20) NOT NULL,
+            remind_time TIME NOT NULL,
+            note VARCHAR(80),
+            changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (circle_id, type, remind_time),
+            FOREIGN KEY (circle_id, type) REFERENCES vital_reminders(circle_id, type) ON DELETE CASCADE
+        );`,
+        // Uebernahme der bisherigen einen Uhrzeit. Speichern laesst nie null Uhrzeiten zu,
+        // daher greift das nur einmal je Messwert.
+        `INSERT INTO vital_reminder_times (circle_id, type, remind_time, note, changed_at)
+         SELECT vr.circle_id, vr.type, vr.remind_time, vr.note, vr.changed_at
+         FROM vital_reminders vr
+         WHERE NOT EXISTS (SELECT 1 FROM vital_reminder_times t
+                           WHERE t.circle_id = vr.circle_id AND t.type = vr.type);`,
         // Arztgespraech-Modul (Fork), siehe modules/consultations/schema.ts
         ...CONSULTATION_MIGRATIONS,
         // Fork, Rollen E10: viewer entfaellt, neu recipient ("Betreute Person").

@@ -119,17 +119,22 @@
   "pulseShort": "Puls {{value}}/min",
   "reminders": {
     "title": "Erinnerung zum Messen",
-    "description": "Die betreute Person wird täglich zur gewählten Uhrzeit ans Messen erinnert. Ist 2 Stunden danach noch kein Wert eingetragen, bekommt die Familie einmal einen Hinweis.",
+    "description": "Die betreute Person wird täglich zu den gewählten Uhrzeiten ans Messen erinnert. Ist 2 Stunden nach einer Uhrzeit noch kein Wert eingetragen, bekommt die Familie einmal einen Hinweis.",
     "readOnly": "Erinnerungen zum Messen werden von Administratoren und Familie eingestellt.",
     "statusOn": "Täglich um {{time}} Uhr",
     "statusOff": "Keine Erinnerung",
     "enable": "Täglich erinnern",
     "timeLabel": "Uhrzeit",
     "noteLabel": "Hinweis (freiwillig), zum Beispiel: vor dem Frühstück",
-    "hint": "Die Erinnerung ist erledigt, sobald heute ein Wert eingetragen ist.",
+    "hint": "Ein Wert zählt für eine Uhrzeit, wenn er bis zu 2 Stunden davor oder danach eingetragen wird.",
     "saved": "Erinnerung gespeichert",
     "saveError": "Die Erinnerung konnte nicht gespeichert werden. Bitte versuchen Sie es noch einmal.",
-    "timeInvalid": "Bitte geben Sie eine gültige Uhrzeit ein, zum Beispiel 07:30."
+    "timeInvalid": "Bitte geben Sie eine gültige Uhrzeit ein, zum Beispiel 07:30.",
+    "timeDuplicate": "Jede Uhrzeit darf nur einmal vorkommen. Bitte ändern oder entfernen Sie die doppelte Uhrzeit.",
+    "addTime": "Uhrzeit hinzufügen",
+    "removeTime": "Entfernen",
+    "removeTimeLabel": "Uhrzeit {{time}} entfernen",
+    "maxTimes": "Höchstens {{count}} Uhrzeiten möglich."
   },
   "meal": {
     "timeLabel": "Wann wurde gemessen?",

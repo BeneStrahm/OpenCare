@@ -256,8 +256,13 @@ function pruefe(data: unknown): { plan?: Plan; fehler: string[] } {
         const note = p.text(e, 'hinweis', ort, 80);
         if (!messwert || !uhrzeit || !TIME_RE.test(uhrzeit)) return;
         const type = MESSWERTE[messwert];
-        if (erinnerungen.some((x) => x.type === type)) {
-            p.melde(ort, `Für "${messwert}" gibt es schon eine Erinnerung. Pro Messwert geht nur eine.`);
+        if (erinnerungen.some((x) => x.type === type && x.time === uhrzeit)) {
+            p.melde(ort, `Für "${messwert}" gibt es um ${uhrzeit} Uhr schon eine Erinnerung. Jede Uhrzeit nur einmal.`);
+            return;
+        }
+        // Wie MAX_REMIND_TIMES (lib/vitalReminders.ts)
+        if (erinnerungen.filter((x) => x.type === type).length >= 6) {
+            p.melde(ort, `Für "${messwert}" gibt es schon 6 Erinnerungen. Mehr gehen nicht.`);
             return;
         }
         erinnerungen.push({ type, time: uhrzeit, note });
@@ -461,10 +466,18 @@ async function legeAn(plan: Plan): Promise<{ links?: Link[]; nichtLeer?: string[
         }
 
         // Wie saveVitalReminderSetting (lib/vitalReminders.ts), hier in derselben Transaktion.
-        for (const e of plan.erinnerungen) {
+        // Je Messwert eine Zeile in vital_reminders (erste Uhrzeit), jede Uhrzeit in vital_reminder_times.
+        const sortiert = [...plan.erinnerungen].sort((a, b) => a.time.localeCompare(b.time));
+        for (const e of sortiert) {
             await client.query(
                 `INSERT INTO vital_reminders (circle_id, type, enabled, remind_time, note)
-                 VALUES ($1, $2, TRUE, $3::time, $4)`,
+                 VALUES ($1, $2, TRUE, $3::time, $4)
+                 ON CONFLICT (circle_id, type) DO NOTHING`,
+                [circleId, e.type, e.time, e.note]
+            );
+            await client.query(
+                `INSERT INTO vital_reminder_times (circle_id, type, remind_time, note)
+                 VALUES ($1, $2, $3::time, $4)`,
                 [circleId, e.type, e.time, e.note]
             );
         }
