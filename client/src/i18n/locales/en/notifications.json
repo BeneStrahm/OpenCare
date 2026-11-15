@@ -2,6 +2,7 @@
   "title": "Notifications",
   "markAll": "Mark all read",
   "empty": "No notifications",
+  "remove": "Remove notification: {{title}}",
   "manage": "Manage notifications →",
   "timeAgo": {
     "justNow": "just now",

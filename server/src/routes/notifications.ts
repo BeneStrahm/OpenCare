@@ -87,4 +87,15 @@ router.put('/:id/read', async (req: AuthRequest, res) => {
     return res.json({ success: true });
 });
 
+// DELETE /:id : remove one notification of the signed-in account
+// Eine Meldung entfernen, nur aus dem eigenen Konto (user_id), nie aus anderen.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+router.delete('/:id', async (req: AuthRequest, res) => {
+    if (!UUID_RE.test(req.params.id)) {
+        return res.status(400).json({ success: false, error: 'Invalid id' });
+    }
+    await query('DELETE FROM notifications WHERE id = $1 AND user_id = $2', [req.params.id, req.userId]);
+    return res.json({ success: true });
+});
+
 export default router;

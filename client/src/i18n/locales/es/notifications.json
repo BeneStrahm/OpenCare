@@ -2,6 +2,7 @@
   "title": "Notificaciones",
   "markAll": "Marcar todo leído",
   "empty": "Ninguna notificación",
+  "remove": "Eliminar la notificación: {{title}}",
   "manage": "Gestionar las notificaciones →",
   "timeAgo": {
     "justNow": "ahora mismo",

@@ -2,6 +2,7 @@
   "title": "Benachrichtigungen",
   "markAll": "Alle als gelesen markieren",
   "empty": "Keine Benachrichtigungen",
+  "remove": "Benachrichtigung entfernen: {{title}}",
   "manage": "Benachrichtigungen verwalten →",
   "timeAgo": {
     "justNow": "gerade eben",

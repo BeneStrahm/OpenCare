@@ -1593,6 +1593,10 @@ async function route(method: string, path: string, q: Record<string, string>, bo
         for (const n of store.notifications) n.is_read = true;
         return ok({});
     }
+    if (seg[1] === 'notifications' && seg.length === 3 && method === 'DELETE') {
+        removeFrom(store.notifications, seg[2]);
+        return ok({});
+    }
     if (seg[1] === 'notifications' && seg.length === 4 && seg[3] === 'read') {
         updateIn(store.notifications, seg[2], { is_read: true });
         return ok({});

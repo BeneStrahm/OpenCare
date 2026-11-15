@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bell, BellOff, CheckCheck } from 'lucide-react';
+import { Bell, BellOff, CheckCheck, X } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 import { useNotifications, AppNotification } from '../../hooks/useNotifications';
@@ -34,6 +34,7 @@ export const NotificationBell: React.FC = () => {
         fetchUnreadCount,
         markAsRead,
         markAllAsRead,
+        removeNotification,
     } = useNotifications();
 
     const [open, setOpen] = useState(false);
@@ -78,6 +79,11 @@ export const NotificationBell: React.FC = () => {
         if (!n.is_read) void markAsRead(n.id);
         setOpen(false);
         navigate(notificationRoute(n));
+    };
+
+    // Eine Meldung entfernen. Scheitert es, bleibt sie einfach stehen und kann erneut entfernt werden.
+    const handleRemove = (n: AppNotification) => {
+        removeNotification(n).catch(() => undefined);
     };
 
     // The in-app notification list works everywhere; only the push-subscribe UI
@@ -125,30 +131,42 @@ export const NotificationBell: React.FC = () => {
                             </div>
                         ) : (
                             notifications.slice(0, 10).map((n) => (
-                                <button
+                                <div
                                     key={n.id}
-                                    type="button"
-                                    onClick={() => handleMarkAsRead(n)}
-                                    className={cn(
-                                        'flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-2',
-                                        !n.is_read && 'bg-primary-soft/30'
-                                    )}
+                                    className={cn('flex items-start gap-2 pr-2', !n.is_read && 'bg-primary-soft/30')}
                                 >
-                                    {!n.is_read && (
-                                        <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
-                                    )}
-                                    <div className={cn('flex-1 min-w-0', n.is_read && 'ml-5')}>
-                                        <p className="truncate text-micro font-medium text-foreground">
-                                            {n.title}
-                                        </p>
-                                        <p className="mt-0.5 line-clamp-2 text-micro text-muted-foreground">
-                                            {n.message}
-                                        </p>
-                                        <p className="mt-1 text-micro text-muted-foreground/60">
-                                            {timeAgo(n.created_at)}
-                                        </p>
-                                    </div>
-                                </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleMarkAsRead(n)}
+                                        className="flex min-w-0 flex-1 items-start gap-3 py-3 pl-4 text-left transition-colors hover:bg-surface-2"
+                                    >
+                                        {!n.is_read && (
+                                            <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
+                                        )}
+                                        <div className={cn('flex-1 min-w-0', n.is_read && 'ml-5')}>
+                                            <p className="truncate text-micro font-medium text-foreground">
+                                                {n.title}
+                                            </p>
+                                            <p className="mt-0.5 line-clamp-2 text-micro text-muted-foreground">
+                                                {n.message}
+                                            </p>
+                                            <p className="mt-1 text-micro text-muted-foreground/60">
+                                                {timeAgo(n.created_at)}
+                                            </p>
+                                        </div>
+                                    </button>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleRemove(n)}
+                                        aria-label={t('remove', { title: n.title })}
+                                        title={t('remove', { title: n.title })}
+                                        className="mt-1 h-12 w-12 shrink-0"
+                                    >
+                                        <X className="h-5 w-5" aria-hidden="true" />
+                                    </Button>
+                                </div>
                             ))
                         )}
                     </div>

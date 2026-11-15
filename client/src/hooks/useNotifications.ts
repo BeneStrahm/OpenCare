@@ -135,6 +135,12 @@ export function useNotifications() {
         setUnreadCount((c) => Math.max(0, c - 1));
     }, []);
 
+    const removeNotification = useCallback(async (n: AppNotification): Promise<void> => {
+        await api.delete(`/api/notifications/${n.id}`);
+        setNotifications((prev) => prev.filter((x) => x.id !== n.id));
+        if (!n.is_read) setUnreadCount((c) => Math.max(0, c - 1));
+    }, []);
+
     const markAllAsRead = useCallback(async (): Promise<void> => {
         await api.put('/api/notifications/read-all', {});
         setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
@@ -154,5 +160,6 @@ export function useNotifications() {
         fetchUnreadCount,
         markAsRead,
         markAllAsRead,
+        removeNotification,
     };
 }
