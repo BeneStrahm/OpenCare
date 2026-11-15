@@ -466,6 +466,14 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     const [heat, setHeat] = useState<Heatwave | null>(null);
     // Hitze-Meldung mit OK weggetippt: Tag (YYYY-MM-DD), gespeichert am Konto
     const [heatDismissed, setHeatDismissed] = useState<string | null>(null);
+    // Weggeklickte Meldungen (Termine, Gesundheitswerte): je Tag, auf diesem Geraet gemerkt.
+    const [dismissedNotices, setDismissedNotices] = useState<{ day: string; keys: string[] }>(() => {
+        try {
+            const saved = JSON.parse(localStorage.getItem('rv-dismissed-notices') || 'null');
+            if (saved && typeof saved.day === 'string' && Array.isArray(saved.keys)) return saved;
+        } catch { /* nichts gemerkt */ }
+        return { day: '', keys: [] };
+    });
     const [openVitals, setOpenVitals] = useState<OpenVitalReminder[]>([]);
     const [ownVitals, setOwnVitals] = useState<OwnVital[]>([]);
     const [vitalForm, setVitalForm] = useState<VitalForm | null>(null);
@@ -1462,24 +1470,41 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     // ── Meldungen auf der Startseite: Symbol, ein Satz, eine Taste (wie die Mess-Meldung, Block E) ──
     type NoticeIcon = React.FC<{ className?: string; style?: React.CSSProperties }>;
     const renderNotice = (key: string, Icon: NoticeIcon, text: string,
-        button: { label: string; onClick: () => void; Icon?: NoticeIcon },
-        look: { bg: string; icon: string } = { bg: C.blueSoft, icon: C.blue }) => {
-        const ButtonIcon = button.Icon;
+        button: { label: string; onClick: () => void; Icon?: NoticeIcon } | null,
+        look: { bg: string; icon: string } = { bg: C.blueSoft, icon: C.blue },
+        dismiss?: () => void) => {
+        const ButtonIcon = button?.Icon;
         return (
             <section key={key} className="flex flex-wrap items-center justify-between gap-4 rounded-3xl p-5" style={{ backgroundColor: look.bg, border: `1px solid ${C.border}` }}>
                 <div className="flex items-center gap-4">
                     <Icon className="h-12 w-12 shrink-0" style={{ color: look.icon }} aria-hidden="true" />
                     <p className="font-bold" style={fs(22)}>{text}</p>
                 </div>
-                <button
-                    type="button"
-                    onClick={button.onClick}
-                    className="flex min-h-[4rem] items-center gap-2 rounded-2xl px-5 font-bold text-white shadow-md"
-                    style={{ ...fs(21), backgroundColor: C.blue }}
-                >
-                    {ButtonIcon && <ButtonIcon className="h-7 w-7 shrink-0" aria-hidden="true" />}
-                    {button.label}
-                </button>
+                <div className="flex flex-wrap items-center gap-3">
+                    {button && (
+                        <button
+                            type="button"
+                            onClick={button.onClick}
+                            className="flex min-h-[4rem] items-center gap-2 rounded-2xl px-5 font-bold text-white shadow-md"
+                            style={{ ...fs(21), backgroundColor: C.blue }}
+                        >
+                            {ButtonIcon && <ButtonIcon className="h-7 w-7 shrink-0" aria-hidden="true" />}
+                            {button.label}
+                        </button>
+                    )}
+                    {/* Wegklicken wie das X der Fenster (15. November) */}
+                    {dismiss && (
+                        <button
+                            type="button"
+                            onClick={dismiss}
+                            aria-label={t('simpleView:notices.dismiss')}
+                            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl"
+                            style={{ backgroundColor: C.card, color: '#000000', border: `3px solid ${C.control}` }}
+                        >
+                            <X className="h-10 w-10" strokeWidth={3} aria-hidden="true" />
+                        </button>
+                    )}
+                </div>
             </section>
         );
     };
@@ -1492,6 +1517,13 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
         const end = (e.end_time ? clockDate(e.end_time)?.getTime() : undefined) ?? start.getTime() + NOTICE_HOUR_MS;
         return now.getTime() >= from && now.getTime() < end;
     }) : [];
+    // Termine und Gesundheitswerte: OK blendet die Meldung fuer heute auf diesem Geraet aus.
+    const isDismissed = (key: string) => dismissedNotices.day === day && dismissedNotices.keys.includes(key);
+    const dismissNotice = (key: string) => {
+        const next = { day, keys: dismissedNotices.day === day ? [...dismissedNotices.keys, key] : [key] };
+        setDismissedNotices(next);
+        try { localStorage.setItem('rv-dismissed-notices', JSON.stringify(next)); } catch { /* nur in dieser Sitzung */ }
+    };
     // Hitze: OK blendet die Meldung fuer heute aus, am Konto gespeichert (alle Geraete).
     const dismissHeat = () => {
         setHeatDismissed(day);
@@ -1581,34 +1613,18 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                     Termine, Gesundheitswerte, Hitze */}
                 {medsOn && medsDue && renderNotice('meds', Pill, t('simpleView:notices.meds'),
                     { label: t('simpleView:notices.medsButton'), Icon: Pill, onClick: () => openWindow('meds') })}
-                {noticeEvents.map((e) => renderNotice(`event-${e.id}`, CalendarDays,
+                {noticeEvents.filter((e) => !isDismissed(`event-${e.id}`)).map((e) => renderNotice(`event-${e.id}`, CalendarDays,
                     t('simpleView:notices.event', { time: clockOf(e.start_time), title: e.title }),
-                    { label: t('simpleView:notices.eventButton'), Icon: CalendarDays, onClick: () => setEventCard(e) }))}
+                    { label: t('simpleView:notices.eventButton'), Icon: CalendarDays, onClick: () => setEventCard(e) },
+                    undefined, () => dismissNotice(`event-${e.id}`)))}
                 {/* Block E: freundliche Zeile, solange ein Messwert von heute fehlt; Block K: mit Taste zum Eintragen */}
-                {healthOn && dueVitals.map((r) => {
+                {healthOn && dueVitals.filter((r) => !isDismissed(`vital-${r.type}`)).map((r) => {
                     const Icon = r.type === 'glucose' ? Droplet : Scale;
-                    return (
-                        <section key={r.type} className="flex flex-wrap items-center justify-between gap-4 rounded-3xl p-5" style={{ backgroundColor: C.blueSoft, border: `1px solid ${C.border}` }}>
-                            <div className="flex items-center gap-4">
-                                <Icon className="h-12 w-12 shrink-0" style={{ color: C.blue }} aria-hidden="true" />
-                                <p className="font-bold" style={fs(22)}>
-                                    {t(`simpleView:vitals.${r.type}`)}
-                                    {r.note ? ` (${r.note})` : ''}
-                                </p>
-                            </div>
-                            {(ownVitalTypes as readonly string[]).includes(r.type) && (
-                                <button
-                                    type="button"
-                                    onClick={() => openVitalForm(r.type)}
-                                    className="flex min-h-[4rem] items-center gap-2 rounded-2xl px-5 font-bold text-white shadow-md"
-                                    style={{ ...fs(21), backgroundColor: C.blue }}
-                                >
-                                    <Icon className="h-7 w-7 shrink-0" aria-hidden="true" />
-                                    {t('simpleView:measure.now')}
-                                </button>
-                            )}
-                        </section>
-                    );
+                    return renderNotice(`vital-${r.type}`, Icon, t(`simpleView:vitals.${r.type}`),
+                        (ownVitalTypes as readonly string[]).includes(r.type)
+                            ? { label: t('simpleView:measure.now'), Icon, onClick: () => openVitalForm(r.type) }
+                            : null,
+                        undefined, () => dismissNotice(`vital-${r.type}`));
                 })}
 
                 {heatOn && heatActive && heatDismissed !== day && renderNotice('heat', ThermometerSun, t('simpleView:heat.banner'),

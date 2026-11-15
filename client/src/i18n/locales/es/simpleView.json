@@ -78,8 +78,8 @@
   "reload": "Volver a cargar",
   "ok": "Vale",
   "vitals": {
-    "glucose": "Por favor, mida hoy su glucosa.",
-    "weight": "Por favor, pésese hoy."
+    "glucose": "Por favor, no olvide medir su glucosa.",
+    "weight": "Por favor, no olvide pesarse."
   },
   "emergency": {
     "button": "Hoja de emergencia",
@@ -284,7 +284,8 @@
     "meds": "Es hora de tomar sus medicamentos.",
     "medsButton": "Ir a los medicamentos",
     "event": "Hoy a las {{time}}: {{title}}",
-    "eventButton": "Ver"
+    "eventButton": "Ver",
+    "dismiss": "Cerrar"
   },
   "diary": {
     "title": {

@@ -78,8 +78,8 @@
   "reload": "Reload",
   "ok": "OK",
   "vitals": {
-    "glucose": "Please measure your blood sugar today.",
-    "weight": "Please weigh yourself today."
+    "glucose": "Please remember to measure your blood sugar.",
+    "weight": "Please remember to weigh yourself."
   },
   "emergency": {
     "button": "Emergency sheet",
@@ -284,7 +284,8 @@
     "meds": "It is time for your medication.",
     "medsButton": "Go to medication",
     "event": "Today at {{time}}: {{title}}",
-    "eventButton": "View"
+    "eventButton": "View",
+    "dismiss": "Close"
   },
   "diary": {
     "title": {

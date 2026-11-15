@@ -78,8 +78,8 @@
   "reload": "Neu laden",
   "ok": "OK",
   "vitals": {
-    "glucose": "Bitte messen Sie heute noch Ihren Blutzucker.",
-    "weight": "Bitte wiegen Sie sich heute noch."
+    "glucose": "Bitte messen Sie noch Ihren Blutzucker.",
+    "weight": "Bitte wiegen Sie sich noch."
   },
   "emergency": {
     "button": "Notfallblatt",
@@ -284,7 +284,8 @@
     "meds": "Es ist Zeit für Ihre Medikamente.",
     "medsButton": "Zu den Medikamenten",
     "event": "Heute um {{time}} Uhr: {{title}}",
-    "eventButton": "Ansehen"
+    "eventButton": "Ansehen",
+    "dismiss": "Schließen"
   },
   "diary": {
     "title": {

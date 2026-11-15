@@ -78,8 +78,8 @@
   "reload": "Recharger",
   "ok": "OK",
   "vitals": {
-    "glucose": "Pensez à mesurer votre glycémie aujourd'hui.",
-    "weight": "Pensez à vous peser aujourd'hui."
+    "glucose": "Pensez à mesurer votre glycémie.",
+    "weight": "Pensez à vous peser."
   },
   "emergency": {
     "button": "Fiche d'urgence",
@@ -284,7 +284,8 @@
     "meds": "C'est l'heure de vos médicaments.",
     "medsButton": "Voir les médicaments",
     "event": "Aujourd'hui à {{time}} : {{title}}",
-    "eventButton": "Voir"
+    "eventButton": "Voir",
+    "dismiss": "Fermer"
   },
   "diary": {
     "title": {
