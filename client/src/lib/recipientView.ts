@@ -82,15 +82,20 @@ interface GroupableIntake {
     medication_name?: string;
 }
 
-/** Einnahmen in Karten aufteilen. Bedarfsmedikamente (prn) zeigt die einfache Ansicht nie. */
+/**
+ * Einnahmen in Karten aufteilen. Bedarfsmedikamente (prn) zeigt die einfache Ansicht nie.
+ * E58: "Heute" am PC und Handy nutzt dieselbe Aufteilung und zeigt eingetragene
+ * Bedarfs-Einnahmen wie bisher unter ihrer Tageszeit (prnByMoment).
+ */
 export function groupIntakes<T extends GroupableIntake>(
     intakes: readonly T[],
-    toDate: (value: string) => Date | null
+    toDate: (value: string) => Date | null,
+    options: { prnByMoment?: boolean } = {}
 ): Array<{ group: IntakeGroup; items: T[] }> {
     const groups = new Map<string, { group: IntakeGroup; items: T[] }>();
     for (const intake of intakes) {
-        if (intake.prn) continue;
-        const group = intakeGroupOf(toDate(intake.due_at), intake.time_fixed);
+        if (intake.prn && !options.prnByMoment) continue;
+        const group = intakeGroupOf(toDate(intake.due_at), intake.prn ? false : intake.time_fixed);
         const entry = groups.get(group.key) ?? { group, items: [] };
         entry.items.push(intake);
         groups.set(group.key, entry);

@@ -3,6 +3,8 @@
 // Nur fuer den lokalen Test. Nie gegen den echten Server ausfuehren.
 // Laeuft nur einmal: Gibt es das Test-Konto schon, passiert nichts.
 
+import { execFileSync } from 'node:child_process';
+
 const API = process.env.API_BASE || 'http://localhost:3001';
 if (!/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(API)) {
     console.error(`Abbruch: ${API} ist keine lokale Adresse.`);
@@ -124,6 +126,79 @@ async function main() {
         name: 'Paracetamol', active_ingredient: 'Paracetamol', dosage: '500 mg', form: 'tablet',
         prn: true, reason: 'Schmerzen, höchstens 3 am Tag',
     });
+
+    // ── Szenarien Medikamentenplan (E51 bis E58), Prüfliste in LOKAL-TESTEN.md ──
+    const kurz = (offset) => { const d = datum(offset); return `${d.slice(8, 10)}.${d.slice(5, 7)}.`; };
+    const morgens = (menge = 1) => ({ time_of_day: '08:00', quantity: menge, unit: 'tablet', time_fixed: false });
+
+    // 1. Ausschleichplan in 4 Stufen als Hinweis (E53): Stufe 2 endete gestern, Stufe 3 heute, Stufe 4 ab morgen
+    const stufen = [[-4, -3, '2'], [-2, -1, '1½'], [0, 0, '1'], [1, 3, '½']]
+        .map(([von, bis, menge]) => `${kurz(von)} bis ${kurz(bis)}: ${menge}-0-0-0`).join('; ');
+    await api('POST', '/api/medications', {
+        name: 'Prednisolon', active_ingredient: 'Prednisolon', dosage: '5 mg', form: 'tablet',
+        with_food: 'with', reason: 'Schwellung nach der Operation', prescriber: 'Dr. Paula Beispiel',
+        instructions: `Ausschleichplan ${stufen}`, start_date: datum(-4), end_date: datum(3), plan_group: 'special',
+        schedules: [morgens(1)],
+    });
+    // 2. Bedarfsmedikament ohne feste Zeiten: Paracetamol (oben)
+    // 3. Nur Mo, Mi, Fr um 21:30
+    await api('POST', '/api/medications', {
+        name: 'Vitamin D3', active_ingredient: 'Colecalciferol', dosage: '1000 I.E.', form: 'tablet',
+        with_food: 'any', reason: 'Knochen', plan_group: 'special',
+        schedules: [{ time_of_day: '21:30', days_of_week: [1, 3, 5], quantity: 1, unit: 'tablet', time_fixed: true }],
+    });
+    // 4. Künftig (beginnt in 5 Tagen) und abgelaufen (endete vor 3 Tagen)
+    await api('POST', '/api/medications', {
+        name: 'Amoxicillin', active_ingredient: 'Amoxicillin', dosage: '1000 mg', form: 'tablet',
+        reason: 'Zahnbehandlung', prescriber: 'Dr. Paula Beispiel', start_date: datum(5), end_date: datum(11),
+        schedules: [morgens(1), { time_of_day: '18:00', quantity: 1, unit: 'tablet', time_fixed: false }],
+    });
+    await api('POST', '/api/medications', {
+        name: 'Ibuprofen', active_ingredient: 'Ibuprofen', dosage: '400 mg', form: 'tablet',
+        reason: 'Rückenschmerzen', start_date: datum(-10), end_date: datum(-3), schedules: [morgens(1)],
+    });
+    // 5. Dosisänderungen bei Ramipril: vor 20 Tagen und vor 5 Tagen (Zeit unten per Datenbank)
+    await api('PUT', `/api/medications/${ramipril.id}`, { dosage: '2,5 mg' });
+    await api('PUT', `/api/medications/${ramipril.id}`, { dosage: '5 mg' });
+    // 6. Abends angelegt mit "Morgens", dann auf feste Abend-Uhrzeit umgestellt (Fehler aus E51)
+    const simva = await api('POST', '/api/medications', {
+        name: 'Simvastatin', active_ingredient: 'Simvastatin', dosage: '20 mg', form: 'tablet',
+        reason: 'Cholesterin', schedules: [morgens(1)],
+    });
+    // 7. Dupliziert (E56): Kopie von Levothyroxin mit anderer Stärke, wie über "Duplizieren" angelegt
+    await api('POST', '/api/medications', {
+        name: 'Levothyroxin', active_ingredient: 'Levothyroxin-Natrium', dosage: '75 µg', form: 'tablet',
+        with_food: 'without', reason: 'Schilddrüse', instructions: '30 Minuten vor dem Frühstück',
+        prescriber: 'Dr. Paula Beispiel', start_date: datum(7),
+        schedules: [{ time_of_day: '06:30', quantity: 1, unit: 'tablet', time_fixed: true }],
+    });
+    // Zeiten zurückdatieren, nur lokal und nur in diesem Testkreis (E57)
+    const zurueck = zurueckdatieren(C, [
+        // Alle Test-Medikamente gibt es seit 30 Tagen, sonst entstehen heute nur Einnahmen nach dem
+        // Anlegen (E51). Simvastatin (6.) wird danach auf heute 19:00 gesetzt.
+        `UPDATE medications SET created_at = created_at - interval '30 days' WHERE circle_id = '${C}'`,
+        `UPDATE medication_schedules SET created_at = created_at - interval '30 days'
+         WHERE medication_id IN (SELECT id FROM medications WHERE circle_id = '${C}')`,
+        // 5.: Ramipril angelegt vor 30 Tagen, Änderungen vor 20 und vor 5 Tagen
+        `UPDATE medication_history SET changed_at = changed_at - interval '30 days'
+         WHERE medication_id = '${ramipril.id}' AND action = 'created'`,
+        `UPDATE medication_history SET changed_at = changed_at - interval '20 days'
+         WHERE id = (SELECT id FROM medication_history WHERE medication_id = '${ramipril.id}' AND action = 'updated'
+                     ORDER BY changed_at ASC LIMIT 1)`,
+        `UPDATE medication_history SET changed_at = changed_at - interval '5 days'
+         WHERE id = (SELECT id FROM medication_history WHERE medication_id = '${ramipril.id}' AND action = 'updated'
+                     AND changed_at > NOW() - interval '1 day' ORDER BY changed_at DESC LIMIT 1)`,
+        // 6.: Simvastatin heute um 19:00 angelegt
+        `UPDATE medications SET created_at = CURRENT_DATE + time '19:00' WHERE id = '${simva.id}'`,
+        `UPDATE medication_schedules SET created_at = CURRENT_DATE + time '19:00' WHERE medication_id = '${simva.id}'`,
+        `DELETE FROM medication_intakes WHERE medication_id = '${simva.id}'`,
+    ]);
+    const simvaPlan = await api('GET', '/api/medications');
+    const simvaZeile = simvaPlan.find((m) => m.id === simva.id)?.schedules?.[0];
+    await api('PUT', `/api/medications/${simva.id}`, {
+        schedules: [{ id: simvaZeile?.id, time_of_day: '21:30', quantity: 1, unit: 'tablet', time_fixed: true }],
+    });
+    if (!zurueck) console.warn('Hinweis: Szenarien 5 und 6 ohne zurückdatierte Zeiten (Datenbank nicht erreichbar).');
 
     // Termine: einzeln, wiederkehrend, mit Fahrt
     await api('POST', '/api/events', {
@@ -265,6 +340,28 @@ async function main() {
 
     console.log('Testdaten angelegt (Pflegekreis „Erika Muster“).');
     zugangsdaten();
+}
+
+/**
+ * E57: Zeiten im gerade angelegten Testkreis zurückdatieren (Historie, Anlegezeit). Nur über
+ * den lokalen Container, nur wenn API_BASE lokal ist (oben geprüft) und nur, wenn der Kreis
+ * der fiktive Kreis "Erika Muster" ist. Sonst passiert nichts. Gibt true zurück, wenn es lief.
+ */
+function zurueckdatieren(circleId, anweisungen) {
+    if (!/^[0-9a-f-]{36}$/i.test(circleId)) return false;
+    const pruefung = `SELECT 1 FROM care_recipients WHERE circle_id = '${circleId}' AND first_name = 'Erika' AND last_name = 'Muster'`;
+    const sql = `DO $$ BEGIN
+        IF NOT EXISTS (${pruefung}) THEN RAISE EXCEPTION 'nicht der Testkreis'; END IF;
+        ${anweisungen.map((a) => `${a};`).join('\n        ')}
+    END $$;`;
+    try {
+        execFileSync('docker', ['exec', '-i', 'opencare-db', 'psql', '-U', process.env.POSTGRES_USER || 'opencare',
+            '-d', process.env.POSTGRES_DB || 'opencare', '-v', 'ON_ERROR_STOP=1', '-q'], { input: sql, stdio: ['pipe', 'ignore', 'pipe'] });
+        return true;
+    } catch (err) {
+        console.warn(`Zurückdatieren nicht möglich: ${String(err.stderr || err.message).trim()}`);
+        return false;
+    }
 }
 
 function zugangsdaten() {

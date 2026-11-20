@@ -211,6 +211,8 @@ CREATE TABLE medications (
     appearance TEXT,
     -- Wirkstoff (z. B. Metformin)
     active_ingredient VARCHAR(255),
+    -- E55: Gruppe im gedruckten Plan (Dauermedikation oder zu besonderen Zeiten), bei Bedarf eigene Gruppe
+    plan_group VARCHAR(10) NOT NULL DEFAULT 'regular' CHECK (plan_group IN ('regular', 'special')),
     -- Stock restant (dans l'unite des prises) et seuil d'alerte de renouvellement
     stock_quantity NUMERIC(8, 2),
     stock_alert_threshold NUMERIC(8, 2),

@@ -27,6 +27,8 @@ import {
     skipIntakes,
     IntakeSource,
     markMissed,
+    schedulesToReopen,
+    type ScheduleTimes,
     toDateString,
     INTAKE_DISPLAY_COLUMNS,
     INTAKE_DISPLAY_FROM,
@@ -35,6 +37,7 @@ import {
 import { langFromRequest, t, type Lang } from '../lib/i18n';
 import { MEDICATION_COLOR_IDS } from '../lib/viewColors';
 import { diffMedication, recordMedicationHistory } from '../lib/medicationHistory';
+import { PLAN_GROUP_VALUES, PLAN_PRINT_ROLES, buildMedicationPlan, historyFrom, recentHistory } from '../lib/medicationPlan';
 
 const router = Router();
 
@@ -173,6 +176,8 @@ interface MedicationExtras {
     reason?: string | null;
     appearance?: string | null;
     active_ingredient?: string | null;
+    /** E55: Gruppe im gedruckten Plan */
+    plan_group?: string;
 }
 
 /** Champs optionnels du medicament : { valeur } ou { error }. */
@@ -200,6 +205,14 @@ const parseMedicationExtras = (body: Record<string, unknown>, lang: Lang): {
     if ('active_ingredient' in body) {
         const raw = body.active_ingredient;
         values.active_ingredient = typeof raw === 'string' && raw.trim() ? raw.trim().slice(0, 255) : null;
+    }
+    // E55: Gruppe im Medikamentenplan, nur Dauermedikation oder zu besonderen Zeiten.
+    if ('plan_group' in body) {
+        const raw = body.plan_group;
+        if (typeof raw !== 'string' || !(PLAN_GROUP_VALUES as readonly string[]).includes(raw)) {
+            return { error: t(lang, 'medications.planGroupInvalid') };
+        }
+        values.plan_group = raw;
     }
     // E28: Die Farbe steht pro Einnahmezeit (parseSchedules), nicht mehr am Medikament.
     return { values };
@@ -365,8 +378,8 @@ router.post('/', requireContentWriter, async (req: CircleRequest, res: Response)
 
         const medResult = await client.query(
             `INSERT INTO medications (circle_id, name, dosage, form, instructions, photo_url, prescriber, start_date, end_date,
-                                      prn, with_food, reason, appearance, active_ingredient)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                                      prn, with_food, reason, appearance, active_ingredient, plan_group)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
              RETURNING id`,
             [
                 req.circleId,
@@ -383,6 +396,7 @@ router.post('/', requireContentWriter, async (req: CircleRequest, res: Response)
                 extras.values?.reason ?? null,
                 extras.values?.appearance ?? null,
                 extras.values?.active_ingredient ?? null,
+                extras.values?.plan_group ?? 'regular',
             ]
         );
         const medicationId = medResult.rows[0].id;
@@ -597,6 +611,21 @@ router.put('/:id', requireContentWriter, async (req: CircleRequest, res: Respons
                  WHERE medication_id = $1 AND status = 'pending' AND due_at >= date_trunc('day', NOW())`,
                 [req.params.id]
             );
+            // E51 (b): Uhrzeit einer Einnahmezeit geaendert: die heute schon verpasste Einnahme
+            // dieser Zeile entfaellt und entsteht mit der neuen Uhrzeit neu (generateIntakes).
+            // Genommen und uebersprungen bleiben, dann gilt die neue Uhrzeit ab morgen (E31).
+            const reopen = schedulesToReopen(
+                (before?.schedules ?? []) as ScheduleTimes[],
+                parsedSchedules.filter((s): s is ScheduleInput & { id: string } => Boolean(s.id && kept.includes(s.id)))
+            ).map((s) => s.id);
+            if (reopen.length > 0) {
+                await client.query(
+                    `DELETE FROM medication_intakes
+                     WHERE schedule_id = ANY($1::uuid[]) AND status = 'missed'
+                       AND due_at >= date_trunc('day', NOW()) AND due_at < date_trunc('day', NOW()) + interval '1 day'`,
+                    [reopen]
+                );
+            }
         }
 
         const medication = await fetchMedicationWithSchedules(client, req.params.id);
@@ -618,6 +647,44 @@ router.put('/:id', requireContentWriter, async (req: CircleRequest, res: Respons
         res.status(500).json({ success: false, error: 'Internal server error' });
     } finally {
         client.release();
+    }
+});
+
+// Medikamentenplan zum Drucken nach Vorbild BMP (E54): admin, family, professional.
+// Gueltige und kuenftige Medikamente am Druckdatum, Kopfdaten und die Aenderungen der letzten 14 Tage.
+router.get('/plan', requireRole(...PLAN_PRINT_ROLES), async (req: CircleRequest, res: Response) => {
+    try {
+        const printDate = toDateString(new Date());
+        const [meds, recipient, user, history] = await Promise.all([
+            query(`${MEDICATION_WITH_SCHEDULES} WHERE m.circle_id = $1 GROUP BY m.id`, [req.circleId]),
+            query('SELECT first_name, last_name, birth_date FROM care_recipients WHERE circle_id = $1', [req.circleId]),
+            query('SELECT name FROM users WHERE id = $1', [req.userId]),
+            query(
+                `SELECT h.id, h.medication_id, h.medication_name, h.action, h.changes, h.changed_at,
+                        u.name AS changed_by_name, m.form AS medication_form
+                 FROM medication_history h
+                 LEFT JOIN users u ON u.id = h.changed_by
+                 LEFT JOIN medications m ON m.id = h.medication_id
+                 WHERE h.circle_id = $1 AND h.changed_at >= $2::date
+                 ORDER BY h.changed_at DESC
+                 LIMIT 500`,
+                [req.circleId, historyFrom(printDate)]
+            ),
+        ]);
+        res.json({
+            success: true,
+            data: {
+                print_date: printDate,
+                history_from: historyFrom(printDate),
+                recipient: recipient.rows[0] ?? null,
+                created_by: user.rows[0]?.name ?? null,
+                sections: buildMedicationPlan(meds.rows, printDate),
+                changes: recentHistory(history.rows, printDate),
+            },
+        });
+    } catch (error) {
+        console.error('Medication plan error:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
     }
 });
 

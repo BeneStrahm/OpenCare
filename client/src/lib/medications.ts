@@ -47,3 +47,25 @@ export const formatAmount = (
     const unitKey = unitFor(unit, form);
     return `${shown} ${t(`medications:units.${unitKey}`, { count: value, defaultValue: unitKey })}`;
 };
+
+/** E55: Gruppe im gedruckten Medikamentenplan (bei Bedarf immer Bedarfsmedikation). */
+export type PlanGroupValue = 'regular' | 'special';
+export const PLAN_GROUP_VALUES: readonly PlanGroupValue[] = ['regular', 'special'];
+
+/**
+ * E56: Formular "Neues Medikament" aus einem vorhandenen (Duplizieren). Alle Angaben und
+ * Einnahmezeiten bleiben, nur die Kennungen der Einnahmezeiten fallen weg, damit der Server
+ * neue anlegt. Vorrat, Rezepte und Einnahmen stehen nicht im Formular und werden nie kopiert.
+ */
+export const duplicateMedForm = <F extends { schedules: ReadonlyArray<{ id?: string }> }>(form: F): F =>
+    ({
+        ...form,
+        schedules: form.schedules.map((row) => {
+            const copy: { id?: string } = { ...row };
+            delete copy.id;
+            return copy;
+        }),
+    }) as F;
+
+/** Tageszeit einer Stunde (Medikamentenplan, Heute, Historie): dieselbe Regel wie die einfache Ansicht. */
+export { momentOf, type Moment } from './recipientView';

@@ -19,7 +19,7 @@ export interface HistoryChange {
 /** Angaben des Medikaments, die verglichen werden (Foto und Einnahmezeiten eigen). */
 const MEDICATION_FIELDS = [
     'name', 'active_ingredient', 'dosage', 'form', 'instructions', 'prescriber',
-    'start_date', 'end_date', 'prn', 'with_food', 'reason', 'appearance', 'active',
+    'start_date', 'end_date', 'prn', 'with_food', 'reason', 'appearance', 'plan_group', 'active',
 ] as const;
 
 interface ScheduleRow {

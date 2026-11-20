@@ -117,6 +117,7 @@ export const MESSAGES: Record<Lang, Record<string, string>> = {
         'medications.prnBoolean': 'prn doit être un booléen',
         'medications.withFoodInvalid': 'with_food invalide (with, without ou any)',
         'medications.colorInvalid': 'Couleur invalide',
+        'medications.planGroupInvalid': 'Groupe du plan invalide (regular ou special)',
 
         'expenses.splitsRequired': 'splits est requis pour une répartition personnalisée',
         'expenses.splitsInvalidMember': 'splits contient un membre invalide',
@@ -251,6 +252,7 @@ export const MESSAGES: Record<Lang, Record<string, string>> = {
         'medications.prnBoolean': 'prn must be a boolean',
         'medications.withFoodInvalid': 'Invalid with_food (with, without or any)',
         'medications.colorInvalid': 'Invalid colour',
+        'medications.planGroupInvalid': 'Invalid plan group (regular or special)',
 
         'expenses.splitsRequired': 'splits is required for a custom split',
         'expenses.splitsInvalidMember': 'splits contains an invalid member',
@@ -386,6 +388,7 @@ export const MESSAGES: Record<Lang, Record<string, string>> = {
         'medications.prnBoolean': 'prn debe ser un booleano',
         'medications.withFoodInvalid': 'with_food no válido (with, without o any)',
         'medications.colorInvalid': 'Color no válido',
+        'medications.planGroupInvalid': 'Grupo del plan no válido (regular o special)',
 
         'expenses.splitsRequired': 'splits es obligatorio para un reparto personalizado',
         'expenses.splitsInvalidMember': 'splits contiene un miembro no válido',
@@ -520,6 +523,7 @@ export const MESSAGES: Record<Lang, Record<string, string>> = {
         'medications.prnBoolean': 'prn muss ein Wahrheitswert sein',
         'medications.withFoodInvalid': 'Ungültiger Wert für with_food (with, without oder any)',
         'medications.colorInvalid': 'Diese Farbe gibt es nicht. Bitte wählen Sie eine Farbe aus der Liste.',
+        'medications.planGroupInvalid': 'Bitte wählen Sie eine Gruppe aus der Liste: Dauermedikation oder Zu besonderen Zeiten.',
 
         'expenses.splitsRequired': 'splits ist für eine individuelle Aufteilung erforderlich',
         'expenses.splitsInvalidMember': 'splits enthält ein ungültiges Mitglied',

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { format, parseISO, startOfDay, differenceInCalendarDays } from 'date-fns';
 import {
     Plus,
@@ -16,16 +17,22 @@ import {
     PlusCircle,
     Package,
     History,
+    AlertTriangle,
+    Copy,
+    Printer,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { cn } from '../lib/utils';
 import { MEDICATION_COLORS, medicationColorOf } from '../lib/viewColors';
-import { DEFAULT_UNIT_BY_FORM, MEDICATION_FORMS, MEDICATION_UNITS, formatAmount, safeQuantity, unitFor } from '../lib/medications';
+import { DEFAULT_UNIT_BY_FORM, MEDICATION_FORMS, MEDICATION_UNITS, duplicateMedForm, formatAmount, PLAN_GROUP_VALUES, safeQuantity, unitFor, momentOf, type Moment, type PlanGroupValue } from '../lib/medications';
+import { historyTexts, type HistoryChange, type HistoryEntry } from '../lib/medicationHistoryText';
 import { useCircle } from '../contexts/CircleContext';
 import { circleWeekStart, orderedIsoDays, sortIsoDays } from '../lib/weekStart';
 import { useWebSocketUpdates } from '../hooks/useWebSocketUpdates';
 import { PersonCombobox } from '../components/calendar/PersonCombobox';
 import { dateLocale, formatClock, intlLocale } from '../i18n/format';
+import { groupIntakes, type IntakeGroup } from '../lib/recipientView';
+import { clockDate } from '../lib/clock';
 import {
     Card,
     CardContent,
@@ -42,7 +49,6 @@ import {
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type IntakeStatus = 'pending' | 'taken' | 'skipped' | 'missed';
-type Moment = 'morning' | 'noon' | 'evening' | 'night';
 
 type WithFood = 'with' | 'without' | 'any';
 type IntakeSource = 'caregiver' | 'kiosk' | 'phone' | 'link' | 'self';
@@ -80,6 +86,8 @@ interface Medication {
     appearance: string | null;
     /** Wirkstoff */
     active_ingredient: string | null;
+    /** E55: Gruppe im gedruckten Plan */
+    plan_group?: PlanGroupValue | null;
     /** Stock restant, dans l'unite d'une prise ; null = stock non suivi */
     stock_quantity: number | null;
     /** Sous ce seuil le stock est signale comme bas ; null = pas d'alerte */
@@ -149,53 +157,6 @@ interface ScheduleRow {
     /** E28: Farbe dieser Einnahmezeit, '' = keine */
     view_color: string;
 }
-
-/** Änderungshistorie des Medikamentenplans (server/src/lib/medicationHistory.ts). */
-interface HistorySchedule {
-    time_of_day: string;
-    time_fixed: boolean;
-    days_of_week: number[];
-    quantity: number;
-    unit: string | null;
-    view_color: string | null;
-    label: string | null;
-}
-
-interface HistoryChange {
-    field: string;
-    old: unknown;
-    new: unknown;
-}
-
-interface HistoryEntry {
-    id: string;
-    medication_name: string;
-    /** Nur im Reiter "Änderungen": Form des Medikaments (null, wenn gelöscht) */
-    medication_form?: string | null;
-    action: 'created' | 'updated' | 'deleted';
-    changes: HistoryChange[];
-    changed_at: string;
-    changed_by_name: string | null;
-}
-
-/** Feldname in der Historie -> Beschriftung (vorhandene Texte des Formulars). */
-const HISTORY_FIELD_LABELS: Record<string, string> = {
-    name: 'medications:form.name',
-    active_ingredient: 'medications:form.activeIngredient',
-    dosage: 'medications:form.dosage',
-    form: 'medications:form.form',
-    instructions: 'medications:form.instructions',
-    prescriber: 'medications:form.prescriber',
-    start_date: 'medications:form.startDate',
-    end_date: 'medications:form.endDate',
-    prn: 'medications:form.prn',
-    with_food: 'medications:form.withFood',
-    reason: 'medications:form.reason',
-    appearance: 'medications:form.appearance',
-    photo: 'medications:form.photo',
-    active: 'medications:history.fields.active',
-    schedule: 'medications:history.fields.schedule',
-};
 
 /** Lädt Daten erst, wenn der Reiter angezeigt wird (Radix-Tabs hängen inaktive Reiter aus). */
 const OnMount: React.FC<{ onMount: () => void; children: React.ReactNode }> = ({ onMount, children }) => {
@@ -286,12 +247,6 @@ const isStockLow = (med: Medication): boolean => {
 const MAX_PHOTO_CHARS = 1.5 * 1024 * 1024;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-const momentOf = (hour: number): Moment => {
-    if (hour >= 5 && hour < 11) return 'morning';
-    if (hour >= 11 && hour < 17) return 'noon';
-    if (hour >= 17 && hour < 22) return 'evening';
-    return 'night';
-};
 
 /** Resize and re-encode an image on a canvas until the data URL fits the server limit. */
 const compressImageToDataUrl = async (file: File): Promise<string> => {
@@ -351,6 +306,7 @@ const emptyMedForm = () => ({
     reason: '',
     appearance: '',
     active_ingredient: '',
+    plan_group: 'regular' as PlanGroupValue,
     schedules: [emptyScheduleRow()],
 });
 
@@ -367,6 +323,7 @@ const emptyRxForm = () => ({
 
 const Medications: React.FC = () => {
     const { t } = useTranslation(['medications', 'common', 'simpleView']);
+    const navigate = useNavigate();
     const { activeCircle, canWriteContent, canWriteJournal, myRole } = useCircle();
 
     const [intakes, setIntakes] = useState<Intake[]>([]);
@@ -381,6 +338,8 @@ const Medications: React.FC = () => {
     const [medDialogOpen, setMedDialogOpen] = useState(false);
     const [editingMed, setEditingMed] = useState<Medication | null>(null);
     const [medForm, setMedForm] = useState(emptyMedForm());
+    // E51: "Ende" liegt vor heute (Hinweis unter dem Feld, Speichern bleibt erlaubt)
+    const endDateInPast = Boolean(medForm.end_date) && medForm.end_date < format(new Date(), 'yyyy-MM-dd');
     const [medFormError, setMedFormError] = useState('');
     const [photoBusy, setPhotoBusy] = useState(false);
     const [savingMed, setSavingMed] = useState(false);
@@ -538,13 +497,8 @@ const Medications: React.FC = () => {
 
     // ─── Today ────────────────────────────────────────────────────────────────
 
-    const intakesByMoment = useMemo(() => {
-        const groups: Record<Moment, Intake[]> = { morning: [], noon: [], evening: [], night: [] };
-        for (const intake of intakes) {
-            groups[momentOf(parseISO(intake.due_at).getHours())].push(intake);
-        }
-        return groups;
-    }, [intakes]);
+    // E58: gleiche Gruppen wie die einfache Ansicht (je Tageszeit, je feste Uhrzeit "Um 21:30").
+    const intakeGroups = useMemo(() => groupIntakes(intakes, clockDate, { prnByMoment: true }), [intakes]);
 
     const setIntakeStatus = async (intake: Intake, status: 'taken' | 'skipped' | 'pending') => {
         setError('');
@@ -599,9 +553,19 @@ const Medications: React.FC = () => {
         isRecipient && intake.status === 'taken' && Boolean(intake.undo_until && intake.undo_until > clock);
 
     // "Morgens alle genommen": Rueckfrage, dann alle offenen Einnahmen des Blocks bestaetigen.
-    const [confirmAllMoment, setConfirmAllMoment] = useState<Moment | null>(null);
+    const [confirmAllMoment, setConfirmAllMoment] = useState<IntakeGroup | null>(null);
     const [confirmAllBusy, setConfirmAllBusy] = useState(false);
-    const openIntakesOf = (moment: Moment) => intakesByMoment[moment].filter((i) => !isDone(i));
+    const openIntakesOf = (group: IntakeGroup) =>
+        (intakeGroups.find((g) => g.group.key === group.key)?.items ?? []).filter((i) => !isDone(i));
+    /** Überschrift und Taste einer Gruppe: "Morgens" / "Morgens alle genommen" bzw. "Um 21:30" / "Um 21:30 alle genommen". */
+    const groupTitle = (group: IntakeGroup) =>
+        group.kind === 'moment'
+            ? t(`medications:moments.${group.moment}`)
+            : t('medications:today.atTime', { time: formatClock(`2000-01-01T${group.time}`) });
+    const groupAllTaken = (group: IntakeGroup) =>
+        group.kind === 'moment'
+            ? t(`medications:today.allTaken.${group.moment}`)
+            : t('medications:today.allTakenAt', { time: formatClock(`2000-01-01T${group.time}`) });
     const confirmAllIntakes = async () => {
         if (!confirmAllMoment) return;
         const ids = openIntakesOf(confirmAllMoment).map((i) => i.id);
@@ -740,20 +704,19 @@ const Medications: React.FC = () => {
                     </CardContent>
                 </Card>
             ) : (
-                MOMENTS.map((moment) => {
-                    const group = intakesByMoment[moment];
-                    if (group.length === 0) return null;
-                    const openCount = openIntakesOf(moment).length;
+                intakeGroups.map(({ group: intakeGroup, items: group }) => {
+                    const openCount = openIntakesOf(intakeGroup).length;
+                    const headingId = `moment-${intakeGroup.key.replace(/[^a-z0-9]/gi, '-')}`;
                     return (
-                        <section key={moment} aria-labelledby={`moment-${moment}`}>
+                        <section key={intakeGroup.key} aria-labelledby={headingId}>
                             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                                <h2 id={`moment-${moment}`} className="text-h1 text-foreground">
-                                    {t(`medications:moments.${moment}`)}
+                                <h2 id={headingId} className="text-h1 text-foreground">
+                                    {groupTitle(intakeGroup)}
                                 </h2>
                                 {canConfirmIntakes && openCount > 0 && (
-                                    <Button size="lg" onClick={() => setConfirmAllMoment(moment)}>
+                                    <Button size="lg" onClick={() => setConfirmAllMoment(intakeGroup)}>
                                         <CheckCheck className="mr-2 h-5 w-5" aria-hidden="true" />
-                                        {t(`medications:today.allTaken.${moment}`)}
+                                        {groupAllTaken(intakeGroup)}
                                     </Button>
                                 )}
                             </div>
@@ -824,7 +787,7 @@ const Medications: React.FC = () => {
                 onOpenChange={(open) => {
                     if (!open && !confirmAllBusy) setConfirmAllMoment(null);
                 }}
-                title={confirmAllMoment ? t(`medications:today.allTaken.${confirmAllMoment}`) : ''}
+                title={confirmAllMoment ? groupAllTaken(confirmAllMoment) : ''}
                 description={t('medications:today.allTakenQuestion')}
             >
                 <ul className="mb-6 space-y-2">
@@ -934,7 +897,22 @@ const Medications: React.FC = () => {
 
     const openEditMed = (med: Medication) => {
         setEditingMed(med);
-        setMedForm({
+        setMedForm(medFormFrom(med));
+        setMedFormError('');
+        setMedDialogOpen(true);
+    };
+
+    /** E56: "Neues Medikament" mit allen Angaben der Vorlage, gespeichert erst mit "Erstellen". */
+    const openDuplicateMed = (med: Medication) => {
+        setEditingMed(null);
+        setMedForm(duplicateMedForm(medFormFrom(med)));
+        setMedFormError('');
+        setMedDialogOpen(true);
+    };
+
+    /** Formularwerte aus einem gespeicherten Medikament (Bearbeiten und Duplizieren). */
+    function medFormFrom(med: Medication): ReturnType<typeof emptyMedForm> {
+        return {
             name: med.name,
             dosage: med.dosage || '',
             form: med.form || '',
@@ -948,6 +926,7 @@ const Medications: React.FC = () => {
             reason: med.reason || '',
             appearance: med.appearance || '',
             active_ingredient: med.active_ingredient || '',
+            plan_group: med.plan_group === 'special' ? 'special' : 'regular',
             schedules: med.schedules.map((s) => ({
                 id: s.id,
                 time_of_day: s.time_of_day,
@@ -958,10 +937,8 @@ const Medications: React.FC = () => {
                 time_fixed: s.time_fixed !== false,
                 view_color: medicationColorOf(s.view_color)?.id ?? '',
             })),
-        });
-        setMedFormError('');
-        setMedDialogOpen(true);
-    };
+        };
+    }
 
     const updateScheduleRow = (index: number, patch: Partial<ScheduleRow>) => {
         setMedForm((prev) => ({
@@ -1054,6 +1031,7 @@ const Medications: React.FC = () => {
             reason: medForm.reason.trim() || null,
             appearance: medForm.appearance.trim() || null,
             active_ingredient: medForm.active_ingredient.trim() || null,
+            plan_group: medForm.plan_group,
             schedules: rows.map((row) => ({
                 id: row.id,
                 time_of_day: row.time_of_day,
@@ -1174,35 +1152,13 @@ const Medications: React.FC = () => {
         }
     };
 
-    const historyScheduleText = (s: HistorySchedule, form: string | null) => {
-        const when = s.time_fixed === false
-            ? t(`medications:moments.${momentOf(parseInt(s.time_of_day.slice(0, 2), 10))}`)
-            : t('medications:history.atTime', { time: formatClock(s.time_of_day) });
-        const parts = [`${when}: ${amountLabel(s.quantity, s.unit, form)}`];
-        if (Array.isArray(s.days_of_week) && s.days_of_week.length < 7) {
-            parts.push(sortIsoDays(s.days_of_week, weekStart).map((d) => daysShort[d - 1]).join(', '));
-        }
-        const color = medicationColorOf(s.view_color);
-        if (color) parts.push(t(`medications:form.viewColors.${color.id}`));
-        if (s.label) parts.push(s.label);
-        return parts.join(' · ');
-    };
-
-    const historyValueText = (field: string, value: unknown, form: string | null): string => {
-        if (field === 'active') return value ? t('medications:history.values.active') : t('medications:treatments.archived');
-        if (field === 'photo') return value ? t('medications:history.values.photo') : t('medications:history.values.noPhoto');
-        if (field === 'prn') return value ? t('medications:history.values.yes') : t('medications:history.values.no');
-        if (value === null || value === undefined || value === '') return t('medications:history.values.empty');
-        if (field === 'schedule') return historyScheduleText(value as HistorySchedule, form);
-        if (field === 'form') return formLabel(String(value));
-        if (field === 'with_food') return t(`medications:withFood.${String(value)}`, { defaultValue: String(value) });
-        if (field === 'start_date' || field === 'end_date') return fmtDate(String(value));
-        return String(value);
-    };
+    // Texte der Historie, gemeinsam mit dem Druck (lib/medicationHistoryText.ts)
+    const historyText = historyTexts(t, weekStart);
+    const historyValueText = historyText.valueText;
 
     /** Form des Medikaments zum Zeitpunkt der Änderung ist nicht gespeichert: aktuelle Form für die Einheit. */
     const renderHistoryChange = (change: HistoryChange, action: HistoryEntry['action'], form: string | null, key: number) => {
-        const label = t(HISTORY_FIELD_LABELS[change.field] ?? change.field, { defaultValue: change.field });
+        const label = historyText.fieldLabel(change.field);
         if (change.field === 'schedule' && (change.old === null || change.new === null)) {
             const added = change.old === null;
             return (
@@ -1370,6 +1326,13 @@ const Medications: React.FC = () => {
                             ]}
                         />
                     </div>
+                    {/* E54: Druckansicht des Plans fuer admin, family, professional */}
+                    {canReadHistory && medications.length > 0 && (
+                        <Button variant="secondary" onClick={() => navigate('/medications/druck')}>
+                            <Printer className="mr-2 h-4 w-4" aria-hidden="true" />
+                            {t('medications:print.open')}
+                        </Button>
+                    )}
                     {canWriteContent && (
                         <Button onClick={openCreateMed}>
                             <Plus className="mr-2 h-4 w-4" />
@@ -1445,6 +1408,15 @@ const Medications: React.FC = () => {
                                                 </Button>
                                             )}
                                             {canWriteContent && (<>
+                                            {/* E56: Duplizieren, Symbol mit Text */}
+                                            <Button
+                                                variant="ghost"
+                                                className="h-12 min-w-[48px] px-3"
+                                                onClick={() => openDuplicateMed(med)}
+                                            >
+                                                <Copy className="mr-2 h-5 w-5" aria-hidden="true" />
+                                                {t('medications:treatments.duplicate')}
+                                            </Button>
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
@@ -1935,6 +1907,25 @@ const Medications: React.FC = () => {
                         placeholder={t('medications:form.instructionsPlaceholder')}
                         rows={2}
                     />
+                    {/* E55: Gruppe im gedruckten Medikamentenplan, bei Bedarf immer Bedarfsmedikation */}
+                    {!medForm.prn && (
+                        <div className="sm:w-1/2">
+                            <span className="mb-1.5 block text-caption font-medium text-foreground">
+                                {t('medications:form.planGroup')}
+                            </span>
+                            <Select
+                                value={medForm.plan_group}
+                                onValueChange={(value) =>
+                                    setMedForm((f) => ({ ...f, plan_group: value === 'special' ? 'special' : 'regular' }))
+                                }
+                                ariaLabel={t('medications:form.planGroup')}
+                                options={PLAN_GROUP_VALUES.map((value) => ({
+                                    value,
+                                    label: t(`medications:planGroups.${value}`),
+                                }))}
+                            />
+                        </div>
+                    )}
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                         <div className="w-full">
                             <label htmlFor="med-prescriber" className="mb-1.5 block text-caption font-medium text-foreground">
@@ -1954,11 +1945,21 @@ const Medications: React.FC = () => {
                             value={medForm.start_date}
                             onChange={(value) => setMedForm({ ...medForm, start_date: value })}
                         />
-                        <DatePicker
-                            label={t('medications:form.endDate')}
-                            value={medForm.end_date}
-                            onChange={(value) => setMedForm({ ...medForm, end_date: value })}
-                        />
+                        <div>
+                            <DatePicker
+                                label={t('medications:form.endDate')}
+                                value={medForm.end_date}
+                                onChange={(value) => setMedForm({ ...medForm, end_date: value })}
+                                describedBy={endDateInPast ? 'med-end-date-past' : undefined}
+                            />
+                            {/* E51: Ende in der Vergangenheit, Speichern bleibt erlaubt */}
+                            {endDateInPast && (
+                                <p id="med-end-date-past" role="status" className="mt-1.5 flex items-start gap-2 text-body text-foreground">
+                                    <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-warning" aria-hidden="true" />
+                                    {t('medications:form.endDatePast')}
+                                </p>
+                            )}
+                        </div>
                     </div>
 
                     {/* Photo */}

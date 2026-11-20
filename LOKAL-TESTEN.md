@@ -115,3 +115,60 @@ löschen, danach legt `npm run precheck` die Testkonten neu an.
 
 Passwort vergessen: Auf der Seite Kreis erzeugt der Administrator mit der Taste
 „Passwort-Link“ neben einem Mitglied einen Link (24 Stunden gültig, einmal nutzbar).
+
+### Prüfliste Medikamentenplan (fiktive Szenarien)
+
+Die Szenarien legt `scripts/testdaten.mjs` nur auf einer leeren Datenbank an: vorher
+`docker compose down -v`, danach `npm run precheck` oder `npm run dev:lokal`. Erscheint der
+Hinweis „ohne zurückdatierte Zeiten“, fehlen die Zeiten bei 5 und 6 (Docker nicht erreichbar).
+
+| Nr. | Medikament | Was es zeigt |
+| --- | --- | --- |
+| 1 | Prednisolon 5 mg | Ausschleichplan in 4 Stufen als Hinweis, Stufe 3 läuft heute (1 Tablette morgens), Gruppe „Zu besonderen Zeiten“ |
+| 2 | Paracetamol 500 mg | Bei Bedarf, keine festen Zeiten |
+| 3 | Vitamin D3 1000 I.E. | Nur Mo, Mi, Fr um 21:30, Gruppe „Zu besonderen Zeiten“ |
+| 4 | Amoxicillin / Ibuprofen | Beginnt in 5 Tagen / endete vor 3 Tagen |
+| 5 | Ramipril 5 mg | Dosis geändert vor 20 Tagen (5 mg → 2,5 mg) und vor 5 Tagen (2,5 mg → 5 mg) |
+| 6 | Simvastatin 20 mg | Heute 19:00 mit „Morgens“ angelegt, dann auf 21:30 fest umgestellt |
+| 7 | Levothyroxin 75 µg | Kopie von Levothyroxin 50 µg (wie „Duplizieren“), beginnt in 7 Tagen |
+
+**Administrator (ThomasMuster) und Familie (SabineMuster)**
+
+- Medikamente › Heute (PC und Handy): Gruppen wie am Tablet, je Tageszeit und je feste Uhrzeit
+  („Um 06:30“, „Um 21:30“). Taste „… alle genommen“ pro Gruppe, bei fester Uhrzeit „Um 21:30 alle
+  genommen“. Simvastatin steht heute nur unter „Um 21:30“, kein verpasstes 08:00. Prednisolon zeigt
+  1 Tablette. Vitamin D3 nur an Mo, Mi, Fr. Amoxicillin und Ibuprofen fehlen.
+- Medikamentenplan: Taste „Plan drucken“ oben, auf jeder Karte „Duplizieren“ (Symbol mit Text).
+  „Duplizieren“ öffnet „Neues Medikament“ mit allen Angaben und Einnahmezeiten, gespeichert erst mit
+  „Erstellen“.
+- Formular: unter „Hinweise“ das Beispiel mit dem Ausschleichplan, darunter „Gruppe im
+  Medikamentenplan“ (Dauermedikation, Zu besonderen Zeiten). Bei „Bei Bedarf“ ist das Feld weg.
+  „Ende“ auf gestern setzen: Hinweis unter dem Feld, Speichern geht trotzdem.
+- Druckansicht: A4 quer, Kopf mit Erika Muster, geb. 12.03.1941, „Erstellt von“, Druckdatum und
+  Vermerk „Stand: [heute]“. Dauermedikation (Levothyroxin 50 µg und 75 µg, Metformin 1-0-1-0,
+  Ramipril, Simvastatin 0-0-1-0 mit „um 21:30“, Amoxicillin mit „ab [Datum]; bis [Datum]“), Zu besonderen Zeiten
+  (Prednisolon mit „ab“, „bis“ und Ausschleichplan, Vitamin D3 mit „um 21:30; Mo, Mi, Fr“), Bedarfsmedikation
+  (Paracetamol, Spalten leer). Ibuprofen fehlt. Unten „Seite 1 von 2“.
+- Seite 2 „Änderungen der letzten 14 Tage“: Ramipril 2,5 mg → 5 mg (vor 5 Tagen), nicht die Änderung
+  vor 20 Tagen, dazu die heute angelegten Medikamente.
+- „Als PDF speichern“ im Druckdialog: zwei Seiten, nichts abgeschnitten.
+- Reiter „Änderungen“: dieselben Einträge, dazu Ramipril vor 20 Tagen. Gruppe ändern erscheint als
+  „Gruppe im Medikamentenplan: Dauermedikation → Zu besonderen Zeiten“.
+
+**Fachkraft (PetraSonnenschein)**
+
+- Heute wie oben, „… alle genommen“ geht. Medikamentenplan: „Plan drucken“ ja, „Duplizieren“,
+  Bearbeiten und Archivieren nein. Druckansicht wie oben.
+
+**Freunde (KarlNachbar)**
+
+- Keine Taste „Plan drucken“ (Freunde sehen keine Gesundheitsdaten). Die Adresse `/medications/druck` zeigt nur
+  den Hinweis, dass nur Administratoren, Familie und Fachkräfte drucken dürfen.
+
+**Betreute Person (ErikaMuster), Tablet-Ansicht**
+
+- Tagesliste: Prednisolon morgens 1 Tablette, Simvastatin um 21:30, Vitamin D3 nur Mo, Mi, Fr.
+  „Infos zur Tablette“ bei Prednisolon zeigt den Ausschleichplan unter „Hinweise“.
+- Kein Zugang zu Plan, Druck und Änderungen (Adresse `/medications/druck` führt zur Startseite).
+
+Beim Wechsel einer Stufe im Ausschleichplan passt die Familie die Menge der Einnahmezeit selbst an.

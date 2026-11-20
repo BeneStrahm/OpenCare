@@ -62,7 +62,9 @@
     },
     "allTakenQuestion": "Haben Sie diese Medikamente alle genommen?",
     "allTakenYes": "Ja, alle genommen",
-    "allTakenNo": "Nein"
+    "allTakenNo": "Nein",
+    "allTakenAt": "Um {{time}} alle genommen",
+    "atTime": "Um {{time}}"
   },
   "treatments": {
     "add": "Medikament hinzufügen",
@@ -102,7 +104,8 @@
     },
     "none": "keine Einnahme",
     "notes": "Hinweise:",
-    "amountAt": "{{amount}} um {{time}}"
+    "amountAt": "{{amount}} um {{time}}",
+    "duplicate": "Duplizieren"
   },
   "stock": {
     "remaining": "Vorrat: {{amount}}",
@@ -153,11 +156,12 @@
     "form": "Darreichungsform",
     "formPlaceholder": "Form wählen",
     "instructions": "Hinweise",
-    "instructionsPlaceholder": "z. B. zum Essen einnehmen",
+    "instructionsPlaceholder": "z. B. Ausschleichplan 01.12. bis 03.12.: 2-0-0-0; 04.12. bis 06.12.: 1-0-0-0",
     "prescriber": "Verordnet von",
     "prescriberPlaceholder": "z. B. Dr. Schmidt",
     "startDate": "Beginn",
     "endDate": "Ende",
+    "endDatePast": "Dieses Datum liegt in der Vergangenheit. Das Medikament erscheint dann nicht mehr in der Tagesliste.",
     "photo": "Foto des Medikaments",
     "photoAdd": "Foto hinzufügen",
     "photoChange": "Foto ändern",
@@ -204,7 +208,8 @@
       "blue": "Blau",
       "green": "Grün",
       "orange": "Orange"
-    }
+    },
+    "planGroup": "Gruppe im Medikamentenplan"
   },
   "prescriptions": {
     "add": "Rezept hinzufügen",
@@ -307,5 +312,56 @@
       "empty": "(leer)"
     },
     "allDescription": "Alle Änderungen am Medikamentenplan, neueste zuerst (höchstens 200)."
+  },
+  "planGroups": {
+    "regular": "Dauermedikation",
+    "special": "Zu besonderen Zeiten"
+  },
+  "print": {
+    "open": "Plan drucken",
+    "back": "Zurück",
+    "print": "Drucken",
+    "title": "Medikamentenplan",
+    "recipientBorn": "{{name}}, geb. {{date}}",
+    "notice": "Erstellt vom Pflegekreis, kein ärztlicher Medikationsplan. Stand: {{date}}",
+    "createdBy": "Erstellt von: {{name}}",
+    "printedOn": "Gedruckt am {{date}}",
+    "empty": "Im Plan steht kein gültiges oder künftiges Medikament.",
+    "loadError": "Der Medikamentenplan konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "noAccess": "Den Medikamentenplan drucken dürfen nur Administratoren, Familie und Fachkräfte.",
+    "page": "Seite",
+    "of": "von",
+    "columns": {
+      "activeIngredient": "Wirkstoff",
+      "name": "Handelsname",
+      "strength": "Stärke",
+      "form": "Form",
+      "morning": "Mo",
+      "noon": "Mi",
+      "evening": "Ab",
+      "night": "zN",
+      "unit": "Einheit",
+      "hints": "Hinweise",
+      "reason": "Grund"
+    },
+    "groups": {
+      "regular": "Dauermedikation",
+      "special": "Zu besonderen Zeiten anzuwendende Medikamente",
+      "prn": "Bedarfsmedikation"
+    },
+    "hints": {
+      "from": "ab {{date}}",
+      "until": "bis {{date}}",
+      "prescriber": "Verordnet von {{name}}",
+      "time": "um {{time}}"
+    },
+    "changesTitle": "Änderungen der letzten 14 Tage ({{from}} bis {{to}})",
+    "changesEmpty": "In den letzten 14 Tagen gab es keine Änderungen.",
+    "changeColumns": {
+      "when": "Datum",
+      "medication": "Medikament",
+      "change": "Änderung",
+      "by": "Von"
+    }
   }
 }

@@ -171,6 +171,14 @@ export const runMigrations = async () => {
                     CHECK (with_food IN ('with', 'without', 'any'));
             END IF;
         END $$;`,
+        // E55: Gruppe im gedruckten Medikamentenplan, alle vorhandenen Medikamente einmal Dauermedikation
+        `ALTER TABLE medications ADD COLUMN IF NOT EXISTS plan_group VARCHAR(10) NOT NULL DEFAULT 'regular';`,
+        `DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'medications_plan_group_check') THEN
+                ALTER TABLE medications ADD CONSTRAINT medications_plan_group_check
+                    CHECK (plan_group IN ('regular', 'special'));
+            END IF;
+        END $$;`,
         `ALTER TABLE medication_schedules ADD COLUMN IF NOT EXISTS quantity NUMERIC(6,2) NOT NULL DEFAULT 1;`,
         `ALTER TABLE medication_schedules ADD COLUMN IF NOT EXISTS unit VARCHAR(20);`,
         // false = nur Tageszeit (Morgens, Mittags ...), Uhrzeit ist dann ein Standardwert für Erinnerungen

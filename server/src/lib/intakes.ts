@@ -1,5 +1,6 @@
 import { PoolClient } from 'pg';
 import { query } from '../db';
+import { daysBetween, dayOf, scheduleAppliesOn, type RuleMedication, type RuleSchedule } from './scheduleRule';
 
 /**
  * Prises de medicaments : logique partagee entre la page Medicaments (et la
@@ -43,37 +44,137 @@ export const toDateString = (d: Date): string => {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
 
-/** Genere les occurrences manquantes entre deux dates (YYYY-MM-DD, incluses). */
+export interface PlanMedication extends RuleMedication {
+    id: string;
+}
+
+export interface PlanSchedule extends RuleSchedule {
+    id: string;
+    medication_id: string;
+    /** HH:MM */
+    time_of_day: string;
+    quantity: number | string | null;
+    unit: string | null;
+    /** Anlegezeit der Einnahmezeit (naiv lokal), leer bei alten Daten */
+    created_at?: string | null;
+}
+
+export interface ExistingIntake {
+    medication_id: string;
+    schedule_id: string | null;
+    /** naiv lokal YYYY-MM-DDTHH:MM:SS */
+    due_at: string;
+}
+
+export interface PlannedIntake {
+    medication_id: string;
+    schedule_id: string;
+    due_at: string;
+    quantity: number | string | null;
+    unit: string | null;
+}
+
+/** "2026-11-20 08:00:00.123" oder "2026-11-20T08:00" -> "2026-11-20T08:00:00" */
+export const naiveTimestamp = (value: string): string => {
+    const text = value.replace(' ', 'T').replace(/\.\d+$/, '');
+    return text.length === 16 ? `${text}:00` : text.slice(0, 19);
+};
+
+/**
+ * Welche Einnahmen zwischen from und to (inklusive) fehlen (E51, E52). Reine Funktion:
+ * - die Regel aus scheduleRule.ts (aktiv, nicht bei Bedarf, Zeitraum, Wochentag)
+ * - keine Einnahme, die vor dem Anlegen der Einnahmezeit faellig war (E51)
+ * - keine zweite fuer dieselbe Uhrzeit des Medikaments (alte, schon bestaetigte Einnahme
+ *   ohne Einnahmezeit)
+ * - hoechstens eine pro Einnahmezeit und Tag (E31): ist sie schon da, gilt eine neue
+ *   Uhrzeit erst ab morgen. Eine verpasste wird beim Speichern des Plans wieder geoeffnet
+ *   (schedulesToReopen), sie zaehlt hier wie jede vorhandene Einnahme.
+ */
+export function plannedIntakes(
+    medications: readonly PlanMedication[],
+    schedules: readonly PlanSchedule[],
+    existing: readonly ExistingIntake[],
+    from: string,
+    to: string
+): PlannedIntake[] {
+    const byId = new Map(medications.map((m) => [m.id, m]));
+    const atTime = new Set(existing.map((i) => `${i.medication_id}|${naiveTimestamp(i.due_at)}`));
+    const onDay = new Set(
+        existing.filter((i) => i.schedule_id).map((i) => `${i.schedule_id}|${dayOf(naiveTimestamp(i.due_at))}`)
+    );
+    const planned: PlannedIntake[] = [];
+    for (const day of daysBetween(from, to, 62)) {
+        for (const schedule of schedules) {
+            const med = byId.get(schedule.medication_id);
+            if (!med || !scheduleAppliesOn(med, schedule, day)) continue;
+            const due = naiveTimestamp(`${day}T${schedule.time_of_day.slice(0, 5)}`);
+            if (schedule.created_at && due < naiveTimestamp(schedule.created_at)) continue;
+            if (atTime.has(`${med.id}|${due}`) || onDay.has(`${schedule.id}|${day}`)) continue;
+            atTime.add(`${med.id}|${due}`);
+            onDay.add(`${schedule.id}|${day}`);
+            planned.push({ medication_id: med.id, schedule_id: schedule.id, due_at: due, quantity: schedule.quantity, unit: schedule.unit });
+        }
+    }
+    return planned;
+}
+
+/** Erzeugt die fehlenden Einnahmen zwischen zwei Tagen (YYYY-MM-DD, inklusive). */
 export async function generateIntakes(circleId: string, from: string, to: string): Promise<void> {
-    if (!DATE_RE.test(from) || !DATE_RE.test(to)) return;
+    if (!DATE_RE.test(from) || !DATE_RE.test(to) || from > to) return;
+    const meds = await query(
+        `SELECT id, active, prn, start_date, end_date FROM medications
+         WHERE circle_id = $1 AND active = TRUE AND prn = FALSE`,
+        [circleId]
+    );
+    if (meds.rows.length === 0) return;
+    const ids = meds.rows.map((m: { id: string }) => m.id);
+    const [schedules, existing] = await Promise.all([
+        query(
+            `SELECT id, medication_id, to_char(time_of_day, 'HH24:MI') AS time_of_day, days_of_week,
+                    quantity, unit, created_at
+             FROM medication_schedules WHERE medication_id = ANY($1::uuid[])`,
+            [ids]
+        ),
+        query(
+            `SELECT medication_id, schedule_id, due_at FROM medication_intakes
+             WHERE medication_id = ANY($1::uuid[]) AND due_at >= $2::date AND due_at < $3::date + 1`,
+            [ids, from, to]
+        ),
+    ]);
+    const planned = plannedIntakes(meds.rows, schedules.rows, existing.rows, from, to);
+    if (planned.length === 0) return;
     await query(
         `INSERT INTO medication_intakes (circle_id, medication_id, schedule_id, due_at, quantity, unit)
-         SELECT m.circle_id, m.id, s.id, d::date + s.time_of_day, s.quantity, s.unit
-         FROM medications m
-         JOIN medication_schedules s ON s.medication_id = m.id
-         CROSS JOIN generate_series($2::date, $3::date, interval '1 day') AS d
-         WHERE m.circle_id = $1
-           AND m.active = TRUE
-           AND m.prn = FALSE
-           AND (m.start_date IS NULL OR d::date >= m.start_date)
-           AND (m.end_date IS NULL OR d::date <= m.end_date)
-           AND s.days_of_week @> to_jsonb(EXTRACT(ISODOW FROM d)::int)
-           -- Une prise deja confirmee sous un ancien horaire (schedule_id remis a
-           -- NULL a la re-edition) ne doit pas etre recreee pour la meme heure.
-           AND NOT EXISTS (
-               SELECT 1 FROM medication_intakes x
-               WHERE x.medication_id = m.id AND x.due_at = d::date + s.time_of_day
-           )
-           -- Hoechstens eine Einnahme pro Einnahmezeit und Tag: ist sie schon erledigt und
-           -- wurde danach die Uhrzeit geaendert, gilt die neue Uhrzeit erst ab morgen.
-           AND NOT EXISTS (
-               SELECT 1 FROM medication_intakes y
-               WHERE y.schedule_id = s.id AND y.due_at::date = d::date
-           )
+         SELECT $1, p.medication_id, p.schedule_id, p.due_at, p.quantity, p.unit
+         FROM unnest($2::uuid[], $3::uuid[], $4::timestamp[], $5::numeric[], $6::text[])
+              AS p(medication_id, schedule_id, due_at, quantity, unit)
          ON CONFLICT (medication_id, schedule_id, due_at) DO NOTHING`,
-        [circleId, from, to]
+        [
+            circleId,
+            planned.map((p) => p.medication_id),
+            planned.map((p) => p.schedule_id),
+            planned.map((p) => p.due_at),
+            planned.map((p) => (p.quantity === null ? null : Number(p.quantity))),
+            planned.map((p) => p.unit),
+        ]
     );
 }
+
+export interface ScheduleTimes {
+    id: string;
+    time_of_day: string;
+    quantity?: number | string | null;
+    unit?: string | null;
+}
+
+/**
+ * E51 (b): Einnahmezeiten, deren Uhrzeit sich beim Speichern geaendert hat. Eine heute
+ * schon verpasste Einnahme dieser Zeile wird mit der neuen Uhrzeit wieder geoeffnet.
+ */
+export const schedulesToReopen = (before: readonly ScheduleTimes[], after: readonly ScheduleTimes[]): ScheduleTimes[] => {
+    const old = new Map(before.map((s) => [s.id, s.time_of_day.slice(0, 5)]));
+    return after.filter((s) => old.has(s.id) && old.get(s.id) !== s.time_of_day.slice(0, 5));
+};
 
 /** Les prises en attente depuis plus de 4 h deviennent manquees. */
 export async function markMissed(circleId: string): Promise<void> {

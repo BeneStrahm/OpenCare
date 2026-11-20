@@ -29,6 +29,7 @@ import Recipient from './pages/Recipient';
 import Circle from './pages/Circle';
 import Visitors from './pages/Visitors';
 import CarePlan from './pages/CarePlan';
+import MedicationPlanPrint from './pages/MedicationPlanPrint';
 import Settings from './pages/Settings';
 import Integrations from './pages/Integrations';
 import RecipientView from './pages/RecipientView';
@@ -109,6 +110,11 @@ function App() {
     // Fork: Seiten ausgeschalteter Funktionen fuehren zur Uebersicht.
     if (activeCircle && !isPathEnabled(activeCircle.settings, location.pathname)) {
         return <Navigate to="/" replace />;
+    }
+
+    // E54: Druckansicht des Medikamentenplans ohne Menü (A4 quer, Browser-Druck).
+    if (location.pathname === '/medications/druck') {
+        return <MedicationPlanPrint />;
     }
 
     return (

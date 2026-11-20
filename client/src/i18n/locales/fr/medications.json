@@ -62,7 +62,9 @@
     },
     "allTakenQuestion": "Avez-vous pris tous ces médicaments ?",
     "allTakenYes": "Oui, tout pris",
-    "allTakenNo": "Non"
+    "allTakenNo": "Non",
+    "allTakenAt": "Tout pris à {{time}}",
+    "atTime": "À {{time}}"
   },
   "treatments": {
     "add": "Ajouter un traitement",
@@ -102,7 +104,8 @@
     },
     "none": "aucune prise",
     "notes": "Remarques :",
-    "amountAt": "{{amount}} à {{time}}"
+    "amountAt": "{{amount}} à {{time}}",
+    "duplicate": "Dupliquer"
   },
   "stock": {
     "remaining": "Stock : {{amount}}",
@@ -153,11 +156,12 @@
     "form": "Forme",
     "formPlaceholder": "Choisir une forme",
     "instructions": "Consignes",
-    "instructionsPlaceholder": "Ex. à prendre au milieu du repas",
+    "instructionsPlaceholder": "Ex. : diminution progressive 01/12–03/12 : 2-0-0-0 ; 04/12–06/12 : 1-0-0-0",
     "prescriber": "Prescripteur",
     "prescriberPlaceholder": "Ex. Dr Martin",
     "startDate": "Date de début",
     "endDate": "Date de fin",
+    "endDatePast": "Cette date est passée. Le médicament n’apparaîtra alors plus dans la liste du jour.",
     "photo": "Photo du médicament",
     "photoAdd": "Ajouter une photo",
     "photoChange": "Changer la photo",
@@ -204,7 +208,8 @@
       "blue": "Bleu",
       "green": "Vert",
       "orange": "Orange"
-    }
+    },
+    "planGroup": "Groupe dans le plan de médication"
   },
   "prescriptions": {
     "add": "Ajouter une ordonnance",
@@ -307,5 +312,56 @@
       "empty": "(vide)"
     },
     "allDescription": "Toutes les modifications du plan de médicaments, les plus récentes d'abord (200 au maximum)."
+  },
+  "planGroups": {
+    "regular": "Traitement de fond",
+    "special": "À des moments particuliers"
+  },
+  "print": {
+    "open": "Imprimer le plan",
+    "back": "Retour",
+    "print": "Imprimer",
+    "title": "Plan de médication",
+    "recipientBorn": "{{name}}, né(e) le {{date}}",
+    "notice": "Établi par le cercle d’aide, ce n’est pas un plan de médication médical. État : {{date}}",
+    "createdBy": "Établi par : {{name}}",
+    "printedOn": "Imprimé le {{date}}",
+    "empty": "Le plan ne contient aucun médicament en cours ou à venir.",
+    "loadError": "Le plan de médication n’a pas pu être chargé. Veuillez réessayer.",
+    "noAccess": "Seuls les administrateurs, la famille et les professionnels peuvent imprimer le plan de médication.",
+    "page": "Page",
+    "of": "sur",
+    "columns": {
+      "activeIngredient": "Substance active",
+      "name": "Nom commercial",
+      "strength": "Dosage",
+      "form": "Forme",
+      "morning": "Ma",
+      "noon": "Mi",
+      "evening": "So",
+      "night": "Nu",
+      "unit": "Unité",
+      "hints": "Remarques",
+      "reason": "Motif"
+    },
+    "groups": {
+      "regular": "Traitement de fond",
+      "special": "Médicaments à prendre à des moments particuliers",
+      "prn": "Médicaments si besoin"
+    },
+    "hints": {
+      "from": "à partir du {{date}}",
+      "until": "jusqu’au {{date}}",
+      "prescriber": "Prescrit par {{name}}",
+      "time": "à {{time}}"
+    },
+    "changesTitle": "Modifications des 14 derniers jours ({{from}}–{{to}})",
+    "changesEmpty": "Aucune modification ces 14 derniers jours.",
+    "changeColumns": {
+      "when": "Date",
+      "medication": "Médicament",
+      "change": "Modification",
+      "by": "Par"
+    }
   }
 }
