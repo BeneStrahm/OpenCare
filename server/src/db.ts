@@ -506,6 +506,8 @@ export const runMigrations = async () => {
             changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
         );`,
         `CREATE INDEX IF NOT EXISTS idx_medication_history_med ON medication_history(medication_id, changed_at DESC);`,
+        // Dosierung zum Zeitpunkt der Änderung, damit gleichnamige Medikamente unterscheidbar sind.
+        `ALTER TABLE medication_history ADD COLUMN IF NOT EXISTS medication_dosage VARCHAR(100);`,
         // Fork, Block L4: wer wann abgehakt hat (10 Minuten Rueckgaengig fuer die betreute Person).
         `ALTER TABLE shopping_items ADD COLUMN IF NOT EXISTS checked_by UUID REFERENCES users(id) ON DELETE SET NULL;`,
         `ALTER TABLE shopping_items ADD COLUMN IF NOT EXISTS checked_at TIMESTAMP;`,

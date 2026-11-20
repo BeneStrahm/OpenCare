@@ -414,6 +414,7 @@ router.post('/', requireContentWriter, async (req: CircleRequest, res: Response)
             circleId: req.circleId!,
             medicationId,
             medicationName: medication.name,
+            medicationDosage: medication.dosage ?? null,
             action: 'created',
             changes: diffMedication(null, medication),
             userId: req.userId,
@@ -633,6 +634,7 @@ router.put('/:id', requireContentWriter, async (req: CircleRequest, res: Respons
             circleId: req.circleId!,
             medicationId: req.params.id,
             medicationName: medication.name,
+            medicationDosage: medication.dosage ?? null,
             action: 'updated',
             changes: diffMedication(before, medication),
             userId: req.userId,
@@ -660,7 +662,7 @@ router.get('/plan', requireRole(...PLAN_PRINT_ROLES), async (req: CircleRequest,
             query('SELECT first_name, last_name, birth_date FROM care_recipients WHERE circle_id = $1', [req.circleId]),
             query('SELECT name FROM users WHERE id = $1', [req.userId]),
             query(
-                `SELECT h.id, h.medication_id, h.medication_name, h.action, h.changes, h.changed_at,
+                `SELECT h.id, h.medication_id, h.medication_name, h.medication_dosage, h.action, h.changes, h.changed_at,
                         u.name AS changed_by_name, m.form AS medication_form
                  FROM medication_history h
                  LEFT JOIN users u ON u.id = h.changed_by
@@ -693,7 +695,7 @@ router.get('/plan', requireRole(...PLAN_PRINT_ROLES), async (req: CircleRequest,
 router.get('/history', requireRole('admin', 'family', 'professional'), async (req: CircleRequest, res: Response) => {
     try {
         const result = await query(
-            `SELECT h.id, h.medication_id, h.medication_name, h.action, h.changes, h.changed_at,
+            `SELECT h.id, h.medication_id, h.medication_name, h.medication_dosage, h.action, h.changes, h.changed_at,
                     u.name AS changed_by_name, m.form AS medication_form
              FROM medication_history h
              LEFT JOIN users u ON u.id = h.changed_by
@@ -718,7 +720,7 @@ router.get('/:id/history', requireRole('admin', 'family', 'professional'), async
             return res.json({ success: true, data: [] });
         }
         const result = await query(
-            `SELECT h.id, h.medication_id, h.medication_name, h.action, h.changes, h.changed_at,
+            `SELECT h.id, h.medication_id, h.medication_name, h.medication_dosage, h.action, h.changes, h.changed_at,
                     u.name AS changed_by_name
              FROM medication_history h
              LEFT JOIN users u ON u.id = h.changed_by
@@ -741,10 +743,10 @@ router.delete('/:id', requireContentWriter, async (req: CircleRequest, res: Resp
         // Löschen und Eintrag in der Änderungshistorie in einer Anweisung (lib/medicationHistory.ts).
         const result = await query(
             `WITH deleted AS (
-                 DELETE FROM medications WHERE id = $1 AND circle_id = $2 RETURNING id, name
+                 DELETE FROM medications WHERE id = $1 AND circle_id = $2 RETURNING id, name, dosage
              )
-             INSERT INTO medication_history (circle_id, medication_id, medication_name, action, changes, changed_by)
-             SELECT $2, id, name, 'deleted', '[]'::jsonb, $3 FROM deleted
+             INSERT INTO medication_history (circle_id, medication_id, medication_name, medication_dosage, action, changes, changed_by)
+             SELECT $2, id, name, NULLIF(dosage, ''), 'deleted', '[]'::jsonb, $3 FROM deleted
              RETURNING medication_id AS id`,
             [req.params.id, req.circleId, req.userId ?? null]
         );

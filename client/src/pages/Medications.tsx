@@ -25,7 +25,7 @@ import { api } from '../lib/api';
 import { cn } from '../lib/utils';
 import { MEDICATION_COLORS, medicationColorOf } from '../lib/viewColors';
 import { DEFAULT_UNIT_BY_FORM, MEDICATION_FORMS, MEDICATION_UNITS, duplicateMedForm, formatAmount, PLAN_GROUP_VALUES, safeQuantity, unitFor, momentOf, type Moment, type PlanGroupValue } from '../lib/medications';
-import { historyTexts, type HistoryChange, type HistoryEntry } from '../lib/medicationHistoryText';
+import { historyMedicationLabel, historyTexts, type HistoryChange, type HistoryEntry } from '../lib/medicationHistoryText';
 import { useCircle } from '../contexts/CircleContext';
 import { circleWeekStart, orderedIsoDays, sortIsoDays } from '../lib/weekStart';
 import { useWebSocketUpdates } from '../hooks/useWebSocketUpdates';
@@ -1192,7 +1192,7 @@ const Medications: React.FC = () => {
         <li key={entry.id} className="rounded-input border border-border p-4">
             <p className="text-body font-semibold text-foreground">
                 {showName
-                    ? `${entry.medication_name}: ${t(`medications:history.actions.${entry.action}`)}`
+                    ? `${historyMedicationLabel(entry)}: ${t(`medications:history.actions.${entry.action}`)}`
                     : t(`medications:history.actions.${entry.action}`)}
             </p>
             <p className="text-caption text-muted-foreground">

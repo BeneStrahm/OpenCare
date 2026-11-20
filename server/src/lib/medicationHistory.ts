@@ -93,6 +93,7 @@ export const recordMedicationHistory = async (
         circleId: string;
         medicationId: string;
         medicationName: string;
+        medicationDosage: string | null;
         action: HistoryAction;
         changes: HistoryChange[];
         userId: string | undefined;
@@ -100,12 +101,13 @@ export const recordMedicationHistory = async (
 ): Promise<void> => {
     if (params.action === 'updated' && params.changes.length === 0) return;
     await client.query(
-        `INSERT INTO medication_history (circle_id, medication_id, medication_name, action, changes, changed_by)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
+        `INSERT INTO medication_history (circle_id, medication_id, medication_name, medication_dosage, action, changes, changed_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
             params.circleId,
             params.medicationId,
             params.medicationName,
+            params.medicationDosage || null,
             params.action,
             JSON.stringify(params.changes),
             params.userId ?? null,

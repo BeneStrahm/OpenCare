@@ -30,6 +30,8 @@ export interface HistoryChange {
 export interface HistoryEntry {
     id: string;
     medication_name: string;
+    /** Dosierung zum Zeitpunkt der Änderung (ältere Einträge ohne) */
+    medication_dosage?: string | null;
     /** Form des Medikaments (null, wenn gelöscht) */
     medication_form?: string | null;
     action: 'created' | 'updated' | 'deleted';
@@ -37,6 +39,10 @@ export interface HistoryEntry {
     changed_at: string;
     changed_by_name: string | null;
 }
+
+/** Name des Medikaments mit Dosierung, z. B. "Ramipril 5 mg". */
+export const historyMedicationLabel = (entry: HistoryEntry): string =>
+    entry.medication_dosage ? `${entry.medication_name} ${entry.medication_dosage}` : entry.medication_name;
 
 /** Feldname in der Historie -> Beschriftung (vorhandene Texte des Formulars). */
 export const HISTORY_FIELD_LABELS: Record<string, string> = {

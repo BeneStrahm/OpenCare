@@ -6,7 +6,7 @@ import { api } from '../lib/api';
 import { useCircle } from '../contexts/CircleContext';
 import { circleWeekStart } from '../lib/weekStart';
 import { formatClock } from '../i18n/format';
-import { historyTexts, type HistoryChange, type HistoryEntry } from '../lib/medicationHistoryText';
+import { historyMedicationLabel, historyTexts, type HistoryChange, type HistoryEntry } from '../lib/medicationHistoryText';
 import {
     PLAN_MOMENTS, doseText, hintsText, shortDate, unitText, type PlanSection,
 } from '../lib/medicationPlanText';
@@ -240,7 +240,7 @@ const MedicationPlanPrint: React.FC = () => {
                                         {shortDate(entry.changed_at)}, {formatClock(entry.changed_at)}
                                     </td>
                                     <td>
-                                        <span className="font-semibold">{entry.medication_name}</span>
+                                        <span className="font-semibold">{historyMedicationLabel(entry)}</span>
                                         <br />
                                         {t(`medications:history.actions.${entry.action}`)}
                                     </td>
