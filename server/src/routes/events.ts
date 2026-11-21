@@ -11,7 +11,7 @@ import { langFromRequest, t } from '../lib/i18n';
 
 const router = Router();
 
-export const EVENT_CATEGORIES = ['visit', 'medical', 'nurse', 'aide', 'other'] as const;
+export const EVENT_CATEGORIES = ['visit', 'medical', 'doctor', 'nurse', 'aide', 'other'] as const;
 export type EventCategory = (typeof EVENT_CATEGORIES)[number];
 
 /** Categories a professional can manage (their own care visits, never medical/other). */
@@ -326,8 +326,8 @@ export const expandEventOccurrences = (
 const canWriteCategory = (role: CircleRole | undefined, category: EventCategory): boolean => {
     if (role === 'admin' || role === 'family') return true;
     if (role === 'professional') return PROFESSIONAL_CATEGORIES.includes(category);
-    // Block L3: die betreute Person legt nur Termine der Kategorie "Sonstige" an.
-    if (role === 'recipient') return category === 'other';
+    // E60: die betreute Person waehlt jede Terminart (Felder begrenzt durch parseRecipientEvent).
+    if (role === 'recipient') return true;
     return false;
 };
 
@@ -356,7 +356,10 @@ const parseDateParam = (value: unknown, endOfDay: boolean): Date | null => {
 
 const fetchWindowEvents = async (circleId: string, windowStart: Date, windowEnd: Date) => {
     const result = await query(
-        `SELECT * FROM events
+        // E59: Verknuepfung Termin -> Arztgespraech (Taste "Zum Arztgespraech").
+        `SELECT events.*,
+                (SELECT c.id FROM consultations c WHERE c.event_id = events.id ORDER BY c.created_at LIMIT 1) AS consultation_id
+         FROM events
          WHERE circle_id = $1
            AND start_time <= $3
            AND (rrule IS NOT NULL OR COALESCE(end_time, start_time) >= $2)
@@ -473,6 +476,57 @@ router.get('/upcoming', async (req: CircleRequest, res: Response) => {
     }
 });
 
+// E60: Vorschlaege fuer Begleitung, Fahrt und Arzt (Autovervollstaendigen): Mitglieder,
+// Kontakte und fruehere Gaeste und Fahrer dieses Kreises. Freunde (neighbor) legen keine
+// solchen Termine an und bekommen nichts.
+router.get('/people', async (req: CircleRequest, res: Response) => {
+    try {
+        if (req.circleRole === 'neighbor') return res.status(403).json({ success: false, error: 'Insufficient role' });
+        const members = await query(
+            `SELECT m.id, u.name FROM circle_members m JOIN users u ON u.id = m.user_id
+             WHERE m.circle_id = $1 AND m.role <> 'recipient' ORDER BY u.name`,
+            [req.circleId]
+        );
+        const contacts = await query(
+            `SELECT name, category, organization, address FROM contacts WHERE circle_id = $1 ORDER BY name`,
+            [req.circleId]
+        );
+        const earlier = await query(
+            `SELECT DISTINCT name FROM (
+                SELECT jsonb_array_elements_text(guests) AS name FROM events WHERE circle_id = $1
+                UNION SELECT driver_to FROM events WHERE circle_id = $1
+                UNION SELECT driver_back FROM events WHERE circle_id = $1
+             ) n WHERE name IS NOT NULL AND name <> '' ORDER BY name LIMIT 200`,
+            [req.circleId]
+        );
+        const seen = new Set<string>();
+        const people: Array<{ name: string; member_id: string | null; kind: 'member' | 'contact' | 'guest' }> = [];
+        const add = (name: unknown, kind: 'member' | 'contact' | 'guest', memberId: string | null = null) => {
+            const clean = cleanPersonName(name);
+            if (!clean) return;
+            const key = clean.toLocaleLowerCase('de');
+            if (seen.has(key)) return;
+            seen.add(key);
+            people.push({ name: clean, member_id: memberId, kind });
+        };
+        for (const m of members.rows) add(m.name, 'member', m.id);
+        for (const c of contacts.rows) if (c.category !== 'doctor') add(c.name, 'contact');
+        for (const g of earlier.rows) add(g.name, 'guest');
+        const doctors = contacts.rows
+            .filter((c: { category: string }) => c.category === 'doctor')
+            .map((c: { name: string; organization: string | null; address: string | null }) => ({
+                name: c.name,
+                organization: c.organization || null,
+                // E60: Ort des Termins aus dem Kontakt (Praxis, sonst Adresse)
+                location: c.organization || c.address || null,
+            }));
+        res.json({ success: true, data: { people, doctors } });
+    } catch (error) {
+        console.error('Event people error:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
+
 /** Alter eines Termins in ms, in der Datenbank berechnet (wie bei den Messwerten). */
 const CREATED_AGE_MS_SQL = 'EXTRACT(EPOCH FROM (LOCALTIMESTAMP - created_at)) * 1000';
 
@@ -506,13 +560,19 @@ router.get('/mine/undoable', async (req: CircleRequest, res: Response) => {
 // Create an event
 router.post('/', async (req: CircleRequest, res: Response) => {
     try {
-        // Block L3: die betreute Person gibt nur Titel und Beginn an (middleware/circle.ts).
+        // Block L3, E60: die betreute Person gibt nur die Felder ihres Formulars an (middleware/circle.ts).
+        // Erinnerung immer 1 Stunde vorher, keine Serie, keine Notiz.
         if (req.circleRole === 'recipient') {
             const input = parseRecipientEvent(req.body);
             if (!input) {
                 return res.status(400).json({ success: false, error: 'Invalid event' });
             }
-            req.body = { title: input.title, start_time: input.start_time, category: 'other' };
+            req.body = {
+                title: input.title, start_time: input.start_time, category: input.category, location: input.location,
+                companion_needed: input.companion_needed, member_ids: input.member_ids, guests: input.guests,
+                travel_needed: input.travel_needed, driver_to: input.driver, driver_back: input.driver,
+                take_along: input.take_along, reminder_1hour: true, reminder_30min: false,
+            };
         }
 
         const {
@@ -588,9 +648,9 @@ router.post('/', async (req: CircleRequest, res: Response) => {
                 JSON.stringify(cleanGuests(guests)),
                 cleanTravelMinutes(travel_to_minutes),
                 cleanTravelMinutes(travel_back_minutes),
-                // Fahrer nur, wenn es die Fahrt auch gibt.
-                cleanTravelMinutes(travel_to_minutes) === null ? null : cleanPersonName(driver_to),
-                cleanTravelMinutes(travel_back_minutes) === null ? null : cleanPersonName(driver_back),
+                // Fahrer nur, wenn es die Fahrt auch gibt (Fahrzeit oder E60: Kaestchen "Fahrt noetig").
+                cleanTravelMinutes(travel_to_minutes) === null && travel_needed !== true ? null : cleanPersonName(driver_to),
+                cleanTravelMinutes(travel_back_minutes) === null && travel_needed !== true ? null : cleanPersonName(driver_back),
                 cleanTakeAlong(take_along),
                 cleanFlag(companion_needed),
                 cleanFlag(travel_needed),
@@ -707,21 +767,24 @@ router.put('/:id', async (req: CircleRequest, res: Response) => {
         if (companion_needed !== undefined) pushUpdate('companion_needed', cleanFlag(companion_needed));
         if (travel_needed !== undefined) pushUpdate('travel_needed', cleanFlag(travel_needed));
         // Fahrt und Fahrer gehören zusammen: ohne Fahrt wird auch der Fahrer gelöscht.
+        // E60: Mit Kästchen "Fahrt nötig" bleibt der Fahrer auch ohne Fahrzeit (Tablet trägt keine Zeiten ein).
+        const travelFlag = travel_needed !== undefined ? cleanFlag(travel_needed) : existing.travel_needed;
+        const keepDriver = (minutes: number | null) => minutes !== null || travelFlag === true;
         if (travel_to_minutes !== undefined) {
             const minutes = cleanTravelMinutes(travel_to_minutes);
             pushUpdate('travel_to_minutes', minutes);
-            if (minutes === null) pushUpdate('driver_to', null);
+            if (!keepDriver(minutes)) pushUpdate('driver_to', null);
             else if (driver_to !== undefined) pushUpdate('driver_to', cleanPersonName(driver_to));
         } else if (driver_to !== undefined) {
-            pushUpdate('driver_to', existing.travel_to_minutes === null ? null : cleanPersonName(driver_to));
+            pushUpdate('driver_to', keepDriver(existing.travel_to_minutes) ? cleanPersonName(driver_to) : null);
         }
         if (travel_back_minutes !== undefined) {
             const minutes = cleanTravelMinutes(travel_back_minutes);
             pushUpdate('travel_back_minutes', minutes);
-            if (minutes === null) pushUpdate('driver_back', null);
+            if (!keepDriver(minutes)) pushUpdate('driver_back', null);
             else if (driver_back !== undefined) pushUpdate('driver_back', cleanPersonName(driver_back));
         } else if (driver_back !== undefined) {
-            pushUpdate('driver_back', existing.travel_back_minutes === null ? null : cleanPersonName(driver_back));
+            pushUpdate('driver_back', keepDriver(existing.travel_back_minutes) ? cleanPersonName(driver_back) : null);
         }
 
         if (updates.length === 0) {

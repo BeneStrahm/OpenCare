@@ -99,8 +99,17 @@ const run = async (role: CircleRole, method: string, url: string) => {
 const BLOCKED: Array<[string, string]> = [
     ['GET', '/api/journal'],
     ['POST', '/api/journal'],
-    ['GET', '/api/consultations'],
-    ['POST', '/api/consultations/recordings'],
+    // E59: Arztgespraech nur vorbereiten, aufnehmen, lesen; nicht pruefen, freigeben, uebernehmen.
+    ['GET', '/api/consultations/vocabulary'],
+    ['PUT', '/api/consultations/gespraech-1/summary'],
+    ['POST', '/api/consultations/gespraech-1/summary/approve'],
+    ['POST', '/api/consultations/gespraech-1/transcript/approve'],
+    ['PUT', '/api/consultations/gespraech-1/transcript'],
+    ['POST', '/api/consultations/gespraech-1/apply'],
+    ['PUT', '/api/consultations/gespraech-1/questions/frage-1'],
+    ['DELETE', '/api/consultations/gespraech-1'],
+    ['DELETE', '/api/consultations/recordings/aufnahme-1/audio'],
+    ['POST', '/api/consultations/recordings/aufnahme-1/retry'],
     ['GET', '/api/documents'],
     ['GET', '/api/vitals'],
     ['GET', '/api/tasks'],
@@ -217,6 +226,18 @@ const ALLOWED: Array<[string, string]> = [
     // Block L3: eigenen Termin anlegen und 10 Minuten rueckgaengig (Route prueft Felder, Urheber, Zeit)
     ['POST', '/api/events'],
     ['GET', '/api/events/mine/undoable'],
+    ['GET', '/api/events/people'],
+    ['GET', '/api/consultations'],
+    ['POST', '/api/consultations'],
+    ['GET', '/api/consultations/gespraech-1'],
+    ['PUT', '/api/consultations/gespraech-1'],
+    ['POST', '/api/consultations/gespraech-1/questions'],
+    ['DELETE', '/api/consultations/gespraech-1/questions/frage-1'],
+    ['POST', '/api/consultations/recordings'],
+    ['GET', '/api/consultations/recordings/aufnahme-1'],
+    ['PUT', '/api/consultations/recordings/aufnahme-1/chunks/3'],
+    ['POST', '/api/consultations/recordings/aufnahme-1/complete'],
+    ['GET', '/api/consultations/recordings/aufnahme-1/audio'],
     ['DELETE', '/api/events/termin-1'],
     // Block L4: Einkaufsliste lesen, hinzufuegen, abhaken, eigenes rueckgaengig
     ['GET', '/api/shopping'],
@@ -356,11 +377,32 @@ describe('Kreisverwaltung nur fuer admin', () => {
 describe('Block L3: Termin der betreuten Person', () => {
     const now = new Date(2026, 10, 11, 21, 0);
 
-    it('nimmt nur Titel und Beginn, ab heute bis 2 Jahre voraus', () => {
-        expect(parseRecipientEvent({ title: '  Friseur  ', start_time: '2026-11-12T10:30' }, now))
-            .toEqual({ title: 'Friseur', start_time: '2026-11-12T10:30:00' });
+    it('nimmt Titel und Beginn, ab heute bis 2 Jahre voraus, ohne Art gilt Sonstige', () => {
+        expect(parseRecipientEvent({ title: '  Friseur  ', start_time: '2026-11-12T10:30', notes: 'x', rrule: 'FREQ=DAILY' }, now))
+            .toEqual({
+                title: 'Friseur', start_time: '2026-11-12T10:30:00', category: 'other', location: null,
+                companion_needed: false, member_ids: [], guests: [], travel_needed: false, driver: null, take_along: null,
+            });
         expect(parseRecipientEvent({ title: 'Heute frueh', start_time: '2026-11-11T08:00' }, now)?.start_time).toBe('2026-11-11T08:00:00');
         expect(parseRecipientEvent({ title: 'Spaet', start_time: '2028-11-11T09:00' }, now)).not.toBeNull();
+    });
+
+    it('E60: Art, Ort, Begleitung, Fahrt und Mitnehmen', () => {
+        const input = parseRecipientEvent({
+            title: 'Dr. Muster', start_time: '2026-11-12T10:30', category: 'doctor', location: ' Praxis am Markt ',
+            companion_needed: true, companion_name: ' Erika  Beispiel ', travel_needed: true, driver: 'Max Beispiel',
+            take_along: 'Versichertenkarte',
+        }, now);
+        expect(input).toMatchObject({
+            category: 'doctor', location: 'Praxis am Markt', companion_needed: true, member_ids: [],
+            guests: ['Erika Beispiel'], travel_needed: true, driver: 'Max Beispiel', take_along: 'Versichertenkarte',
+        });
+        // Mitglied statt Gast; ohne Haken keine Namen
+        expect(parseRecipientEvent({ title: 'A', start_time: '2026-11-12T10:30', companion_needed: true, companion_member_id: 'm-1', companion_name: 'X' }, now))
+            .toMatchObject({ member_ids: ['m-1'], guests: [] });
+        expect(parseRecipientEvent({ title: 'A', start_time: '2026-11-12T10:30', companion_name: 'X', driver: 'Y' }, now))
+            .toMatchObject({ companion_needed: false, guests: [], travel_needed: false, driver: null });
+        expect(parseRecipientEvent({ title: 'A', start_time: '2026-11-12T10:30', category: 'party' }, now)).toBeNull();
     });
 
     it('lehnt leere, zu lange und falsche Angaben ab', () => {

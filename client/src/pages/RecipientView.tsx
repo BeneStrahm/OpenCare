@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
     CalendarDays, Check, CheckCheck, MapPin, MessageCircle, Phone, Pill, RotateCcw,
     Settings as SettingsIcon, ThermometerSun, Users, Backpack, Car, Volume2, Square, X,
-    Stethoscope, CalendarRange, CalendarClock, Droplet, Scale, HeartPulse, Moon, ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
+    Stethoscope, CalendarRange, CalendarClock, Droplet, Scale, HeartPulse, Moon, ChevronLeft, ChevronRight, ChevronDown,
     IdCard, ShoppingCart, CalendarPlus, Plus, Activity, SkipForward, CircleAlert, Clock, CircleHelp, Apple,
 } from 'lucide-react';
 import { api } from '../lib/api';
@@ -19,11 +19,15 @@ import { enabledVitalTypes, isFeatureEnabled, isViewTileOn, type FeatureId, type
 import { displayUnit, formatVital, toDisplayValue, toStorageValue } from '../lib/units';
 import { cn } from '../lib/utils';
 import AppleBitten from '../components/ui/AppleBitten';
+import { ViewWindow } from '../components/recipient/ViewWindow';
+import RecipientEventForm, { emptyEventForm, eventFormBody, type EventFormValues } from '../components/recipient/RecipientEventForm';
+import RecipientConsultations from '../components/recipient/RecipientConsultations';
+import type { RecipientUi } from '../components/recipient/ui';
 import { VIEW_COLORS, medicationColorOf, viewColorOf } from '../lib/viewColors';
 import {
     FONT_SCALES, VIEW_SCALE, RECIPIENT_QUESTIONS, RECIPIENT_VITAL_TYPES, groupIntakes, isCompanionActive, isTravelActive, loadFontScale,
     isOverdue, momentOf, showOnHome,
-    localDay, parseRecipientEventForm, saveFontScale, type IntakeGroup, type RecipientQuestion, type RecipientVitalType,
+    localDay, saveFontScale, type IntakeGroup, type RecipientQuestion, type RecipientVitalType,
     checkRecipientVitalForm, groupGlucoseDays, vitalInputDecimals, GLUCOSE_MEAL_TIMES, GLUCOSE_MEAL_RELATIONS, GLUCOSE_SLOTS,
     RECIPIENT_VITAL_LIMITS, RECIPIENT_VITAL_NOTE_MAX, type DiaryEntry, type GlucoseMealTime, type GlucoseMealRelation,
     type RecipientVitalErrors, type RecipientVitalField, type RecipientVitalLimit,
@@ -131,6 +135,8 @@ interface CalendarEvent {
     driver_to?: string | null;
     driver_back?: string | null;
     take_along?: string | null;
+    /** E59: verknuepftes Arztgespraech (Taste "Zum Arztgespraech", A16) */
+    consultation_id?: string | null;
 }
 
 interface Contact { id: string; name: string; category: string; phone: string | null; organization: string | null }
@@ -173,11 +179,11 @@ interface ShoppingItem {
 }
 type ShopConfirm = { kind: 'add'; name: string } | { kind: 'check'; item: ShoppingItem } | null;
 
-/** Block L3: neuer Termin, erst Angaben, dann Rueckfrage */
-type EventForm = { step: 'enter' | 'confirm'; title: string; day: string; time: string; error: 'title' | 'date' | 'time' | null };
+/** Block L3, E60: neuer Termin (Formular RecipientEventForm, keine Rueckfrage) */
+type EventForm = { initial: EventFormValues; error: string | null };
 
 /** Block L1: Fenster, die eine Kachel oeffnet (immer nur eines zugleich). */
-type WindowId = 'emergency' | 'meds' | 'health' | 'visitors' | 'appointments' | 'contacts' | 'ask' | 'info' | 'shopping' | 'settings';
+type WindowId = 'emergency' | 'meds' | 'health' | 'visitors' | 'appointments' | 'contacts' | 'ask' | 'info' | 'shopping' | 'settings' | 'doctor';
 
 /** Block L1: Meine Informationen (GET /api/circles/:id/recipient, fuer recipient nur Name, Adresse, Telefon). */
 interface OwnInfo { first_name: string; last_name: string | null; address?: string | null; phone?: string | null }
@@ -229,187 +235,6 @@ const PersonPhoto: React.FC<{ name: string; url: string | null; size: number; so
             {(name.trim().charAt(0) || '?').toUpperCase()}
         </div>
     );
-
-/**
- * Einheitliche Seite der einfachen Ansicht (Wunsch vom 14. November): Fenster, Eingaben,
- * Rueckfragen sehen gleich aus, es gibt keine Pop-ups mehr. Leiste oben ueber
- * die volle Breite: links die Uhrzeit, in der Mitte bei Bedarf Symbol und Titel, rechts das X
- * (ohne Text, bewusste Ausnahme, fuer Screenreader "Schliessen"). Darunter der Inhalt, rechts immer
- * der eigene Scrollbalken. X und Balken haben rechts 5 px Abstand. Nur die Startseite hat keine Leiste.
- */
-// Rueckfragen liegen ueber den Fenstern.
-const PAGE_LAYER = { window: 'z-[70]', dialog: 'z-[80]' } as const;
-
-const ViewWindow: React.FC<{
-    id: string;
-    title?: string;
-    icon?: React.ReactNode;
-    /** Ohne Titel in der Leiste: id der Ueberschrift im Inhalt */
-    labelledBy?: string;
-    role?: 'dialog' | 'alertdialog';
-    layer?: keyof typeof PAGE_LAYER;
-    clock: string;
-    closeLabel: string;
-    onClose: () => void;
-    style: React.CSSProperties;
-    clockStyle: React.CSSProperties;
-    titleStyle: React.CSSProperties;
-    closeStyle: React.CSSProperties;
-    barColor: string;
-    barBorder: string;
-    scroll: { upLabel: string; downLabel: string; text: string; card: string; track: string; control: string };
-    /** E47: weitere Taste links neben dem X (z. B. "Hilfe") */
-    action?: React.ReactNode;
-    children: React.ReactNode;
-}> = ({ id, title, icon, labelledBy, role = 'dialog', layer = 'window', clock, closeLabel, onClose, style, clockStyle, titleStyle, closeStyle, barColor, barBorder, scroll, action, children }) => {
-    const scrollRef = useRef<HTMLDivElement>(null);
-    return (
-        <div className={cn('fixed inset-0 flex flex-col font-kiosk', PAGE_LAYER[layer])} style={style} role={role} aria-modal="true" aria-labelledby={title ? id : labelledBy}>
-            <div className="flex shrink-0 items-center gap-3 py-[6px] pl-6 pr-[5px]" style={{ backgroundColor: barColor, borderBottom: `2px solid ${barBorder}` }}>
-                <div className="flex min-w-max flex-1 basis-0">
-                    <p className="whitespace-nowrap font-bold tabular-nums" style={clockStyle}>{clock}</p>
-                </div>
-                {title && (
-                    <h2 id={id} className="flex min-w-0 items-center justify-center gap-3 text-center font-bold" style={titleStyle}>
-                        {icon}
-                        <span className="min-w-0">{title}</span>
-                    </h2>
-                )}
-                <div className="flex min-w-max flex-1 basis-0 items-center justify-end gap-3">
-                    {action}
-                    <button type="button" autoFocus onClick={onClose} aria-label={closeLabel} className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl" style={closeStyle}>
-                        <X className="h-10 w-10" strokeWidth={3} aria-hidden="true" />
-                    </button>
-                </div>
-            </div>
-            <div className="flex min-h-0 flex-1 gap-3 pr-[5px]">
-                <div ref={scrollRef} tabIndex={0} className="min-w-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    {/* Alle Fenster volle Breite, rechts kein Rand, der Scrollbalken haelt Abstand (Figma, 14. November) */}
-                    <div className="mx-auto flex w-full max-w-[72rem] flex-col gap-5 pb-12 pl-4 pt-5 min-[512px]:pl-6">
-                        {children}
-                    </div>
-                </div>
-                <div className="flex w-[2.8125rem] shrink-0 flex-col py-[5px]">
-                    <ScrollBar target={scrollRef} {...scroll} />
-                </div>
-            </div>
-        </div>
-    );
-};
-
-/**
- * Sichtbarer Scrollbalken fuer ein Fenster der einfachen Ansicht (Wunsch vom 12. November,
- * nach BFIT-Bund "Scrollbalken"): oben ein Pfeil-Schalter, dazwischen der Rollbalken mit dem
- * ziehbaren Bildlauffeld (zeigt Position und Groesse des sichtbaren Ausschnitts), unten ein
- * Pfeil-Schalter. Chrome auf Android zeigt den eigenen Balken nur kurz beim Wischen, darum ein
- * eigener. Immer sichtbar (Wunsch vom 14. November): passt alles, sind beide Pfeile gesperrt und
- * das Bildlauffeld fuellt den Rollbalken. Pfeile, Rollbalken und Bildlauffeld gleich breit (Figma).
- */
-const ScrollBar: React.FC<{
-    target: React.RefObject<HTMLDivElement | null>;
-    upLabel: string;
-    downLabel: string;
-    text: string;
-    card: string;
-    track: string;
-    control: string;
-}> = ({ target, upLabel, downLabel, text, card, track, control }) => {
-    const trackRef = useRef<HTMLDivElement>(null);
-    const drag = useRef<{ startY: number; startTop: number } | null>(null);
-    const [m, setM] = useState({ top: 0, height: 0, client: 0, trackH: 0 });
-
-    useEffect(() => {
-        const el = target.current;
-        if (!el) return;
-        const update = () => setM({
-            top: el.scrollTop,
-            height: el.scrollHeight,
-            client: el.clientHeight,
-            trackH: trackRef.current?.clientHeight ?? 0,
-        });
-        update();
-        el.addEventListener('scroll', update, { passive: true });
-        window.addEventListener('resize', update);
-        let ro: ResizeObserver | null = null;
-        if (typeof ResizeObserver !== 'undefined') {
-            ro = new ResizeObserver(update);
-            ro.observe(el);
-            if (el.firstElementChild) ro.observe(el.firstElementChild);
-            if (trackRef.current) ro.observe(trackRef.current);
-        }
-        return () => {
-            el.removeEventListener('scroll', update);
-            window.removeEventListener('resize', update);
-            ro?.disconnect();
-        };
-    }, [target]);
-
-    const range = Math.max(0, m.height - m.client);
-    const overflow = range > 1;
-    const thumbH = overflow ? Math.min(m.trackH, Math.max(48 * VIEW_SCALE, (m.trackH * m.client) / m.height)) : m.trackH;
-    const thumbTop = overflow ? ((m.trackH - thumbH) * m.top) / range : 0;
-    const atStart = m.top <= 1;
-    const atEnd = m.top >= range - 1;
-
-    const smooth = (): ScrollBehavior =>
-        typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
-    const step = (dir: 1 | -1) => target.current?.scrollBy({ top: dir * Math.max(40 * VIEW_SCALE, m.client * 0.75), behavior: smooth() });
-
-    const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-        const box = trackRef.current?.getBoundingClientRect();
-        if (!box || !target.current) return;
-        const y = e.clientY - box.top;
-        if (y >= thumbTop && y <= thumbTop + thumbH) {
-            drag.current = { startY: e.clientY, startTop: target.current.scrollTop };
-            e.currentTarget.setPointerCapture(e.pointerId);
-        } else {
-            step(y < thumbTop ? -1 : 1);
-        }
-    };
-    const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-        const d = drag.current;
-        if (!d || !target.current || m.trackH <= thumbH) return;
-        target.current.scrollTop = d.startTop + ((e.clientY - d.startY) * range) / (m.trackH - thumbH);
-    };
-    const endDrag = () => { drag.current = null; };
-
-    const arrow = (dir: 1 | -1, disabled: boolean) => (
-        <button
-            type="button"
-            onClick={() => step(dir)}
-            disabled={disabled}
-            aria-label={dir < 0 ? upLabel : downLabel}
-            className="flex h-14 w-full shrink-0 items-center justify-center rounded-2xl disabled:opacity-40"
-            style={{ backgroundColor: card, color: text, border: `2px solid ${control}` }}
-        >
-            {dir < 0
-                ? <ChevronUp className="h-9 w-9" strokeWidth={3} aria-hidden="true" />
-                : <ChevronDown className="h-9 w-9" strokeWidth={3} aria-hidden="true" />}
-        </button>
-    );
-
-    return (
-        <div className="flex min-h-0 flex-1 flex-col gap-2">
-            {arrow(-1, atStart)}
-            <div
-                ref={trackRef}
-                className="relative min-h-[3rem] flex-1 cursor-pointer touch-none select-none"
-                aria-hidden="true"
-                onPointerDown={onPointerDown}
-                onPointerMove={onPointerMove}
-                onPointerUp={endDrag}
-                onPointerCancel={endDrag}
-            >
-                <div className="absolute inset-0 rounded-full" style={{ backgroundColor: track, border: `2px solid ${control}` }} />
-                <div
-                    className="absolute inset-x-0 rounded-full"
-                    style={{ top: thumbTop, height: thumbH, backgroundColor: text }}
-                />
-            </div>
-            {arrow(1, atEnd)}
-        </div>
-    );
-};
 
 /**
  * Stimme zum Vorlesen, nur wenn sie auf dem Geraet selbst arbeitet (localService).
@@ -484,6 +309,9 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     // Block L3: Terminkarte, neuer Termin, Rueckgaengig
     const [eventCard, setEventCard] = useState<CalendarEvent | null>(null);
     const [eventForm, setEventForm] = useState<EventForm | null>(null);
+    // E59: Arztgespraech, gleich ein bestimmtes oeffnen (von der Terminkarte); Zurueck-Taste dort
+    const [doctorOpenId, setDoctorOpenId] = useState<string | null>(null);
+    const doctorBackRef = useRef<(() => boolean) | null>(null);
     const [ownEvents, setOwnEvents] = useState<OwnEvent[]>([]);
     const [eventNotice, setEventNotice] = useState<Notice>(null);
     // Block L4: Einkaufsliste
@@ -848,26 +676,16 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
 
     const openEventForm = () => {
         setEventNotice(null);
-        setEventForm({ step: 'enter', title: '', day: localDay(new Date()), time: '', error: null });
+        setEventForm({ initial: emptyEventForm(localDay(new Date())), error: null });
     };
 
-    const checkEvent = () => {
-        if (!eventForm) return;
-        const parsed = parseRecipientEventForm(eventForm.title, eventForm.day, eventForm.time);
-        setEventForm({ ...eventForm, step: parsed.ok ? 'confirm' : 'enter', error: parsed.ok ? null : parsed.error });
-    };
-
-    const saveEvent = async () => {
+    // E60: "Weiter" speichert sofort (keine Rueckfrage "Ist das richtig?" mehr).
+    const saveEvent = async (values: EventFormValues, startTime: string) => {
         if (!eventForm || busy) return;
-        const parsed = parseRecipientEventForm(eventForm.title, eventForm.day, eventForm.time);
-        if (!parsed.ok) {
-            setEventForm({ ...eventForm, step: 'enter', error: parsed.error });
-            return;
-        }
         setBusy(true);
         setEventNotice(null);
         try {
-            const res = await api.post<{ success: boolean; queued?: boolean }>('/api/events', { title: parsed.title, start_time: parsed.start_time });
+            const res = await api.post<{ success: boolean; queued?: boolean }>('/api/events', eventFormBody(values, startTime));
             setEventForm(null);
             if (res.queued) {
                 setEventNotice({ kind: 'queued', text: t('simpleView:meds.queued') });
@@ -876,7 +694,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                 await load();
             }
         } catch {
-            setEventNotice({ kind: 'error', text: t('simpleView:meds.error') });
+            setEventForm({ initial: values, error: navigator.onLine ? t('simpleView:meds.error') : t('simpleView:doctor.offline') });
         } finally {
             setBusy(false);
         }
@@ -1269,6 +1087,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
         },
         onClose: () => { stopSpeaking(); setWin(null); },
     };
+    const ui: RecipientUi = { C, fs, tile, secondaryButton, windowProps, clockOf };
 
     // ── Zurück-Taste (Android) ──
     // Die einfache Ansicht hat keine eigenen Seiten. Ohne eigenen Eintrag im Verlauf
@@ -1278,6 +1097,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     // Startseite nichts.
     const backRef = useRef<() => void>(() => {});
     backRef.current = () => {
+        if (win === 'doctor' && doctorBackRef.current?.()) return;
         if (vitalHelp) { setVitalHelp(false); return; }
         if (vitalForm) { setVitalForm(null); return; }
         if (diary) { setDiary(null); return; }
@@ -1668,23 +1488,8 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                         visitorEvents.length === 0 ? t('simpleView:visitors.empty') : t('simpleView:tiles.visits', { count: visitorEvents.length }))}
                     {contactsOn && tileOn('contacts') && renderTile('contacts', Phone, t('simpleView:contacts.title'), null)}
                     {questions.length > 0 && tileOn('ask') && renderTile('ask', MessageCircle, t('simpleView:ask.button'), t('simpleView:ask.hint'))}
-                    {on('consultations') && tileOn('doctor') && (
-                        <div
-                            role="group"
-                            aria-disabled="true"
-                            aria-label={`${t('simpleView:tiles.doctor')}: ${t('simpleView:tiles.later')}`}
-                            className="flex min-h-[13.1875rem] flex-col items-start justify-between gap-3 rounded-3xl p-5"
-                            style={{ backgroundColor: C.bg, border: `2px dashed ${C.control}`, color: C.muted }}
-                        >
-                            <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl" style={{ backgroundColor: C.card }} aria-hidden="true">
-                                <Stethoscope className="h-10 w-10" />
-                            </span>
-                            <span className="block">
-                                <span className="block font-bold" style={{ ...fs(26), lineHeight: 1.25 }}>{t('simpleView:tiles.doctor')}</span>
-                                <span className="mt-1 block font-bold" style={fs(19)}>{t('simpleView:tiles.later')}</span>
-                            </span>
-                        </div>
-                    )}
+                    {/* E59: Arztgespraech (Freischaltung am 21. November, vor der KI) */}
+                    {on('consultations') && tileOn('doctor') && renderTile('doctor', Stethoscope, t('simpleView:tiles.doctor'), null)}
                     {tileOn('info') && renderTile('info', IdCard, t('simpleView:info.title'), null)}
                     {shoppingOn && tileOn('shopping') && renderTile('shopping', ShoppingCart, t('simpleView:tiles.shopping'),
                         openShopping.length === 0 ? t('simpleView:shopping.empty') : t('simpleView:tiles.shoppingOpen', { count: openShopping.length }))}
@@ -2415,6 +2220,18 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                     (name || '').trim() ? t('calendar:card.driver', { name: (name || '').trim() }) : t('calendar:card.driverMissing');
                 return (
                     <ViewWindow id="rv-win-event" title={e.title} icon={<CalendarDays className="h-9 w-9 shrink-0" style={{ color: C.blue }} aria-hidden="true" />} {...windowProps} onClose={() => setEventCard(null)}>
+                        {/* E59, A16: Terminkarte eines Arztgespraechs */}
+                        {e.consultation_id && on('consultations') && tileOn('doctor') && (
+                            <button
+                                type="button"
+                                onClick={() => { setEventCard(null); setDoctorOpenId(e.consultation_id ?? null); setWin('doctor'); }}
+                                className="flex min-h-[4rem] w-full items-center justify-center gap-3 rounded-2xl px-4 font-bold text-white"
+                                style={{ ...fs(21), backgroundColor: C.blue }}
+                            >
+                                <Stethoscope className="h-7 w-7 shrink-0" aria-hidden="true" />
+                                {t('simpleView:doctor.toConsultation')}
+                            </button>
+                        )}
                         <section className="space-y-5 rounded-3xl p-5 min-[512px]:p-6" style={tile}>
                             {row(CalendarClock, t('simpleView:event.time'), <span className="font-bold tabular-nums" style={fs(30)}>{timeRange(e)}</span>)}
                             {e.location && row(MapPin, t('simpleView:event.place'), <span className="font-bold">{e.location}</span>)}
@@ -2430,6 +2247,10 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                                     <span className="block">{driverText(e.driver_back)}</span>
                                 </>
                             ))}
+                            {/* E60: am Tablet eingetragene Fahrt ohne Uhrzeiten, ein Name fuer hin und zurueck */}
+                            {travel && e.travel_to_minutes == null && e.travel_back_minutes == null && row(Car, t('simpleView:event.travel'), (
+                                <span className="block font-bold">{driverText(e.driver_to)}</span>
+                            ))}
                             {people.length > 0 && row(Users, t('simpleView:event.companion'), <span className="font-bold">{people.join(', ')}</span>)}
                             {e.take_along && row(Backpack, t('simpleView:event.takeAlong'), <span className="whitespace-pre-wrap font-bold">{e.take_along}</span>)}
                             {e.description && <p className="whitespace-pre-wrap" style={fs(21)}>{e.description}</p>}
@@ -2438,82 +2259,29 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                 );
             })()}
 
-            {/* Block L3: neuer Termin, erst die Angaben, dann die Rueckfrage */}
+            {/* Block L3, E60: neuer Termin (Figma 50 bis 54), "Weiter" speichert sofort */}
             {eventForm && (
-                <ViewWindow id="rv-event-title" title={t('simpleView:event.new')} layer="dialog" {...windowProps} onClose={() => setEventForm(null)}>
-                    <div className="rounded-3xl p-6 min-[512px]:p-8" style={tile}>
-                        {eventForm.step === 'enter' ? (
-                            <form className="space-y-5" onSubmit={(ev) => { ev.preventDefault(); checkEvent(); }} noValidate>
-                                {([
-                                    ['title', 'text', eventForm.title],
-                                    ['date', 'date', eventForm.day],
-                                    ['time', 'time', eventForm.time],
-                                ] as const).map(([field, type, value]) => (
-                                    <div key={field}>
-                                        <label htmlFor={`rv-event-${field}`} className="block font-bold" style={fs(21)}>{t(`simpleView:event.label.${field}`)}</label>
-                                        <input
-                                            id={`rv-event-${field}`}
-                                            type={type}
-                                            autoComplete="off"
-                                            autoFocus={field === 'title'}
-                                            maxLength={field === 'title' ? 120 : undefined}
-                                            value={value}
-                                            onChange={(ev) => {
-                                                const next = ev.target.value;
-                                                setEventForm({
-                                                    ...eventForm,
-                                                    ...(field === 'title' ? { title: next } : field === 'date' ? { day: next } : { time: next }),
-                                                    error: null,
-                                                });
-                                            }}
-                                            aria-invalid={eventForm.error === field ? true : undefined}
-                                            aria-describedby={eventForm.error === field ? 'rv-event-error' : undefined}
-                                            className="mt-2 min-h-[4rem] w-full min-w-0 rounded-2xl px-4 font-bold"
-                                            style={{ ...fs(24), backgroundColor: C.card, color: C.text, border: `2px solid ${eventForm.error === field ? C.red : C.control}` }}
-                                        />
-                                        {eventForm.error === field && (
-                                            <p id="rv-event-error" role="alert" className="mt-2 font-bold" style={{ ...fs(20), color: C.red }}>
-                                                {t(`simpleView:event.error.${field}`)}
-                                            </p>
-                                        )}
-                                    </div>
-                                ))}
-                                <div className="grid grid-cols-1 gap-3 pt-1 min-[512px]:grid-cols-2">
-                                    <button type="button" onClick={() => setEventForm(null)} className="min-h-[4rem] rounded-2xl px-4 font-bold" style={secondaryButton}>
-                                        {t('simpleView:measure.cancel')}
-                                    </button>
-                                    <button type="submit" className="flex min-h-[4rem] items-center justify-center gap-2 rounded-2xl px-4 font-bold text-white" style={{ ...fs(21), backgroundColor: C.blue }}>
-                                        <ChevronRight className="h-7 w-7 shrink-0" strokeWidth={3} aria-hidden="true" />
-                                        {t('simpleView:measure.next')}
-                                    </button>
-                                </div>
-                            </form>
-                        ) : (
-                            <div>
-                                <p style={fs(21)}>{t('simpleView:measure.question')}</p>
-                                <div className="mt-3 rounded-2xl p-4" style={{ backgroundColor: C.blueSoft, color: C.blueDark }}>
-                                    <p className="font-bold" style={fs(26)}>{eventForm.title.trim()}</p>
-                                    <p className="font-bold" style={fs(22)}>{whenText(`${eventForm.day}T${eventForm.time}`)}</p>
-                                </div>
-                                <div className="mt-6 grid grid-cols-1 gap-3 min-[512px]:grid-cols-2">
-                                    <button type="button" onClick={() => setEventForm({ ...eventForm, step: 'enter' })} className="min-h-[4rem] rounded-2xl px-4 font-bold" style={secondaryButton}>
-                                        {t('simpleView:measure.change')}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        disabled={busy}
-                                        onClick={() => void saveEvent()}
-                                        className="flex min-h-[4rem] items-center justify-center gap-2 rounded-2xl px-4 font-bold text-white disabled:opacity-70"
-                                        style={{ ...fs(21), backgroundColor: C.blue }}
-                                    >
-                                        <Check className="h-7 w-7 shrink-0" strokeWidth={3} aria-hidden="true" />
-                                        {t('simpleView:measure.save')}
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </ViewWindow>
+                <RecipientEventForm
+                    key={eventForm.error ?? 'new'}
+                    ui={ui}
+                    mode="event"
+                    initial={eventForm.initial}
+                    busy={busy}
+                    saveError={eventForm.error}
+                    onCancel={() => setEventForm(null)}
+                    onSubmit={(values, start) => void saveEvent(values, start)}
+                />
+            )}
+
+            {/* E59: Arztgespraech (A1 bis A16 ohne Freigabe am Tablet) */}
+            {win === 'doctor' && (
+                <RecipientConsultations
+                    ui={ui}
+                    circleId={circle.id}
+                    initialId={doctorOpenId}
+                    backRef={doctorBackRef}
+                    onClose={() => { setDoctorOpenId(null); windowProps.onClose(); }}
+                />
             )}
 
             {/* Block L4: Rueckfrage vor dem Hinzufuegen und Abhaken */}

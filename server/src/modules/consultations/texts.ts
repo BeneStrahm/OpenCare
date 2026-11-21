@@ -1,10 +1,10 @@
 // Texte, die der Server fuer das Arztgespraech-Modul selbst erzeugt
-// (Benachrichtigungen). Eigene kleine Tabelle, damit das Modul unabhaengig
+// (Benachrichtigungen, Termintitel, Standardfrage E61). Eigene kleine Tabelle, damit das Modul unabhaengig
 // von lib/i18n.ts bleibt. Fehlt eine Sprache, gilt Deutsch.
 
 import { toSummaryLang, type SummaryLang } from './summary';
 
-type TextKey = 'summaryReadyTitle' | 'summaryReadyBody' | 'transcriptReadyBody' | 'failedTitle' | 'failedBody' | 'defaultTitle';
+type TextKey = 'summaryReadyTitle' | 'summaryReadyBody' | 'transcriptReadyBody' | 'failedTitle' | 'failedBody' | 'defaultTitle' | 'defaultQuestion';
 
 const TEXTS: Record<SummaryLang, Record<TextKey, string>> = {
     de: {
@@ -14,6 +14,7 @@ const TEXTS: Record<SummaryLang, Record<TextKey, string>> = {
         failedTitle: 'Arztgespräch nicht verarbeitet',
         failedBody: 'Die Aufnahme zu „{{title}}“ konnte nicht verarbeitet werden. Sie können es in der App erneut versuchen.',
         defaultTitle: 'Arztgespräch',
+        defaultQuestion: 'Gibt es einen neuen Medikamentenplan?',
     },
     en: {
         summaryReadyTitle: 'Doctor visit processed',
@@ -22,6 +23,7 @@ const TEXTS: Record<SummaryLang, Record<TextKey, string>> = {
         failedTitle: 'Doctor visit not processed',
         failedBody: 'The recording for "{{title}}" could not be processed. You can try again in the app.',
         defaultTitle: 'Doctor visit',
+        defaultQuestion: 'Is there a new medication plan?',
     },
     fr: {
         summaryReadyTitle: 'Consultation traitée',
@@ -30,6 +32,7 @@ const TEXTS: Record<SummaryLang, Record<TextKey, string>> = {
         failedTitle: 'Consultation non traitée',
         failedBody: "L'enregistrement de « {{title}} » n'a pas pu être traité. Vous pouvez réessayer dans l'application.",
         defaultTitle: 'Consultation',
+        defaultQuestion: 'Y a-t-il un nouveau plan de médicaments ?',
     },
     es: {
         summaryReadyTitle: 'Consulta procesada',
@@ -38,6 +41,7 @@ const TEXTS: Record<SummaryLang, Record<TextKey, string>> = {
         failedTitle: 'Consulta no procesada',
         failedBody: 'La grabación de «{{title}}» no se pudo procesar. Puedes volver a intentarlo en la aplicación.',
         defaultTitle: 'Consulta',
+        defaultQuestion: '¿Hay un nuevo plan de medicación?',
     },
 };
 

@@ -18,10 +18,12 @@ CREATE TABLE users (
     language VARCHAR(8) NOT NULL DEFAULT 'fr',
     avatar_url TEXT,
     calendar_token VARCHAR(64),
+    tasks_token VARCHAR(64),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE UNIQUE INDEX idx_users_calendar_token ON users(calendar_token);
+CREATE UNIQUE INDEX idx_users_tasks_token ON users(tasks_token);
 CREATE UNIQUE INDEX idx_users_username_lower ON users (LOWER(username));
 
 -- ============================================================
@@ -289,14 +291,14 @@ CREATE INDEX idx_prescriptions_circle ON prescriptions(circle_id);
 -- ============================================================
 -- Organisation: calendrier, taches, courses
 -- ============================================================
--- Categories: visit, medical, nurse, aide, other
+-- Categories: visit, medical, doctor (Arzt, E60), nurse, aide, other
 CREATE TABLE events (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     circle_id UUID NOT NULL REFERENCES care_circles(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL,
     description TEXT,
     category VARCHAR(20) NOT NULL DEFAULT 'other'
-        CHECK (category IN ('visit', 'medical', 'nurse', 'aide', 'other')),
+        CHECK (category IN ('visit', 'medical', 'doctor', 'nurse', 'aide', 'other')),
     start_time TIMESTAMP NOT NULL,
     end_time TIMESTAMP,
     location TEXT,

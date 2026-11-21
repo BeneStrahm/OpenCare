@@ -70,12 +70,14 @@
     "sections": "Parties de cette page",
     "nav": {
       "prep": "Préparation",
-      "recording": "Enregistrement",
-      "result": "Résultat",
-      "followUp": "Suivi"
+      "recording": "Enregistrements",
+      "result": "Résumé",
+      "followUp": "Suivi",
+      "transcript": "Transcription"
     },
     "loadError": "Pas de connexion. La consultation ne peut pas être chargée pour le moment. Vérifiez Internet et réessayez.",
-    "reload": "Réessayer"
+    "reload": "Réessayer",
+    "locked": "La transcription et le résumé sont validés. Les questions, les informations et les enregistrements ne peuvent plus être modifiés. Pour changer quelque chose, retirez une validation."
   },
   "prep": {
     "title": "Préparation",
@@ -90,11 +92,17 @@
     "confirmDeleteQuestion": "Supprimer cette question ?",
     "newQuestion": "Nouvelle question",
     "newQuestionPlaceholder": "Par exemple : peut-on réduire la dose ?",
-    "printReport": "Imprimer un document pour le médecin"
+    "printReport": "Imprimer un document pour le médecin",
+    "companion": "Accompagnement",
+    "driver": "Transport",
+    "driverMissing": "Conducteur à trouver",
+    "takeAlong": "À emporter",
+    "eventHint": "L’accompagnement, le transport et les affaires à emporter se modifient dans le rendez-vous (agenda) ou sur la tablette."
   },
   "recording": {
     "title": "Enregistrement",
-    "readOnly": "Seuls les membres de la famille peuvent enregistrer une consultation."
+    "readOnly": "Seuls les membres de la famille peuvent enregistrer une consultation.",
+    "locked": "La transcription et le résumé sont validés. Plus de nouvel enregistrement possible."
   },
   "recorder": {
     "consent": "Le médecin a accepté l'enregistrement.",
@@ -116,13 +124,17 @@
     }
   },
   "recordings": {
-    "title": "Enregistrements envoyés",
+    "title": "Enregistrements",
     "none": "Aucun enregistrement envoyé pour l'instant.",
     "audioGone": "Audio supprimé, transcription conservée",
     "deleteAudio": "Supprimer l'audio",
     "confirmDeleteAudio": "Supprimer l'audio de cet enregistrement ? La transcription et le résumé sont conservés.",
     "audioDeleted": "Audio supprimé",
-    "retried": "Le traitement a été relancé"
+    "retried": "Le traitement a été relancé",
+    "play": "Écouter",
+    "player": "Écouter l’enregistrement",
+    "playError": "L’enregistrement ne peut pas être lu pour le moment. Réessayez plus tard.",
+    "playOffline": "Pour écouter, cet appareil a besoin d’internet."
   },
   "errors": {
     "WHISPER_NOT_CONFIGURED": "La reconnaissance vocale n'est pas encore configurée. Un administrateur peut configurer Whisper dans Intégrations.",
@@ -137,7 +149,7 @@
     "CONSULTATION_DELETED": "La consultation de cet enregistrement a été supprimée."
   },
   "result": {
-    "title": "Résultat",
+    "title": "Résumé",
     "draftBanner": "Brouillon de l'IA, à relire. Vérifiez chaque point, surtout les médicaments et les doses, avant de valider.",
     "approvedBy": "Validé par {{name}} le {{date}}",
     "approvedPlain": "Validé",
@@ -182,7 +194,10 @@
     "appointmentTime": "Heure",
     "appointmentLocation": "Lieu",
     "familyNotes": "Notes proposées pour le tableau",
-    "confirmRegenerateProtected": "Attention : le résumé sera entièrement recréé. La version validée ou modifiée à la main sera remplacée et la validation supprimée. Continuer ?"
+    "confirmRegenerateProtected": "Attention : le résumé sera entièrement recréé. La version validée ou modifiée à la main sera remplacée et la validation supprimée. Continuer ?",
+    "unapprove": "Retirer la validation",
+    "confirmUnapprove": "Retirer la validation du résumé ? La consultation pourra de nouveau être modifiée.",
+    "unapproved": "Validation retirée"
   },
   "followUp": {
     "title": "Suivi",
@@ -267,5 +282,20 @@
   "logout": {
     "pending_one": "{{count}} enregistrement n'a pas encore été envoyé. La déconnexion le supprime de cet appareil. Se déconnecter quand même ?\n\nConseil : annulez, connectez-vous à Internet et patientez un instant.",
     "pending_other": "{{count}} enregistrements n'ont pas encore été envoyés. La déconnexion les supprime de cet appareil. Se déconnecter quand même ?\n\nConseil : annulez, connectez-vous à Internet et patientez un instant."
+  },
+  "when": "{{date}}, {{time}}",
+  "transcript": {
+    "title": "Transcription",
+    "none": "Pas encore de transcription. Elle apparaît ici dès qu’un enregistrement est traité.",
+    "draftBanner": "Pas encore vérifiée. Vérifiez surtout les chiffres et les médicaments. Vous pouvez modifier le texte directement.",
+    "recordingN": "Enregistrement {{n}}, {{time}}",
+    "save": "Enregistrer la transcription",
+    "approve": "Valider la transcription",
+    "confirmApprove": "Avez-vous vérifié la transcription ? Après validation, elle est considérée comme confirmée.",
+    "approved": "Transcription validée",
+    "unapprove": "Retirer la validation",
+    "confirmUnapprove": "Retirer la validation de la transcription ? La consultation pourra de nouveau être modifiée.",
+    "unapproved": "Validation retirée",
+    "approvedBadge": "Transcription vérifiée"
   }
 }

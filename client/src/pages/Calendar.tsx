@@ -4,7 +4,7 @@ import {
     Plus, ChevronLeft, ChevronRight, MapPin, Clock, Users, Repeat,
     Trash2, Edit2, Copy, Check, CalendarPlus, RefreshCw, CalendarDays, List, Bell,
     CalendarClock, CalendarOff, Undo2, Car, Minus, X, CalendarRange, CalendarCheck,
-    ChevronDown, ClipboardList, Tag, SlidersHorizontal, AlertTriangle, AlertCircle, Backpack,
+    ChevronDown, ClipboardList, Tag, SlidersHorizontal, AlertTriangle, AlertCircle, Backpack, Stethoscope,
     type LucideIcon,
 } from 'lucide-react';
 import {
@@ -17,6 +17,8 @@ import { api, API_BASE_URL } from '../lib/api';
 import { serverUrl } from '../lib/serverUrl';
 import { cn } from '../lib/utils';
 import { useCircle } from '../contexts/CircleContext';
+import { useNavigate } from 'react-router-dom';
+import { useFeatures } from '../lib/features';
 import { circleWeekStart, weekStartsOn, orderedIsoDays, inWeekOrder } from '../lib/weekStart';
 import { useAuth } from '../contexts/AuthContext';
 import { useWebSocketUpdates } from '../hooks/useWebSocketUpdates';
@@ -29,9 +31,10 @@ import { PersonCombobox } from '../components/calendar/PersonCombobox';
 
 // ─── Domain types ─────────────────────────────────────────────────────────────
 
-type EventCategory = 'visit' | 'medical' | 'nurse' | 'aide' | 'other';
+// E60: "doctor" (Arzt) neben "medical", gleiche Farbe.
+type EventCategory = 'visit' | 'medical' | 'doctor' | 'nurse' | 'aide' | 'other';
 
-const CATEGORIES: EventCategory[] = ['visit', 'medical', 'nurse', 'aide', 'other'];
+const CATEGORIES: EventCategory[] = ['visit', 'doctor', 'medical', 'nurse', 'aide', 'other'];
 /** Categories a professional can create and manage (their own care visits). */
 const PRO_CATEGORIES: EventCategory[] = ['visit', 'nurse', 'aide'];
 
@@ -39,6 +42,7 @@ const PRO_CATEGORIES: EventCategory[] = ['visit', 'nurse', 'aide'];
 const CATEGORY_DOT: Record<EventCategory, string> = {
     visit: 'bg-primary',
     medical: 'bg-info',
+    doctor: 'bg-info',
     nurse: 'bg-peach',
     aide: 'bg-warning',
     other: 'bg-muted-foreground',
@@ -46,6 +50,7 @@ const CATEGORY_DOT: Record<EventCategory, string> = {
 const CATEGORY_CHIP: Record<EventCategory, string> = {
     visit: 'bg-primary-soft',
     medical: 'bg-info/10',
+    doctor: 'bg-info/10',
     nurse: 'bg-peach/10',
     aide: 'bg-warning/10',
     other: 'bg-surface-2',
@@ -79,6 +84,8 @@ interface EventOccurrence {
     driver_back?: string | null;
     /** Fork: Was mitzunehmen ist (freier Text). */
     take_along?: string | null;
+    /** E59: verknuepftes Arztgespraech (Taste "Zum Arztgespraech") */
+    consultation_id?: string | null;
     /**
      * Fork: Kästchen „Jemand muss mitkommen“ / „Jemand muss fahren“. Abgehakt bleiben die Daten
      * gespeichert, gelten aber als nicht aktiv. null = älterer Termin: aktiv, wenn Daten da sind.
@@ -376,6 +383,27 @@ const Calendar: React.FC = () => {
     const { t, i18n } = useTranslation(['calendar', 'common']);
     const longDate = (withYear: boolean) => longDatePattern(i18n.language, withYear);
     const { activeCircle, myRole, canWriteContent } = useCircle();
+    const navigate = useNavigate();
+    const { isOn: featureOn } = useFeatures();
+    const consultationsOn = featureOn('consultations') && myRole !== 'neighbor';
+    const [linking, setLinking] = useState(false);
+    /** E59: Arzttermin ohne Gespraech: Gespraech anlegen und mit dem Termin verknuepfen. */
+    const prepareConsultation = async (occ: EventOccurrence) => {
+        setLinking(true);
+        try {
+            const res = await api.post<{ success: boolean; data: { id: string } | null }>('/api/consultations', {
+                event_id: occ.id,
+                doctor_name: occ.title,
+                scheduled_at: occ.start_time.slice(0, 16),
+                location: occ.location ?? null,
+            });
+            if (res.data?.id) navigate(`/consultations/${res.data.id}`);
+        } catch {
+            setError(t('calendar:consultation.linkError'));
+        } finally {
+            setLinking(false);
+        }
+    };
     const { user } = useAuth();
 
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -1541,6 +1569,19 @@ const Calendar: React.FC = () => {
                             <div className="rounded-input border border-danger/30 bg-danger/10 px-3 py-2 text-body text-danger">
                                 {error}
                             </div>
+                        )}
+                        {consultationsOn && selected.consultation_id && (
+                            <Button size="lg" className="w-full" onClick={() => navigate(`/consultations/${selected.consultation_id}`)}>
+                                <Stethoscope className="mr-2 h-5 w-5" aria-hidden="true" />
+                                {t('calendar:consultation.open')}
+                            </Button>
+                        )}
+                        {consultationsOn && !selected.consultation_id && canWriteContent && !selected.is_recurring
+                            && (selected.category === 'doctor' || selected.category === 'medical') && (
+                            <Button variant="secondary" size="lg" className="w-full" disabled={linking} onClick={() => void prepareConsultation(selected)}>
+                                <Stethoscope className="mr-2 h-5 w-5" aria-hidden="true" />
+                                {t('calendar:consultation.prepare')}
+                            </Button>
                         )}
                         <div className="flex items-center gap-2 text-body text-foreground">
                             <CategoryDot category={selected.category} className="h-3 w-3" />

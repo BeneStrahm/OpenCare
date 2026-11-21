@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
     ArrowLeft, ArrowUp, ArrowDown, Printer, Trash2, Plus, Save, CheckCircle2, RefreshCw, AlertTriangle,
-    Sparkles, FileText, ListChecks, Mic, ClipboardList, CloudUpload, Pencil,
+    Sparkles, FileText, ListChecks, Mic, ClipboardList, CloudUpload, Pencil, Play, Lock, Undo2, Users, Car, Backpack,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useCircle } from '../contexts/CircleContext';
@@ -15,6 +15,11 @@ import ProposalsPanel from '../components/consultations/ProposalsPanel';
 import { useLocalRecordings } from '../components/consultations/useLocalRecordings';
 import { discardLocalRecording, kick, retryLocalRecording, saveAsNewConsultation } from '../lib/consultationUploader';
 import { consultationTitle, formatConsultationDate } from './Consultations';
+import {
+    loadRecordingAudio,
+    type ConsultationDetailData, type ConsultationQuestion, type ConsultationRecordingInfo,
+} from '../lib/consultationView';
+import { isUnsent } from '../lib/consultationStore';
 import {
     emptySummary,
     errorCodeKey,
@@ -29,53 +34,14 @@ import {
     toDateTimeInput,
     withDefaults,
     type ConsultationSummary,
-    type RecordingStatus,
-    type SummaryStatus,
     isRetryableRecording,
 } from '../lib/consultationLogic';
 
-interface Consultation {
-    id: string;
-    doctor_name: string | null;
-    specialty: string | null;
-    scheduled_at: string | null;
-    location: string | null;
-    reason: string | null;
-    event_id: string | null;
-    notes: string | null;
-    summary: ConsultationSummary | null;
-    summary_status: SummaryStatus;
-    approved_by_name: string | null;
-    approved_at: string | null;
-    /** Uebernommene Vorschlaege: { [schluessel]: angelegte id } */
-    applied?: Record<string, string> | null;
-    summary_source?: 'ai' | 'human' | null;
-    summary_outdated?: boolean;
-    created_at: string;
-    updated_at: string;
-}
-
-interface Question { id: string; text: string; answer: string | null; position: number; created_at: string }
-
-interface Recording {
-    id: string;
-    client_id: string;
-    status: RecordingStatus;
-    error_code: string | null;
-    duration_seconds: number | null;
-    size_bytes: number;
-    consent_at: string;
-    created_at: string;
-    processed_at: string | null;
-    audio_deleted_at: string | null;
-}
-
-interface Detail {
-    consultation: Consultation;
-    questions: Question[];
-    recordings: Recording[];
-    transcript: string | null;
-}
+// Typen gemeinsam mit der einfachen Ansicht (lib/consultationView.ts, E59)
+type Question = ConsultationQuestion;
+type Recording = ConsultationRecordingInfo;
+type Detail = ConsultationDetailData;
+type DoctorOption = { name: string; organization: string | null; location: string | null };
 
 const Section: React.FC<{ id: string; icon: React.ReactNode; title: string; children: React.ReactNode }> = ({ id, icon, title, children }) => (
     <Card hover={false}>
@@ -108,6 +74,22 @@ const ConsultationDetail: React.FC = () => {
     const [newQuestion, setNewQuestion] = useState('');
     const [editingQuestion, setEditingQuestion] = useState<{ id: string; text: string } | null>(null);
 
+    // Mitschrift je Aufnahme (E59): bearbeiten und freigeben
+    const [transcripts, setTranscripts] = useState<Record<string, string>>({});
+    const [transcriptDirty, setTranscriptDirty] = useState(false);
+    // Abspielen: geladene Aufnahmen (Objekt-URL je Aufnahme)
+    const [audioUrls, setAudioUrls] = useState<Record<string, string>>({});
+    const audioUrlsRef = useRef<Record<string, string>>({});
+    audioUrlsRef.current = audioUrls;
+    useEffect(() => () => { Object.values(audioUrlsRef.current).forEach((u) => URL.revokeObjectURL(u)); }, []);
+    // Aerzte aus den Kontakten fuer das Autovervollstaendigen (E59)
+    const [doctors, setDoctors] = useState<DoctorOption[]>([]);
+    useEffect(() => {
+        api.get<{ success: boolean; data: { doctors: DoctorOption[] } }>('/api/events/people')
+            .then((res) => setDoctors(Array.isArray(res.data?.doctors) ? res.data.doctors : []))
+            .catch(() => undefined);
+    }, [activeCircle?.id]);
+
     // Ergebnis
     const [summary, setSummary] = useState<ConsultationSummary | null>(null);
     const [summaryDirty, setSummaryDirty] = useState(false);
@@ -120,8 +102,8 @@ const ConsultationDetail: React.FC = () => {
 
     // Aktueller Stand der ungespeicherten Eingaben fuer load(): Intervall und
     // WebSocket rufen eine aeltere load()-Fassung auf, darum ueber eine Ref.
-    const dirtyRef = useRef({ prep: false, summary: false, notes: false });
-    dirtyRef.current = { prep: prepDirty, summary: summaryDirty, notes: notesDirty };
+    const dirtyRef = useRef({ prep: false, summary: false, notes: false, transcript: false });
+    dirtyRef.current = { prep: prepDirty, summary: summaryDirty, notes: notesDirty, transcript: transcriptDirty };
 
     const questions = useMemo(
         () => (detail ? [...detail.questions].sort((a, b) => a.position - b.position) : []),
@@ -157,6 +139,12 @@ const ConsultationDetail: React.FC = () => {
                 if (!opts.keepEdits || !dirty.notes) {
                     setNotes(c.notes ?? '');
                     setNotesDirty(false);
+                }
+                if (!opts.keepEdits || !dirty.transcript) {
+                    const next: Record<string, string> = {};
+                    for (const r of d.recordings) if (r.transcript) next[r.id] = r.transcript;
+                    setTranscripts(next);
+                    setTranscriptDirty(false);
                 }
                 setAnswers((prev) => {
                     const next: Record<string, string> = {};
@@ -246,7 +234,11 @@ const ConsultationDetail: React.FC = () => {
     const c = detail.consultation;
     const readOnly = !canWriteContent;
     const when = formatConsultationDate(c.scheduled_at);
-    const myLocal = localItems.filter((r) => r.consultation_id === id);
+    // Nur noch nicht gesendete Aufnahmen; gesendete bleiben 30 Tage nur zum Abspielen auf dem Geraet (E59).
+    const myLocal = localItems.filter((r) => r.consultation_id === id && isUnsent(r));
+    // E59: Mitschrift und Zusammenfassung freigegeben: Fragen, Angaben und Aufnahmen gesperrt.
+    const locked = c.locked;
+    const prepReadOnly = readOnly || locked;
 
     // ─── Aktionen ───────────────────────────────────────────────────────────
 
@@ -318,6 +310,44 @@ const ConsultationDetail: React.FC = () => {
         void run(() => api.post(`/api/consultations/${id}/summary/regenerate`, {}), t('consultations:summary.regenerating'));
     };
 
+    const unapproveSummary = () => {
+        if (!window.confirm(t('consultations:summary.confirmUnapprove'))) return;
+        void run(() => api.post(`/api/consultations/${id}/summary/unapprove`, {}), t('consultations:summary.unapproved'));
+    };
+
+    const transcriptBody = () => ({
+        recordings: Object.entries(transcripts)
+            .filter(([, text]) => text.trim())
+            .map(([recId, text]) => ({ id: recId, transcript: text })),
+    });
+    const saveTranscript = () => run(
+        () => api.put(`/api/consultations/${id}/transcript`, transcriptBody()).then(() => setTranscriptDirty(false)),
+        t('consultations:detail.saved')
+    );
+    const approveTranscript = () => {
+        if (!window.confirm(t('consultations:transcript.confirmApprove'))) return;
+        void run(async () => {
+            if (transcriptDirty) {
+                await api.put(`/api/consultations/${id}/transcript`, transcriptBody());
+                setTranscriptDirty(false);
+            }
+            await api.post(`/api/consultations/${id}/transcript/approve`, {});
+        }, t('consultations:transcript.approved'));
+    };
+    const unapproveTranscript = () => {
+        if (!window.confirm(t('consultations:transcript.confirmUnapprove'))) return;
+        void run(() => api.post(`/api/consultations/${id}/transcript/unapprove`, {}), t('consultations:transcript.unapproved'));
+    };
+
+    const playRecording = async (r: Recording) => {
+        try {
+            const { blob } = await loadRecordingAudio({ id: r.id, client_id: r.client_id });
+            setAudioUrls((prev) => ({ ...prev, [r.id]: URL.createObjectURL(blob) }));
+        } catch {
+            showToast({ variant: 'error', title: navigator.onLine ? t('consultations:recordings.playError') : t('consultations:recordings.playOffline') });
+        }
+    };
+
     const retryRecording = (r: Recording) => run(() => api.post(`/api/consultations/recordings/${r.id}/retry`, {}), t('consultations:recordings.retried'));
     const deleteAudio = (r: Recording) => {
         if (!window.confirm(t('consultations:recordings.confirmDeleteAudio'))) return;
@@ -343,7 +373,7 @@ const ConsultationDetail: React.FC = () => {
                     <Badge variant={summaryBadgeVariant(c.summary_status)}>{t(`consultations:summaryStatus.${c.summary_status}`)}</Badge>
                 </div>
                 <nav aria-label={t('consultations:detail.sections')} className="flex flex-wrap gap-2 pt-1">
-                    {(['prep', 'recording', 'result', 'followUp'] as const).map((s) => (
+                    {(['prep', 'recording', 'transcript', 'result', 'followUp'] as const).map((s) => (
                         <a key={s} href={`#section-${s}`} className="rounded-full border border-border bg-card px-4 py-2 text-caption font-medium text-foreground hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                             {t(`consultations:detail.nav.${s}`)}
                         </a>
@@ -351,9 +381,16 @@ const ConsultationDetail: React.FC = () => {
                 </nav>
             </div>
 
-            {/* 1. Vorbereitung */}
+            {locked && (
+                <p className="flex items-start gap-2 rounded-input border border-success/40 bg-success/10 p-4 text-body text-foreground" role="note">
+                    <Lock className="mt-0.5 h-5 w-5 shrink-0 text-success" aria-hidden="true" />
+                    {t('consultations:detail.locked')}
+                </p>
+            )}
+
+            {/* 1. Vorbereitung (gleiche Reihenfolge wie am Tablet, E59) */}
             <Section id="section-prep" icon={<ClipboardList className="h-5 w-5 text-primary" aria-hidden="true" />} title={t('consultations:prep.title')}>
-                {readOnly ? (
+                {prepReadOnly ? (
                     <dl className="grid grid-cols-1 gap-2 text-body sm:grid-cols-2">
                         {(['doctor_name', 'specialty', 'location', 'reason'] as const).map((k) => (
                             c[k] ? (
@@ -367,7 +404,23 @@ const ConsultationDetail: React.FC = () => {
                 ) : (
                     <div className="space-y-3">
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                            <Input id="p-doctor" label={t('consultations:form.doctor')} value={prep.doctor_name} onChange={(e) => { setPrep({ ...prep, doctor_name: e.target.value }); setPrepDirty(true); }} />
+                            <Input
+                                id="p-doctor"
+                                label={t('consultations:form.doctor')}
+                                list="p-doctor-options"
+                                autoComplete="off"
+                                value={prep.doctor_name}
+                                onChange={(e) => {
+                                    const name = e.target.value;
+                                    // Arzt aus den Kontakten gewaehlt: Ort vorausfuellen, wenn noch leer (E60).
+                                    const match = doctors.find((d) => d.name === name);
+                                    setPrep({ ...prep, doctor_name: name, location: !prep.location.trim() && match?.location ? match.location : prep.location });
+                                    setPrepDirty(true);
+                                }}
+                            />
+                            <datalist id="p-doctor-options">
+                                {doctors.map((d) => <option key={d.name} value={d.name}>{d.organization ?? ''}</option>)}
+                            </datalist>
                             <Input id="p-specialty" label={t('consultations:form.specialty')} value={prep.specialty} onChange={(e) => { setPrep({ ...prep, specialty: e.target.value }); setPrepDirty(true); }} />
                             <Input id="p-when" type="datetime-local" label={t('consultations:form.scheduledAt')} value={prep.scheduled_at} onChange={(e) => { setPrep({ ...prep, scheduled_at: e.target.value }); setPrepDirty(true); }} />
                             <Input id="p-location" label={t('consultations:form.location')} value={prep.location} onChange={(e) => { setPrep({ ...prep, location: e.target.value }); setPrepDirty(true); }} />
@@ -379,6 +432,31 @@ const ConsultationDetail: React.FC = () => {
                             </Button>
                         </div>
                     </div>
+                )}
+
+                {/* Begleitung, Fahrt, Mitnehmen stehen am Termin (eine Stelle, E59) */}
+                {c.event_id && (c.companions.length > 0 || c.travel_needed || c.take_along) && (
+                    <dl className="grid grid-cols-1 gap-2 text-body sm:grid-cols-2">
+                        {c.companions.length > 0 && (
+                            <div className="flex items-start gap-2">
+                                <Users className="mt-1 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                                <div><dt className="text-caption text-muted-foreground">{t('consultations:prep.companion')}</dt><dd>{c.companions.join(', ')}</dd></div>
+                            </div>
+                        )}
+                        {c.travel_needed && (
+                            <div className="flex items-start gap-2">
+                                <Car className="mt-1 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                                <div><dt className="text-caption text-muted-foreground">{t('consultations:prep.driver')}</dt><dd>{c.driver || t('consultations:prep.driverMissing')}</dd></div>
+                            </div>
+                        )}
+                        {c.take_along && (
+                            <div className="flex items-start gap-2">
+                                <Backpack className="mt-1 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                                <div><dt className="text-caption text-muted-foreground">{t('consultations:prep.takeAlong')}</dt><dd className="whitespace-pre-wrap">{c.take_along}</dd></div>
+                            </div>
+                        )}
+                        <p className="text-caption text-muted-foreground sm:col-span-2">{t('consultations:prep.eventHint')}</p>
+                    </dl>
                 )}
 
                 <div className="space-y-3 border-t border-border pt-4">
@@ -406,7 +484,7 @@ const ConsultationDetail: React.FC = () => {
                                 ) : (
                                     <p className="flex-1 py-1.5 text-body text-foreground">{q.text}</p>
                                 )}
-                                {!readOnly && editingQuestion?.id !== q.id && (
+                                {!prepReadOnly && editingQuestion?.id !== q.id && (
                                     <div className="flex shrink-0 flex-wrap items-center">
                                         <Button variant="ghost" size="icon" className="h-11 w-11" disabled={busy || i === 0} onClick={() => moveQuestion(i, -1)} aria-label={t('consultations:prep.moveUp', { n: i + 1 })}>
                                             <ArrowUp className="h-4 w-4" />
@@ -425,7 +503,7 @@ const ConsultationDetail: React.FC = () => {
                             </li>
                         ))}
                     </ol>
-                    {!readOnly && (
+                    {!prepReadOnly && (
                         <form onSubmit={addQuestion} className="flex flex-col gap-2 sm:flex-row sm:items-end">
                             <Input
                                 id="new-question"
@@ -447,10 +525,10 @@ const ConsultationDetail: React.FC = () => {
 
             {/* 2. Aufnahme */}
             <Section id="section-recording" icon={<Mic className="h-5 w-5 text-primary" aria-hidden="true" />} title={t('consultations:recording.title')}>
-                {!readOnly ? (
+                {!prepReadOnly ? (
                     <RecorderPanel circleId={activeCircle?.id ?? null} consultationId={id} onStopped={() => void kick()} />
                 ) : (
-                    <p className="text-body text-muted-foreground">{t('consultations:recording.readOnly')}</p>
+                    <p className="text-body text-muted-foreground">{locked ? t('consultations:recording.locked') : t('consultations:recording.readOnly')}</p>
                 )}
 
                 {myLocal.length > 0 && (
@@ -531,6 +609,13 @@ const ConsultationDetail: React.FC = () => {
                                             {r.audio_deleted_at && <span className="text-caption text-muted-foreground">{t('consultations:recordings.audioGone')}</span>}
                                         </div>
                                         {errKey && <p className="text-caption text-foreground">{t(errKey)}</p>}
+                                        {audioUrls[r.id] ? (
+                                            <audio controls autoPlay src={audioUrls[r.id]} className="w-full" aria-label={t('consultations:recordings.player')} />
+                                        ) : !r.audio_deleted_at && !isRecordingInProgress(r.status) && r.status !== 'uploading' ? (
+                                            <Button variant="secondary" size="sm" onClick={() => void playRecording(r)}>
+                                                <Play className="mr-1 h-4 w-4" aria-hidden="true" />{t('consultations:recordings.play')}
+                                            </Button>
+                                        ) : null}
                                         {!readOnly && (
                                             <div className="flex flex-wrap gap-2">
                                                 {r.status === 'failed' && isRetryableRecording(r.error_code, Boolean(r.audio_deleted_at)) && (
@@ -553,7 +638,66 @@ const ConsultationDetail: React.FC = () => {
                 </div>
             </Section>
 
-            {/* 3. Ergebnis */}
+            {/* 3. Mitschrift (E59): bearbeiten und freigeben, je Aufnahme */}
+            <Section id="section-transcript" icon={<FileText className="h-5 w-5 text-primary" aria-hidden="true" />} title={t('consultations:transcript.title')}>
+                {!detail.transcript ? (
+                    <p className="text-body text-muted-foreground">
+                        {serverBusy ? t('consultations:result.processing') : t('consultations:transcript.none')}
+                    </p>
+                ) : (
+                    <>
+                        {c.transcript_status === 'approved' ? (
+                            <p className="flex items-center gap-2 rounded-input border border-success/40 bg-success/10 p-4 text-body text-foreground">
+                                <CheckCircle2 className="h-5 w-5 text-success" aria-hidden="true" />
+                                {c.transcript_approved_by_name
+                                    ? t('consultations:result.approvedBy', { name: c.transcript_approved_by_name, date: formatConsultationDate(c.transcript_approved_at) ?? '' })
+                                    : t('consultations:result.approvedPlain')}
+                            </p>
+                        ) : (
+                            <p className="rounded-input border-2 border-warning bg-warning/10 p-4 text-body font-semibold text-foreground" role="note">
+                                {t('consultations:transcript.draftBanner')}
+                            </p>
+                        )}
+                        {detail.recordings.filter((r) => r.transcript).map((r, i) => (
+                            <div key={r.id} className="space-y-1">
+                                <label htmlFor={`tr-${r.id}`} className="block text-body font-semibold text-foreground">
+                                    {t('consultations:transcript.recordingN', { n: i + 1, time: formatConsultationDate(r.created_at) ?? '' })}
+                                </label>
+                                {readOnly ? (
+                                    <p id={`tr-${r.id}`} className="whitespace-pre-wrap rounded-input border border-border bg-card p-3 text-body leading-relaxed">{r.transcript}</p>
+                                ) : (
+                                    <Textarea
+                                        id={`tr-${r.id}`}
+                                        rows={8}
+                                        className="scrollbar-visible"
+                                        value={transcripts[r.id] ?? ''}
+                                        onChange={(e) => { setTranscripts({ ...transcripts, [r.id]: e.target.value }); setTranscriptDirty(true); }}
+                                    />
+                                )}
+                            </div>
+                        ))}
+                        {!readOnly && (
+                            <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-4">
+                                {c.transcript_status === 'approved' && (
+                                    <Button variant="ghost" onClick={unapproveTranscript} disabled={busy}>
+                                        <Undo2 className="mr-2 h-4 w-4" aria-hidden="true" />{t('consultations:transcript.unapprove')}
+                                    </Button>
+                                )}
+                                <Button variant="secondary" onClick={() => void saveTranscript()} disabled={busy || !transcriptDirty}>
+                                    <Save className="mr-2 h-4 w-4" aria-hidden="true" />{t('consultations:transcript.save')}
+                                </Button>
+                                {(c.transcript_status !== 'approved' || transcriptDirty) && (
+                                    <Button onClick={approveTranscript} disabled={busy}>
+                                        <CheckCircle2 className="mr-2 h-4 w-4" aria-hidden="true" />{t('consultations:transcript.approve')}
+                                    </Button>
+                                )}
+                            </div>
+                        )}
+                    </>
+                )}
+            </Section>
+
+            {/* 4. Zusammenfassung */}
             <Section id="section-result" icon={<Sparkles className="h-5 w-5 text-primary" aria-hidden="true" />} title={t('consultations:result.title')}>
                 {c.summary_status === 'draft' && (
                     <p className="rounded-input border-2 border-warning bg-warning/10 p-4 text-body font-semibold text-foreground" role="note">
@@ -600,6 +744,11 @@ const ConsultationDetail: React.FC = () => {
                         />
                         {!readOnly && (
                             <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-4">
+                                {c.summary_status === 'approved' && (
+                                    <Button variant="ghost" onClick={unapproveSummary} disabled={busy}>
+                                        <Undo2 className="mr-2 h-4 w-4" aria-hidden="true" />{t('consultations:summary.unapprove')}
+                                    </Button>
+                                )}
                                 {detail.transcript && (
                                     <Button variant="ghost" onClick={regenerate} disabled={busy || serverBusy}>
                                         <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />{t('consultations:summary.regenerate')}
@@ -617,15 +766,6 @@ const ConsultationDetail: React.FC = () => {
                     </>
                 )}
 
-                {detail.transcript && (
-                    <details className="rounded-input border border-border bg-card p-3">
-                        <summary className="cursor-pointer text-body font-semibold text-foreground">
-                            <FileText className="mr-2 inline h-4 w-4" aria-hidden="true" />{t('consultations:result.transcript')}
-                        </summary>
-                        <p className="mt-2 text-caption text-muted-foreground">{t('consultations:result.transcriptHint')}</p>
-                        <p className="mt-3 whitespace-pre-wrap text-body leading-relaxed">{detail.transcript}</p>
-                    </details>
-                )}
             </Section>
 
             {/* 4. Nachbereitung */}

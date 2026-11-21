@@ -81,6 +81,17 @@
     "loadMembers": "Die Mitglieder des Kreises konnten nicht geladen werden.",
     "toggle": "Diese Aufgabe konnte nicht aktualisiert werden.",
     "save": "Diese Aufgabe konnte nicht gespeichert werden.",
-    "delete": "Diese Aufgabe konnte nicht gelöscht werden."
+    "delete": "Diese Aufgabe konnte nicht gelöscht werden.",
+    "feed": "Der Aufgaben-Link konnte nicht erstellt werden. Bitte versuchen Sie es später noch einmal."
+  },
+  "feed": {
+    "title": "Aufgaben-Link",
+    "description": "Für Ihre Morgen-Mail oder andere Programme: Der Link liefert die offenen Aufgaben, die überfällig sind oder diese Woche fällig werden.",
+    "generate": "Aufgaben-Link erstellen",
+    "linkLabel": "Aufgaben-Link",
+    "copy": "Link kopieren",
+    "regenerate": "Link neu erstellen",
+    "confirmRegen": "Link neu erstellen? Der alte Link funktioniert dann nicht mehr.",
+    "privateNote": "Dieser Link ist privat. Wer ihn hat, kann die Aufgaben ansehen."
   }
 }

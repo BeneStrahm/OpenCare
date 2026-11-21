@@ -17,6 +17,12 @@ import { currentOwner, kick, markRecordingActive } from './consultationUploader'
 // 30 s je Stueck: deutlich unter 2 MB und wenige Anfragen (Server-Limit).
 export const CHUNK_MS = 30_000;
 
+/**
+ * E61: Speicherbedarf senken. Sprache in Mono mit 24 kbit/s (Opus) reicht fuer die
+ * Texterkennung; eine Stunde braucht so etwa 11 MB statt rund 60 MB.
+ */
+export const AUDIO_BITS_PER_SECOND = 24_000;
+
 export interface StartOptions {
     circleId: string | null;
     consultationId: string | null;
@@ -59,6 +65,8 @@ export interface ActiveRecording {
      * wird dann automatisch beendet; alles bis dahin Gespeicherte bleibt erhalten.
      */
     onStorageError: (handler: (error: unknown) => void) => void;
+    /** Das System hat das Mikrofon beendet; die Aufnahme ist damit zu Ende (alles bisher Aufgenommene bleibt). */
+    onMicEnded: (handler: () => void) => void;
 }
 
 export async function startConsultationRecording(options: StartOptions): Promise<ActiveRecording> {
@@ -68,7 +76,7 @@ export async function startConsultationRecording(options: StartOptions): Promise
 
     let stream: MediaStream;
     try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+        stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 } });
     } catch {
         throw new ConsultationRecorderError('MIC_DENIED');
     }
@@ -76,11 +84,15 @@ export async function startConsultationRecording(options: StartOptions): Promise
     const mimeType = pickMimeType((type) => MediaRecorder.isTypeSupported(type));
     let recorder: MediaRecorder;
     try {
-        recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+        recorder = new MediaRecorder(stream, { ...(mimeType ? { mimeType } : {}), audioBitsPerSecond: AUDIO_BITS_PER_SECOND });
     } catch {
         stream.getTracks().forEach((t) => t.stop());
         throw new ConsultationRecorderError('START_FAILED');
     }
+
+    // E59: Speicher des Browsers als dauerhaft anfordern, damit Android die lokale Kopie
+    // (30 Tage) bei wenig Platz nicht still loescht. Ablehnung ist kein Fehler.
+    try { await navigator.storage?.persist?.(); } catch { /* nicht unterstuetzt */ }
 
     const clientId = crypto.randomUUID();
     const startedAt = new Date();
@@ -160,12 +172,25 @@ export async function startConsultationRecording(options: StartOptions): Promise
     };
     document.addEventListener('visibilitychange', onVisibility);
     await requestWakeLock();
+    // Die Sperre kann das System jederzeit aufheben (z. B. Energiesparmodus): sofort neu anfordern.
+    const wakeLockWatch = window.setInterval(() => {
+        if (!stopped && document.visibilityState === 'visible' && (!wakeLock || wakeLock.released)) void requestWakeLock();
+    }, 10_000);
+    // Beendet das System das Mikrofon (Anruf, anderes Programm), endet die Aufnahme sauber:
+    // alles bis dahin Aufgenommene bleibt erhalten und wird gesendet.
+    let micEndedHandler: (() => void) | null = null;
+    stream.getAudioTracks().forEach((track) => track.addEventListener('ended', () => {
+        if (stopped) return;
+        micEndedHandler?.();
+        void stopFn?.();
+    }));
 
     try {
         recorder.start(CHUNK_MS);
     } catch {
         stopped = true;
         window.clearInterval(heartbeat);
+        window.clearInterval(wakeLockWatch);
         document.removeEventListener('visibilitychange', onVisibility);
         stream.getTracks().forEach((t) => t.stop());
         markRecordingActive(clientId, false);
@@ -184,6 +209,7 @@ export async function startConsultationRecording(options: StartOptions): Promise
                 try { recorder.stop(); } catch { resolve(); }
             });
             window.clearInterval(heartbeat);
+            window.clearInterval(wakeLockWatch);
             stream.getTracks().forEach((t) => t.stop());
             document.removeEventListener('visibilitychange', onVisibility);
             try { await wakeLock?.release(); } catch { /* bereits freigegeben */ }
@@ -213,5 +239,6 @@ export async function startConsultationRecording(options: StartOptions): Promise
         wakeLockActive: () => !!wakeLock && !wakeLock.released,
         stop,
         onStorageError: (handler) => { storageErrorHandler = handler; },
+        onMicEnded: (handler) => { micEndedHandler = handler; },
     };
 }

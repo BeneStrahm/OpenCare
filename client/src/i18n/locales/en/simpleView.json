@@ -26,7 +26,7 @@
     "someone": "Someone is coming"
   },
   "appointments": {
-    "title": "Today's appointments",
+    "title": "Appointments",
     "empty": "No appointment today.",
     "companion": "Coming with you: {{names}}",
     "windowTitle": "Appointments",
@@ -224,7 +224,12 @@
     "label": {
       "title": "What is the appointment?",
       "date": "On which day?",
-      "time": "At what time?"
+      "time": "At what time?",
+      "category": "What kind of appointment?",
+      "location": "Where? (optional)",
+      "companion": "Someone comes along",
+      "travel": "Transport needed",
+      "takeAlong": "What will you take along? (optional)"
     },
     "error": {
       "title": "Please write what the appointment is.",
@@ -236,7 +241,12 @@
     "travelTo": "Getting there",
     "travelBack": "Getting back",
     "companion": "Coming with you",
-    "takeAlong": "Take along"
+    "takeAlong": "Take along",
+    "placeholder": {
+      "companion": "Who comes along?",
+      "driver": "Who drives there and back?"
+    },
+    "travel": "Transport"
   },
   "shopping": {
     "label": "What should go on the list?",
@@ -316,5 +326,95 @@
     "more": "Load more",
     "empty": "There are no readings in this period.",
     "error": "The readings could not be loaded. Please check the internet connection and try again."
+  },
+  "doctor": {
+    "listTitle": "Doctor's visits",
+    "upcoming": "Upcoming visits",
+    "earlier": "Earlier visits",
+    "noUpcoming": "No visit planned.",
+    "newAppointment": "Add doctor appointment",
+    "recordNow": "Record visit now",
+    "newTitle": "New doctor's visit",
+    "editTitle": "Change details",
+    "enter": "Add",
+    "save": "Save",
+    "saved": "The details are saved.",
+    "label": {
+      "doctor": "Which doctor?"
+    },
+    "error": {
+      "doctor": "Please write which doctor you are seeing."
+    },
+    "clock": "{{time}}",
+    "badge": {
+      "questions_one": "{{count}} question prepared",
+      "questions_other": "{{count}} questions prepared",
+      "checked": "Transcript & summary checked",
+      "unchecked": "Transcript & summary not checked",
+      "later": "Summary to follow"
+    },
+    "card": {
+      "prep": "Preparation",
+      "recordings": "Recordings",
+      "transcript": "Transcript",
+      "summary": "Summary"
+    },
+    "when": "When",
+    "doctor": "Doctor",
+    "companion": "Coming along",
+    "myQuestions": "My questions",
+    "noQuestions": "No questions yet.",
+    "addQuestion": "Add question",
+    "questionLabel": "What would you like to ask?",
+    "questionError": "Please write your question.",
+    "add": "Add",
+    "delete": "Delete",
+    "deleteQuestionN": "Delete question {{n}}",
+    "deleteQuestionTitle": "Delete question",
+    "deleteQuestionAsk": "Do you want to delete this question?",
+    "deleteQuestionFor": "For the visit with {{doctor}} on {{date}}",
+    "keep": "No, keep it",
+    "yesDelete": "Yes, delete",
+    "consent": "The doctor agrees to the recording.",
+    "consentHint": "Please ask first whether you may record.",
+    "startRecording": "Start new recording",
+    "stopRecording": "Stop recording",
+    "recordingTitle": "Recording",
+    "recordingHint": "The screen stays on. Place the tablet on the table and do not switch it off.",
+    "recordSaved": "The recording is saved.",
+    "micEnded": "The tablet stopped the microphone. Everything up to here is saved.",
+    "quickHint": "Without internet, the recording is saved on the tablet. The visit appears once internet is back.",
+    "waitingNew_one": "{{count}} recording is saved on the tablet. It will be sent once internet is back.",
+    "waitingNew_other": "{{count}} recordings are saved on the tablet. They will be sent once internet is back.",
+    "noRecordings": "No recording yet.",
+    "recordingN": "Recording {{n}}",
+    "recordingMeta_one": "{{time}} · {{count}} minute",
+    "recordingMeta_other": "{{time}} · {{count}} minutes",
+    "play": "Play",
+    "pause": "Pause",
+    "progress": "{{current}} of {{total}}",
+    "audioGone": "The recording was deleted. The transcript remains.",
+    "savedOnTablet": "Saved on the tablet. Will be sent once internet is back.",
+    "playError": "The recording cannot be played right now. Please try again later.",
+    "playOffline": "The tablet needs internet to play this recording.",
+    "checkedByFamily": "Checked by the family",
+    "transcriptUnchecked": "Not checked yet. The transcript may contain mistakes.",
+    "summaryUnchecked": "Not checked yet. The summary may contain mistakes.",
+    "quote": "“{{text}}”",
+    "readTranscript": "Read full transcript",
+    "transcriptTitle": "Transcript",
+    "transcriptLater": "The transcript will follow.",
+    "noTranscript": "After a recording, the transcript appears here.",
+    "summaryLater": "The summary will follow.",
+    "noSummary": "After a recording, the summary appears here.",
+    "summary": {
+      "important": "Key points",
+      "medications": "Medication",
+      "nextSteps": "What to do",
+      "appointments": "Next appointment"
+    },
+    "offline": "The tablet needs internet for this. Please try again later.",
+    "linkError": "The appointment is saved, but the visit is not yet. Please tell your family.",
+    "toConsultation": "Go to doctor's visit"
   }
 }

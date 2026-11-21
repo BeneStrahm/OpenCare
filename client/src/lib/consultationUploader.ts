@@ -32,6 +32,8 @@ import {
     listChunkIndexes,
     listRecordings,
     updateRecording,
+    isUnsent,
+    LOCAL_COPY_DAYS,
     type LocalRecording,
 } from './consultationStore';
 
@@ -235,7 +237,10 @@ async function uploadOne(recording: LocalRecording): Promise<void> {
                 total_chunks: total,
                 duration_seconds: recording.duration_seconds ?? 0,
             });
-            await deleteRecording(recording.client_id);
+            // E59: lokale Kopie LOCAL_COPY_DAYS Tage zum Abspielen behalten, danach loeschen (runOnce).
+            await updateRecording(recording.client_id, {
+                state: 'uploaded', uploaded_at: Date.now(), consultation_id: consultationId, last_error: null,
+            });
             const errors = { ...state.errors };
             delete errors[recording.client_id];
             const needsHelp = { ...state.needsHelp };
@@ -261,6 +266,13 @@ async function runOnce(): Promise<void> {
     const queue: LocalRecording[] = [];
     const needsHelp: Record<string, string> = {};
     for (const rec of recordings) {
+        if (rec.state === 'uploaded') {
+            // E59: nach LOCAL_COPY_DAYS Tagen nur noch vom Server abspielen.
+            if (rec.uploaded_at && now - rec.uploaded_at > LOCAL_COPY_DAYS * 24 * 60 * 60 * 1000) {
+                await deleteRecording(rec.client_id).catch(() => undefined);
+            }
+            continue;
+        }
         if (rec.needs_help) {
             needsHelp[rec.client_id] = rec.needs_help;
             continue;
@@ -384,7 +396,7 @@ export async function saveAsNewConsultation(clientId: string): Promise<void> {
 export async function pendingRecordingsForCurrentUser(): Promise<number> {
     if (IS_DEMO || !isLocalStoreAvailable()) return 0;
     const owner = currentOwner();
-    return (await listRecordings()).filter((r) => !r.from_kiosk && belongsToOwner(r, owner)).length;
+    return (await listRecordings()).filter((r) => !r.from_kiosk && isUnsent(r) && belongsToOwner(r, owner)).length;
 }
 
 /** Beim Abmelden: lokale Aufnahmen dieser Person loeschen. */

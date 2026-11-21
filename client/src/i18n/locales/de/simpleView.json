@@ -26,7 +26,7 @@
     "someone": "Jemand kommt"
   },
   "appointments": {
-    "title": "Termine heute",
+    "title": "Termine",
     "empty": "Heute kein Termin.",
     "companion": "Es kommt mit: {{names}}",
     "windowTitle": "Termine",
@@ -224,7 +224,12 @@
     "label": {
       "title": "Was ist das für ein Termin?",
       "date": "An welchem Tag?",
-      "time": "Um wie viel Uhr?"
+      "time": "Um wie viel Uhr?",
+      "category": "Welche Art von Termin?",
+      "location": "Wo? (freiwillig)",
+      "companion": "Begleitung nötig",
+      "travel": "Fahrt nötig",
+      "takeAlong": "Was nehmen Sie mit? (freiwillig)"
     },
     "error": {
       "title": "Bitte schreiben Sie, was das für ein Termin ist.",
@@ -236,7 +241,12 @@
     "travelTo": "Hinfahrt",
     "travelBack": "Rückfahrt",
     "companion": "Es kommt mit",
-    "takeAlong": "Mitnehmen"
+    "takeAlong": "Mitnehmen",
+    "placeholder": {
+      "companion": "Wer kommt mit?",
+      "driver": "Wer fährt hin und zurück?"
+    },
+    "travel": "Fahrt"
   },
   "shopping": {
     "label": "Was soll auf die Liste?",
@@ -316,5 +326,95 @@
     "more": "Weitere laden",
     "empty": "In diesem Zeitraum gibt es keine Werte.",
     "error": "Die Werte konnten nicht geladen werden. Bitte prüfen Sie die Internetverbindung und versuchen Sie es noch einmal."
+  },
+  "doctor": {
+    "listTitle": "Arztgespräche",
+    "upcoming": "Kommende Gespräche",
+    "earlier": "Frühere Gespräche",
+    "noUpcoming": "Kein Gespräch geplant.",
+    "newAppointment": "Arzttermin eintragen",
+    "recordNow": "Gespräch jetzt aufnehmen",
+    "newTitle": "Neues Arztgespräch",
+    "editTitle": "Angaben ändern",
+    "enter": "Eintragen",
+    "save": "Speichern",
+    "saved": "Die Angaben sind gespeichert.",
+    "label": {
+      "doctor": "Bei welcher Ärztin oder welchem Arzt?"
+    },
+    "error": {
+      "doctor": "Bitte schreiben Sie, zu welcher Ärztin oder welchem Arzt Sie gehen."
+    },
+    "clock": "{{time}} Uhr",
+    "badge": {
+      "questions_one": "{{count}} Frage vorbereitet",
+      "questions_other": "{{count}} Fragen vorbereitet",
+      "checked": "Mitschrift & Zusammenfassung geprüft",
+      "unchecked": "Mitschrift & Zusammenfassung ungeprüft",
+      "later": "Zusammenfassung folgt"
+    },
+    "card": {
+      "prep": "Vorbereitung",
+      "recordings": "Aufnahmen",
+      "transcript": "Mitschrift",
+      "summary": "Zusammenfassung"
+    },
+    "when": "Wann",
+    "doctor": "Arzt",
+    "companion": "Begleitung",
+    "myQuestions": "Meine Fragen",
+    "noQuestions": "Noch keine Fragen.",
+    "addQuestion": "Frage hinzufügen",
+    "questionLabel": "Was möchten Sie fragen?",
+    "questionError": "Bitte schreiben Sie Ihre Frage.",
+    "add": "Hinzufügen",
+    "delete": "Löschen",
+    "deleteQuestionN": "Frage {{n}} löschen",
+    "deleteQuestionTitle": "Frage löschen",
+    "deleteQuestionAsk": "Möchten Sie diese Frage löschen?",
+    "deleteQuestionFor": "Für das Gespräch bei {{doctor}} am {{date}}",
+    "keep": "Nein, behalten",
+    "yesDelete": "Ja, löschen",
+    "consent": "Die Ärztin oder der Arzt ist mit der Aufnahme einverstanden.",
+    "consentHint": "Bitte fragen Sie zuerst, ob Sie aufnehmen dürfen.",
+    "startRecording": "Neue Aufnahme starten",
+    "stopRecording": "Aufnahme beenden",
+    "recordingTitle": "Aufnahme läuft",
+    "recordingHint": "Der Bildschirm bleibt an. Legen Sie das Tablet ruhig auf den Tisch und schalten Sie es nicht aus.",
+    "recordSaved": "Die Aufnahme ist gespeichert.",
+    "micEnded": "Das Tablet hat das Mikrofon beendet. Alles bis hierhin ist gespeichert.",
+    "quickHint": "Ohne Internet wird die Aufnahme auf dem Tablet gespeichert. Das Gespräch erscheint, sobald Internet da ist.",
+    "waitingNew_one": "{{count}} Aufnahme ist auf dem Tablet gespeichert. Sie wird gesendet, sobald Internet da ist.",
+    "waitingNew_other": "{{count}} Aufnahmen sind auf dem Tablet gespeichert. Sie werden gesendet, sobald Internet da ist.",
+    "noRecordings": "Noch keine Aufnahme.",
+    "recordingN": "Aufnahme {{n}}",
+    "recordingMeta_one": "{{time}} Uhr · {{count}} Minute",
+    "recordingMeta_other": "{{time}} Uhr · {{count}} Minuten",
+    "play": "Abspielen",
+    "pause": "Anhalten",
+    "progress": "{{current}} von {{total}}",
+    "audioGone": "Die Aufnahme ist gelöscht. Die Mitschrift bleibt.",
+    "savedOnTablet": "Auf dem Tablet gespeichert. Wird gesendet, sobald Internet da ist.",
+    "playError": "Die Aufnahme lässt sich gerade nicht abspielen. Bitte versuchen Sie es später noch einmal.",
+    "playOffline": "Zum Abspielen braucht das Tablet Internet.",
+    "checkedByFamily": "Von der Familie geprüft",
+    "transcriptUnchecked": "Noch nicht geprüft. Es können Fehler in der Mitschrift sein.",
+    "summaryUnchecked": "Noch nicht geprüft. Es können Fehler in der Zusammenfassung sein.",
+    "quote": "„{{text}}“",
+    "readTranscript": "Ganze Mitschrift lesen",
+    "transcriptTitle": "Mitschrift",
+    "transcriptLater": "Die Mitschrift kommt später.",
+    "noTranscript": "Nach einer Aufnahme steht hier die Mitschrift.",
+    "summaryLater": "Die Zusammenfassung kommt später.",
+    "noSummary": "Nach einer Aufnahme steht hier die Zusammenfassung.",
+    "summary": {
+      "important": "Das Wichtigste",
+      "medications": "Medikamente",
+      "nextSteps": "Was zu tun ist",
+      "appointments": "Nächster Termin"
+    },
+    "offline": "Dafür braucht das Tablet Internet. Bitte versuchen Sie es später noch einmal.",
+    "linkError": "Der Termin ist eingetragen, das Gespräch aber noch nicht. Bitte sagen Sie Ihrer Familie Bescheid.",
+    "toConsultation": "Zum Arztgespräch"
   }
 }

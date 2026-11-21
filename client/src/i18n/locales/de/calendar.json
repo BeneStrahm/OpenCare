@@ -19,6 +19,7 @@
   "recurring": "Wiederholt sich",
   "categories": {
     "visit": "Besuch",
+    "doctor": "Arzt",
     "medical": "Medizinisch",
     "nurse": "Pflegedienst",
     "aide": "Haushaltshilfe",
@@ -158,5 +159,10 @@
   },
   "day": {
     "empty": "Keine Termine an diesem Tag."
+  },
+  "consultation": {
+    "open": "Zum Arztgespräch",
+    "prepare": "Arztgespräch vorbereiten",
+    "linkError": "Das Arztgespräch konnte nicht angelegt werden. Bitte versuchen Sie es noch einmal."
   }
 }

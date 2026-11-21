@@ -81,6 +81,17 @@
     "loadMembers": "Impossible de charger les membres du cercle.",
     "toggle": "Impossible de mettre à jour cette tâche.",
     "save": "Impossible d'enregistrer cette tâche.",
-    "delete": "Impossible de supprimer cette tâche."
+    "delete": "Impossible de supprimer cette tâche.",
+    "feed": "Impossible de créer le lien des tâches. Veuillez réessayer plus tard."
+  },
+  "feed": {
+    "title": "Lien des tâches",
+    "description": "Pour votre e-mail du matin ou d'autres programmes : le lien fournit les tâches ouvertes en retard ou à faire cette semaine.",
+    "generate": "Créer le lien des tâches",
+    "linkLabel": "Lien des tâches",
+    "copy": "Copier le lien",
+    "regenerate": "Créer un nouveau lien",
+    "confirmRegen": "Créer un nouveau lien ? L'ancien lien ne fonctionnera plus.",
+    "privateNote": "Ce lien est privé. Toute personne qui l'a peut voir les tâches."
   }
 }

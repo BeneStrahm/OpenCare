@@ -26,11 +26,14 @@ const API_CACHE_MAX_ENTRIES = 200;
 // Routes API a NE JAMAIS mettre en cache:
 // - routes publiques par token (fiche urgence /public/, lien aidant /link/);
 // - /invites/info/ qui expose des PII (nom du proche, des aidants, email cible)
-//   et n'a pas de raison d'etre conserve sur l'appareil.
+//   et n'a pas de raison d'etre conserve sur l'appareil;
+// - Audio der Arztgespraeche (E59).
 const isUncacheableApiPath = (pathname) =>
     pathname.includes('/public/') ||
     pathname.includes('/link/') ||
-    pathname.includes('/invites/info/');
+    pathname.includes('/invites/info/') ||
+    // E59: Audio der Arztgespraeche (gross, Gesundheitsdaten): nur online vom Server, nie im Cache.
+    /\/consultations\/recordings\/[^/]+\/audio$/.test(pathname);
 
 const fetchWithTimeout = (request, timeoutMs) =>
     new Promise((resolve, reject) => {

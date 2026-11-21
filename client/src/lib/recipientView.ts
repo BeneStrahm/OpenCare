@@ -435,7 +435,7 @@ export type RecipientEventInput =
  * Eingabe pruefen: Titel, Tag ("YYYY-MM-DD") und Uhrzeit ("HH:MM"), ab heute bis
  * RECIPIENT_EVENT_MAX_YEARS Jahre voraus. start_time geht so an POST /api/events.
  */
-export function parseRecipientEventForm(title: string, day: string, time: string, now: Date = new Date()): RecipientEventInput {
+export function parseRecipientEventForm(title: string, day: string, time: string, now: Date = new Date(), allowPast = false): RecipientEventInput {
     const cleanTitle = title.trim().replace(/\s+/g, ' ');
     if (!cleanTitle || cleanTitle.length > RECIPIENT_EVENT_TITLE_MAX) return { ok: false, error: 'title' };
     const dayMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day.trim());
@@ -447,8 +447,31 @@ export function parseRecipientEventForm(title: string, day: string, time: string
     }
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const latest = new Date(today.getFullYear() + RECIPIENT_EVENT_MAX_YEARS, today.getMonth(), today.getDate());
-    if (startOfDay.getTime() < today.getTime() || startOfDay.getTime() > latest.getTime()) return { ok: false, error: 'date' };
+    // allowPast (E59): Angaben eines frueheren Arztgespraechs aendern.
+    if ((!allowPast && startOfDay.getTime() < today.getTime()) || startOfDay.getTime() > latest.getTime()) return { ok: false, error: 'date' };
     const timeMatch = /^(\d{2}):(\d{2})$/.exec(time.trim());
     if (!timeMatch || Number(timeMatch[1]) > 23 || Number(timeMatch[2]) > 59) return { ok: false, error: 'time' };
     return { ok: true, title: cleanTitle, start_time: `${day.trim()}T${time.trim()}` };
+}
+
+// ── E60: Termin mit Art, Ort, Begleitung, Fahrt, Mitnehmen ──
+
+/** Terminarten im Formular der einfachen Ansicht (gleiche Liste wie der Server, Standard "Sonstige"). */
+export const RECIPIENT_EVENT_CATEGORIES = ['other', 'doctor', 'medical', 'visit', 'nurse', 'aide'] as const;
+export type RecipientEventCategory = (typeof RECIPIENT_EVENT_CATEGORIES)[number];
+
+/** Person fuer Begleitung oder Fahrt: Mitglied (member_id) oder freier Name. */
+export interface PersonSuggestion { name: string; member_id: string | null; kind: 'member' | 'contact' | 'guest' }
+/** Arzt aus den Kontakten (Kategorie Arzt), Ort = Praxis oder Adresse. */
+export interface DoctorSuggestion { name: string; organization: string | null; location: string | null }
+
+/** Vorschlaege fuer das Autovervollstaendigen: enthaelt den Text (Gross/klein egal), hoechstens max. */
+export function matchSuggestions<T extends { name: string }>(items: T[], text: string, max = 5): T[] {
+    const needle = text.trim().toLocaleLowerCase();
+    if (!needle) return [];
+    const starts = items.filter((i) => i.name.toLocaleLowerCase().startsWith(needle));
+    const contains = items.filter((i) => !starts.includes(i) && i.name.toLocaleLowerCase().includes(needle));
+    const list = [...starts, ...contains].slice(0, max);
+    // Genau das Getippte ist schon gewaehlt: keine Liste mehr.
+    return list.length === 1 && list[0].name.toLocaleLowerCase() === needle ? [] : list;
 }

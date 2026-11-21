@@ -60,7 +60,7 @@ const tsOrNow = (value: unknown): unknown => value ?? new Date();
 const JOURNAL_TYPES = ['visit', 'note', 'vital', 'medication', 'incident', 'mood'] as const;
 const VITAL_TYPES = ['weight', 'bp', 'pain', 'mood', 'temperature', 'glucose'] as const;
 const INTAKE_STATUSES = ['pending', 'taken', 'skipped', 'missed'] as const;
-const EVENT_CATEGORIES = ['visit', 'medical', 'nurse', 'aide', 'other'] as const;
+const EVENT_CATEGORIES = ['visit', 'medical', 'doctor', 'nurse', 'aide', 'other'] as const;
 const DOCUMENT_CATEGORIES = ['prescription', 'report', 'insurance', 'legal', 'other'] as const;
 const MESSAGE_CHANNELS = ['circle', 'dm'] as const;
 const SPLIT_MODES = ['equal', 'custom'] as const;

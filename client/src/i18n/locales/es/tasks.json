@@ -81,6 +81,17 @@
     "loadMembers": "No se han podido cargar los miembros del círculo.",
     "toggle": "No se ha podido actualizar esta tarea.",
     "save": "No se ha podido guardar esta tarea.",
-    "delete": "No se ha podido eliminar esta tarea."
+    "delete": "No se ha podido eliminar esta tarea.",
+    "feed": "No se puede crear el enlace de tareas. Inténtelo de nuevo más tarde."
+  },
+  "feed": {
+    "title": "Enlace de tareas",
+    "description": "Para su correo matutino u otros programas: el enlace muestra las tareas pendientes vencidas o que vencen esta semana.",
+    "generate": "Crear enlace de tareas",
+    "linkLabel": "Enlace de tareas",
+    "copy": "Copiar enlace",
+    "regenerate": "Crear un enlace nuevo",
+    "confirmRegen": "¿Crear un enlace nuevo? El enlace anterior dejará de funcionar.",
+    "privateNote": "Este enlace es privado. Quien lo tenga puede ver las tareas."
   }
 }

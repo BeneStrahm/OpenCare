@@ -163,6 +163,9 @@ const VISITOR_LABELS: Record<CompanionLang, Record<string, string>> = {
     de: { family: 'Familie', friend: 'Freund oder Nachbar', caregiver: 'Haushaltshilfe', nurse: 'Pflegedienst', doctor: 'Arzt', other: '' },
 };
 
+/** Arzt (E60) und Medizinisch zaehlen als Arzttermine, nicht als Besuch. */
+const MEDICAL_EVENT_CATEGORIES: readonly string[] = ['medical', 'doctor'];
+
 const EVENT_LABELS: Record<CompanionLang, Record<string, string>> = {
     fr: { nurse: "l'infirmier ou l'infirmière", aide: "l'aide à domicile" },
     en: { nurse: 'the nurse', aide: 'the home aide' },
@@ -242,7 +245,7 @@ function answerMedications(f: CompanionFactsInput, lang: CompanionLang): string 
 
 function answerVisitors(f: CompanionFactsInput, lang: CompanionLang): string {
     const planned = f.events_today
-        .filter((ev) => ev.category !== 'medical')
+        .filter((ev) => !MEDICAL_EVENT_CATEGORIES.includes(ev.category))
         .map((ev) => `${eventWho(ev, lang)} ${atTime(ev.start_time, lang)}`);
     const present = f.visits_today.filter((v) => !v.checked_out_at);
     const gone = f.visits_today.filter((v) => v.checked_out_at);
@@ -269,7 +272,7 @@ function answerVisitors(f: CompanionFactsInput, lang: CompanionLang): string {
 
 function answerAppointments(f: CompanionFactsInput, lang: CompanionLang): string {
     const items = f.events_today
-        .filter((ev) => ev.category === 'medical')
+        .filter((ev) => MEDICAL_EVENT_CATEGORIES.includes(ev.category))
         .map((ev) => `${ev.title} ${atTime(ev.start_time, lang)}${ev.location ? `, ${ev.location}` : ''}`);
     if (items.length === 0) {
         return pick(lang, { fr: "Pas de rendez-vous médical aujourd'hui.", en: 'No medical appointment today.', es: 'Hoy no tienes ninguna cita médica.', de: 'Heute haben Sie keinen Arzttermin.' });
@@ -547,8 +550,8 @@ export function buildTodayFacts(facts: CompanionFactsInput, lang: CompanionLang,
     const none = L('aucun', 'none', 'ninguno', 'keine');
     const due = facts.medications.due_now.map((i) => describeIntake(i, lang));
     const done = facts.medications.done.map((i) => i.medication_name);
-    const planned = facts.events_today.filter((ev) => ev.category !== 'medical').map((ev) => `${eventWho(ev, lang)} ${atTime(ev.start_time, lang)}`);
-    const medical = facts.events_today.filter((ev) => ev.category === 'medical').map((ev) => `${ev.title} ${atTime(ev.start_time, lang)}${ev.location ? `, ${ev.location}` : ''}`);
+    const planned = facts.events_today.filter((ev) => !MEDICAL_EVENT_CATEGORIES.includes(ev.category)).map((ev) => `${eventWho(ev, lang)} ${atTime(ev.start_time, lang)}`);
+    const medical = facts.events_today.filter((ev) => MEDICAL_EVENT_CATEGORIES.includes(ev.category)).map((ev) => `${ev.title} ${atTime(ev.start_time, lang)}${ev.location ? `, ${ev.location}` : ''}`);
     const visits = facts.visits_today.map((v) => v.checked_out_at
         ? `${visitLabel(v, lang)} ${atTime(v.checked_in_at, lang)}`
         : `${visitLabel(v, lang)} ${L('là depuis', 'here since', 'aquí desde', 'da seit')} ${fmtTime(v.checked_in_at, lang)}`);

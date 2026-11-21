@@ -318,7 +318,12 @@ export async function processRecording(rec: RecordingRow): Promise<void> {
         if (!rec.transcript) {
             const lang = await circleLanguage(rec.circle_id);
             const text = await transcribe(rec, lang);
-            await query(`UPDATE consultation_recordings SET transcript = $1 WHERE id = $2`, [text, rec.id]);
+            await query(`UPDATE consultation_recordings SET transcript = $1, transcript_edited = FALSE WHERE id = $2`, [text, rec.id]);
+            // E59: neue Mitschrift ist ungeprueft, eine fruehere Freigabe der Mitschrift gilt nicht mehr.
+            await query(
+                `UPDATE consultations SET transcript_status = 'draft', transcript_approved_by = NULL, transcript_approved_at = NULL WHERE id = $1`,
+                [rec.consultation_id]
+            );
         }
         await setStatus(rec.id, 'summarizing');
         await broadcast();

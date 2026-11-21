@@ -26,7 +26,7 @@
     "someone": "Quelqu'un passe"
   },
   "appointments": {
-    "title": "Rendez-vous du jour",
+    "title": "Rendez-vous",
     "empty": "Pas de rendez-vous aujourd'hui.",
     "companion": "Vous accompagne : {{names}}",
     "windowTitle": "Rendez-vous",
@@ -224,7 +224,12 @@
     "label": {
       "title": "Quel est ce rendez-vous ?",
       "date": "Quel jour ?",
-      "time": "À quelle heure ?"
+      "time": "À quelle heure ?",
+      "category": "Quel type de rendez-vous ?",
+      "location": "Où ? (facultatif)",
+      "companion": "Accompagnement nécessaire",
+      "travel": "Transport nécessaire",
+      "takeAlong": "Qu’emportez-vous ? (facultatif)"
     },
     "error": {
       "title": "Veuillez écrire de quel rendez-vous il s'agit.",
@@ -236,7 +241,12 @@
     "travelTo": "Aller",
     "travelBack": "Retour",
     "companion": "Vous accompagne",
-    "takeAlong": "À emporter"
+    "takeAlong": "À emporter",
+    "placeholder": {
+      "companion": "Qui vous accompagne ?",
+      "driver": "Qui conduit à l’aller et au retour ?"
+    },
+    "travel": "Transport"
   },
   "shopping": {
     "label": "Que faut-il ajouter à la liste ?",
@@ -316,5 +326,95 @@
     "more": "Charger plus",
     "empty": "Aucune valeur sur cette période.",
     "error": "Les valeurs n’ont pas pu être chargées. Veuillez vérifier la connexion Internet et réessayer."
+  },
+  "doctor": {
+    "listTitle": "Consultations",
+    "upcoming": "Consultations à venir",
+    "earlier": "Consultations passées",
+    "noUpcoming": "Aucune consultation prévue.",
+    "newAppointment": "Ajouter un rendez-vous médical",
+    "recordNow": "Enregistrer maintenant",
+    "newTitle": "Nouvelle consultation",
+    "editTitle": "Modifier les informations",
+    "enter": "Ajouter",
+    "save": "Enregistrer",
+    "saved": "Les informations sont enregistrées.",
+    "label": {
+      "doctor": "Chez quel médecin ?"
+    },
+    "error": {
+      "doctor": "Écrivez chez quel médecin vous allez."
+    },
+    "clock": "{{time}}",
+    "badge": {
+      "questions_one": "{{count}} question préparée",
+      "questions_other": "{{count}} questions préparées",
+      "checked": "Transcription et résumé vérifiés",
+      "unchecked": "Transcription et résumé non vérifiés",
+      "later": "Résumé à venir"
+    },
+    "card": {
+      "prep": "Préparation",
+      "recordings": "Enregistrements",
+      "transcript": "Transcription",
+      "summary": "Résumé"
+    },
+    "when": "Quand",
+    "doctor": "Médecin",
+    "companion": "Accompagnement",
+    "myQuestions": "Mes questions",
+    "noQuestions": "Pas encore de question.",
+    "addQuestion": "Ajouter une question",
+    "questionLabel": "Que voulez-vous demander ?",
+    "questionError": "Écrivez votre question.",
+    "add": "Ajouter",
+    "delete": "Supprimer",
+    "deleteQuestionN": "Supprimer la question {{n}}",
+    "deleteQuestionTitle": "Supprimer la question",
+    "deleteQuestionAsk": "Voulez-vous supprimer cette question ?",
+    "deleteQuestionFor": "Pour la consultation chez {{doctor}} le {{date}}",
+    "keep": "Non, garder",
+    "yesDelete": "Oui, supprimer",
+    "consent": "Le médecin est d’accord avec l’enregistrement.",
+    "consentHint": "Demandez d’abord si vous pouvez enregistrer.",
+    "startRecording": "Commencer un enregistrement",
+    "stopRecording": "Arrêter l’enregistrement",
+    "recordingTitle": "Enregistrement en cours",
+    "recordingHint": "L’écran reste allumé. Posez la tablette sur la table et ne l’éteignez pas.",
+    "recordSaved": "L’enregistrement est sauvegardé.",
+    "micEnded": "La tablette a coupé le micro. Tout jusqu’ici est sauvegardé.",
+    "quickHint": "Sans internet, l’enregistrement est gardé sur la tablette. La consultation apparaît dès qu’internet revient.",
+    "waitingNew_one": "{{count}} enregistrement est gardé sur la tablette. Il sera envoyé dès qu’internet revient.",
+    "waitingNew_other": "{{count}} enregistrements sont gardés sur la tablette. Ils seront envoyés dès qu’internet revient.",
+    "noRecordings": "Pas encore d’enregistrement.",
+    "recordingN": "Enregistrement {{n}}",
+    "recordingMeta_one": "{{time}} · {{count}} minute",
+    "recordingMeta_other": "{{time}} · {{count}} minutes",
+    "play": "Écouter",
+    "pause": "Pause",
+    "progress": "{{current}} sur {{total}}",
+    "audioGone": "L’enregistrement a été supprimé. La transcription reste.",
+    "savedOnTablet": "Gardé sur la tablette. Sera envoyé dès qu’internet revient.",
+    "playError": "L’enregistrement ne peut pas être lu pour le moment. Réessayez plus tard.",
+    "playOffline": "Pour écouter, la tablette a besoin d’internet.",
+    "checkedByFamily": "Vérifié par la famille",
+    "transcriptUnchecked": "Pas encore vérifié. La transcription peut contenir des erreurs.",
+    "summaryUnchecked": "Pas encore vérifié. Le résumé peut contenir des erreurs.",
+    "quote": "« {{text}} »",
+    "readTranscript": "Lire toute la transcription",
+    "transcriptTitle": "Transcription",
+    "transcriptLater": "La transcription arrivera plus tard.",
+    "noTranscript": "Après un enregistrement, la transcription apparaît ici.",
+    "summaryLater": "Le résumé arrivera plus tard.",
+    "noSummary": "Après un enregistrement, le résumé apparaît ici.",
+    "summary": {
+      "important": "L’essentiel",
+      "medications": "Médicaments",
+      "nextSteps": "À faire",
+      "appointments": "Prochain rendez-vous"
+    },
+    "offline": "Pour cela, la tablette a besoin d’internet. Réessayez plus tard.",
+    "linkError": "Le rendez-vous est enregistré, mais pas encore la consultation. Prévenez votre famille.",
+    "toConsultation": "Voir la consultation"
   }
 }

@@ -70,12 +70,14 @@
     "sections": "Partes de esta página",
     "nav": {
       "prep": "Preparación",
-      "recording": "Grabación",
-      "result": "Resultado",
-      "followUp": "Seguimiento"
+      "recording": "Grabaciones",
+      "result": "Resumen",
+      "followUp": "Seguimiento",
+      "transcript": "Transcripción"
     },
     "loadError": "Sin conexión. La consulta no se puede cargar ahora. Comprueba internet e inténtalo de nuevo.",
-    "reload": "Intentar de nuevo"
+    "reload": "Intentar de nuevo",
+    "locked": "La transcripción y el resumen están aprobados. Las preguntas, los datos y las grabaciones ya no se pueden cambiar. Para cambiar algo, retire una aprobación."
   },
   "prep": {
     "title": "Preparación",
@@ -90,11 +92,17 @@
     "confirmDeleteQuestion": "¿Borrar esta pregunta?",
     "newQuestion": "Nueva pregunta",
     "newQuestionPlaceholder": "Por ejemplo: ¿se puede reducir la dosis?",
-    "printReport": "Imprimir un informe para el médico"
+    "printReport": "Imprimir un informe para el médico",
+    "companion": "Acompañante",
+    "driver": "Transporte",
+    "driverMissing": "Falta conductor",
+    "takeAlong": "Llevar",
+    "eventHint": "El acompañante, el transporte y lo que hay que llevar se cambian en la cita (calendario) o en la tableta."
   },
   "recording": {
     "title": "Grabación",
-    "readOnly": "Solo los familiares pueden grabar una consulta."
+    "readOnly": "Solo los familiares pueden grabar una consulta.",
+    "locked": "La transcripción y el resumen están aprobados. Ya no se pueden hacer grabaciones nuevas."
   },
   "recorder": {
     "consent": "El médico ha aceptado la grabación.",
@@ -116,13 +124,17 @@
     }
   },
   "recordings": {
-    "title": "Grabaciones subidas",
+    "title": "Grabaciones",
     "none": "Todavía no se ha subido ninguna grabación.",
     "audioGone": "Audio borrado, transcripción guardada",
     "deleteAudio": "Borrar audio",
     "confirmDeleteAudio": "¿Borrar el audio de esta grabación? La transcripción y el resumen se conservan.",
     "audioDeleted": "Audio borrado",
-    "retried": "El procesamiento se ha vuelto a iniciar"
+    "retried": "El procesamiento se ha vuelto a iniciar",
+    "play": "Reproducir",
+    "player": "Reproducir grabación",
+    "playError": "Ahora no se puede reproducir la grabación. Inténtelo más tarde.",
+    "playOffline": "Para reproducirla, este dispositivo necesita internet."
   },
   "errors": {
     "WHISPER_NOT_CONFIGURED": "El reconocimiento de voz aún no está configurado. Un administrador puede configurar Whisper en Integraciones.",
@@ -137,7 +149,7 @@
     "CONSULTATION_DELETED": "La consulta de esta grabación se ha borrado."
   },
   "result": {
-    "title": "Resultado",
+    "title": "Resumen",
     "draftBanner": "Borrador de la IA, revísalo. Comprueba cada punto, sobre todo medicamentos y dosis, antes de aprobarlo.",
     "approvedBy": "Aprobado por {{name}} el {{date}}",
     "approvedPlain": "Aprobado",
@@ -182,7 +194,10 @@
     "appointmentTime": "Hora",
     "appointmentLocation": "Lugar",
     "familyNotes": "Notas propuestas para el tablón",
-    "confirmRegenerateProtected": "Atención: el resumen se creará de nuevo por completo. La versión aprobada o editada a mano se sustituirá y se quitará la aprobación. ¿Continuar?"
+    "confirmRegenerateProtected": "Atención: el resumen se creará de nuevo por completo. La versión aprobada o editada a mano se sustituirá y se quitará la aprobación. ¿Continuar?",
+    "unapprove": "Retirar aprobación",
+    "confirmUnapprove": "¿Retirar la aprobación del resumen? Después se podrá volver a cambiar la consulta.",
+    "unapproved": "Aprobación retirada"
   },
   "followUp": {
     "title": "Seguimiento",
@@ -267,5 +282,20 @@
   "logout": {
     "pending_one": "{{count}} grabación aún no se ha subido. Al cerrar sesión se borra de este dispositivo. ¿Cerrar sesión de todos modos?\n\nConsejo: cancela, conéctate a internet y espera un momento.",
     "pending_other": "{{count}} grabaciones aún no se han subido. Al cerrar sesión se borran de este dispositivo. ¿Cerrar sesión de todos modos?\n\nConsejo: cancela, conéctate a internet y espera un momento."
+  },
+  "when": "{{date}}, {{time}}",
+  "transcript": {
+    "title": "Transcripción",
+    "none": "Todavía no hay transcripción. Aparece aquí cuando se procesa una grabación.",
+    "draftBanner": "Todavía sin revisar. Revise sobre todo cifras y medicamentos. Puede cambiar el texto directamente.",
+    "recordingN": "Grabación {{n}}, {{time}}",
+    "save": "Guardar transcripción",
+    "approve": "Aprobar transcripción",
+    "confirmApprove": "¿Ha revisado la transcripción? Después de aprobarla se considera confirmada.",
+    "approved": "Transcripción aprobada",
+    "unapprove": "Retirar aprobación",
+    "confirmUnapprove": "¿Retirar la aprobación de la transcripción? Después se podrá volver a cambiar la consulta.",
+    "unapproved": "Aprobación retirada",
+    "approvedBadge": "Transcripción revisada"
   }
 }

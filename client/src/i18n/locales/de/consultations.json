@@ -70,12 +70,14 @@
     "sections": "Bereiche dieser Seite",
     "nav": {
       "prep": "Vorbereitung",
-      "recording": "Aufnahme",
-      "result": "Ergebnis",
-      "followUp": "Nachbereitung"
+      "recording": "Aufnahmen",
+      "result": "Zusammenfassung",
+      "followUp": "Nachbereitung",
+      "transcript": "Mitschrift"
     },
     "loadError": "Keine Verbindung. Das Gespräch kann gerade nicht geladen werden. Bitte prüfen Sie das Internet und versuchen Sie es erneut.",
-    "reload": "Erneut versuchen"
+    "reload": "Erneut versuchen",
+    "locked": "Mitschrift und Zusammenfassung sind freigegeben. Fragen, Angaben und Aufnahmen lassen sich nicht mehr ändern. Um doch etwas zu ändern, nehmen Sie eine Freigabe zurück."
   },
   "prep": {
     "title": "Vorbereitung",
@@ -90,11 +92,17 @@
     "confirmDeleteQuestion": "Diese Frage löschen?",
     "newQuestion": "Neue Frage",
     "newQuestionPlaceholder": "Zum Beispiel: Kann die Dosis verringert werden?",
-    "printReport": "Bericht für den Arzt drucken"
+    "printReport": "Bericht für den Arzt drucken",
+    "companion": "Begleitung",
+    "driver": "Fahrt",
+    "driverMissing": "Fahrer noch offen",
+    "takeAlong": "Mitnehmen",
+    "eventHint": "Begleitung, Fahrt und Mitnehmen ändern Sie im Termin (Kalender) oder am Tablet."
   },
   "recording": {
     "title": "Aufnahme",
-    "readOnly": "Nur Familienmitglieder können ein Gespräch aufnehmen."
+    "readOnly": "Nur Familienmitglieder können ein Gespräch aufnehmen.",
+    "locked": "Mitschrift und Zusammenfassung sind freigegeben. Neue Aufnahmen sind nicht mehr möglich."
   },
   "recorder": {
     "consent": "Der Arzt hat der Aufnahme zugestimmt.",
@@ -116,13 +124,17 @@
     }
   },
   "recordings": {
-    "title": "Hochgeladene Aufnahmen",
+    "title": "Aufnahmen",
     "none": "Noch keine Aufnahmen hochgeladen.",
     "audioGone": "Ton gelöscht, Mitschrift bleibt",
     "deleteAudio": "Ton löschen",
     "confirmDeleteAudio": "Den Ton dieser Aufnahme löschen? Mitschrift und Zusammenfassung bleiben erhalten.",
     "audioDeleted": "Ton gelöscht",
-    "retried": "Die Verarbeitung wurde neu gestartet"
+    "retried": "Die Verarbeitung wurde neu gestartet",
+    "play": "Abspielen",
+    "player": "Aufnahme abspielen",
+    "playError": "Die Aufnahme lässt sich gerade nicht abspielen. Bitte versuchen Sie es später noch einmal.",
+    "playOffline": "Zum Abspielen braucht dieses Gerät Internet."
   },
   "errors": {
     "WHISPER_NOT_CONFIGURED": "Die Spracherkennung ist noch nicht eingerichtet. Ein Administrator kann Whisper unter Integrationen einrichten.",
@@ -137,7 +149,7 @@
     "CONSULTATION_DELETED": "Das Gespräch zu dieser Aufnahme wurde gelöscht."
   },
   "result": {
-    "title": "Ergebnis",
+    "title": "Zusammenfassung",
     "draftBanner": "KI-Entwurf, bitte prüfen. Prüfen Sie jeden Punkt, besonders Medikamente und Dosierungen, bevor Sie freigeben.",
     "approvedBy": "Freigegeben von {{name}} am {{date}}",
     "approvedPlain": "Freigegeben",
@@ -182,7 +194,10 @@
     "appointmentTime": "Uhrzeit",
     "appointmentLocation": "Ort",
     "familyNotes": "Vorgeschlagene Notizen für die Pinnwand",
-    "confirmRegenerateProtected": "Achtung: Die Zusammenfassung wird komplett neu erstellt. Die freigegebene oder von Hand bearbeitete Fassung wird ersetzt, und die Freigabe entfällt. Fortfahren?"
+    "confirmRegenerateProtected": "Achtung: Die Zusammenfassung wird komplett neu erstellt. Die freigegebene oder von Hand bearbeitete Fassung wird ersetzt, und die Freigabe entfällt. Fortfahren?",
+    "unapprove": "Freigabe zurücknehmen",
+    "confirmUnapprove": "Die Freigabe der Zusammenfassung zurücknehmen? Danach lässt sich das Gespräch wieder ändern.",
+    "unapproved": "Freigabe zurückgenommen"
   },
   "followUp": {
     "title": "Nachbereitung",
@@ -267,5 +282,20 @@
   "logout": {
     "pending_one": "{{count}} Aufnahme ist noch nicht hochgeladen. Beim Abmelden wird sie von diesem Gerät gelöscht. Trotzdem abmelden?\n\nTipp: Abbrechen, mit dem Internet verbinden und kurz warten.",
     "pending_other": "{{count}} Aufnahmen sind noch nicht hochgeladen. Beim Abmelden werden sie von diesem Gerät gelöscht. Trotzdem abmelden?\n\nTipp: Abbrechen, mit dem Internet verbinden und kurz warten."
+  },
+  "when": "{{date}}, {{time}} Uhr",
+  "transcript": {
+    "title": "Mitschrift",
+    "none": "Noch keine Mitschrift. Sie erscheint hier, sobald eine Aufnahme verarbeitet ist.",
+    "draftBanner": "Noch nicht geprüft. Prüfen Sie vor allem Zahlen und Medikamente. Sie können den Text direkt ändern.",
+    "recordingN": "Aufnahme {{n}}, {{time}}",
+    "save": "Mitschrift speichern",
+    "approve": "Mitschrift freigeben",
+    "confirmApprove": "Haben Sie die Mitschrift geprüft? Nach der Freigabe gilt sie als bestätigt.",
+    "approved": "Mitschrift freigegeben",
+    "unapprove": "Freigabe zurücknehmen",
+    "confirmUnapprove": "Die Freigabe der Mitschrift zurücknehmen? Danach lässt sich das Gespräch wieder ändern.",
+    "unapproved": "Freigabe zurückgenommen",
+    "approvedBadge": "Mitschrift geprüft"
   }
 }

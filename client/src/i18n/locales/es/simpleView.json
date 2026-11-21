@@ -26,7 +26,7 @@
     "someone": "Viene alguien"
   },
   "appointments": {
-    "title": "Citas de hoy",
+    "title": "Citas",
     "empty": "Hoy no hay ninguna cita.",
     "companion": "Le acompaña: {{names}}",
     "windowTitle": "Citas",
@@ -224,7 +224,12 @@
     "label": {
       "title": "¿Qué cita es?",
       "date": "¿Qué día?",
-      "time": "¿A qué hora?"
+      "time": "¿A qué hora?",
+      "category": "¿Qué tipo de cita es?",
+      "location": "¿Dónde? (opcional)",
+      "companion": "Necesita acompañante",
+      "travel": "Necesita transporte",
+      "takeAlong": "¿Qué lleva consigo? (opcional)"
     },
     "error": {
       "title": "Escriba qué cita es, por favor.",
@@ -236,7 +241,12 @@
     "travelTo": "Ida",
     "travelBack": "Vuelta",
     "companion": "Le acompaña",
-    "takeAlong": "Llevar"
+    "takeAlong": "Llevar",
+    "placeholder": {
+      "companion": "¿Quién le acompaña?",
+      "driver": "¿Quién le lleva y le trae?"
+    },
+    "travel": "Transporte"
   },
   "shopping": {
     "label": "¿Qué hay que añadir a la lista?",
@@ -316,5 +326,95 @@
     "more": "Cargar más",
     "empty": "No hay valores en este periodo.",
     "error": "No se han podido cargar los valores. Por favor, compruebe la conexión a internet e inténtelo de nuevo."
+  },
+  "doctor": {
+    "listTitle": "Consultas médicas",
+    "upcoming": "Próximas consultas",
+    "earlier": "Consultas anteriores",
+    "noUpcoming": "No hay ninguna consulta prevista.",
+    "newAppointment": "Añadir cita médica",
+    "recordNow": "Grabar consulta ahora",
+    "newTitle": "Nueva consulta médica",
+    "editTitle": "Cambiar datos",
+    "enter": "Añadir",
+    "save": "Guardar",
+    "saved": "Los datos están guardados.",
+    "label": {
+      "doctor": "¿Con qué médico?"
+    },
+    "error": {
+      "doctor": "Escriba con qué médico tiene la cita."
+    },
+    "clock": "{{time}}",
+    "badge": {
+      "questions_one": "{{count}} pregunta preparada",
+      "questions_other": "{{count}} preguntas preparadas",
+      "checked": "Transcripción y resumen revisados",
+      "unchecked": "Transcripción y resumen sin revisar",
+      "later": "Resumen pendiente"
+    },
+    "card": {
+      "prep": "Preparación",
+      "recordings": "Grabaciones",
+      "transcript": "Transcripción",
+      "summary": "Resumen"
+    },
+    "when": "Cuándo",
+    "doctor": "Médico",
+    "companion": "Acompañante",
+    "myQuestions": "Mis preguntas",
+    "noQuestions": "Todavía no hay preguntas.",
+    "addQuestion": "Añadir pregunta",
+    "questionLabel": "¿Qué quiere preguntar?",
+    "questionError": "Escriba su pregunta.",
+    "add": "Añadir",
+    "delete": "Borrar",
+    "deleteQuestionN": "Borrar la pregunta {{n}}",
+    "deleteQuestionTitle": "Borrar pregunta",
+    "deleteQuestionAsk": "¿Quiere borrar esta pregunta?",
+    "deleteQuestionFor": "Para la consulta con {{doctor}} el {{date}}",
+    "keep": "No, conservar",
+    "yesDelete": "Sí, borrar",
+    "consent": "El médico está de acuerdo con la grabación.",
+    "consentHint": "Pregunte primero si puede grabar.",
+    "startRecording": "Empezar nueva grabación",
+    "stopRecording": "Terminar grabación",
+    "recordingTitle": "Grabando",
+    "recordingHint": "La pantalla se queda encendida. Deje la tableta sobre la mesa y no la apague.",
+    "recordSaved": "La grabación está guardada.",
+    "micEnded": "La tableta ha apagado el micrófono. Todo hasta aquí está guardado.",
+    "quickHint": "Sin internet, la grabación se guarda en la tableta. La consulta aparece cuando vuelva internet.",
+    "waitingNew_one": "{{count}} grabación está guardada en la tableta. Se enviará cuando vuelva internet.",
+    "waitingNew_other": "{{count}} grabaciones están guardadas en la tableta. Se enviarán cuando vuelva internet.",
+    "noRecordings": "Todavía no hay grabaciones.",
+    "recordingN": "Grabación {{n}}",
+    "recordingMeta_one": "{{time}} · {{count}} minuto",
+    "recordingMeta_other": "{{time}} · {{count}} minutos",
+    "play": "Reproducir",
+    "pause": "Pausa",
+    "progress": "{{current}} de {{total}}",
+    "audioGone": "La grabación se ha borrado. La transcripción se mantiene.",
+    "savedOnTablet": "Guardada en la tableta. Se enviará cuando vuelva internet.",
+    "playError": "Ahora no se puede reproducir la grabación. Inténtelo más tarde.",
+    "playOffline": "Para reproducirla, la tableta necesita internet.",
+    "checkedByFamily": "Revisado por la familia",
+    "transcriptUnchecked": "Todavía sin revisar. La transcripción puede tener errores.",
+    "summaryUnchecked": "Todavía sin revisar. El resumen puede tener errores.",
+    "quote": "«{{text}}»",
+    "readTranscript": "Leer toda la transcripción",
+    "transcriptTitle": "Transcripción",
+    "transcriptLater": "La transcripción llegará más tarde.",
+    "noTranscript": "Después de una grabación, aquí aparece la transcripción.",
+    "summaryLater": "El resumen llegará más tarde.",
+    "noSummary": "Después de una grabación, aquí aparece el resumen.",
+    "summary": {
+      "important": "Lo más importante",
+      "medications": "Medicamentos",
+      "nextSteps": "Qué hacer",
+      "appointments": "Próxima cita"
+    },
+    "offline": "Para esto, la tableta necesita internet. Inténtelo más tarde.",
+    "linkError": "La cita está guardada, pero la consulta todavía no. Avise a su familia.",
+    "toConsultation": "Ir a la consulta"
   }
 }

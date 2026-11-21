@@ -81,6 +81,17 @@
     "loadMembers": "Unable to load circle members.",
     "toggle": "Unable to update this task.",
     "save": "Unable to save this task.",
-    "delete": "Unable to delete this task."
+    "delete": "Unable to delete this task.",
+    "feed": "Unable to create the task link. Please try again later."
+  },
+  "feed": {
+    "title": "Task link",
+    "description": "For your morning email or other programs: the link returns open tasks that are overdue or due this week.",
+    "generate": "Create task link",
+    "linkLabel": "Task link",
+    "copy": "Copy link",
+    "regenerate": "Create new link",
+    "confirmRegen": "Create a new link? The old link will stop working.",
+    "privateNote": "This link is private. Anyone who has it can see the tasks."
   }
 }

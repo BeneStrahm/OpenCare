@@ -3,16 +3,20 @@
  *
  * Jedes Audiostueck wird sofort nach dem Aufnehmen gespeichert. Stuerzt die
  * App ab oder geht der Akku leer, bleibt alles bis zum letzten Stueck
- * erhalten. Geloescht wird erst, wenn der Server die Aufnahme vollstaendig
- * bestaetigt hat (siehe consultationUploader.ts).
+ * erhalten. Nach der Bestaetigung durch den Server bleibt die Aufnahme als
+ * "uploaded" noch LOCAL_COPY_DAYS Tage zum Abspielen auf dem Geraet (E59),
+ * danach wird sie geloescht und vom Server abgespielt (consultationUploader.ts).
  */
+
+/** E59: So lange bleibt die lokale Kopie einer gesendeten Aufnahme auf dem Geraet. */
+export const LOCAL_COPY_DAYS = 30;
 
 const DB_NAME = 'opencare-consultations';
 const DB_VERSION = 1;
 const RECORDINGS = 'recordings';
 const CHUNKS = 'chunks';
 
-export type LocalRecordingState = 'recording' | 'pending';
+export type LocalRecordingState = 'recording' | 'pending' | 'uploaded';
 
 export interface LocalRecording {
     client_id: string;
@@ -42,6 +46,23 @@ export interface LocalRecording {
     needs_help?: string | null;
     /** Tablet: gehoert zum selben Gespraech wie diese fruehere Aufnahme */
     follows_client_id?: string | null;
+    /** E59: Zeitpunkt (ms), zu dem der Server die Aufnahme vollstaendig bestaetigt hat */
+    uploaded_at?: number | null;
+}
+
+/** Noch nicht beim Server: laeuft oder wartet auf das Senden. */
+export const isUnsent = (r: Pick<LocalRecording, 'state'>): boolean => r.state === 'recording' || r.state === 'pending';
+
+/** E59: lokale Kopie als eine Datei zum Abspielen (alle Stuecke in Reihenfolge), sonst null. */
+export async function localAudio(clientId: string): Promise<Blob | null> {
+    const recording = await getRecording(clientId);
+    if (!recording) return null;
+    const db = await openDb();
+    const tx = db.transaction(CHUNKS, 'readonly');
+    const rows = (await result(tx.objectStore(CHUNKS).index('by_client').getAll(IDBKeyRange.only(clientId)))) as ChunkRow[];
+    if (rows.length === 0) return null;
+    rows.sort((a, b) => a.index - b.index);
+    return new Blob(rows.map((r) => r.blob), { type: recording.mime_type.split(';')[0] });
 }
 
 /** Fehler, wenn eine Aufnahme lokal nicht (mehr) existiert. */

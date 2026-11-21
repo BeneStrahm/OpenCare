@@ -70,12 +70,14 @@
     "sections": "Sections of this page",
     "nav": {
       "prep": "Preparation",
-      "recording": "Recording",
-      "result": "Result",
-      "followUp": "Follow-up"
+      "recording": "Recordings",
+      "result": "Summary",
+      "followUp": "Follow-up",
+      "transcript": "Transcript"
     },
     "loadError": "No connection. The consultation cannot be loaded right now. Please check the internet and try again.",
-    "reload": "Try again"
+    "reload": "Try again",
+    "locked": "Transcript and summary are approved. Questions, details and recordings can no longer be changed. To change something, withdraw an approval."
   },
   "prep": {
     "title": "Preparation",
@@ -90,11 +92,17 @@
     "confirmDeleteQuestion": "Delete this question?",
     "newQuestion": "New question",
     "newQuestionPlaceholder": "For example: Can the dose be reduced?",
-    "printReport": "Print a report for the doctor"
+    "printReport": "Print a report for the doctor",
+    "companion": "Coming along",
+    "driver": "Transport",
+    "driverMissing": "Driver still open",
+    "takeAlong": "Take along",
+    "eventHint": "Change who comes along, transport and what to take in the appointment (calendar) or on the tablet."
   },
   "recording": {
     "title": "Recording",
-    "readOnly": "Only family members can record a visit."
+    "readOnly": "Only family members can record a visit.",
+    "locked": "Transcript and summary are approved. No new recordings are possible."
   },
   "recorder": {
     "consent": "The doctor has agreed to the recording.",
@@ -116,13 +124,17 @@
     }
   },
   "recordings": {
-    "title": "Uploaded recordings",
+    "title": "Recordings",
     "none": "No recordings uploaded yet.",
     "audioGone": "Audio deleted, transcript kept",
     "deleteAudio": "Delete audio",
     "confirmDeleteAudio": "Delete the audio of this recording? The transcript and summary are kept.",
     "audioDeleted": "Audio deleted",
-    "retried": "Processing started again"
+    "retried": "Processing started again",
+    "play": "Play",
+    "player": "Play recording",
+    "playError": "The recording cannot be played right now. Please try again later.",
+    "playOffline": "This device needs internet to play the recording."
   },
   "errors": {
     "WHISPER_NOT_CONFIGURED": "Speech recognition is not set up yet. An administrator can set up Whisper under Integrations.",
@@ -137,7 +149,7 @@
     "CONSULTATION_DELETED": "The consultation for this recording was deleted."
   },
   "result": {
-    "title": "Result",
+    "title": "Summary",
     "draftBanner": "AI draft, please review. Check every point, especially medicines and doses, before you approve it.",
     "approvedBy": "Approved by {{name}} on {{date}}",
     "approvedPlain": "Approved",
@@ -182,7 +194,10 @@
     "appointmentTime": "Time",
     "appointmentLocation": "Place",
     "familyNotes": "Suggested notes for the board",
-    "confirmRegenerateProtected": "Warning: the summary will be created again from scratch. The approved or hand-edited version will be replaced and the approval removed. Continue?"
+    "confirmRegenerateProtected": "Warning: the summary will be created again from scratch. The approved or hand-edited version will be replaced and the approval removed. Continue?",
+    "unapprove": "Withdraw approval",
+    "confirmUnapprove": "Withdraw the approval of the summary? The visit can then be changed again.",
+    "unapproved": "Approval withdrawn"
   },
   "followUp": {
     "title": "Follow-up",
@@ -267,5 +282,20 @@
   "logout": {
     "pending_one": "{{count}} recording has not been uploaded yet. Signing out deletes it from this device. Sign out anyway?\n\nTip: cancel, connect to the internet and wait a moment.",
     "pending_other": "{{count}} recordings have not been uploaded yet. Signing out deletes them from this device. Sign out anyway?\n\nTip: cancel, connect to the internet and wait a moment."
+  },
+  "when": "{{date}}, {{time}}",
+  "transcript": {
+    "title": "Transcript",
+    "none": "No transcript yet. It appears here once a recording has been processed.",
+    "draftBanner": "Not checked yet. Check numbers and medication in particular. You can edit the text directly.",
+    "recordingN": "Recording {{n}}, {{time}}",
+    "save": "Save transcript",
+    "approve": "Approve transcript",
+    "confirmApprove": "Have you checked the transcript? After approval it counts as confirmed.",
+    "approved": "Transcript approved",
+    "unapprove": "Withdraw approval",
+    "confirmUnapprove": "Withdraw the approval of the transcript? The visit can then be changed again.",
+    "unapproved": "Approval withdrawn",
+    "approvedBadge": "Transcript checked"
   }
 }

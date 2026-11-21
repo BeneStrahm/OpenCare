@@ -128,3 +128,6 @@ HOSTING-IONOS.md
 
 # Externe Unterlagen (fremdes Urheberrecht, nicht ins öffentliche Repo)
 docs/referenz/
+
+# Hilfsskripte von Claude (lokal)
+Claude outputs/tmp/

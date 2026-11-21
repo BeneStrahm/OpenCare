@@ -253,6 +253,9 @@ export const runMigrations = async () => {
         `ALTER TABLE events ALTER COLUMN companion_needed DROP NOT NULL;`,
         `ALTER TABLE events ALTER COLUMN companion_needed DROP DEFAULT;`,
         `ALTER TABLE events ADD COLUMN IF NOT EXISTS travel_needed BOOLEAN;`,
+        // E60: neue Terminart "doctor" (Arzt) neben "medical". Bestehende Termine bleiben unveraendert.
+        `ALTER TABLE events DROP CONSTRAINT IF EXISTS events_category_check;`,
+        `ALTER TABLE events ADD CONSTRAINT events_category_check CHECK (category IN ('visit', 'medical', 'doctor', 'nurse', 'aide', 'other'));`,
         // Fork: Aufgaben auch an Personen ohne Konto (freie Namen).
         `ALTER TABLE tasks ADD COLUMN IF NOT EXISTS assigned_names JSONB NOT NULL DEFAULT '[]'::jsonb;`,
         // Stock de medicaments et seuil de renouvellement.
@@ -514,6 +517,9 @@ export const runMigrations = async () => {
         // Fork, Block M (E23): "Spaeter erinnern" verschiebt eine Einnahme (hoechstens zweimal).
         `ALTER TABLE medication_intakes ADD COLUMN IF NOT EXISTS snoozed_until TIMESTAMP;`,
         `ALTER TABLE medication_intakes ADD COLUMN IF NOT EXISTS snooze_count SMALLINT NOT NULL DEFAULT 0;`,
+        // E62: geheimer Aufgaben-Link (JSON) pro Nutzer, z. B. für eine Morgen-Mail über n8n
+        `ALTER TABLE users ADD COLUMN IF NOT EXISTS tasks_token VARCHAR(64);`,
+        `CREATE UNIQUE INDEX IF NOT EXISTS idx_users_tasks_token ON users(tasks_token);`,
     ];
 
     for (const migration of migrations) {

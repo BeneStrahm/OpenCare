@@ -102,4 +102,13 @@ export const CONSULTATION_MIGRATIONS: string[] = [
     `ALTER TABLE consultations ADD COLUMN IF NOT EXISTS summary_source VARCHAR(10);`,
     `ALTER TABLE consultations ADD COLUMN IF NOT EXISTS summary_outdated BOOLEAN NOT NULL DEFAULT FALSE;`,
     `ALTER TABLE consultation_recordings ADD COLUMN IF NOT EXISTS force_summary BOOLEAN NOT NULL DEFAULT FALSE;`,
+
+    // E59: Mitschrift von Hand bearbeiten und freigeben (wie die Zusammenfassung).
+    // Sind Mitschrift und Zusammenfassung freigegeben, ist das Gespraech gesperrt (routes.ts, isLocked).
+    `ALTER TABLE consultations ADD COLUMN IF NOT EXISTS transcript_status VARCHAR(20) NOT NULL DEFAULT 'draft';`,
+    `ALTER TABLE consultations DROP CONSTRAINT IF EXISTS consultations_transcript_status_check;`,
+    `ALTER TABLE consultations ADD CONSTRAINT consultations_transcript_status_check CHECK (transcript_status IN ('draft', 'approved'));`,
+    `ALTER TABLE consultations ADD COLUMN IF NOT EXISTS transcript_approved_by UUID REFERENCES users(id) ON DELETE SET NULL;`,
+    `ALTER TABLE consultations ADD COLUMN IF NOT EXISTS transcript_approved_at TIMESTAMP;`,
+    `ALTER TABLE consultation_recordings ADD COLUMN IF NOT EXISTS transcript_edited BOOLEAN NOT NULL DEFAULT FALSE;`,
 ];

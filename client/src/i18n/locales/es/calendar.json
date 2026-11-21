@@ -19,7 +19,8 @@
   "recurring": "Se repite",
   "categories": {
     "visit": "Visita",
-    "medical": "Médico",
+    "doctor": "Médico",
+    "medical": "Sanitaria",
     "nurse": "Enfermera",
     "aide": "Auxiliar",
     "other": "Otro"
@@ -158,5 +159,10 @@
   },
   "day": {
     "empty": "Ningún evento este día."
+  },
+  "consultation": {
+    "open": "Ir a la consulta",
+    "prepare": "Preparar la consulta",
+    "linkError": "No se pudo crear la consulta. Inténtelo de nuevo."
   }
 }

@@ -19,6 +19,7 @@
   "recurring": "Repeats",
   "categories": {
     "visit": "Visit",
+    "doctor": "Doctor",
     "medical": "Medical",
     "nurse": "Nurse",
     "aide": "Care aide",
@@ -158,5 +159,10 @@
   },
   "day": {
     "empty": "No events on this day."
+  },
+  "consultation": {
+    "open": "Go to doctor's visit",
+    "prepare": "Prepare doctor's visit",
+    "linkError": "The doctor's visit could not be created. Please try again."
   }
 }

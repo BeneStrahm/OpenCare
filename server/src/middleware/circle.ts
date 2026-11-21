@@ -14,8 +14,9 @@ export const CIRCLE_ROLES: CircleRole[] = ['admin', 'family', 'professional', 'n
  * - sieht in der App nur die einfache Ansicht (client/src/pages/RecipientView.tsx)
  *   und liest nur ihren Alltag: Termine, Medikamente heute, wichtige Kontakte,
  *   Besuche, Hitzewarnung, Name und Foto, Antworten auf die festen Fragen
- *   von "Fragen Sie mich". Erlaubt ist nur, was in RECIPIENT_ALLOWED_REQUESTS steht;
- *   alles andere lehnt circleMiddleware mit 403 ab (Tagebuch, Arztgespraech,
+ *   von "Fragen Sie mich", Arztgespraeche (E59, mit Mitschrift und Zusammenfassung).
+ *   Erlaubt ist nur, was in RECIPIENT_ALLOWED_REQUESTS steht;
+ *   alles andere lehnt circleMiddleware mit 403 ab (Tagebuch,
  *   Dokumente, Gesundheitswerte, Aufgaben, Mitglieder- und Kreisverwaltung, Export ...).
  * - schreibt fast nichts. Ausnahmen: bestaetigt Einnahmen als "Genommen"
  *   (INTAKE_CONFIRMER_ROLES), einzeln oder pro Tageszeit; kein "Bei Bedarf".
@@ -30,14 +31,19 @@ export const CIRCLE_ROLES: CircleRole[] = ['admin', 'family', 'professional', 'n
  *   Einen eigenen Eintrag darf sie RECIPIENT_UNDO_MINUTES lang loeschen
  *   (recipientVitalUndoMsLeft), aendern nicht. Lesen nur diese drei Arten, nur ueber
  *   GET /api/vitals/diary (Tagebuch, je 28 Tage), keine anderen Messwerte.
- *   Block L3 (E21): legt selbst einen Termin an, nur Titel und Beginn, Kategorie
- *   "Sonstige", ohne Serie und ohne Teilnehmende (parseRecipientEvent). Den eigenen
+ *   Block L3 (E21, erweitert E60): legt selbst einen Termin an: Titel, Beginn, Art (alle Arten),
+ *   Ort, Begleitung und Fahrt (je ein Name), Mitnehmen; ohne Serie, Erinnerung 1 Stunde
+ *   (parseRecipientEvent). Vorschlaege fuer Namen: GET /api/events/people. Den eigenen
  *   neuen Termin darf sie RECIPIENT_UNDO_MINUTES lang loeschen
  *   (recipientEventUndoMsLeft), andere Termine nie aendern oder loeschen.
  *   Block L4 (E21): Einkaufsliste lesen, etwas hinzufuegen (nur den Namen,
  *   parseRecipientShoppingName) und abhaken. Den eigenen neuen Eintrag darf sie
  *   RECIPIENT_UNDO_MINUTES lang loeschen, das eigene Abhaken so lange zuruecknehmen
  *   (recipientShoppingUndo). Sonst nichts an der Einkaufsliste.
+ *   E59: Arztgespraeche anlegen (mit eigenem Arzttermin oder "jetzt aufnehmen"), Angaben
+ *   aendern, Fragen hinzufuegen und loeschen, aufnehmen (mit Einwilligung), abspielen
+ *   (CONSULTATION_PREPARER_ROLES). Nicht: pruefen, freigeben, Audio loeschen. Nach beiden
+ *   Freigaben ist das Gespraech fuer alle gesperrt (isLocked in modules/consultations/routes.ts).
  * - eigenes Konto (Profil, Sprache, Benachrichtigungen) unter /api/auth und
  *   /api/notifications haengt an keinem Kreis und bleibt unberuehrt.
  */
@@ -86,6 +92,8 @@ export const RECIPIENT_ALLOWED_REQUESTS: Array<{ method: 'GET' | 'POST' | 'PUT' 
     // Die Route prueft Felder, Urheber und Zeit (routes/events.ts).
     { method: 'POST', path: /^\/api\/events$/ },
     { method: 'GET', path: /^\/api\/events\/mine\/undoable$/ },
+    // E60: Vorschlaege fuer Begleitung, Fahrt und Arzt (Namen aus Mitgliedern, Kontakten, frueheren Gaesten).
+    { method: 'GET', path: /^\/api\/events\/people$/ },
     { method: 'DELETE', path: new RegExp(`^/api/events/${SEGMENT}$`) },
     // Block L4: Einkaufsliste lesen, hinzufuegen, abhaken, 10 Minuten rueckgaengig.
     // Die Route prueft Felder, Urheber und Zeit (routes/shopping.ts).
@@ -95,6 +103,20 @@ export const RECIPIENT_ALLOWED_REQUESTS: Array<{ method: 'GET' | 'POST' | 'PUT' 
     { method: 'DELETE', path: new RegExp(`^/api/shopping/${SEGMENT}$`) },
     // "Fragen Sie mich": nur die festen Fragen, Antwort ohne KI aus den eigenen Daten
     // (FIXED_QUESTIONS in routes/companion.ts). Keine freie Eingabe.
+    // E59: Arztgespraeche lesen (mit Mitschrift und Zusammenfassung, auch ungeprueft), anlegen,
+    // Angaben aendern, Fragen hinzufuegen und loeschen, aufnehmen und abspielen. Die Routen pruefen
+    // die Rollen zusaetzlich (CONSULTATION_PREPARER_ROLES) und die Sperre nach beiden Freigaben.
+    { method: 'GET', path: /^\/api\/consultations$/ },
+    { method: 'POST', path: /^\/api\/consultations$/ },
+    { method: 'GET', path: new RegExp(`^/api/consultations/(?!vocabulary$)${SEGMENT}$`) },
+    { method: 'PUT', path: new RegExp(`^/api/consultations/(?!vocabulary$|recordings$)${SEGMENT}$`) },
+    { method: 'POST', path: new RegExp(`^/api/consultations/${SEGMENT}/questions$`) },
+    { method: 'DELETE', path: new RegExp(`^/api/consultations/${SEGMENT}/questions/${SEGMENT}$`) },
+    { method: 'POST', path: /^\/api\/consultations\/recordings$/ },
+    { method: 'GET', path: new RegExp(`^/api/consultations/recordings/${SEGMENT}$`) },
+    { method: 'PUT', path: new RegExp(`^/api/consultations/recordings/${SEGMENT}/chunks/\\d+$`) },
+    { method: 'POST', path: new RegExp(`^/api/consultations/recordings/${SEGMENT}/complete$`) },
+    { method: 'GET', path: new RegExp(`^/api/consultations/recordings/${SEGMENT}/audio$`) },
     { method: 'GET', path: /^\/api\/companion\/answer\/(medications|visitors|appointments|week|date|contacts)$/ },
 ];
 
@@ -281,12 +303,44 @@ export const RECIPIENT_EVENT_TITLE_MAX = 120;
 /** So weit voraus darf die betreute Person einen Termin anlegen. */
 export const RECIPIENT_EVENT_MAX_YEARS = 2;
 
+/** Terminarten, die die betreute Person waehlen darf (E60: alle). Gleiche Liste wie routes/events.ts. */
+export const RECIPIENT_EVENT_CATEGORIES = ['visit', 'medical', 'doctor', 'nurse', 'aide', 'other'] as const;
+
+const RECIPIENT_TEXT_MAX = 255;
+const RECIPIENT_TAKE_ALONG_MAX = 500;
+const RECIPIENT_PERSON_MAX = 100;
+
+/** Eingabe der betreuten Person fuer einen Termin (Block L3, erweitert E60). */
+export interface RecipientEventInput {
+    title: string;
+    start_time: string;
+    category: (typeof RECIPIENT_EVENT_CATEGORIES)[number];
+    location: string | null;
+    companion_needed: boolean;
+    /** Mitglied des Kreises (id) oder freier Name (Gast); hoechstens eine Person. */
+    member_ids: string[];
+    guests: string[];
+    travel_needed: boolean;
+    /** Ein Name fuer Hin- und Rueckfahrt. */
+    driver: string | null;
+    take_along: string | null;
+}
+
+const recipientText = (value: unknown, max: number): string | null => {
+    if (typeof value !== 'string') return null;
+    const t = value.trim().replace(/[ \t]+/g, ' ');
+    return t ? t.slice(0, max) : null;
+};
+
 /**
- * Eingabe der betreuten Person fuer einen neuen Termin: nur Titel und Beginn
- * ("YYYY-MM-DDTHH:MM", Ortszeit), ab heute bis RECIPIENT_EVENT_MAX_YEARS Jahre voraus.
- * Alles andere im Body wird nicht beachtet. Ungueltig -> null.
+ * Eingabe der betreuten Person fuer einen neuen Termin: Titel und Beginn
+ * ("YYYY-MM-DDTHH:MM", Ortszeit), ab heute bis RECIPIENT_EVENT_MAX_YEARS Jahre voraus,
+ * dazu (E60) Art, Ort, Begleitung (ein Mitglied oder ein freier Name), Fahrt (ein Name
+ * fuer Hin- und Rueckfahrt) und Mitnehmen. Ohne Art gilt "Sonstige". Keine Serie, keine
+ * Notiz, Erinnerung immer 1 Stunde vorher (Route). Alles andere im Body wird nicht beachtet.
+ * Ungueltig -> null.
  */
-export function parseRecipientEvent(body: unknown, now: Date = new Date()): { title: string; start_time: string } | null {
+export function parseRecipientEvent(body: unknown, now: Date = new Date()): RecipientEventInput | null {
     const input = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
     const title = typeof input.title === 'string' ? input.title.trim().replace(/\s+/g, ' ') : '';
     if (!title || title.length > RECIPIENT_EVENT_TITLE_MAX) return null;
@@ -300,7 +354,28 @@ export function parseRecipientEvent(body: unknown, now: Date = new Date()): { ti
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const latest = new Date(today.getFullYear() + RECIPIENT_EVENT_MAX_YEARS, today.getMonth(), today.getDate(), 23, 59);
     if (date.getTime() < today.getTime() || date.getTime() > latest.getTime()) return null;
-    return { title, start_time: `${start}:00` };
+
+    const rawCategory = input.category === undefined || input.category === null || input.category === '' ? 'other' : input.category;
+    if (!RECIPIENT_EVENT_CATEGORIES.includes(rawCategory as RecipientEventInput['category'])) return null;
+
+    const companionNeeded = input.companion_needed === true;
+    const memberId = companionNeeded && typeof input.companion_member_id === 'string' && input.companion_member_id.trim()
+        ? input.companion_member_id.trim() : null;
+    const companionName = companionNeeded && !memberId ? recipientText(input.companion_name, RECIPIENT_PERSON_MAX) : null;
+    const travelNeeded = input.travel_needed === true;
+
+    return {
+        title,
+        start_time: `${start}:00`,
+        category: rawCategory as RecipientEventInput['category'],
+        location: recipientText(input.location, RECIPIENT_TEXT_MAX),
+        companion_needed: companionNeeded,
+        member_ids: memberId ? [memberId] : [],
+        guests: companionName ? [companionName] : [],
+        travel_needed: travelNeeded,
+        driver: travelNeeded ? recipientText(input.driver, RECIPIENT_PERSON_MAX) : null,
+        take_along: recipientText(input.take_along, RECIPIENT_TAKE_ALONG_MAX),
+    };
 }
 
 /** Felder eines Termins, die fuer das Rueckgaengig der betreuten Person zaehlen. */
@@ -374,8 +449,15 @@ export function recipientMayCheckShopping(target: unknown, item: ShoppingEntryIn
 /** Roles allowed to read health data (vitals, medications, documents, digests). */
 export const HEALTH_READER_ROLES: CircleRole[] = ['admin', 'family', 'professional', 'recipient'];
 
-/** Roles allowed to read consultations (transcripts and AI drafts are health data). */
-export const CONSULTATION_READER_ROLES: CircleRole[] = ['admin', 'family', 'professional'];
+/** Roles allowed to read consultations (transcripts and AI drafts are health data). E59: auch recipient. */
+export const CONSULTATION_READER_ROLES: CircleRole[] = ['admin', 'family', 'professional', 'recipient'];
+
+/**
+ * E59: Arztgespraech vorbereiten und aufnehmen (anlegen, Angaben aendern, Fragen hinzufuegen
+ * und loeschen, Aufnahmen). Pruefen, Freigeben, Bearbeiten der Mitschrift und Zusammenfassung,
+ * Audio loeschen: nur admin und family (modules/consultations/routes.ts, WRITER_ROLES).
+ */
+export const CONSULTATION_PREPARER_ROLES: CircleRole[] = ['admin', 'family', 'recipient'];
 
 export interface CircleRequest extends AuthRequest {
     /** Active care circle, resolved from the X-Circle-Id header or :circleId param */

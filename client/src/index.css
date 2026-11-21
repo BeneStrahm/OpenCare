@@ -128,6 +128,23 @@
     display: none;
   }
 
+  /* E59: mehrzeilige Textfelder zeigen einen kleinen Scrollbalken, wenn der Text laenger ist
+     als das Feld (Android blendet ihn sonst aus). */
+  .scrollbar-visible {
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #6b7484 transparent;
+  }
+
+  .scrollbar-visible::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scrollbar-visible::-webkit-scrollbar-thumb {
+    background-color: #6b7484;
+    border-radius: 9999px;
+  }
+
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
   }

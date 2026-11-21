@@ -21,11 +21,12 @@ import AttentionCard, { type AttentionItem } from '../components/app/AttentionCa
 
 // ─── Payload of GET /api/dashboard ────────────────────────────────────────────
 
-type EventCategory = 'visit' | 'medical' | 'nurse' | 'aide' | 'other';
+type EventCategory = 'visit' | 'medical' | 'doctor' | 'nurse' | 'aide' | 'other';
 
 const CATEGORY_DOT: Record<EventCategory, string> = {
     visit: 'bg-primary',
     medical: 'bg-info',
+    doctor: 'bg-info',
     nurse: 'bg-peach',
     aide: 'bg-warning',
     other: 'bg-muted-foreground',

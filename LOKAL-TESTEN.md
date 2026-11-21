@@ -172,3 +172,29 @@ Hinweis „ohne zurückdatierte Zeiten“, fehlen die Zeiten bei 5 und 6 (Docker
 - Kein Zugang zu Plan, Druck und Änderungen (Adresse `/medications/druck` führt zur Startseite).
 
 Beim Wechsel einer Stufe im Ausschleichplan passt die Familie die Menge der Einnahmezeit selbst an.
+
+### Prüfliste Termine und Arztgespräch (E59 bis E61)
+
+**Betreute Person (ErikaMuster), Tablet-Ansicht**
+
+- Kachel und Fenster heißen „Termine“. „Neuer Termin“: Art, Tag, Uhrzeit, Ort, „Begleitung nötig“ und
+  „Fahrt nötig“ (Feld ausgegraut bis zum Haken, Vorschläge aus Mitgliedern, Kontakten, früheren Gästen),
+  Mitnehmen. „Weiter“ speichert sofort, danach 10 Minuten „Rückgängig“.
+- Kachel „Arztgespräch“: „Arzttermin eintragen“ (Arzt per Vorschlag, Ort aus dem Kontakt) legt Termin
+  (Art Arzt) und Gespräch an, mit der Frage „Gibt es einen neuen Medikamentenplan?“. Frage hinzufügen,
+  Frage löschen (mit Rückfrage), „Angaben ändern“.
+- Aufnahme: Einwilligung anhaken, „Neue Aufnahme starten“, Bildschirm bleibt an, „Aufnahme beenden“.
+  Ohne Internet (Flugmodus) geht Aufnehmen und Abspielen; „Gespräch jetzt aufnehmen“ ohne Internet
+  speichert auf dem Tablet und legt das Gespräch beim Senden an.
+- Terminkarte des Arzttermins: Taste „Zum Arztgespräch“.
+
+**Familie (App)**: Mitschrift bearbeiten und freigeben, Zusammenfassung freigeben. Danach am Tablet keine
+Tasten mehr für Fragen, Angaben und Aufnahmen. „Freigabe zurücknehmen“ hebt das wieder auf.
+
+**Tablet einrichten, damit eine Aufnahme nicht abbricht** (Android, Samsung Galaxy Tab):
+
+- Einstellungen › Apps › Chrome › Akku: „Nicht eingeschränkt“ (sonst beendet der Energiesparmodus Chrome).
+- Einstellungen › Akku › Hintergrund-Nutzungslimits: Chrome nicht unter „Apps im Tiefschlaf“.
+- Mikrofon für die Seite erlauben (Chrome › Website-Einstellungen › Mikrofon).
+- Während der Aufnahme die Ein-/Aus-Taste nicht drücken. Die App hält den Bildschirm an; schaltet jemand das
+  Tablet trotzdem aus, ist alles bis dahin Aufgenommene gespeichert (Stücke zu 30 Sekunden).

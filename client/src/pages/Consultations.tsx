@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Stethoscope, CalendarClock, MessageSquareText, Mic, CloudUpload } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
 import { api } from '../lib/api';
 import { useCircle } from '../contexts/CircleContext';
 import { useWebSocketUpdates } from '../hooks/useWebSocketUpdates';
@@ -10,7 +9,8 @@ import { Card, CardContent, Button, Badge, Dialog, Input, Textarea, useToast } f
 import EmptyState from '../components/app/EmptyState';
 import VocabularyCard from '../components/consultations/VocabularyCard';
 import { useLocalRecordings } from '../components/consultations/useLocalRecordings';
-import { dateLocale } from '../i18n/format';
+import { formatConsultationWhen } from '../lib/consultationView';
+import { isUnsent } from '../lib/consultationStore';
 import {
     fromDateTimeInput,
     recordingBadgeVariant,
@@ -27,6 +27,8 @@ export interface ConsultationListItem {
     location: string | null;
     reason: string | null;
     summary_status: SummaryStatus;
+    transcript_status?: 'draft' | 'approved';
+    locked?: boolean;
     question_count: number;
     recording_count: number;
     latest_recording_status: RecordingStatus | null;
@@ -38,14 +40,8 @@ export const consultationTitle = (
     fallback: string
 ): string => c.doctor_name?.trim() || c.specialty?.trim() || fallback;
 
-export const formatConsultationDate = (value: string | null): string | null => {
-    if (!value) return null;
-    try {
-        return format(parseISO(value), 'EEEE d MMMM yyyy, HH:mm', { locale: dateLocale() });
-    } catch {
-        return value;
-    }
-};
+/** E61: deutsches Datumsformat, z. B. "Montag, 9. November 2026, 10:30 Uhr" (lib/consultationView.ts). */
+export const formatConsultationDate = (value: string | null): string | null => formatConsultationWhen(value);
 
 const emptyForm = { doctor_name: '', specialty: '', scheduled_at: '', location: '', reason: '', create_event: true };
 
@@ -62,6 +58,14 @@ const Consultations: React.FC = () => {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [form, setForm] = useState(emptyForm);
     const [saving, setSaving] = useState(false);
+    // Aerzte aus den Kontakten fuer das Autovervollstaendigen (E59)
+    const [doctors, setDoctors] = useState<Array<{ name: string; organization: string | null; location: string | null }>>([]);
+    useEffect(() => {
+        if (!canWriteContent) return;
+        api.get<{ success: boolean; data: { doctors: Array<{ name: string; organization: string | null; location: string | null }> } }>('/api/events/people')
+            .then((res) => setDoctors(Array.isArray(res.data?.doctors) ? res.data.doctors : []))
+            .catch(() => undefined);
+    }, [activeCircle?.id, canWriteContent]);
 
     const load = async () => {
         try {
@@ -124,7 +128,7 @@ const Consultations: React.FC = () => {
         );
     }
 
-    const waiting = localItems.filter((r) => r.state === 'pending' || r.state === 'recording').length;
+    const waiting = localItems.filter(isUnsent).length;
 
     return (
         <div className="mx-auto max-w-3xl space-y-6">
@@ -188,6 +192,9 @@ const Consultations: React.FC = () => {
                                                 </p>
                                             )}
                                             <div className="flex flex-wrap items-center gap-2 pt-1">
+                                                {c.transcript_status === 'approved' && (
+                                                    <Badge variant="success">{t('consultations:transcript.approvedBadge')}</Badge>
+                                                )}
                                                 <Badge variant={summaryBadgeVariant(c.summary_status)}>
                                                     {t(`consultations:summaryStatus.${c.summary_status}`)}
                                                 </Badge>
@@ -223,7 +230,21 @@ const Consultations: React.FC = () => {
                 description={t('consultations:form.hint')}
             >
                 <form onSubmit={(e) => void create(e)} className="space-y-4 px-5 py-5 md:px-6">
-                    <Input id="c-doctor" label={t('consultations:form.doctor')} value={form.doctor_name} onChange={(e) => setForm({ ...form, doctor_name: e.target.value })} />
+                    <Input
+                        id="c-doctor"
+                        label={t('consultations:form.doctor')}
+                        list="c-doctor-options"
+                        autoComplete="off"
+                        value={form.doctor_name}
+                        onChange={(e) => {
+                            const name = e.target.value;
+                            const match = doctors.find((d) => d.name === name);
+                            setForm({ ...form, doctor_name: name, location: !form.location.trim() && match?.location ? match.location : form.location });
+                        }}
+                    />
+                    <datalist id="c-doctor-options">
+                        {doctors.map((d) => <option key={d.name} value={d.name}>{d.organization ?? ''}</option>)}
+                    </datalist>
                     <Input id="c-specialty" label={t('consultations:form.specialty')} value={form.specialty} onChange={(e) => setForm({ ...form, specialty: e.target.value })} />
                     <Input id="c-when" type="datetime-local" label={t('consultations:form.scheduledAt')} value={form.scheduled_at} onChange={(e) => setForm({ ...form, scheduled_at: e.target.value })} />
                     <Input id="c-location" label={t('consultations:form.location')} value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
