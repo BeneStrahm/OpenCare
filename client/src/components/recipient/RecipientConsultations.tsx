@@ -10,10 +10,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-    CalendarClock, CalendarPlus, Check, ChevronRight, CircleAlert, CloudOff, FileText, Mic, Pause, Play, Plus,
+    CalendarClock, CalendarPlus, Check, ChevronRight, CircleAlert, ClipboardList, CloudOff, FileText, Mic, Pause, Play, Plus,
     Square, Stethoscope, Trash2, Users,
 } from 'lucide-react';
 import { api } from '../../lib/api';
+import { cn } from '../../lib/utils';
 import { useWebSocketUpdates } from '../../hooks/useWebSocketUpdates';
 import { intlLocale } from '../../i18n/format';
 import { clockDate } from '../../lib/clock';
@@ -23,7 +24,7 @@ import {
 } from '../../lib/consultationRecorder';
 import { isUnsent, type LocalRecording } from '../../lib/consultationStore';
 import {
-    consultationDayParts, formatConsultationWhen, loadRecordingAudio, reviewState,
+    consultationDayParts, formatConsultationWhen, loadRecordingAudio, reviewState, summaryView,
     type ConsultationDetailData, type ConsultationQuestion, type ConsultationRecordingInfo,
 } from '../../lib/consultationView';
 import type { RecordingStatus, SummaryStatus } from '../../lib/consultationLogic';
@@ -31,6 +32,9 @@ import { localDay } from '../../lib/recipientView';
 import { useLocalRecordings } from '../consultations/useLocalRecordings';
 import RecipientEventForm, { emptyEventForm, eventFormBody, type EventFormMode, type EventFormValues } from './RecipientEventForm';
 import { ViewWindow } from './ViewWindow';
+import { TeamPasswordWindow } from './TeamArea';
+import { SummaryReviewWindow, TranscriptReviewWindow } from './ConsultationReview';
+import type { TeamUnlockResult } from '../../lib/teamAccess';
 import type { RecipientUi } from './ui';
 
 interface ListItem {
@@ -69,11 +73,16 @@ interface Props {
     onClose: () => void;
     /** Zurueck-Taste (Android): true, wenn hier etwas geschlossen wurde */
     backRef: React.MutableRefObject<(() => boolean) | null>;
+    /**
+     * E64: Pruefen und Freigeben im Teambereich (Funktion "consultation", Figma A11 bis A14).
+     * enabled: von admin gewaehlt; open: Teambereich schon offen (dann keine PIN).
+     */
+    teamReview?: { enabled: boolean; open: boolean; onUnlocked: (result: TeamUnlockResult) => void };
 }
 
 const EXCERPT_CHARS = 180;
 
-const RecipientConsultations: React.FC<Props> = ({ ui, circleId, initialId, onClose, backRef }) => {
+const RecipientConsultations: React.FC<Props> = ({ ui, circleId, initialId, onClose, backRef, teamReview }) => {
     const { t } = useTranslation(['simpleView', 'consultations']);
     const { C, fs, tile, secondaryButton, windowProps, clockOf } = ui;
     const { items: localItems } = useLocalRecordings();
@@ -90,6 +99,8 @@ const RecipientConsultations: React.FC<Props> = ({ ui, circleId, initialId, onCl
     const [newQuestion, setNewQuestion] = useState<{ text: string; error: boolean } | null>(null);
     const [deleteQuestion, setDeleteQuestion] = useState<ConsultationQuestion | null>(null);
     const [transcriptOpen, setTranscriptOpen] = useState(false);
+    // E64: Mitschrift oder Zusammenfassung pruefen (erst PIN, dann bearbeiten)
+    const [review, setReview] = useState<{ kind: 'transcript' | 'summary'; step: 'pin' | 'edit' } | null>(null);
     // Aufnahme: Einwilligung, laufende Aufnahme, Fenster fuer "jetzt aufnehmen" ohne Internet
     const [consent, setConsent] = useState(false);
     const [consentAt, setConsentAt] = useState<Date | null>(null);
@@ -143,6 +154,7 @@ const RecipientConsultations: React.FC<Props> = ({ ui, circleId, initialId, onCl
         setConsent(false);
         setConsentAt(null);
         setTranscriptOpen(false);
+        setReview(null);
         if (openId) void loadDetail(openId);
     }, [openId, loadDetail]);
     useWebSocketUpdates('consultations', () => {
@@ -299,9 +311,10 @@ const RecipientConsultations: React.FC<Props> = ({ ui, circleId, initialId, onCl
                     const created = await api.post<{ success: boolean; data: { id: string } | null }>('/api/consultations', {
                         event_id: ev.data.id, doctor_name: values.title, scheduled_at: startTime, location: values.location.trim() || null,
                     });
+                    if (!created.data?.id) throw new Error('CONSULTATION');
                     setForm(null);
+                    // B2: danach zurueck zur Liste (A1), das neue Gespraech steht darin.
                     await loadList();
-                    if (created.data?.id) setOpenId(created.data.id);
                 } catch {
                     setForm(null);
                     setNotice({ kind: 'error', text: t('simpleView:doctor.linkError') });
@@ -398,6 +411,7 @@ const RecipientConsultations: React.FC<Props> = ({ ui, circleId, initialId, onCl
 
     // ── Zurueck-Taste: oberstes Fenster schliessen ──
     backRef.current = () => {
+        if (review) { setReview(null); return true; }
         if (active) { void stopRecording(); return true; }
         if (quickRecord) { setQuickRecord(false); return true; }
         if (deleteQuestion) { setDeleteQuestion(null); return true; }
@@ -594,6 +608,60 @@ const RecipientConsultations: React.FC<Props> = ({ ui, circleId, initialId, onCl
         );
     }
 
+    // ── E64: Pruefen und freigeben (A11 bis A14) ──
+    if (review && detail) {
+        const back = () => setReview(null);
+        const title = t(review.kind === 'transcript' ? 'simpleView:doctor.review.transcriptTitle' : 'simpleView:doctor.review.summaryTitle');
+        if (review.step === 'pin') {
+            return (
+                <TeamPasswordWindow
+                    ui={ui}
+                    title={title}
+                    intro={t('simpleView:doctor.review.pinIntro')}
+                    icon={review.kind === 'transcript'
+                        ? <FileText className="h-9 w-9 shrink-0" style={{ color: C.blue }} aria-hidden="true" />
+                        : <ClipboardList className="h-9 w-9 shrink-0" style={{ color: C.blue }} aria-hidden="true" />}
+                    onClose={back}
+                    onUnlocked={(result) => {
+                        teamReview?.onUnlocked(result);
+                        if (result.functions.includes('consultation')) {
+                            setReview({ ...review, step: 'edit' });
+                        } else {
+                            setReview(null);
+                            setNotice({ kind: 'error', text: t('simpleView:doctor.review.notAllowed') });
+                        }
+                    }}
+                />
+            );
+        }
+        const ReviewWindow = review.kind === 'transcript' ? TranscriptReviewWindow : SummaryReviewWindow;
+        return (
+            <ReviewWindow
+                ui={ui}
+                detail={detail}
+                onCancel={back}
+                onApproved={() => {
+                    setReview(null);
+                    setNotice({ kind: 'ok', text: t('simpleView:doctor.review.done') });
+                    if (openId) void loadDetail(openId);
+                }}
+                onExpired={() => setReview({ ...review, step: 'pin' })}
+            />
+        );
+    }
+    const startReview = (kind: 'transcript' | 'summary') => setReview({ kind, step: teamReview?.open ? 'edit' : 'pin' });
+    const reviewButton = (kind: 'transcript' | 'summary') => (
+        <button
+            type="button"
+            onClick={() => startReview(kind)}
+            className="flex min-h-[4rem] w-full items-center justify-center gap-2 rounded-2xl px-4 font-bold text-white"
+            style={{ ...fs(21), backgroundColor: C.blue }}
+        >
+            <Check className="h-7 w-7 shrink-0" strokeWidth={3} aria-hidden="true" />
+            {t('simpleView:doctor.review.button')}
+        </button>
+    );
+
     // ── Ganze Mitschrift lesen ──
     if (transcriptOpen && detail) {
         const parts = detail.recordings.filter((r) => r.transcript);
@@ -649,13 +717,12 @@ const RecipientConsultations: React.FC<Props> = ({ ui, circleId, initialId, onCl
         ].sort((a, b) => a.startedAt.localeCompare(b.startedAt));
         const transcript = detail.transcript;
         const summary = c.summary;
-        const summaryGroups = summary ? ([
-            ['important', [summary.overview, ...summary.findings, ...summary.recommendations].filter((s): s is string => Boolean(s && s.trim()))],
-            ['medications', summary.medication_changes.map((m) => `${m.name}: ${m.change}`)],
-            ['nextSteps', summary.next_steps.map((s) => s.text)],
-            ['appointments', summary.appointments.map((a) => [a.title, a.date && formatConsultationWhen(a.time ? `${a.date}T${a.time}:00` : `${a.date}T00:00:00`, false)].filter(Boolean).join(', '))],
-        ] as const).filter(([, items]) => items.length > 0) : [];
+        // B3: Kurzfassung als eigener Absatz, Punkte darunter ohne Wiederholungen (lib/consultationView.ts).
+        const { overview: summaryOverview, groups: summaryGroups } = summaryView(summary);
         const title = c.doctor_name || c.specialty || t('consultations:defaultTitle');
+        // E64: nur wenn admin die Funktion gewaehlt hat und noch nicht freigegeben ist
+        const canReviewTranscript = Boolean(teamReview?.enabled) && Boolean(transcript) && c.transcript_status !== 'approved';
+        const canReviewSummary = Boolean(teamReview?.enabled) && c.summary_status !== 'approved';
 
         return (
             <ViewWindow id="rv-doc-detail" title={title} icon={<Stethoscope className="h-9 w-9 shrink-0" style={{ color: C.blue }} aria-hidden="true" />} {...windowProps} onClose={close}>
@@ -749,10 +816,13 @@ const RecipientConsultations: React.FC<Props> = ({ ui, circleId, initialId, onCl
                             <p className="rounded-2xl p-4" style={{ ...fs(21), backgroundColor: C.bg }}>
                                 {t('simpleView:doctor.quote', { text: transcript.length > EXCERPT_CHARS ? `${transcript.slice(0, EXCERPT_CHARS).trimEnd()} …` : transcript })}
                             </p>
-                            <button type="button" onClick={() => setTranscriptOpen(true)} className="flex min-h-[4rem] w-full items-center justify-center gap-2 rounded-2xl px-4 font-bold" style={secondaryButton}>
-                                <FileText className="h-7 w-7 shrink-0" aria-hidden="true" />
-                                {t('simpleView:doctor.readTranscript')}
-                            </button>
+                            <div className="grid grid-cols-1 gap-3 min-[512px]:grid-cols-2">
+                                <button type="button" onClick={() => setTranscriptOpen(true)} className={cn('flex min-h-[4rem] w-full items-center justify-center gap-2 rounded-2xl px-4 font-bold', !canReviewTranscript && 'min-[512px]:col-span-2')} style={secondaryButton}>
+                                    <FileText className="h-7 w-7 shrink-0" aria-hidden="true" />
+                                    {t('simpleView:doctor.readTranscript')}
+                                </button>
+                                {canReviewTranscript && reviewButton('transcript')}
+                            </div>
                         </>
                     ) : (
                         <p style={{ ...fs(20), color: C.muted }}>{rows.length > 0 ? t('simpleView:doctor.transcriptLater') : t('simpleView:doctor.noTranscript')}</p>
@@ -762,12 +832,13 @@ const RecipientConsultations: React.FC<Props> = ({ ui, circleId, initialId, onCl
                 {/* 4 Zusammenfassung */}
                 <section aria-labelledby="rv-doc-c4" className="space-y-4 rounded-3xl p-5 min-[512px]:p-6" style={tile}>
                     {cardTitle(4, t('simpleView:doctor.card.summary'), 'rv-doc-c4')}
-                    {summary && summaryGroups.length > 0 ? (
+                    {summary && (summaryOverview || summaryGroups.length > 0) ? (
                         <>
                             {c.summary_status === 'approved'
                                 ? statusLine('checked', t('simpleView:doctor.checkedByFamily'))
                                 : statusLine('unchecked', t('simpleView:doctor.summaryUnchecked'))}
-                            {summaryGroups.map(([key, items]) => (
+                            {summaryOverview && <p style={fs(21)}>{summaryOverview}</p>}
+                            {summaryGroups.map(({ key, items }) => (
                                 <div key={key}>
                                     <p className="font-bold" style={{ ...fs(20), color: C.blueDark }}>{t(`simpleView:doctor.summary.${key}`)}</p>
                                     <ul className="mt-1 list-disc space-y-1 pl-7" style={fs(21)}>
@@ -775,6 +846,7 @@ const RecipientConsultations: React.FC<Props> = ({ ui, circleId, initialId, onCl
                                     </ul>
                                 </div>
                             ))}
+                            {canReviewSummary && reviewButton('summary')}
                         </>
                     ) : (
                         <p style={{ ...fs(20), color: C.muted }}>{rows.length > 0 ? t('simpleView:doctor.summaryLater') : t('simpleView:doctor.noSummary')}</p>

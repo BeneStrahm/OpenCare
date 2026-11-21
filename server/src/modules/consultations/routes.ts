@@ -8,7 +8,7 @@ import express, { Router, Response } from 'express';
 import { query, getClient } from '../../db';
 import { authMiddleware } from '../../middleware/auth';
 import {
-    circleMiddleware, requireRole, CircleRequest, CircleRole, CONSULTATION_READER_ROLES, CONSULTATION_PREPARER_ROLES,
+    circleMiddleware, requireRole, requireRoleOrTeam, CircleRequest, CircleRole, CONSULTATION_READER_ROLES, CONSULTATION_PREPARER_ROLES,
 } from '../../middleware/circle';
 import { cleanPersonName } from '../../lib/eventExtras';
 import { broadcastToCircle } from '../../lib/broadcaster';
@@ -27,6 +27,8 @@ export const PREPARER_ROLES: CircleRole[] = CONSULTATION_PREPARER_ROLES;
 
 const requireReader = requireRole(...READER_ROLES);
 const requireWriter = requireRole(...WRITER_ROLES);
+// E64: Mitschrift und Zusammenfassung pruefen und freigeben auch im Teambereich am Tablet (PIN).
+const requireWriterOrTeam = requireRoleOrTeam(...WRITER_ROLES);
 const requirePreparer = requireRole(...PREPARER_ROLES);
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -786,7 +788,7 @@ consultationsRouter.delete('/:id/questions/:qid', requirePreparer, async (req: C
 
 // ─── Zusammenfassung ─────────────────────────────────────────────────────────
 
-consultationsRouter.put('/:id/summary', requireWriter, async (req: CircleRequest, res: Response) => {
+consultationsRouter.put('/:id/summary', requireWriterOrTeam, async (req: CircleRequest, res: Response) => {
     try {
         const c = await loadConsultation(String(req.params.id), req.circleId!);
         if (!c) return fail(res, 404, 'Consultation not found');
@@ -805,7 +807,7 @@ consultationsRouter.put('/:id/summary', requireWriter, async (req: CircleRequest
     }
 });
 
-consultationsRouter.post('/:id/summary/approve', requireWriter, async (req: CircleRequest, res: Response) => {
+consultationsRouter.post('/:id/summary/approve', requireWriterOrTeam, async (req: CircleRequest, res: Response) => {
     const client = await getClient();
     try {
         const c = await loadConsultation(String(req.params.id), req.circleId!);
@@ -822,7 +824,8 @@ consultationsRouter.post('/:id/summary/approve', requireWriter, async (req: Circ
         await client.query(
             `UPDATE consultations SET summary = $1::jsonb, summary_status = 'approved', approved_by = $2, approved_at = NOW()
              WHERE id = $3`,
-            [JSON.stringify(summary), req.userId, c.id]
+            // E64: im Teambereich kein Name (das Konto ist das der betreuten Person)
+            [JSON.stringify(summary), req.teamAccess ? null : req.userId, c.id]
         );
         // Antworten aus dem Gespraech nur in noch leere Antwortfelder uebernehmen.
         for (const qa of summary.question_answers) {
@@ -861,7 +864,7 @@ consultationsRouter.post('/:id/summary/unapprove', requireWriter, async (req: Ci
 
 // PUT /:id/transcript: Mitschrift je Aufnahme bearbeiten. Body { recordings: [{ id, transcript }] }.
 // Eine freigegebene Mitschrift wird dadurch wieder ungeprueft.
-consultationsRouter.put('/:id/transcript', requireWriter, async (req: CircleRequest, res: Response) => {
+consultationsRouter.put('/:id/transcript', requireWriterOrTeam, async (req: CircleRequest, res: Response) => {
     const client = await getClient();
     try {
         const c = await loadConsultation(String(req.params.id), req.circleId!);
@@ -902,7 +905,7 @@ consultationsRouter.put('/:id/transcript', requireWriter, async (req: CircleRequ
 });
 
 // POST /:id/transcript/approve: Mitschrift freigeben (optional mit letzten Aenderungen wie PUT).
-consultationsRouter.post('/:id/transcript/approve', requireWriter, async (req: CircleRequest, res: Response) => {
+consultationsRouter.post('/:id/transcript/approve', requireWriterOrTeam, async (req: CircleRequest, res: Response) => {
     try {
         const c = await loadConsultation(String(req.params.id), req.circleId!);
         if (!c) return fail(res, 404, 'Consultation not found');
@@ -912,7 +915,7 @@ consultationsRouter.post('/:id/transcript/approve', requireWriter, async (req: C
         if (has.rows.length === 0) return fail(res, 409, 'NO_TRANSCRIPT');
         await query(
             `UPDATE consultations SET transcript_status = 'approved', transcript_approved_by = $1, transcript_approved_at = NOW() WHERE id = $2`,
-            [req.userId, c.id]
+            [req.teamAccess ? null : req.userId, c.id]
         );
         await notify(req.circleId!, 'updated');
         res.json({ success: true, data: await loadConsultation(c.id, req.circleId!) });
