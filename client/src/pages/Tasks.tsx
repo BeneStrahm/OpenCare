@@ -12,6 +12,7 @@ import { PersonCombobox } from '../components/calendar/PersonCombobox';
 import { addParticipant } from '../lib/calendarForm';
 import { cn } from '../lib/utils';
 import { circleWeekStart, weekStartsOn } from '../lib/weekStart';
+import { TaskFeedCard } from '../components/tasks/TaskFeedCard';
 
 // Catégories normalisées côté serveur (tasks.ts: TASK_CATEGORIES)
 const TASK_CATEGORIES = ['shopping', 'pharmacy', 'laundry', 'admin', 'transport', 'other'] as const;
@@ -100,7 +101,7 @@ const MemberAvatar: React.FC<{ member: AssignedMember; className?: string }> = (
 
 const Tasks: React.FC = () => {
     const { t } = useTranslation(['tasks', 'common']);
-    const { activeCircle, canWriteContent, canWriteJournal } = useCircle();
+    const { activeCircle, myRole, canWriteContent, canWriteJournal } = useCircle();
 
     const [tasks, setTasks] = useState<Task[]>([]);
     const [members, setMembers] = useState<CircleMember[]>([]);
@@ -625,6 +626,9 @@ const Tasks: React.FC = () => {
             ) : (
                 renderGrouped(mainList)
             )}
+
+            {/* E62: Aufgaben-Link für die Morgen-Mail (n8n), nur Rolle family */}
+            {myRole === 'family' && <TaskFeedCard />}
 
             {/* Création / édition */}
             <Dialog
