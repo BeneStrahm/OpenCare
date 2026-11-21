@@ -113,3 +113,51 @@ export async function loadRecordingAudio(rec: { id: string | null; client_id: st
     const blob = await api.getBlob(`/api/consultations/recordings/${rec.id}/audio`);
     return { blob, source: 'server' };
 }
+
+/** Tag ohne Uhrzeit, z. B. "Dienstag, 1. Dezember" (Vorschlaege, Fristen). */
+function formatDay(isoDate: string): string {
+    const date = clockDate(`${isoDate}T00:00:00`);
+    if (!date) return isoDate;
+    return new Intl.DateTimeFormat(intlLocale(), { weekday: 'long', day: 'numeric', month: 'long' }).format(date);
+}
+
+export type SummaryGroupKey = 'important' | 'medications' | 'nextSteps' | 'appointments' | 'unclear';
+
+/**
+ * Zusammenfassung zum Lesen, gleich am Tablet und in der App (B3, B5): Kurzfassung als
+ * eigener Absatz, darunter Gruppen. Gleiche Punkte erscheinen nur einmal.
+ * "unclear" (unsichere Stellen) nur fuer die Familie in der App.
+ */
+export function summaryView(summary: ConsultationSummary | null | undefined, options: { withUnclear?: boolean } = {}): {
+    overview: string | null;
+    groups: Array<{ key: SummaryGroupKey; items: string[] }>;
+} {
+    if (!summary) return { overview: null, groups: [] };
+    const overview = summary.overview?.trim() || null;
+    const seen = new Set<string>();
+    const unique = (items: Array<string | null | undefined>) => items
+        .map((s) => (s ?? '').trim())
+        .filter((s) => {
+            const key = s.toLocaleLowerCase().replace(/[\s.,;:!]+/g, ' ').trim();
+            if (!key || seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+    const at = (date: string | null | undefined, time: string | null | undefined) =>
+        date ? [formatDay(date), time ? i18n.t('simpleView:doctor.clock', { time }) : null].filter(Boolean).join(', ') : null;
+    const groups: Array<{ key: SummaryGroupKey; items: string[] }> = [
+        { key: 'important', items: unique([...(summary.findings ?? []), ...(summary.recommendations ?? [])]) },
+        { key: 'medications', items: unique((summary.medication_changes ?? []).map((m) => `${m.name}: ${m.change}`)) },
+        { key: 'nextSteps', items: unique((summary.next_steps ?? []).map((s) => [s.text, at(s.due, null)].filter(Boolean).join(', '))) },
+        { key: 'appointments', items: unique((summary.appointments ?? []).map((a) => [a.title, at(a.date, a.time), a.location].filter(Boolean).join(', '))) },
+        ...(options.withUnclear ? [{ key: 'unclear' as const, items: unique(summary.unclear ?? []) }] : []),
+    ];
+    return { overview, groups: groups.filter((g) => g.items.length > 0) };
+}
+
+/** Antwort auf eine Frage: freigegeben (an der Frage) oder aus dem Entwurf der Zusammenfassung. */
+export function answerFor(question: { id: string; answer: string | null }, index: number, summary: ConsultationSummary | null | undefined): string | null {
+    if (question.answer?.trim()) return question.answer.trim();
+    const qa = summary?.question_answers?.find((a) => (a.question_id ? a.question_id === question.id : a.question_index === index));
+    return qa?.answer?.trim() || null;
+}

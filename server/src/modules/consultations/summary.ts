@@ -232,7 +232,7 @@ export function buildSummaryPrompt(material: { transcript?: string; notes?: stri
         ...RULES,
         `Schreibe auf ${LANG_NAMES[ctx.lang]}, in einfachen, kurzen Sätzen, die auch ältere Menschen gut verstehen.`,
         'Felder:',
-        '- overview: Kurzfassung in 2 bis 5 Sätzen.',
+        '- overview: Kurzfassung in 1 bis 3 Sätzen: Anlass und Ergebnis. Wiederhole dort keine Werte und Einzelheiten, die in findings, medication_changes, recommendations oder next_steps stehen.',
         '- findings: genannte Befunde und Diagnosen.',
         '- medication_changes: jede genannte Änderung an Medikamenten (neu, abgesetzt, Dosis geändert), mit Name und Änderung.',
         '- recommendations: Empfehlungen und Hinweise des Arztes.',

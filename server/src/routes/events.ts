@@ -504,7 +504,8 @@ router.get('/people', async (req: CircleRequest, res: Response) => {
         const add = (name: unknown, kind: 'member' | 'contact' | 'guest', memberId: string | null = null) => {
             const clean = cleanPersonName(name);
             if (!clean) return;
-            const key = clean.toLocaleLowerCase('de');
+            // "SabineMuster" (Gast, frei getippt) und "Sabine Muster" (Mitglied) sind dieselbe Person.
+            const key = clean.toLocaleLowerCase('de').replace(/\s+/g, '');
             if (seen.has(key)) return;
             seen.add(key);
             people.push({ name: clean, member_id: memberId, kind });

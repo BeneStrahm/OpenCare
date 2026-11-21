@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-    ArrowLeft, ArrowUp, ArrowDown, Printer, Trash2, Plus, Save, CheckCircle2, RefreshCw, AlertTriangle,
-    Sparkles, FileText, ListChecks, Mic, ClipboardList, CloudUpload, Pencil, Play, Lock, Undo2, Users, Car, Backpack,
+    ArrowLeft, Printer, Trash2, Plus, Save, CheckCircle2, RefreshCw, AlertTriangle,
+    Sparkles, FileText, Mic, ClipboardList, CloudUpload, Pencil, Play, Lock, Undo2,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useCircle } from '../contexts/CircleContext';
@@ -16,7 +16,7 @@ import { useLocalRecordings } from '../components/consultations/useLocalRecordin
 import { discardLocalRecording, kick, retryLocalRecording, saveAsNewConsultation } from '../lib/consultationUploader';
 import { consultationTitle, formatConsultationDate } from './Consultations';
 import {
-    loadRecordingAudio,
+    answerFor, loadRecordingAudio, summaryView,
     type ConsultationDetailData, type ConsultationQuestion, type ConsultationRecordingInfo,
 } from '../lib/consultationView';
 import { isUnsent } from '../lib/consultationStore';
@@ -27,10 +27,8 @@ import {
     fromDateTimeInput,
     isRecordingInProgress,
     isSummaryEmpty,
-    moveItem,
     normalizeSummary,
     recordingBadgeVariant,
-    summaryBadgeVariant,
     toDateTimeInput,
     withDefaults,
     type ConsultationSummary,
@@ -55,7 +53,7 @@ const Section: React.FC<{ id: string; icon: React.ReactNode; title: string; chil
 );
 
 const ConsultationDetail: React.FC = () => {
-    const { t } = useTranslation(['consultations', 'common']);
+    const { t } = useTranslation(['consultations', 'common', 'simpleView']);
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { activeCircle, canWriteContent } = useCircle();
@@ -94,8 +92,10 @@ const ConsultationDetail: React.FC = () => {
     const [summary, setSummary] = useState<ConsultationSummary | null>(null);
     const [summaryDirty, setSummaryDirty] = useState(false);
 
-    // Nachbereitung
-    const [answers, setAnswers] = useState<Record<string, string>>({});
+    // Bearbeiten erst auf Knopfdruck (B5, wie am Tablet)
+    const [editPrep, setEditPrep] = useState(false);
+    const [editTranscript, setEditTranscript] = useState(false);
+    const [editSummary, setEditSummary] = useState(false);
     const [notes, setNotes] = useState('');
     const [notesDirty, setNotesDirty] = useState(false);
     const [busy, setBusy] = useState(false);
@@ -146,11 +146,6 @@ const ConsultationDetail: React.FC = () => {
                     setTranscripts(next);
                     setTranscriptDirty(false);
                 }
-                setAnswers((prev) => {
-                    const next: Record<string, string> = {};
-                    for (const q of d.questions) next[q.id] = opts.keepEdits && prev[q.id] !== undefined ? prev[q.id] : (q.answer ?? '');
-                    return next;
-                });
             }
         } catch (error) {
             // Nur ein echtes 404 heisst "nicht gefunden"; sonst meist keine Verbindung.
@@ -264,15 +259,6 @@ const ConsultationDetail: React.FC = () => {
         void run(() => api.put(`/api/consultations/${id}/questions/${editingQuestion.id}`, { text }).then(() => setEditingQuestion(null)));
     };
 
-    const moveQuestion = (index: number, direction: -1 | 1) => {
-        const reordered = moveItem(questions, index, direction);
-        const changed = reordered
-            .map((q, position) => ({ q, position }))
-            .filter(({ q, position }) => q.position !== position);
-        void run(() => Promise.all(changed.map(({ q, position }) =>
-            api.put(`/api/consultations/${id}/questions/${q.id}`, { position }))));
-    };
-
     const deleteQuestion = (q: Question) => {
         if (!window.confirm(t('consultations:prep.confirmDeleteQuestion'))) return;
         void run(() => api.delete(`/api/consultations/${id}/questions/${q.id}`));
@@ -298,7 +284,7 @@ const ConsultationDetail: React.FC = () => {
         if (!window.confirm(t('consultations:summary.confirmApprove'))) return;
         void run(
             () => api.post(`/api/consultations/${id}/summary/approve`, { summary: normalizeSummary(currentSummary, questionIds) })
-                .then(() => setSummaryDirty(false)),
+                .then(() => { setSummaryDirty(false); setEditSummary(false); }),
             t('consultations:summary.approved')
         );
     };
@@ -332,6 +318,7 @@ const ConsultationDetail: React.FC = () => {
                 setTranscriptDirty(false);
             }
             await api.post(`/api/consultations/${id}/transcript/approve`, {});
+            setEditTranscript(false);
         }, t('consultations:transcript.approved'));
     };
     const unapproveTranscript = () => {
@@ -354,10 +341,27 @@ const ConsultationDetail: React.FC = () => {
         void run(() => api.delete(`/api/consultations/recordings/${r.id}/audio`), t('consultations:recordings.audioDeleted'));
     };
 
-    const saveAnswer = (q: Question) => run(() => api.put(`/api/consultations/${id}/questions/${q.id}`, { answer: (answers[q.id] ?? '').trim() || null }), t('consultations:detail.saved'));
     const saveNotes = () => run(() => api.put(`/api/consultations/${id}`, { notes: notes.trim() || null }).then(() => setNotesDirty(false)), t('consultations:detail.saved'));
 
     const latestError = [...detail.recordings].reverse().find((r) => r.error_code)?.error_code ?? null;
+    // B5: gleicher Aufbau wie am Tablet (vier Karten), Bearbeiten erst auf Knopfdruck.
+    const view = summaryView(c.summary ? withDefaults(c.summary, questionIds) : null, { withUnclear: true });
+    const infoRows: Array<[string, string | null]> = [
+        [t('consultations:detail.when'), when],
+        [t('consultations:form.doctor'), [c.doctor_name, c.specialty].filter(Boolean).join(', ') || null],
+        [t('consultations:form.location'), c.location],
+        [t('consultations:prep.companion'), c.event_id && c.companions.length > 0 ? c.companions.join(', ') : null],
+        [t('consultations:prep.driver'), c.event_id && c.travel_needed ? (c.driver || t('consultations:prep.driverMissing')) : null],
+        [t('consultations:prep.takeAlong'), c.event_id ? c.take_along : null],
+        [t('consultations:form.reason'), c.reason],
+    ];
+    const statusNote = (approved: boolean, approvedText: string, draftText: string) => approved ? (
+        <p className="flex items-center gap-2 rounded-input border border-success/40 bg-success/10 p-3 text-body text-foreground">
+            <CheckCircle2 className="h-5 w-5 shrink-0 text-success" aria-hidden="true" />{approvedText}
+        </p>
+    ) : (
+        <p className="rounded-input border-2 border-warning bg-warning/10 p-3 text-body font-semibold text-foreground" role="note">{draftText}</p>
+    );
 
     return (
         <div className="mx-auto max-w-3xl space-y-6">
@@ -365,20 +369,8 @@ const ConsultationDetail: React.FC = () => {
                 <Link to="/consultations" className="inline-flex items-center gap-1 text-body text-primary underline-offset-2 hover:underline">
                     <ArrowLeft className="h-4 w-4" aria-hidden="true" />{t('consultations:detail.back')}
                 </Link>
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                        <h1 className="font-serif text-display text-foreground">{consultationTitle(c, t('consultations:defaultTitle'))}</h1>
-                        {when && <p className="mt-1 text-body text-muted-foreground">{when}</p>}
-                    </div>
-                    <Badge variant={summaryBadgeVariant(c.summary_status)}>{t(`consultations:summaryStatus.${c.summary_status}`)}</Badge>
-                </div>
-                <nav aria-label={t('consultations:detail.sections')} className="flex flex-wrap gap-2 pt-1">
-                    {(['prep', 'recording', 'transcript', 'result', 'followUp'] as const).map((s) => (
-                        <a key={s} href={`#section-${s}`} className="rounded-full border border-border bg-card px-4 py-2 text-caption font-medium text-foreground hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-                            {t(`consultations:detail.nav.${s}`)}
-                        </a>
-                    ))}
-                </nav>
+                <h1 className="font-serif text-display text-foreground">{consultationTitle(c, t('consultations:defaultTitle'))}</h1>
+                {when && <p className="text-body text-muted-foreground">{when}</p>}
             </div>
 
             {locked && (
@@ -388,20 +380,9 @@ const ConsultationDetail: React.FC = () => {
                 </p>
             )}
 
-            {/* 1. Vorbereitung (gleiche Reihenfolge wie am Tablet, E59) */}
+            {/* 1. Vorbereitung */}
             <Section id="section-prep" icon={<ClipboardList className="h-5 w-5 text-primary" aria-hidden="true" />} title={t('consultations:prep.title')}>
-                {prepReadOnly ? (
-                    <dl className="grid grid-cols-1 gap-2 text-body sm:grid-cols-2">
-                        {(['doctor_name', 'specialty', 'location', 'reason'] as const).map((k) => (
-                            c[k] ? (
-                                <div key={k}>
-                                    <dt className="text-caption text-muted-foreground">{t(`consultations:form.${k === 'doctor_name' ? 'doctor' : k}`)}</dt>
-                                    <dd>{c[k]}</dd>
-                                </div>
-                            ) : null
-                        ))}
-                    </dl>
-                ) : (
+                {editPrep && !prepReadOnly ? (
                     <div className="space-y-3">
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <Input
@@ -426,82 +407,74 @@ const ConsultationDetail: React.FC = () => {
                             <Input id="p-location" label={t('consultations:form.location')} value={prep.location} onChange={(e) => { setPrep({ ...prep, location: e.target.value }); setPrepDirty(true); }} />
                         </div>
                         <Textarea label={t('consultations:form.reason')} rows={3} value={prep.reason} onChange={(e) => { setPrep({ ...prep, reason: e.target.value }); setPrepDirty(true); }} />
-                        <div className="flex justify-end">
-                            <Button onClick={() => void savePrep()} disabled={busy || !prepDirty}>
+                        {c.event_id && <p className="text-caption text-muted-foreground">{t('consultations:prep.eventHint')}</p>}
+                        <div className="flex flex-wrap justify-end gap-2">
+                            <Button variant="secondary" onClick={() => { setEditPrep(false); void load(); }} disabled={busy}>{t('common:actions.cancel')}</Button>
+                            <Button onClick={() => void savePrep().then(() => setEditPrep(false))} disabled={busy || !prepDirty}>
                                 <Save className="mr-2 h-4 w-4" aria-hidden="true" />{t('common:actions.save')}
                             </Button>
                         </div>
                     </div>
-                )}
-
-                {/* Begleitung, Fahrt, Mitnehmen stehen am Termin (eine Stelle, E59) */}
-                {c.event_id && (c.companions.length > 0 || c.travel_needed || c.take_along) && (
-                    <dl className="grid grid-cols-1 gap-2 text-body sm:grid-cols-2">
-                        {c.companions.length > 0 && (
-                            <div className="flex items-start gap-2">
-                                <Users className="mt-1 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-                                <div><dt className="text-caption text-muted-foreground">{t('consultations:prep.companion')}</dt><dd>{c.companions.join(', ')}</dd></div>
-                            </div>
+                ) : (
+                    <>
+                        <dl className="space-y-2 text-body">
+                            {infoRows.filter(([, value]) => value).map(([label, value]) => (
+                                <div key={label}>
+                                    <dt className="text-caption text-muted-foreground">{label}</dt>
+                                    <dd className="whitespace-pre-wrap font-medium text-foreground">{value}</dd>
+                                </div>
+                            ))}
+                        </dl>
+                        {!prepReadOnly && (
+                            <Button variant="secondary" onClick={() => setEditPrep(true)}>
+                                <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />{t('consultations:detail.editPrep')}
+                            </Button>
                         )}
-                        {c.travel_needed && (
-                            <div className="flex items-start gap-2">
-                                <Car className="mt-1 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-                                <div><dt className="text-caption text-muted-foreground">{t('consultations:prep.driver')}</dt><dd>{c.driver || t('consultations:prep.driverMissing')}</dd></div>
-                            </div>
-                        )}
-                        {c.take_along && (
-                            <div className="flex items-start gap-2">
-                                <Backpack className="mt-1 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-                                <div><dt className="text-caption text-muted-foreground">{t('consultations:prep.takeAlong')}</dt><dd className="whitespace-pre-wrap">{c.take_along}</dd></div>
-                            </div>
-                        )}
-                        <p className="text-caption text-muted-foreground sm:col-span-2">{t('consultations:prep.eventHint')}</p>
-                    </dl>
+                    </>
                 )}
 
                 <div className="space-y-3 border-t border-border pt-4">
                     <h3 className="text-body font-semibold text-foreground">{t('consultations:prep.questions')}</h3>
-                    <p className="text-caption text-muted-foreground">{t('consultations:prep.questionsHint')}</p>
                     {questions.length === 0 && <p className="text-body text-muted-foreground">{t('consultations:prep.noQuestions')}</p>}
                     <ol className="space-y-2">
-                        {questions.map((q, i) => (
-                            <li key={q.id} className="flex items-start gap-2 rounded-input border border-border bg-card p-3">
-                                <span className="pt-2 text-body font-semibold text-muted-foreground" aria-hidden="true">{i + 1}.</span>
-                                {editingQuestion?.id === q.id ? (
-                                    <div className="flex flex-1 flex-col gap-2">
-                                        <Textarea
-                                            aria-label={t('consultations:prep.editQuestion')}
-                                            value={editingQuestion.text}
-                                            rows={2}
-                                            autoFocus
-                                            onChange={(e) => setEditingQuestion({ id: q.id, text: e.target.value })}
-                                        />
-                                        <div className="flex justify-end gap-2">
-                                            <Button variant="secondary" size="sm" onClick={() => setEditingQuestion(null)}>{t('common:actions.cancel')}</Button>
-                                            <Button size="sm" onClick={saveQuestionText} disabled={busy}>{t('common:actions.save')}</Button>
+                        {questions.map((q, i) => {
+                            const answer = answerFor(q, i, c.summary);
+                            return (
+                                <li key={q.id} className="flex items-start gap-2 rounded-input border border-border bg-card p-3">
+                                    <span className="pt-1.5 text-body font-semibold text-muted-foreground" aria-hidden="true">{i + 1}.</span>
+                                    {editingQuestion?.id === q.id ? (
+                                        <div className="flex flex-1 flex-col gap-2">
+                                            <Textarea
+                                                aria-label={t('consultations:prep.editQuestion')}
+                                                value={editingQuestion.text}
+                                                rows={2}
+                                                autoFocus
+                                                onChange={(e) => setEditingQuestion({ id: q.id, text: e.target.value })}
+                                            />
+                                            <div className="flex justify-end gap-2">
+                                                <Button variant="secondary" size="sm" onClick={() => setEditingQuestion(null)}>{t('common:actions.cancel')}</Button>
+                                                <Button size="sm" onClick={saveQuestionText} disabled={busy}>{t('common:actions.save')}</Button>
+                                            </div>
                                         </div>
-                                    </div>
-                                ) : (
-                                    <p className="flex-1 py-1.5 text-body text-foreground">{q.text}</p>
-                                )}
-                                {!prepReadOnly && editingQuestion?.id !== q.id && (
-                                    <div className="flex shrink-0 flex-wrap items-center">
-                                        <Button variant="ghost" size="icon" className="h-11 w-11" disabled={busy || i === 0} onClick={() => moveQuestion(i, -1)} aria-label={t('consultations:prep.moveUp', { n: i + 1 })}>
-                                            <ArrowUp className="h-4 w-4" />
-                                        </Button>
-                                        <Button variant="ghost" size="icon" className="h-11 w-11" disabled={busy || i === questions.length - 1} onClick={() => moveQuestion(i, 1)} aria-label={t('consultations:prep.moveDown', { n: i + 1 })}>
-                                            <ArrowDown className="h-4 w-4" />
-                                        </Button>
-                                        <Button variant="ghost" size="icon" className="h-11 w-11" onClick={() => setEditingQuestion({ id: q.id, text: q.text })} aria-label={t('consultations:prep.editQuestionN', { n: i + 1 })}>
-                                            <Pencil className="h-4 w-4" />
-                                        </Button>
-                                        <Button variant="ghost" size="icon" className="h-11 w-11 text-muted-foreground hover:text-danger" onClick={() => deleteQuestion(q)} aria-label={t('consultations:prep.deleteQuestionN', { n: i + 1 })}>
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                )}
-                            </li>
-                        ))}
+                                    ) : (
+                                        <div className="flex-1 py-1">
+                                            <p className="text-body text-foreground">{q.text}</p>
+                                            {answer && <p className="mt-1 text-body text-muted-foreground">{t('consultations:prep.answer', { text: answer })}</p>}
+                                        </div>
+                                    )}
+                                    {!prepReadOnly && editingQuestion?.id !== q.id && (
+                                        <div className="flex shrink-0 items-center">
+                                            <Button variant="ghost" size="icon" className="h-12 w-12" onClick={() => setEditingQuestion({ id: q.id, text: q.text })} aria-label={t('consultations:prep.editQuestionN', { n: i + 1 })}>
+                                                <Pencil className="h-4 w-4" />
+                                            </Button>
+                                            <Button variant="ghost" size="icon" className="h-12 w-12 text-muted-foreground hover:text-danger" onClick={() => deleteQuestion(q)} aria-label={t('consultations:prep.deleteQuestionN', { n: i + 1 })}>
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    )}
+                                </li>
+                            );
+                        })}
                     </ol>
                     {!prepReadOnly && (
                         <form onSubmit={addQuestion} className="flex flex-col gap-2 sm:flex-row sm:items-end">
@@ -512,7 +485,7 @@ const ConsultationDetail: React.FC = () => {
                                 value={newQuestion}
                                 onChange={(e) => setNewQuestion(e.target.value)}
                             />
-                            <Button type="submit" disabled={busy || !newQuestion.trim()} className="min-h-[44px] shrink-0">
+                            <Button type="submit" disabled={busy || !newQuestion.trim()} className="min-h-[48px] shrink-0">
                                 <Plus className="mr-1 h-4 w-4" aria-hidden="true" />{t('common:actions.add')}
                             </Button>
                         </form>
@@ -523,8 +496,8 @@ const ConsultationDetail: React.FC = () => {
                 </div>
             </Section>
 
-            {/* 2. Aufnahme */}
-            <Section id="section-recording" icon={<Mic className="h-5 w-5 text-primary" aria-hidden="true" />} title={t('consultations:recording.title')}>
+            {/* 2. Aufnahmen */}
+            <Section id="section-recording" icon={<Mic className="h-5 w-5 text-primary" aria-hidden="true" />} title={t('consultations:recordings.title')}>
                 {!prepReadOnly ? (
                     <RecorderPanel circleId={activeCircle?.id ?? null} consultationId={id} onStopped={() => void kick()} />
                 ) : (
@@ -592,53 +565,53 @@ const ConsultationDetail: React.FC = () => {
                     </div>
                 )}
 
-                <div className="space-y-2">
-                    <h3 className="text-body font-semibold text-foreground">{t('consultations:recordings.title')}</h3>
-                    {detail.recordings.length === 0 ? (
-                        <p className="text-body text-muted-foreground">{t('consultations:recordings.none')}</p>
-                    ) : (
-                        <ul className="space-y-2">
-                            {detail.recordings.map((r) => {
-                                const errKey = errorCodeKey(r.error_code);
-                                return (
-                                    <li key={r.id} className="space-y-2 rounded-input border border-border bg-card p-3">
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <Badge variant={recordingBadgeVariant(r.status)}>{t(`consultations:recordingStatus.${r.status}`)}</Badge>
-                                            <span className="text-body">{formatConsultationDate(r.created_at)}</span>
-                                            {r.duration_seconds != null && <span className="text-caption text-muted-foreground">{formatDuration(r.duration_seconds)}</span>}
-                                            {r.audio_deleted_at && <span className="text-caption text-muted-foreground">{t('consultations:recordings.audioGone')}</span>}
+                {detail.recordings.length === 0 ? (
+                    <p className="text-body text-muted-foreground">{t('consultations:recordings.none')}</p>
+                ) : (
+                    <ul className="space-y-2">
+                        {detail.recordings.map((r, i) => {
+                            const errKey = errorCodeKey(r.error_code);
+                            return (
+                                <li key={r.id} className="space-y-2 rounded-input border border-border bg-card p-3">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <div>
+                                            <p className="text-body font-semibold text-foreground">{t('consultations:recordings.recordingN', { n: i + 1 })}</p>
+                                            <p className="text-caption text-muted-foreground">
+                                                {[formatConsultationDate(r.created_at), r.duration_seconds != null ? formatDuration(r.duration_seconds) : null].filter(Boolean).join(' · ')}
+                                            </p>
                                         </div>
-                                        {errKey && <p className="text-caption text-foreground">{t(errKey)}</p>}
-                                        {audioUrls[r.id] ? (
-                                            <audio controls autoPlay src={audioUrls[r.id]} className="w-full" aria-label={t('consultations:recordings.player')} />
-                                        ) : !r.audio_deleted_at && !isRecordingInProgress(r.status) && r.status !== 'uploading' ? (
-                                            <Button variant="secondary" size="sm" onClick={() => void playRecording(r)}>
+                                        {r.status !== 'done' && <Badge variant={recordingBadgeVariant(r.status)}>{t(`consultations:recordingStatus.${r.status}`)}</Badge>}
+                                        {!audioUrls[r.id] && !r.audio_deleted_at && !isRecordingInProgress(r.status) && r.status !== 'uploading' && (
+                                            <Button variant="secondary" onClick={() => void playRecording(r)}>
                                                 <Play className="mr-1 h-4 w-4" aria-hidden="true" />{t('consultations:recordings.play')}
                                             </Button>
-                                        ) : null}
-                                        {!readOnly && (
-                                            <div className="flex flex-wrap gap-2">
-                                                {r.status === 'failed' && isRetryableRecording(r.error_code, Boolean(r.audio_deleted_at)) && (
-                                                    <Button variant="secondary" size="sm" disabled={busy} onClick={() => void retryRecording(r)}>
-                                                        <RefreshCw className="mr-1 h-4 w-4" aria-hidden="true" />{t('common:actions.retry')}
-                                                    </Button>
-                                                )}
-                                                {!r.audio_deleted_at && !isRecordingInProgress(r.status) && (
-                                                    <Button variant="ghost" size="sm" disabled={busy} className="text-muted-foreground hover:text-danger" onClick={() => deleteAudio(r)}>
-                                                        <Trash2 className="mr-1 h-4 w-4" aria-hidden="true" />{t('consultations:recordings.deleteAudio')}
-                                                    </Button>
-                                                )}
-                                            </div>
                                         )}
-                                    </li>
-                                );
-                            })}
-                        </ul>
-                    )}
-                </div>
+                                    </div>
+                                    {r.audio_deleted_at && <p className="text-caption text-muted-foreground">{t('consultations:recordings.audioGone')}</p>}
+                                    {errKey && <p className="text-caption text-foreground">{t(errKey)}</p>}
+                                    {audioUrls[r.id] && <audio controls autoPlay src={audioUrls[r.id]} className="w-full" aria-label={t('consultations:recordings.player')} />}
+                                    {!readOnly && ((r.status === 'failed' && isRetryableRecording(r.error_code, Boolean(r.audio_deleted_at))) || (!r.audio_deleted_at && !isRecordingInProgress(r.status))) && (
+                                        <div className="flex flex-wrap gap-2">
+                                            {r.status === 'failed' && isRetryableRecording(r.error_code, Boolean(r.audio_deleted_at)) && (
+                                                <Button variant="secondary" size="sm" disabled={busy} onClick={() => void retryRecording(r)}>
+                                                    <RefreshCw className="mr-1 h-4 w-4" aria-hidden="true" />{t('common:actions.retry')}
+                                                </Button>
+                                            )}
+                                            {!r.audio_deleted_at && !isRecordingInProgress(r.status) && (
+                                                <Button variant="ghost" size="sm" disabled={busy} className="text-muted-foreground hover:text-danger" onClick={() => deleteAudio(r)}>
+                                                    <Trash2 className="mr-1 h-4 w-4" aria-hidden="true" />{t('consultations:recordings.deleteAudio')}
+                                                </Button>
+                                            )}
+                                        </div>
+                                    )}
+                                </li>
+                            );
+                        })}
+                    </ul>
+                )}
             </Section>
 
-            {/* 3. Mitschrift (E59): bearbeiten und freigeben, je Aufnahme */}
+            {/* 3. Mitschrift (E59) */}
             <Section id="section-transcript" icon={<FileText className="h-5 w-5 text-primary" aria-hidden="true" />} title={t('consultations:transcript.title')}>
                 {!detail.transcript ? (
                     <p className="text-body text-muted-foreground">
@@ -646,26 +619,19 @@ const ConsultationDetail: React.FC = () => {
                     </p>
                 ) : (
                     <>
-                        {c.transcript_status === 'approved' ? (
-                            <p className="flex items-center gap-2 rounded-input border border-success/40 bg-success/10 p-4 text-body text-foreground">
-                                <CheckCircle2 className="h-5 w-5 text-success" aria-hidden="true" />
-                                {c.transcript_approved_by_name
-                                    ? t('consultations:result.approvedBy', { name: c.transcript_approved_by_name, date: formatConsultationDate(c.transcript_approved_at) ?? '' })
-                                    : t('consultations:result.approvedPlain')}
-                            </p>
-                        ) : (
-                            <p className="rounded-input border-2 border-warning bg-warning/10 p-4 text-body font-semibold text-foreground" role="note">
-                                {t('consultations:transcript.draftBanner')}
-                            </p>
+                        {statusNote(
+                            c.transcript_status === 'approved',
+                            c.transcript_approved_by_name
+                                ? t('consultations:result.approvedBy', { name: c.transcript_approved_by_name, date: formatConsultationDate(c.transcript_approved_at) ?? '' })
+                                : t('consultations:result.approvedPlain'),
+                            t('consultations:transcript.draftBanner'),
                         )}
-                        {detail.recordings.filter((r) => r.transcript).map((r, i) => (
-                            <div key={r.id} className="space-y-1">
-                                <label htmlFor={`tr-${r.id}`} className="block text-body font-semibold text-foreground">
-                                    {t('consultations:transcript.recordingN', { n: i + 1, time: formatConsultationDate(r.created_at) ?? '' })}
-                                </label>
-                                {readOnly ? (
-                                    <p id={`tr-${r.id}`} className="whitespace-pre-wrap rounded-input border border-border bg-card p-3 text-body leading-relaxed">{r.transcript}</p>
-                                ) : (
+                        {editTranscript && !readOnly ? (
+                            detail.recordings.filter((r) => r.transcript).map((r, i) => (
+                                <div key={r.id} className="space-y-1">
+                                    <label htmlFor={`tr-${r.id}`} className="block text-body font-semibold text-foreground">
+                                        {t('consultations:transcript.recordingN', { n: i + 1, time: formatConsultationDate(r.created_at) ?? '' })}
+                                    </label>
                                     <Textarea
                                         id={`tr-${r.id}`}
                                         rows={8}
@@ -673,20 +639,30 @@ const ConsultationDetail: React.FC = () => {
                                         value={transcripts[r.id] ?? ''}
                                         onChange={(e) => { setTranscripts({ ...transcripts, [r.id]: e.target.value }); setTranscriptDirty(true); }}
                                     />
-                                )}
-                            </div>
-                        ))}
+                                </div>
+                            ))
+                        ) : (
+                            <p className="scrollbar-visible max-h-96 overflow-y-auto whitespace-pre-wrap rounded-input border border-border bg-card p-3 text-body leading-relaxed">{detail.transcript}</p>
+                        )}
                         {!readOnly && (
                             <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-4">
-                                {c.transcript_status === 'approved' && (
+                                {editTranscript ? (
+                                    <>
+                                        <Button variant="secondary" onClick={() => { setEditTranscript(false); void load(); }} disabled={busy}>{t('common:actions.cancel')}</Button>
+                                        <Button variant="secondary" onClick={() => void saveTranscript().then(() => setEditTranscript(false))} disabled={busy || !transcriptDirty}>
+                                            <Save className="mr-2 h-4 w-4" aria-hidden="true" />{t('consultations:transcript.save')}
+                                        </Button>
+                                    </>
+                                ) : (
+                                    <Button variant="secondary" onClick={() => setEditTranscript(true)} disabled={busy}>
+                                        <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />{t('common:actions.edit')}
+                                    </Button>
+                                )}
+                                {c.transcript_status === 'approved' && !transcriptDirty ? (
                                     <Button variant="ghost" onClick={unapproveTranscript} disabled={busy}>
                                         <Undo2 className="mr-2 h-4 w-4" aria-hidden="true" />{t('consultations:transcript.unapprove')}
                                     </Button>
-                                )}
-                                <Button variant="secondary" onClick={() => void saveTranscript()} disabled={busy || !transcriptDirty}>
-                                    <Save className="mr-2 h-4 w-4" aria-hidden="true" />{t('consultations:transcript.save')}
-                                </Button>
-                                {(c.transcript_status !== 'approved' || transcriptDirty) && (
+                                ) : (
                                     <Button onClick={approveTranscript} disabled={busy}>
                                         <CheckCircle2 className="mr-2 h-4 w-4" aria-hidden="true" />{t('consultations:transcript.approve')}
                                     </Button>
@@ -699,33 +675,20 @@ const ConsultationDetail: React.FC = () => {
 
             {/* 4. Zusammenfassung */}
             <Section id="section-result" icon={<Sparkles className="h-5 w-5 text-primary" aria-hidden="true" />} title={t('consultations:result.title')}>
-                {c.summary_status === 'draft' && (
-                    <p className="rounded-input border-2 border-warning bg-warning/10 p-4 text-body font-semibold text-foreground" role="note">
-                        {t('consultations:result.draftBanner')}
-                    </p>
-                )}
-                {c.summary_status === 'approved' && (
-                    <p className="flex items-center gap-2 rounded-input border border-success/40 bg-success/10 p-4 text-body text-foreground">
-                        <CheckCircle2 className="h-5 w-5 text-success" aria-hidden="true" />
-                        {c.approved_by_name
-                            ? t('consultations:result.approvedBy', { name: c.approved_by_name, date: formatConsultationDate(c.approved_at) ?? '' })
-                            : t('consultations:result.approvedPlain')}
-                    </p>
+                {c.summary_status !== 'none' && statusNote(
+                    c.summary_status === 'approved',
+                    c.approved_by_name
+                        ? t('consultations:result.approvedBy', { name: c.approved_by_name, date: formatConsultationDate(c.approved_at) ?? '' })
+                        : t('consultations:result.approvedPlain'),
+                    t('consultations:result.draftBanner'),
                 )}
                 {c.summary_outdated && (
-                    <div className="space-y-3 rounded-input border-2 border-warning/50 bg-warning/10 p-4" role="status">
-                        <p className="flex items-start gap-2 text-body text-foreground">
-                            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-warning" aria-hidden="true" />
-                            {t('consultations:result.outdated')}
-                        </p>
-                        {!readOnly && (
-                            <Button variant="secondary" onClick={regenerate} disabled={busy || serverBusy}>
-                                <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />{t('consultations:summary.regenerate')}
-                            </Button>
-                        )}
-                    </div>
+                    <p className="flex items-start gap-2 rounded-input border-2 border-warning/50 bg-warning/10 p-3 text-body text-foreground" role="status">
+                        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-warning" aria-hidden="true" />
+                        {t('consultations:result.outdated')}
+                    </p>
                 )}
-                {c.summary_status === 'none' && (
+                {c.summary_status === 'none' && !editSummary && (
                     <p className="text-body text-muted-foreground">
                         {serverBusy ? t('consultations:result.processing') : t('consultations:result.noSummary')}
                     </p>
@@ -734,101 +697,63 @@ const ConsultationDetail: React.FC = () => {
                     <p className="text-caption text-foreground">{t(errorCodeKey(latestError)!)}</p>
                 )}
 
-                {(c.summary || (!readOnly && detail.transcript)) && (
-                    <>
-                        <SummaryEditor
-                            value={currentSummary}
-                            onChange={(next) => { setSummary(next); setSummaryDirty(true); }}
-                            questions={questions}
-                            readOnly={readOnly}
-                        />
-                        {!readOnly && (
-                            <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-4">
-                                {c.summary_status === 'approved' && (
-                                    <Button variant="ghost" onClick={unapproveSummary} disabled={busy}>
-                                        <Undo2 className="mr-2 h-4 w-4" aria-hidden="true" />{t('consultations:summary.unapprove')}
-                                    </Button>
-                                )}
-                                {detail.transcript && (
-                                    <Button variant="ghost" onClick={regenerate} disabled={busy || serverBusy}>
-                                        <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />{t('consultations:summary.regenerate')}
-                                    </Button>
-                                )}
-                                <Button variant="secondary" onClick={() => void saveSummary()} disabled={busy || !summaryDirty}>
-                                    <Save className="mr-2 h-4 w-4" aria-hidden="true" />{t('consultations:summary.save')}
-                                </Button>
-                                <Button onClick={approveSummary} disabled={busy || isSummaryEmpty(currentSummary)}>
-                                    <CheckCircle2 className="mr-2 h-4 w-4" aria-hidden="true" />
-                                    {c.summary_status === 'approved' ? t('consultations:summary.approveAgain') : t('consultations:summary.approve')}
-                                </Button>
-                            </div>
-                        )}
-                    </>
-                )}
-
-            </Section>
-
-            {/* 4. Nachbereitung */}
-            <Section id="section-followUp" icon={<ListChecks className="h-5 w-5 text-primary" aria-hidden="true" />} title={t('consultations:followUp.title')}>
-                {questions.length > 0 && (
-                    <div className="space-y-3">
-                        <h3 className="text-body font-semibold text-foreground">{t('consultations:followUp.answers')}</h3>
-                        {questions.map((q, i) => (
-                            <div key={q.id} className="space-y-1">
-                                <p className="text-body font-medium text-foreground">{i + 1}. {q.text}</p>
-                                {readOnly ? (
-                                    <p className="text-body text-muted-foreground">{q.answer || t('consultations:summary.notAnswered')}</p>
-                                ) : (
-                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
-                                        <Textarea
-                                            aria-label={t('consultations:followUp.answerFor', { n: i + 1 })}
-                                            rows={2}
-                                            value={answers[q.id] ?? ''}
-                                            onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })}
-                                        />
-                                        <Button
-                                            variant="secondary"
-                                            size="sm"
-                                            className="shrink-0"
-                                            disabled={busy || (answers[q.id] ?? '') === (q.answer ?? '')}
-                                            onClick={() => void saveAnswer(q)}
-                                        >
-                                            {t('common:actions.save')}
-                                        </Button>
-                                    </div>
-                                )}
+                {editSummary && !readOnly ? (
+                    <SummaryEditor
+                        value={currentSummary}
+                        onChange={(next) => { setSummary(next); setSummaryDirty(true); }}
+                        questions={questions}
+                        readOnly={false}
+                    />
+                ) : (view.overview || view.groups.length > 0) && (
+                    <div className="space-y-4">
+                        {view.overview && <p className="text-body leading-relaxed text-foreground">{view.overview}</p>}
+                        {view.groups.map(({ key, items }) => (
+                            <div key={key}>
+                                <h3 className="text-body font-semibold text-foreground">{t(`simpleView:doctor.summary.${key}`)}</h3>
+                                <ul className="mt-1 list-disc space-y-1 pl-6 text-body">
+                                    {items.map((item, i) => <li key={i}>{item}</li>)}
+                                </ul>
                             </div>
                         ))}
                     </div>
                 )}
 
-                <div className="space-y-2">
-                    {readOnly ? (
-                        <>
-                            <h3 className="text-body font-semibold text-foreground">{t('consultations:followUp.notes')}</h3>
-                            <p className="whitespace-pre-wrap text-body">{c.notes || t('consultations:summary.none')}</p>
-                        </>
-                    ) : (
-                        <>
-                            <Textarea
-                                label={t('consultations:followUp.notes')}
-                                placeholder={t('consultations:followUp.notesPlaceholder')}
-                                rows={4}
-                                value={notes}
-                                onChange={(e) => { setNotes(e.target.value); setNotesDirty(true); }}
-                            />
-                            <div className="flex justify-end">
-                                <Button variant="secondary" onClick={() => void saveNotes()} disabled={busy || !notesDirty}>
-                                    <Save className="mr-2 h-4 w-4" aria-hidden="true" />{t('common:actions.save')}
+                {!readOnly && (c.summary || detail.transcript) && (
+                    <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-4">
+                        {editSummary ? (
+                            <>
+                                <Button variant="secondary" onClick={() => { setEditSummary(false); void load(); }} disabled={busy}>{t('common:actions.cancel')}</Button>
+                                <Button variant="secondary" onClick={() => void saveSummary().then(() => setEditSummary(false))} disabled={busy || !summaryDirty}>
+                                    <Save className="mr-2 h-4 w-4" aria-hidden="true" />{t('consultations:summary.save')}
                                 </Button>
-                            </div>
-                        </>
-                    )}
-                </div>
+                            </>
+                        ) : (
+                            <>
+                                {detail.transcript && (
+                                    <Button variant="ghost" onClick={regenerate} disabled={busy || serverBusy}>
+                                        <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />{t('consultations:summary.regenerate')}
+                                    </Button>
+                                )}
+                                <Button variant="secondary" onClick={() => setEditSummary(true)} disabled={busy}>
+                                    <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />{c.summary ? t('common:actions.edit') : t('consultations:summary.write')}
+                                </Button>
+                            </>
+                        )}
+                        {c.summary_status === 'approved' && !summaryDirty ? (
+                            <Button variant="ghost" onClick={unapproveSummary} disabled={busy}>
+                                <Undo2 className="mr-2 h-4 w-4" aria-hidden="true" />{t('consultations:summary.unapprove')}
+                            </Button>
+                        ) : (c.summary || summaryDirty) && (
+                            <Button onClick={approveSummary} disabled={busy || isSummaryEmpty(currentSummary)}>
+                                <CheckCircle2 className="mr-2 h-4 w-4" aria-hidden="true" />{t('consultations:summary.approve')}
+                            </Button>
+                        )}
+                    </div>
+                )}
 
-                {c.summary && (
+                {c.summary && !editSummary && (
                     <div className="space-y-3 border-t border-border pt-4">
-                        <h3 className="text-h2 font-semibold text-foreground">{t('consultations:proposals.title_section')}</h3>
+                        <h3 className="text-body font-semibold text-foreground">{t('consultations:proposals.title_section')}</h3>
                         <ProposalsPanel
                             consultationId={c.id}
                             summary={withDefaults(c.summary, questionIds)}
@@ -836,6 +761,32 @@ const ConsultationDetail: React.FC = () => {
                             readOnly={readOnly}
                             onApplied={() => void load({ keepEdits: true })}
                         />
+                    </div>
+                )}
+
+                {(!readOnly || c.notes) && (
+                    <div className="space-y-2 border-t border-border pt-4">
+                        {readOnly ? (
+                            <>
+                                <h3 className="text-body font-semibold text-foreground">{t('consultations:followUp.notes')}</h3>
+                                <p className="whitespace-pre-wrap text-body">{c.notes}</p>
+                            </>
+                        ) : (
+                            <>
+                                <Textarea
+                                    label={t('consultations:followUp.notes')}
+                                    placeholder={t('consultations:followUp.notesPlaceholder')}
+                                    rows={3}
+                                    value={notes}
+                                    onChange={(e) => { setNotes(e.target.value); setNotesDirty(true); }}
+                                />
+                                <div className="flex justify-end">
+                                    <Button variant="secondary" onClick={() => void saveNotes()} disabled={busy || !notesDirty}>
+                                        <Save className="mr-2 h-4 w-4" aria-hidden="true" />{t('common:actions.save')}
+                                    </Button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 )}
             </Section>

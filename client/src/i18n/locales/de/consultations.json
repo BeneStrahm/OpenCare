@@ -77,7 +77,9 @@
     },
     "loadError": "Keine Verbindung. Das Gespräch kann gerade nicht geladen werden. Bitte prüfen Sie das Internet und versuchen Sie es erneut.",
     "reload": "Erneut versuchen",
-    "locked": "Mitschrift und Zusammenfassung sind freigegeben. Fragen, Angaben und Aufnahmen lassen sich nicht mehr ändern. Um doch etwas zu ändern, nehmen Sie eine Freigabe zurück."
+    "locked": "Mitschrift und Zusammenfassung sind freigegeben. Fragen, Angaben und Aufnahmen lassen sich nicht mehr ändern. Um doch etwas zu ändern, nehmen Sie eine Freigabe zurück.",
+    "when": "Wann",
+    "editPrep": "Angaben ändern"
   },
   "prep": {
     "title": "Vorbereitung",
@@ -97,7 +99,8 @@
     "driver": "Fahrt",
     "driverMissing": "Fahrer noch offen",
     "takeAlong": "Mitnehmen",
-    "eventHint": "Begleitung, Fahrt und Mitnehmen ändern Sie im Termin (Kalender) oder am Tablet."
+    "eventHint": "Begleitung, Fahrt und Mitnehmen ändern Sie im Termin (Kalender) oder am Tablet.",
+    "answer": "Antwort: {{text}}"
   },
   "recording": {
     "title": "Aufnahme",
@@ -134,7 +137,8 @@
     "play": "Abspielen",
     "player": "Aufnahme abspielen",
     "playError": "Die Aufnahme lässt sich gerade nicht abspielen. Bitte versuchen Sie es später noch einmal.",
-    "playOffline": "Zum Abspielen braucht dieses Gerät Internet."
+    "playOffline": "Zum Abspielen braucht dieses Gerät Internet.",
+    "recordingN": "Aufnahme {{n}}"
   },
   "errors": {
     "WHISPER_NOT_CONFIGURED": "Die Spracherkennung ist noch nicht eingerichtet. Ein Administrator kann Whisper unter Integrationen einrichten.",
@@ -146,7 +150,17 @@
     "INTERNAL": "Bei der Verarbeitung ist etwas schiefgegangen. Sie können es erneut versuchen.",
     "LOCAL_SERVICE_REQUIRED": "Zum Schutz der Daten wurde nichts gesendet: Spracherkennung oder KI-Modell liegen nicht im eigenen Netz. Bitte wenden Sie sich an den Administrator.",
     "AUDIO_MISSING": "Die Tonaufnahme fehlt auf dem Server. Erneut versuchen hilft hier nicht.",
-    "CONSULTATION_DELETED": "Das Gespräch zu dieser Aufnahme wurde gelöscht."
+    "CONSULTATION_DELETED": "Das Gespräch zu dieser Aufnahme wurde gelöscht.",
+    "INFOMANIAK_UNAUTHORIZED": "Infomaniak hat den Zugang abgelehnt. Ein Administrator muss den Token unter Integrationen prüfen. Die Aufnahme bleibt gespeichert.",
+    "INFOMANIAK_PAYMENT": "Infomaniak verarbeitet gerade nichts, vermutlich ist eine Rechnung offen. Nach dem Bezahlen können Sie es erneut versuchen. Die Aufnahme bleibt gespeichert.",
+    "INFOMANIAK_NOT_FOUND": "Infomaniak kennt die Produkt-ID oder das Modell nicht. Ein Administrator muss die Angaben unter Integrationen prüfen.",
+    "INFOMANIAK_UNAVAILABLE": "Infomaniak ist gerade nicht erreichbar. Bitte versuchen Sie es später noch einmal.",
+    "INFOMANIAK_FAILED": "Infomaniak konnte die Aufnahme nicht verarbeiten. Bitte versuchen Sie es später noch einmal.",
+    "INFOMANIAK_INVALID_RESPONSE": "Die Antwort von Infomaniak war nicht lesbar. Bitte versuchen Sie es später noch einmal.",
+    "AUDIO_TOO_LARGE": "Die Aufnahme ist zu groß für die Spracherkennung (höchstens 25 MB, etwa 2 Stunden). Die Aufnahme bleibt gespeichert und lässt sich abspielen.",
+    "AUDIO_REJECTED": "Die Spracherkennung hat die Tondatei abgelehnt. Die Aufnahme bleibt gespeichert und lässt sich abspielen.",
+    "SUMMARY_MODEL_MISSING": "Es wurde nur die Mitschrift erstellt. Für die Zusammenfassung ist unter Integrationen kein Modell eingetragen.",
+    "INFOMANIAK_BAD_REQUEST": "Infomaniak hat die Anfrage abgelehnt. Bitte wenden Sie sich an den Administrator. Die Aufnahme bleibt gespeichert."
   },
   "result": {
     "title": "Zusammenfassung",
@@ -197,7 +211,8 @@
     "confirmRegenerateProtected": "Achtung: Die Zusammenfassung wird komplett neu erstellt. Die freigegebene oder von Hand bearbeitete Fassung wird ersetzt, und die Freigabe entfällt. Fortfahren?",
     "unapprove": "Freigabe zurücknehmen",
     "confirmUnapprove": "Die Freigabe der Zusammenfassung zurücknehmen? Danach lässt sich das Gespräch wieder ändern.",
-    "unapproved": "Freigabe zurückgenommen"
+    "unapproved": "Freigabe zurückgenommen",
+    "write": "Selbst schreiben"
   },
   "followUp": {
     "title": "Nachbereitung",

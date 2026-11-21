@@ -198,3 +198,64 @@ Tasten mehr für Fragen, Angaben und Aufnahmen. „Freigabe zurücknehmen“ heb
 - Mikrofon für die Seite erlauben (Chrome › Website-Einstellungen › Mikrofon).
 - Während der Aufnahme die Ein-/Aus-Taste nicht drücken. Die App hält den Bildschirm an; schaltet jemand das
   Tablet trotzdem aus, ist alles bis dahin Aufgenommene gespeichert (Stücke zu 30 Sekunden).
+
+### Prüfliste Arztgespräch mit KI (E63, Infomaniak)
+
+Nur fiktive Testdaten und der Vorlesetext unten, keine echten Gespräche. Mitschrift und Zusammenfassung gehen
+an Infomaniak (Schweiz), ohne Arztname, Datum und Anlass.
+
+**Einrichten (ThomasMuster, App):** Integrationen › „Infomaniak (Arztgespräch)“ › Verbinden: Token und
+Produkt-ID aus dem Passwortmanager, Modell Zusammenfassung `Qwen/Qwen3.5-397B-A17B-FP8` (Schreibweise wie im
+Infomaniak-Konto). „Testen“ zeigt „Verbindung zu Infomaniak hergestellt“. Falscher Token: „Infomaniak hat den
+Token abgelehnt“. Falsche Produkt-ID: „Die Produkt-ID wurde … nicht gefunden“.
+
+**A. Ganzer Ablauf (http://localhost:3000, Tablet-Ansicht und App)**
+
+1. ErikaMuster: Arztgespräch › „Arzttermin eintragen“ (fiktiver Arzt), Termin mit Begleitung. Im Gespräch steht
+   „Gibt es einen neuen Medikamentenplan?“. Eine Frage hinzufügen, eine löschen (Rückfrage).
+2. Kalender: Terminkarte zeigt „Zum Arztgespräch“, führt zum selben Gespräch.
+3. Einwilligung anhaken, „Neue Aufnahme starten“, Vorlesetext (Teil D) vorlesen, „Aufnahme beenden“.
+4. Nach einigen Minuten: Mitschrift und Zusammenfassung erscheinen am Tablet mit „Noch nicht geprüft“.
+   SabineMuster bekommt die Meldung „Zusammenfassung bereit“.
+5. SabineMuster (App): Mitschrift lesen, eine Zahl korrigieren, freigeben. Zusammenfassung prüfen, freigeben.
+6. Sperre: Am Tablet keine Tasten mehr für Fragen, Angaben, Aufnahmen. In der App ebenso.
+7. „Freigabe zurücknehmen“ (Mitschrift): Tablet zeigt die Tasten wieder.
+8. Vorschläge übernehmen (Termin, Aufgabe, Notiz): nur nach Bestätigung, erscheinen im Kalender bzw. bei den
+   Aufgaben. Medikamentenplan bleibt unverändert.
+9. Datum überall deutsch („Dienstag, 1. Dezember 2026“, „10:00 Uhr“). Relative Folgetermine („in drei Monaten“)
+   ohne Datum: richtig so (E63), die Familie trägt das Datum ein.
+10. Gegenprobe: PetraSonnenschein (Fachkraft) liest, darf aber nicht freigeben; KarlNachbar (Freunde) sieht kein
+    Arztgespräch.
+
+**B. Offline (Tablet, Flugmodus)**
+
+1. Flugmodus an, „Gespräch jetzt aufnehmen“, 2 Minuten aufnehmen, beenden. Hinweis „Auf dem Tablet
+   gespeichert“.
+2. Vorhandene Mitschrift und Zusammenfassung öffnen: lesbar. Eigene Aufnahme abspielen (lokale Kopie).
+3. Flugmodus aus: Aufnahme wird gesendet, das Gespräch erscheint, Mitschrift folgt.
+
+**C. Am Tablet (Galaxy Tab A11+, Chrome)**
+
+1. Vorher Akku-Einstellungen wie oben („Nicht eingeschränkt“, nicht im Tiefschlaf).
+2. Aufnahme 30 Minuten, dann 60 Minuten: Bildschirm bleibt an, Aufnahme läuft durch. Dauer und Größe notieren
+   (erwartet etwa 11 MB pro Stunde).
+3. Während einer Aufnahme kurz die Ein-/Aus-Taste drücken, nach 1 Minute wieder an: Was ist gespeichert? Läuft
+   die Aufnahme weiter oder endet sie mit „Das Tablet hat das Mikrofon beendet“?
+4. Energiesparmodus des Tablets an, 10 Minuten aufnehmen: läuft durch?
+5. Speicher: Einstellungen › Apps › Chrome › Speicher vor und nach der 60-Minuten-Aufnahme notieren.
+
+**D. Qualität: Vorlesetext (fiktiv, zwei Personen, normales Tempo)**
+
+> Ärztin: Guten Tag, Frau Muster. Ihr HbA1c liegt bei 7,2, das ist in Ordnung. Der Blutdruck war zu Hause
+> 138 zu 82. Wir reduzieren das Ramipril von 5 auf 2,5 Milligramm, einmal morgens. Metformin 500 bleibt
+> zweimal täglich. Bitte kein Ibuprofen mehr, bei Schmerzen Paracetamol, höchstens dreimal 500 Milligramm am
+> Tag. Ein neues Medikament gegen das nächtliche Wasserlassen bekommen Sie nicht, trinken Sie nach 18 Uhr
+> weniger. Wenn der Blutzucker unter 100 fällt, rufen Sie bitte an. Kontrolle in drei Monaten, nüchtern.
+> Patientin: Gibt es einen neuen Medikamentenplan?
+> Ärztin: Ja, ich drucke Ihnen den neuen Plan aus.
+
+Prüfpunkte (je richtig / falsch notieren): HbA1c 7,2; 138 zu 82; Ramipril 5 auf 2,5 mg einmal morgens;
+Metformin 500 zweimal; kein Ibuprofen; Paracetamol höchstens dreimal 500 mg; kein neues Medikament; nach 18 Uhr
+weniger trinken; unter 100 anrufen; Kontrolle in drei Monaten nüchtern; Antwort auf die Standardfrage „Ja“.
+Fehlerquote der Mitschrift: falsche oder fehlende Wörter geteilt durch alle Wörter (etwa 110). Zusammenfassung:
+nichts erfunden, alle Prüfpunkte da. Mindestens zwei Durchläufe.

@@ -114,6 +114,28 @@ Status einer Aufnahme: `uploading` → `queued` → `transcribing` → `summariz
 `error_code`: `LOCAL_SERVICE_REQUIRED` (Whisper- oder KI-Adresse liegt nicht im eigenen Netz, es wurde nichts gesendet), `AUDIO_MISSING` (Audio fehlt, Wiederholen hilft nicht), `CONSULTATION_DELETED`, `WHISPER_NOT_CONFIGURED`, `WHISPER_UNAVAILABLE`, `EMPTY_TRANSCRIPT`, `AI_NOT_CONFIGURED`
 (nur Mitschrift, keine Zusammenfassung, Status bleibt `done`), `LOCAL_AI_REQUIRED` (KI des Kreises ist
 nicht Ollama, Status `done` ohne Zusammenfassung), `AI_FAILED`, `INTERNAL`.
+Mit Infomaniak (E63) zusätzlich: `INFOMANIAK_UNAUTHORIZED` (Token abgelehnt), `INFOMANIAK_PAYMENT` (HTTP 402,
+z. B. offene Rechnung), `INFOMANIAK_NOT_FOUND` (Produkt-ID oder Modell unbekannt), `INFOMANIAK_UNAVAILABLE`,
+`INFOMANIAK_FAILED`, `INFOMANIAK_INVALID_RESPONSE`, `AUDIO_TOO_LARGE` (über 25 MB, etwa 2 Stunden je Aufnahme),
+`AUDIO_REJECTED` (Datei abgelehnt), `INFOMANIAK_BAD_REQUEST` (Anfrage abgelehnt), `SUMMARY_MODEL_MISSING` (nur Mitschrift). Die Mitschrift bleibt immer erhalten.
+
+## Infomaniak (E63, nur Arztgespräch)
+
+Eingerichtet unter Integrationen als Typ `infomaniak` (nur admin): Token (verschlüsselt in
+`integrations.encrypted_credentials`), `config.product_id`, `config.whisper_model` (Standard `whisper`),
+`config.summary_model` (leer: keine Zusammenfassung). Adresse fest `https://api.infomaniak.com`.
+
+- Mitschrift: `POST /1/ai/{product_id}/openai/audio/transcriptions` (Audio, `language`, `prompt`,
+  `response_format=text`) liefert `batch_id`; der Server fragt alle 5 s `GET /1/ai/{product_id}/results/{batch_id}`
+  ab, bis `status` `success` ist (`data` = Text). Andere Statuswerte gelten als Fehler.
+- Zusammenfassung: `POST /2/ai/{product_id}/openai/v1/chat/completions`, temperature 0, Antwortschema als
+  `response_format` (`json_schema`) und als Text im Auftrag; lehnt Infomaniak `response_format` ab (400), einmal
+  ohne. Mitschriften bis 150 000 Zeichen in einem Schritt.
+- Gesendet werden Audio, Mitschrift, Fragen, Fachwörter (eigene Wörter und Medikamente, ohne Namen von Ärzten
+  und Verordnenden) und Fachrichtung. Nicht gesendet: Arztname, Datum, Anlass. Ohne Datum lässt die
+  Zusammenfassung relative Termine („in drei Monaten“) ohne Datum.
+- Ist Infomaniak nicht eingerichtet, gilt weiter der lokale Weg (Integration `whisper`, Ollama, nur eigenes Netz).
+  Assistent, Sprachbefehle und Wochenrückblick nutzen Infomaniak nie.
 
 WebSocket: Änderungen werden als `{ type: 'update', entity: 'consultations', action }` an den Kreis gesendet.
 

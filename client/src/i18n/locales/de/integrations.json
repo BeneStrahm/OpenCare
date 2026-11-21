@@ -25,7 +25,8 @@
     "stock": "Vorrat",
     "calendar": "Kalender",
     "appointments": "Termine",
-    "voice": "Sprachtagebuch"
+    "voice": "Sprachtagebuch",
+    "consultation": "Arztgespräch"
   },
   "presence": {
     "title": "Unauffällige Überwachung (Home Assistant)",
@@ -104,6 +105,20 @@
       "languageHint": "Leer lassen, um die App-Sprache der jeweiligen Person zu verwenden. Geben Sie einen Code wie de oder en ein, um für alle eine Sprache festzulegen.",
       "keyLabel": "API-Schlüssel (optional)",
       "keyPlaceholder": "Bearer-Schlüssel, falls Ihr Dienst einen verlangt"
+    },
+    "infomaniak": {
+      "name": "Infomaniak (Arztgespräch)",
+      "tagline": "Mitschrift und Zusammenfassung der Arztgespräche",
+      "description": "Nur für Arztgespräche: Die Aufnahme und die Mitschrift gehen an Infomaniak in der Schweiz. Arztname, Datum und Anlass werden nicht gesendet. Assistent und Sprachbefehle nutzen Infomaniak nicht. Jede Mitschrift und Zusammenfassung muss die Familie prüfen.",
+      "keyLabel": "Token",
+      "keyPlaceholder": "Token aus dem Infomaniak-Konto",
+      "productLabel": "Produkt-ID",
+      "productPlaceholder": "z. B. 12345",
+      "productHint": "Steht im Infomaniak-Konto bei „AI Tools“.",
+      "whisperLabel": "Modell für die Mitschrift (freiwillig)",
+      "summaryLabel": "Modell für die Zusammenfassung (freiwillig)",
+      "summaryPlaceholder": "Qwen/Qwen3.5-397B-A17B-FP8",
+      "summaryHint": "Leer lassen: es wird nur die Mitschrift erstellt."
     }
   }
 }

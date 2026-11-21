@@ -77,7 +77,9 @@
     },
     "loadError": "Sin conexión. La consulta no se puede cargar ahora. Comprueba internet e inténtalo de nuevo.",
     "reload": "Intentar de nuevo",
-    "locked": "La transcripción y el resumen están aprobados. Las preguntas, los datos y las grabaciones ya no se pueden cambiar. Para cambiar algo, retire una aprobación."
+    "locked": "La transcripción y el resumen están aprobados. Las preguntas, los datos y las grabaciones ya no se pueden cambiar. Para cambiar algo, retire una aprobación.",
+    "when": "Cuándo",
+    "editPrep": "Cambiar los datos"
   },
   "prep": {
     "title": "Preparación",
@@ -97,7 +99,8 @@
     "driver": "Transporte",
     "driverMissing": "Falta conductor",
     "takeAlong": "Llevar",
-    "eventHint": "El acompañante, el transporte y lo que hay que llevar se cambian en la cita (calendario) o en la tableta."
+    "eventHint": "El acompañante, el transporte y lo que hay que llevar se cambian en la cita (calendario) o en la tableta.",
+    "answer": "Respuesta: {{text}}"
   },
   "recording": {
     "title": "Grabación",
@@ -134,7 +137,8 @@
     "play": "Reproducir",
     "player": "Reproducir grabación",
     "playError": "Ahora no se puede reproducir la grabación. Inténtelo más tarde.",
-    "playOffline": "Para reproducirla, este dispositivo necesita internet."
+    "playOffline": "Para reproducirla, este dispositivo necesita internet.",
+    "recordingN": "Grabación {{n}}"
   },
   "errors": {
     "WHISPER_NOT_CONFIGURED": "El reconocimiento de voz aún no está configurado. Un administrador puede configurar Whisper en Integraciones.",
@@ -146,7 +150,17 @@
     "INTERNAL": "Algo falló durante el procesamiento. Puedes intentarlo de nuevo.",
     "LOCAL_SERVICE_REQUIRED": "Para proteger los datos no se envió nada: el reconocimiento de voz o el modelo de IA no está en tu propia red. Contacta con el administrador.",
     "AUDIO_MISSING": "Falta el audio en el servidor. Intentarlo de nuevo no ayudará.",
-    "CONSULTATION_DELETED": "La consulta de esta grabación se ha borrado."
+    "CONSULTATION_DELETED": "La consulta de esta grabación se ha borrado.",
+    "INFOMANIAK_UNAUTHORIZED": "Infomaniak rechazó el acceso. Un administrador debe revisar el token en Integraciones. La grabación se conserva.",
+    "INFOMANIAK_PAYMENT": "Infomaniak no procesa nada ahora, probablemente por una factura pendiente. Después de pagar puede volver a intentarlo. La grabación se conserva.",
+    "INFOMANIAK_NOT_FOUND": "Infomaniak no reconoce el ID de producto o el modelo. Un administrador debe revisar los datos en Integraciones.",
+    "INFOMANIAK_UNAVAILABLE": "Infomaniak no está accesible ahora. Vuelva a intentarlo más tarde.",
+    "INFOMANIAK_FAILED": "Infomaniak no pudo procesar la grabación. Vuelva a intentarlo más tarde.",
+    "INFOMANIAK_INVALID_RESPONSE": "No se pudo leer la respuesta de Infomaniak. Vuelva a intentarlo más tarde.",
+    "AUDIO_TOO_LARGE": "La grabación es demasiado grande para el reconocimiento de voz (máximo 25 MB, unas 2 horas). Se conserva y se puede reproducir.",
+    "AUDIO_REJECTED": "El reconocimiento de voz rechazó el archivo de audio. La grabación se conserva y se puede reproducir.",
+    "SUMMARY_MODEL_MISSING": "Solo se creó la transcripción. No hay ningún modelo de resumen en Integraciones.",
+    "INFOMANIAK_BAD_REQUEST": "Infomaniak rechazó la solicitud. Póngase en contacto con el administrador. La grabación se conserva."
   },
   "result": {
     "title": "Resumen",
@@ -197,7 +211,8 @@
     "confirmRegenerateProtected": "Atención: el resumen se creará de nuevo por completo. La versión aprobada o editada a mano se sustituirá y se quitará la aprobación. ¿Continuar?",
     "unapprove": "Retirar aprobación",
     "confirmUnapprove": "¿Retirar la aprobación del resumen? Después se podrá volver a cambiar la consulta.",
-    "unapproved": "Aprobación retirada"
+    "unapproved": "Aprobación retirada",
+    "write": "Escribirlo usted mismo"
   },
   "followUp": {
     "title": "Seguimiento",

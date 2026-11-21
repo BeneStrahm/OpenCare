@@ -25,7 +25,8 @@
     "stock": "Existencias",
     "calendar": "Calendario",
     "appointments": "Citas",
-    "voice": "Diario de voz"
+    "voice": "Diario de voz",
+    "consultation": "Consulta médica"
   },
   "presence": {
     "title": "Vigilancia pasiva (Home Assistant)",
@@ -104,6 +105,20 @@
       "languageHint": "Déjelo vacío para usar el idioma de la aplicación de cada persona. Escriba un código como es o en para imponer un solo idioma a todos.",
       "keyLabel": "Clave API (opcional)",
       "keyPlaceholder": "Clave Bearer si su servicio la exige"
+    },
+    "infomaniak": {
+      "name": "Infomaniak (consultas médicas)",
+      "tagline": "Transcripción y resumen de las consultas",
+      "description": "Solo para consultas médicas: la grabación y la transcripción se envían a Infomaniak en Suiza. No se envían el nombre del médico, la fecha ni el motivo. El asistente y los comandos de voz no usan Infomaniak. La familia debe revisar cada transcripción y cada resumen.",
+      "keyLabel": "Token",
+      "keyPlaceholder": "Token de su cuenta de Infomaniak",
+      "productLabel": "ID de producto",
+      "productPlaceholder": "p. ej. 12345",
+      "productHint": "Aparece en su cuenta de Infomaniak, en «AI Tools».",
+      "whisperLabel": "Modelo para la transcripción (opcional)",
+      "summaryLabel": "Modelo para el resumen (opcional)",
+      "summaryPlaceholder": "Qwen/Qwen3.5-397B-A17B-FP8",
+      "summaryHint": "Déjelo vacío para crear solo la transcripción."
     }
   }
 }

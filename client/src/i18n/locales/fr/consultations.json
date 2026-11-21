@@ -77,7 +77,9 @@
     },
     "loadError": "Pas de connexion. La consultation ne peut pas être chargée pour le moment. Vérifiez Internet et réessayez.",
     "reload": "Réessayer",
-    "locked": "La transcription et le résumé sont validés. Les questions, les informations et les enregistrements ne peuvent plus être modifiés. Pour changer quelque chose, retirez une validation."
+    "locked": "La transcription et le résumé sont validés. Les questions, les informations et les enregistrements ne peuvent plus être modifiés. Pour changer quelque chose, retirez une validation.",
+    "when": "Quand",
+    "editPrep": "Modifier les informations"
   },
   "prep": {
     "title": "Préparation",
@@ -97,7 +99,8 @@
     "driver": "Transport",
     "driverMissing": "Conducteur à trouver",
     "takeAlong": "À emporter",
-    "eventHint": "L’accompagnement, le transport et les affaires à emporter se modifient dans le rendez-vous (agenda) ou sur la tablette."
+    "eventHint": "L’accompagnement, le transport et les affaires à emporter se modifient dans le rendez-vous (agenda) ou sur la tablette.",
+    "answer": "Réponse : {{text}}"
   },
   "recording": {
     "title": "Enregistrement",
@@ -134,7 +137,8 @@
     "play": "Écouter",
     "player": "Écouter l’enregistrement",
     "playError": "L’enregistrement ne peut pas être lu pour le moment. Réessayez plus tard.",
-    "playOffline": "Pour écouter, cet appareil a besoin d’internet."
+    "playOffline": "Pour écouter, cet appareil a besoin d’internet.",
+    "recordingN": "Enregistrement {{n}}"
   },
   "errors": {
     "WHISPER_NOT_CONFIGURED": "La reconnaissance vocale n'est pas encore configurée. Un administrateur peut configurer Whisper dans Intégrations.",
@@ -146,7 +150,17 @@
     "INTERNAL": "Un problème est survenu pendant le traitement. Vous pouvez réessayer.",
     "LOCAL_SERVICE_REQUIRED": "Pour protéger les données, rien n'a été envoyé : la reconnaissance vocale ou le modèle d'IA n'est pas sur votre propre réseau. Contactez l'administrateur.",
     "AUDIO_MISSING": "L'audio manque sur le serveur. Réessayer n'aidera pas.",
-    "CONSULTATION_DELETED": "La consultation de cet enregistrement a été supprimée."
+    "CONSULTATION_DELETED": "La consultation de cet enregistrement a été supprimée.",
+    "INFOMANIAK_UNAUTHORIZED": "Infomaniak a refusé l'accès. Un administrateur doit vérifier le jeton dans Intégrations. L'enregistrement est conservé.",
+    "INFOMANIAK_PAYMENT": "Infomaniak ne traite rien pour le moment, probablement à cause d'une facture impayée. Après le paiement, vous pouvez réessayer. L'enregistrement est conservé.",
+    "INFOMANIAK_NOT_FOUND": "Infomaniak ne connaît pas l'identifiant de produit ou le modèle. Un administrateur doit vérifier les réglages dans Intégrations.",
+    "INFOMANIAK_UNAVAILABLE": "Infomaniak est injoignable pour le moment. Veuillez réessayer plus tard.",
+    "INFOMANIAK_FAILED": "Infomaniak n'a pas pu traiter l'enregistrement. Veuillez réessayer plus tard.",
+    "INFOMANIAK_INVALID_RESPONSE": "La réponse d'Infomaniak était illisible. Veuillez réessayer plus tard.",
+    "AUDIO_TOO_LARGE": "L'enregistrement est trop volumineux pour la reconnaissance vocale (25 Mo au plus, environ 2 heures). Il est conservé et peut être écouté.",
+    "AUDIO_REJECTED": "La reconnaissance vocale a refusé le fichier audio. L'enregistrement est conservé et peut être écouté.",
+    "SUMMARY_MODEL_MISSING": "Seule la transcription a été créée. Aucun modèle de résumé n'est indiqué dans Intégrations.",
+    "INFOMANIAK_BAD_REQUEST": "Infomaniak a refusé la demande. Veuillez contacter l'administrateur. L'enregistrement est conservé."
   },
   "result": {
     "title": "Résumé",
@@ -197,7 +211,8 @@
     "confirmRegenerateProtected": "Attention : le résumé sera entièrement recréé. La version validée ou modifiée à la main sera remplacée et la validation supprimée. Continuer ?",
     "unapprove": "Retirer la validation",
     "confirmUnapprove": "Retirer la validation du résumé ? La consultation pourra de nouveau être modifiée.",
-    "unapproved": "Validation retirée"
+    "unapproved": "Validation retirée",
+    "write": "Rédiger soi-même"
   },
   "followUp": {
     "title": "Suivi",

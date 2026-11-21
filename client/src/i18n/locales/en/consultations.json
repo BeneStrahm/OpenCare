@@ -77,7 +77,9 @@
     },
     "loadError": "No connection. The consultation cannot be loaded right now. Please check the internet and try again.",
     "reload": "Try again",
-    "locked": "Transcript and summary are approved. Questions, details and recordings can no longer be changed. To change something, withdraw an approval."
+    "locked": "Transcript and summary are approved. Questions, details and recordings can no longer be changed. To change something, withdraw an approval.",
+    "when": "When",
+    "editPrep": "Change details"
   },
   "prep": {
     "title": "Preparation",
@@ -97,7 +99,8 @@
     "driver": "Transport",
     "driverMissing": "Driver still open",
     "takeAlong": "Take along",
-    "eventHint": "Change who comes along, transport and what to take in the appointment (calendar) or on the tablet."
+    "eventHint": "Change who comes along, transport and what to take in the appointment (calendar) or on the tablet.",
+    "answer": "Answer: {{text}}"
   },
   "recording": {
     "title": "Recording",
@@ -134,7 +137,8 @@
     "play": "Play",
     "player": "Play recording",
     "playError": "The recording cannot be played right now. Please try again later.",
-    "playOffline": "This device needs internet to play the recording."
+    "playOffline": "This device needs internet to play the recording.",
+    "recordingN": "Recording {{n}}"
   },
   "errors": {
     "WHISPER_NOT_CONFIGURED": "Speech recognition is not set up yet. An administrator can set up Whisper under Integrations.",
@@ -146,7 +150,17 @@
     "INTERNAL": "Something went wrong during processing. You can try again.",
     "LOCAL_SERVICE_REQUIRED": "To protect the data, nothing was sent: speech recognition or the AI model is not on your own network. Please contact the administrator.",
     "AUDIO_MISSING": "The audio is missing on the server. Trying again will not help.",
-    "CONSULTATION_DELETED": "The consultation for this recording was deleted."
+    "CONSULTATION_DELETED": "The consultation for this recording was deleted.",
+    "INFOMANIAK_UNAUTHORIZED": "Infomaniak refused access. An administrator needs to check the token under Integrations. The recording is kept.",
+    "INFOMANIAK_PAYMENT": "Infomaniak is not processing anything right now, probably because an invoice is unpaid. After paying you can try again. The recording is kept.",
+    "INFOMANIAK_NOT_FOUND": "Infomaniak does not know the product ID or the model. An administrator needs to check the settings under Integrations.",
+    "INFOMANIAK_UNAVAILABLE": "Infomaniak is not reachable right now. Please try again later.",
+    "INFOMANIAK_FAILED": "Infomaniak could not process the recording. Please try again later.",
+    "INFOMANIAK_INVALID_RESPONSE": "The answer from Infomaniak could not be read. Please try again later.",
+    "AUDIO_TOO_LARGE": "The recording is too large for speech recognition (at most 25 MB, about 2 hours). The recording is kept and can be played.",
+    "AUDIO_REJECTED": "Speech recognition rejected the audio file. The recording is kept and can be played.",
+    "SUMMARY_MODEL_MISSING": "Only the transcript was created. No model for the summary is set under Integrations.",
+    "INFOMANIAK_BAD_REQUEST": "Infomaniak rejected the request. Please contact the administrator. The recording is kept."
   },
   "result": {
     "title": "Summary",
@@ -197,7 +211,8 @@
     "confirmRegenerateProtected": "Warning: the summary will be created again from scratch. The approved or hand-edited version will be replaced and the approval removed. Continue?",
     "unapprove": "Withdraw approval",
     "confirmUnapprove": "Withdraw the approval of the summary? The visit can then be changed again.",
-    "unapproved": "Approval withdrawn"
+    "unapproved": "Approval withdrawn",
+    "write": "Write it yourself"
   },
   "followUp": {
     "title": "Follow-up",

@@ -10,6 +10,7 @@ import { testGrocyConnection, syncGrocy } from '../services/integrations/grocy';
 import { testNextcloudConnection, syncNextcloud } from '../services/integrations/nextcloud';
 import { broadcastToCircle } from '../lib/broadcaster';
 import { langFromRequest, t, type Lang } from '../lib/i18n';
+import { INFOMANIAK_BASE_URL, testInfomaniak } from '../modules/consultations/infomaniak';
 
 const router = Router();
 
@@ -17,7 +18,22 @@ const router = Router();
 router.use(authMiddleware);
 router.use(circleMiddleware);
 
-const INTEGRATION_TYPES = ['homeassistant', 'grocy', 'nextcloud', 'whisper'] as const;
+const INTEGRATION_TYPES = ['homeassistant', 'grocy', 'nextcloud', 'whisper', 'infomaniak'] as const;
+
+// E63: Infomaniak (nur Arztgespraech) hat eine feste Adresse, kein frei waehlbarer Host.
+const fixedBaseUrl = (type: string | undefined, baseUrl: string | undefined): string | undefined =>
+    type === 'infomaniak' ? INFOMANIAK_BASE_URL : baseUrl;
+
+async function testInfomaniakConnection(apiKey: string | undefined, productId: unknown, lang: Lang): Promise<{ success: boolean; message: string }> {
+    if (!apiKey) return { success: false, message: t(lang, 'integrations.infomaniakKeyMissing') };
+    const result = await testInfomaniak(apiKey, typeof productId === 'string' ? productId.trim() : '');
+    switch (result) {
+        case 'ok': return { success: true, message: t(lang, 'integrations.infomaniakOk') };
+        case 'unauthorized': return { success: false, message: t(lang, 'integrations.infomaniakKeyInvalid') };
+        case 'product': return { success: false, message: t(lang, 'integrations.infomaniakProduct') };
+        default: return { success: false, message: t(lang, 'integrations.infomaniakUnreachable') };
+    }
+}
 
 // Whisper (speaches / faster-whisper-server, API compatible OpenAI): un simple
 // GET /v1/models suffit à vérifier que le service répond (clé Bearer optionnelle).
@@ -63,7 +79,8 @@ router.get('/', async (req: CircleRequest, res) => {
 // POST /api/integrations/test - test without saving (circle admins)
 router.post('/test', requireAdmin, async (req: CircleRequest, res) => {
     const lang = langFromRequest(req);
-    const { type, base_url, apiKey, token } = req.body as Record<string, string>;
+    const { type, apiKey, token } = req.body as Record<string, string>;
+    const base_url = fixedBaseUrl(type, (req.body as Record<string, string>).base_url);
     const cleanUrl = (base_url || '').replace(/\/$/, '');
 
     try {
@@ -75,6 +92,7 @@ router.post('/test', requireAdmin, async (req: CircleRequest, res) => {
             case 'grocy':         result = await testGrocyConnection(cleanUrl, apiKey, lang); break;
             case 'nextcloud':     result = await testNextcloudConnection(cleanUrl, (req.body as Record<string, string>).username, (req.body as Record<string, string>).password, lang); break;
             case 'whisper':       result = await testWhisperConnection(cleanUrl, apiKey, lang); break;
+            case 'infomaniak':    result = await testInfomaniakConnection(apiKey, (req.body as { config?: Record<string, unknown> }).config?.product_id, lang); break;
             default:              result = { success: false, message: t(lang, 'integrations.unknownType') };
         }
         res.json(result);
@@ -89,7 +107,8 @@ router.post('/test', requireAdmin, async (req: CircleRequest, res) => {
 // POST /api/integrations - connect (circle admins)
 router.post('/', requireAdmin, async (req: CircleRequest, res) => {
     const lang = langFromRequest(req);
-    const { type, base_url, display_name, config: configFromBody, apiKey, token, username, password, ha_entity_id } = req.body as Record<string, string> & { config?: object };
+    const { type, display_name, config: configFromBody, apiKey, token, username, password, ha_entity_id } = req.body as Record<string, string> & { config?: object };
+    const base_url = fixedBaseUrl(type, (req.body as Record<string, string>).base_url);
 
     if (!type || !base_url) {
         return res.status(400).json({ success: false, error: t(lang, 'integrations.typeAndUrlRequired') });
@@ -172,7 +191,8 @@ router.post('/:id/sync', requireAdmin, async (req: CircleRequest, res) => {
                 case 'grocy':         syncResult = await syncGrocy(integ.id, req.circleId!, integ.base_url, integ.encrypted_credentials); break;
                 case 'nextcloud':     syncResult = await syncNextcloud(integ.id, req.circleId!, integ.base_url, integ.encrypted_credentials, integ.config || {}); break;
                 // Whisper est appelé à la demande (transcription): rien à synchroniser.
-                case 'whisper':       syncResult = { imported: 0, errors: 0 }; break;
+                case 'whisper':
+                case 'infomaniak':    syncResult = { imported: 0, errors: 0 }; break;
                 default: throw new Error('Type inconnu');
             }
 

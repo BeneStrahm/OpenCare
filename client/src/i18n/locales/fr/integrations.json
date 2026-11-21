@@ -25,7 +25,8 @@
     "stock": "Stock",
     "calendar": "Calendrier",
     "appointments": "Rendez-vous",
-    "voice": "Journal vocal"
+    "voice": "Journal vocal",
+    "consultation": "Consultation"
   },
   "presence": {
     "title": "Veille passive (Home Assistant)",
@@ -104,6 +105,20 @@
       "languageHint": "Laissez vide pour utiliser la langue de l'application de chaque personne. Saisissez un code comme fr ou en pour imposer une seule langue à tout le monde.",
       "keyLabel": "Clé API (facultatif)",
       "keyPlaceholder": "Clé Bearer si votre service en exige une"
+    },
+    "infomaniak": {
+      "name": "Infomaniak (consultations)",
+      "tagline": "Transcription et résumé des consultations",
+      "description": "Uniquement pour les consultations : l'enregistrement et la transcription sont envoyés à Infomaniak en Suisse. Le nom du médecin, la date et le motif ne sont pas envoyés. L'assistant et les commandes vocales n'utilisent pas Infomaniak. La famille doit vérifier chaque transcription et chaque résumé.",
+      "keyLabel": "Jeton",
+      "keyPlaceholder": "Jeton de votre compte Infomaniak",
+      "productLabel": "Identifiant de produit",
+      "productPlaceholder": "p. ex. 12345",
+      "productHint": "Visible dans votre compte Infomaniak sous « AI Tools ».",
+      "whisperLabel": "Modèle pour la transcription (facultatif)",
+      "summaryLabel": "Modèle pour le résumé (facultatif)",
+      "summaryPlaceholder": "Qwen/Qwen3.5-397B-A17B-FP8",
+      "summaryHint": "Laisser vide pour créer uniquement la transcription."
     }
   }
 }

@@ -25,7 +25,8 @@
     "stock": "Stock",
     "calendar": "Calendar",
     "appointments": "Appointments",
-    "voice": "Voice journal"
+    "voice": "Voice journal",
+    "consultation": "Doctor visit"
   },
   "presence": {
     "title": "Passive monitoring (Home Assistant)",
@@ -104,6 +105,20 @@
       "languageHint": "Leave blank to use each person's app language. Enter a code like en or es to force one language for everyone.",
       "keyLabel": "API key (optional)",
       "keyPlaceholder": "Bearer key if your service requires one"
+    },
+    "infomaniak": {
+      "name": "Infomaniak (doctor visits)",
+      "tagline": "Transcript and summary of doctor visits",
+      "description": "Doctor visits only: the recording and the transcript are sent to Infomaniak in Switzerland. Doctor name, date and reason are not sent. The assistant and voice commands do not use Infomaniak. The family must check every transcript and summary.",
+      "keyLabel": "Token",
+      "keyPlaceholder": "Token from your Infomaniak account",
+      "productLabel": "Product ID",
+      "productPlaceholder": "e.g. 12345",
+      "productHint": "Shown in your Infomaniak account under \"AI Tools\".",
+      "whisperLabel": "Model for the transcript (optional)",
+      "summaryLabel": "Model for the summary (optional)",
+      "summaryPlaceholder": "Qwen/Qwen3.5-397B-A17B-FP8",
+      "summaryHint": "Leave empty to create only the transcript."
     }
   }
 }

@@ -30,7 +30,7 @@ const BRAND_SVG: Record<string, { path: string; hex: string }> = {
 
 function BrandIcon({ id, size = 20 }: { id: string; size?: number }) {
     // Whisper n'a pas de logo de marque: une icône micro sobre suffit.
-    if (id === 'whisper') {
+    if (id === 'whisper' || id === 'infomaniak') {
         return <Mic size={size} className="text-primary" aria-hidden="true" style={{ flexShrink: 0 }} />;
     }
     const icon = BRAND_SVG[id];
@@ -457,6 +457,20 @@ const Integrations: React.FC = () => {
                 { key: 'model', label: t('integrations:catalog.whisper.modelLabel'), placeholder: t('integrations:catalog.whisper.modelPlaceholder'), type: 'text', optional: true, config: true },
                 { key: 'language', label: t('integrations:catalog.whisper.languageLabel'), placeholder: t('integrations:catalog.whisper.languagePlaceholder'), hint: t('integrations:catalog.whisper.languageHint'), type: 'text', optional: true, config: true },
                 { key: 'apiKey', label: t('integrations:catalog.whisper.keyLabel'), placeholder: t('integrations:catalog.whisper.keyPlaceholder'), type: 'password', optional: true },
+            ],
+        },
+        {
+            // E63: nur Arztgespraech, feste Adresse (kein Feld fuer die URL).
+            id: 'infomaniak',
+            name: t('integrations:catalog.infomaniak.name'),
+            tagline: t('integrations:catalog.infomaniak.tagline'),
+            description: t('integrations:catalog.infomaniak.description'),
+            syncs: [t('integrations:syncs.consultation')],
+            fields: [
+                { key: 'apiKey', label: t('integrations:catalog.infomaniak.keyLabel'), placeholder: t('integrations:catalog.infomaniak.keyPlaceholder'), type: 'password' },
+                { key: 'product_id', label: t('integrations:catalog.infomaniak.productLabel'), placeholder: t('integrations:catalog.infomaniak.productPlaceholder'), hint: t('integrations:catalog.infomaniak.productHint'), type: 'text', config: true },
+                { key: 'whisper_model', label: t('integrations:catalog.infomaniak.whisperLabel'), placeholder: 'whisper', type: 'text', optional: true, config: true },
+                { key: 'summary_model', label: t('integrations:catalog.infomaniak.summaryLabel'), placeholder: t('integrations:catalog.infomaniak.summaryPlaceholder'), hint: t('integrations:catalog.infomaniak.summaryHint'), type: 'text', optional: true, config: true },
             ],
         },
     ];

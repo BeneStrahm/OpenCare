@@ -92,7 +92,12 @@ export interface VocabularyRow {
 }
 
 /** Eigene Woerter und automatisch gesammelte Woerter eines Kreises. */
-export async function loadVocabulary(circleId: string): Promise<{ custom: VocabularyRow[]; automatic: string[] }> {
+/**
+ * includePeople: false laesst Namen von Aerzten und Verordnenden sowie
+ * Fachrichtungen aus den Gespraechen weg (externer Dienst, E63).
+ */
+export async function loadVocabulary(circleId: string, options: { includePeople?: boolean } = {}): Promise<{ custom: VocabularyRow[]; automatic: string[] }> {
+    const includePeople = options.includePeople ?? true;
     const custom = await query(
         `SELECT id, term, created_at FROM consultation_vocabulary
          WHERE circle_id = $1 ORDER BY lower(term)`,
@@ -102,7 +107,7 @@ export async function loadVocabulary(circleId: string): Promise<{ custom: Vocabu
         `SELECT DISTINCT name FROM medications WHERE circle_id = $1 AND name IS NOT NULL ORDER BY name`,
         [circleId]
     );
-    const doctors = await query(
+    const doctors = !includePeople ? { rows: [] } : await query(
         `SELECT DISTINCT v FROM (
             SELECT doctor_name AS v FROM consultations WHERE circle_id = $1
             UNION SELECT specialty AS v FROM consultations WHERE circle_id = $1

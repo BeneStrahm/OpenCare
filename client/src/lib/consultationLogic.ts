@@ -88,6 +88,16 @@ export const KNOWN_ERROR_CODES = [
     'LOCAL_SERVICE_REQUIRED',
     'AUDIO_MISSING',
     'CONSULTATION_DELETED',
+    'INFOMANIAK_UNAUTHORIZED',
+    'INFOMANIAK_PAYMENT',
+    'INFOMANIAK_NOT_FOUND',
+    'INFOMANIAK_UNAVAILABLE',
+    'INFOMANIAK_FAILED',
+    'INFOMANIAK_INVALID_RESPONSE',
+    'INFOMANIAK_BAD_REQUEST',
+    'AUDIO_TOO_LARGE',
+    'AUDIO_REJECTED',
+    'SUMMARY_MODEL_MISSING',
     'INTERNAL',
 ] as const;
 
@@ -97,7 +107,8 @@ export const KNOWN_ERROR_CODES = [
  */
 export function isRetryableRecording(code: string | null | undefined, audioDeleted: boolean): boolean {
     if (audioDeleted) return false;
-    return code !== 'AUDIO_MISSING' && code !== 'CONSULTATION_DELETED';
+    // Zu grosse oder abgelehnte Datei: Wiederholen schickt dieselbe Datei noch einmal.
+    return !['AUDIO_MISSING', 'CONSULTATION_DELETED', 'AUDIO_TOO_LARGE', 'AUDIO_REJECTED'].includes(code ?? '');
 }
 
 export type KnownErrorCode = typeof KNOWN_ERROR_CODES[number];

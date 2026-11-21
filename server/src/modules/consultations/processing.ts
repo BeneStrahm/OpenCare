@@ -4,9 +4,10 @@
 // -> done. Es laeuft immer nur EINE Aufnahme gleichzeitig, weil Whisper und
 // das Sprachmodell meist auf derselben Grafikkarte laufen.
 //
-// Datenschutz: Die Zusammenfassung entsteht nur mit einem lokalen Modell
-// (Provider 'ollama'). Ist im Kreis ein Cloud-Anbieter eingestellt, bleibt es
-// bei der Mitschrift (error_code LOCAL_AI_REQUIRED).
+// Datenschutz: Ist Infomaniak eingerichtet (E63, ausdrueckliche Freigabe), gehen
+// Audio und Mitschrift nur dorthin, ohne Arztname, Datum und Anlass. Sonst
+// entsteht alles nur mit Diensten im eigenen Netz (Whisper, Ollama); ist im Kreis
+// ein Cloud-Anbieter eingestellt, bleibt es bei der Mitschrift (LOCAL_AI_REQUIRED).
 
 import { query } from '../../db';
 import logger from '../../lib/logger';
@@ -29,6 +30,13 @@ import {
 import { buildWhisperPrompt, loadVocabulary, vocabularyForSummary } from './vocabulary';
 import { consultationText } from './texts';
 import { isLocalServiceUrl } from './localOnly';
+import {
+    INFOMANIAK_DIRECT_SUMMARY_MAX_CHARS,
+    InfomaniakError,
+    infomaniakComplete,
+    infomaniakTranscribe,
+    loadInfomaniak,
+} from './infomaniak';
 
 const POLL_MS = 20_000;
 const MAX_ATTEMPTS = 3;
@@ -81,7 +89,39 @@ const EXTENSIONS: Record<string, string> = {
     'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/mpeg': 'mp3',
 };
 
+async function loadAudio(recordingId: string): Promise<Buffer> {
+    const chunks = await query(
+        `SELECT data FROM consultation_recording_chunks WHERE recording_id = $1 ORDER BY chunk_index`,
+        [recordingId]
+    );
+    if (chunks.rows.length === 0) throw new ProcessingError('AUDIO_MISSING', false);
+    return Buffer.concat(chunks.rows.map((r: { data: Buffer }) => r.data));
+}
+
+const fileName = (mimeType: string) =>
+    `consultation.${EXTENSIONS[mimeType.split(';')[0].trim().toLowerCase()] ?? 'webm'}`;
+
+/** E63: Mitschrift ueber Infomaniak. Fachwoerter ohne Namen von Personen. */
+async function transcribeWithInfomaniak(rec: RecordingRow, lang: SummaryLang, settings: NonNullable<Awaited<ReturnType<typeof loadInfomaniak>>>): Promise<string> {
+    const audio = await loadAudio(rec.id);
+    const vocabulary = await loadVocabulary(rec.circle_id, { includePeople: false });
+    const prompt = buildWhisperPrompt({ custom: vocabulary.custom.map((v) => v.term), automatic: vocabulary.automatic }, lang);
+    try {
+        return await infomaniakTranscribe(
+            settings,
+            { data: audio, mimeType: rec.mime_type, fileName: fileName(rec.mime_type) },
+            { language: lang, prompt, timeoutMs: TRANSCRIBE_TIMEOUT_MS }
+        );
+    } catch (error) {
+        if (error instanceof InfomaniakError) throw new ProcessingError(error.code, error.retryable);
+        throw error;
+    }
+}
+
 async function transcribe(rec: RecordingRow, lang: SummaryLang): Promise<string> {
+    const infomaniak = await loadInfomaniak(rec.circle_id);
+    if (infomaniak) return transcribeWithInfomaniak(rec, lang, infomaniak);
+
     const integration = (await query(
         `SELECT base_url, encrypted_credentials, config FROM integrations
          WHERE circle_id = $1 AND type = 'whisper'`,
@@ -91,12 +131,7 @@ async function transcribe(rec: RecordingRow, lang: SummaryLang): Promise<string>
     // Nur an Dienste im eigenen Netz senden (siehe localOnly.ts).
     if (!(await isLocalServiceUrl(integration.base_url))) throw new ProcessingError('LOCAL_SERVICE_REQUIRED', false);
 
-    const chunks = await query(
-        `SELECT data FROM consultation_recording_chunks WHERE recording_id = $1 ORDER BY chunk_index`,
-        [rec.id]
-    );
-    if (chunks.rows.length === 0) throw new ProcessingError('AUDIO_MISSING', false);
-    const audio = Buffer.concat(chunks.rows.map((r: { data: Buffer }) => r.data));
+    const audio = await loadAudio(rec.id);
 
     let apiKey: string | null = null;
     if (integration.encrypted_credentials) {
@@ -116,9 +151,8 @@ async function transcribe(rec: RecordingRow, lang: SummaryLang): Promise<string>
         language
     );
 
-    const baseType = rec.mime_type.split(';')[0].trim().toLowerCase();
     const form = new FormData();
-    form.append('file', new Blob([audio], { type: rec.mime_type }), `consultation.${EXTENSIONS[baseType] ?? 'webm'}`);
+    form.append('file', new Blob([audio], { type: rec.mime_type }), fileName(rec.mime_type));
     form.append('model', model);
     form.append('language', language);
     if (prompt) form.append('prompt', prompt);
@@ -174,9 +208,46 @@ export async function localAiFor(circleId: string): Promise<AiSettings | 'AI_NOT
  * oder Handbearbeitung blieb erhalten (summary_outdated gesetzt); sonst ein
  * Hinweis-Code, warum keine Zusammenfassung entstand.
  */
-export async function summarizeConsultation(consultationId: string, circleId: string, force = false): Promise<string | null> {
+interface SummaryEngine {
+    complete: (request: { system: string; user: string; jsonSchema: Record<string, unknown> }) => Promise<Record<string, unknown>>;
+    /** true: externer Dienst (Infomaniak), dann ohne Arztname, Datum, Anlass und Namen in den Fachwoertern. */
+    external: boolean;
+    directMaxChars: number;
+}
+
+/** Infomaniak, wenn mit Modell eingerichtet (E63), sonst die lokale KI des Kreises. */
+async function summaryEngine(circleId: string): Promise<SummaryEngine | string> {
+    const infomaniak = await loadInfomaniak(circleId);
+    if (infomaniak?.summaryModel) {
+        return {
+            complete: (r) => infomaniakComplete(infomaniak, r, SUMMARY_TIMEOUT_MS),
+            external: true,
+            directMaxChars: INFOMANIAK_DIRECT_SUMMARY_MAX_CHARS,
+        };
+    }
     const ai = await localAiFor(circleId);
-    if (typeof ai === 'string') return ai;
+    // Infomaniak ohne Modell fuer die Zusammenfassung und keine lokale KI: nur Mitschrift.
+    if (typeof ai === 'string') return infomaniak ? 'SUMMARY_MODEL_MISSING' : ai;
+    return {
+        complete: (r) => aiComplete(ai, { ...r, timeoutMs: SUMMARY_TIMEOUT_MS }),
+        external: false,
+        directMaxChars: DIRECT_SUMMARY_MAX_CHARS,
+    };
+}
+
+export async function summarizeConsultation(consultationId: string, circleId: string, force = false): Promise<string | null> {
+    try {
+        return await summarizeWith(consultationId, circleId, force);
+    } catch (error) {
+        // Nicht behebbare Infomaniak-Fehler (Token, Zahlung, Modell): Mitschrift bleibt, Hinweis-Code.
+        if (error instanceof InfomaniakError && !error.retryable) return error.code;
+        throw error;
+    }
+}
+
+async function summarizeWith(consultationId: string, circleId: string, force: boolean): Promise<string | null> {
+    const engine = await summaryEngine(circleId);
+    if (typeof engine === 'string') return engine;
 
     const consultation = (await query(
         `SELECT doctor_name, specialty, reason, to_char(scheduled_at, 'YYYY-MM-DD') AS date,
@@ -211,31 +282,32 @@ export async function summarizeConsultation(consultationId: string, circleId: st
     const questions = questionRows.map((r) => r.text);
 
     const lang = await circleLanguage(circleId);
-    const vocabulary = await loadVocabulary(circleId);
+    const vocabulary = await loadVocabulary(circleId, { includePeople: !engine.external });
+    // E63: an Infomaniak ohne Arztname, Datum und Anlass.
     const ctx = {
         lang,
-        date: consultation.date ?? consultation.created_date ?? null,
-        doctor: consultation.doctor_name,
+        date: engine.external ? null : consultation.date ?? consultation.created_date ?? null,
+        doctor: engine.external ? null : consultation.doctor_name,
         specialty: consultation.specialty,
-        reason: consultation.reason,
+        reason: engine.external ? null : consultation.reason,
         questions,
         vocabulary: vocabularyForSummary({ custom: vocabulary.custom.map((v) => v.term), automatic: vocabulary.automatic }),
     };
 
     let material: { transcript?: string; notes?: string[] };
-    if (transcript.length <= DIRECT_SUMMARY_MAX_CHARS) {
+    if (transcript.length <= engine.directMaxChars) {
         material = { transcript };
     } else {
         const segments = splitTranscript(transcript);
         const notes: string[] = [];
         for (let i = 0; i < segments.length; i++) {
-            const raw = await aiComplete(ai, { ...buildSegmentPrompt(segments[i], i, segments.length, lang), timeoutMs: SUMMARY_TIMEOUT_MS });
+            const raw = await engine.complete(buildSegmentPrompt(segments[i], i, segments.length, lang));
             notes.push(...validateSegmentNotes(raw));
         }
         material = { notes };
     }
 
-    const raw = await aiComplete(ai, { ...buildSummaryPrompt(material, ctx), timeoutMs: SUMMARY_TIMEOUT_MS });
+    const raw = await engine.complete(buildSummaryPrompt(material, ctx));
     const summary = bindQuestionIds(validateSummary(raw, questions.length), questionRows.map((r) => r.id));
 
     // Die Bedingung steht auch im UPDATE: Wurde waehrend der Verarbeitung
