@@ -68,6 +68,8 @@ class ApiClient {
     private baseURL: string;
     private token: string | null = null;
     private circleId: string | null = null;
+    /** E64: offener Teambereich am Tablet. Nur im Speicher: Neu laden schliesst ihn. */
+    private teamToken: string | null = null;
 
     constructor(baseURL: string) {
         this.baseURL = baseURL;
@@ -102,6 +104,15 @@ class ApiClient {
         return this.circleId;
     }
 
+    /** E64: Token des offenen Teambereichs (Kopf X-Team-Token), null schliesst ihn. */
+    setTeamToken(token: string | null) {
+        this.teamToken = token;
+    }
+
+    getTeamToken(): string | null {
+        return this.teamToken;
+    }
+
     private async request<T>(
         endpoint: string,
         options: RequestInit = {}
@@ -128,6 +139,10 @@ class ApiClient {
             headers['X-Circle-Id'] = this.circleId;
         }
 
+        if (this.teamToken) {
+            headers['X-Team-Token'] = this.teamToken;
+        }
+
         const method = ((options.method as string) || 'GET').toUpperCase();
 
         let response: Response;
@@ -145,7 +160,9 @@ class ApiClient {
             // écritures scope cercle en liste blanche sont mises en file
             // d'attente et une réponse optimiste est renvoyée; les pages
             // existantes traitent déjà success: true.
-            if (isQueueableWrite(method, endpoint) && isNetworkError(error)) {
+            // E64: Eintraege im Teambereich nicht fuer spaeter aufheben, das Token gilt dann nicht mehr.
+            const teamWrite = !!this.teamToken && endpoint.startsWith('/api/journal');
+            if (!teamWrite && isQueueableWrite(method, endpoint) && isNetworkError(error)) {
                 let body: unknown;
                 if (typeof options.body === 'string') {
                     try {

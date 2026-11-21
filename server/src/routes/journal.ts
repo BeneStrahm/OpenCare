@@ -3,7 +3,8 @@ import { query, getClient } from '../db';
 import { authMiddleware } from '../middleware/auth';
 import {
     circleMiddleware,
-    requireJournalWriter,
+    requireRoleOrTeam,
+    JOURNAL_WRITER_ROLES,
     caregiverLinkMiddleware,
     NEIGHBOR_HIDDEN_JOURNAL_TYPES,
     CircleRequest,
@@ -11,6 +12,7 @@ import {
 } from '../middleware/circle';
 import { broadcastToCircle } from '../lib/broadcaster';
 import { IMAGE_DATA_URL_REGEX } from '../lib/dataUrls';
+import { TEAM_AUTHOR_NAME_MAX } from '../lib/teamAccess';
 import { ensureTodayIntakes, INTAKE_DISPLAY_COLUMNS, INTAKE_DISPLAY_FROM } from '../lib/intakes';
 
 const router = Router();
@@ -19,6 +21,9 @@ const JOURNAL_ENTRY_TYPES = ['visit', 'note', 'vital', 'medication', 'incident',
 // Magic links cannot log medication entries (intakes are confirmed elsewhere)
 const LINK_ENTRY_TYPES = ['visit', 'note', 'vital', 'mood', 'incident'];
 const VITAL_TYPES = ['weight', 'bp', 'pain', 'mood', 'temperature', 'glucose'];
+// Not shown in the care diary list: intakes and measurements are kept in the database
+// (journal_entries, vitals) but appear only on their own pages.
+const JOURNAL_LIST_HIDDEN_TYPES = ['medication', 'vital'];
 
 const MAX_PHOTOS = 4;
 const MAX_PHOTO_BYTES = Math.floor(1.5 * 1024 * 1024);
@@ -152,9 +157,9 @@ router.get('/', async (req: CircleRequest, res: Response) => {
         const parsedLimit = parseInt(String(req.query.limit), 10);
         const limit = Math.min(Math.max(Number.isNaN(parsedLimit) ? 50 : parsedLimit, 1), 200);
 
-        const conditions: string[] = ['e.circle_id = $1'];
-        const values: unknown[] = [req.circleId];
-        let idx = 2;
+        const conditions: string[] = ['e.circle_id = $1', 'e.type <> ALL($2::text[])'];
+        const values: unknown[] = [req.circleId, JOURNAL_LIST_HIDDEN_TYPES];
+        let idx = 3;
 
         if (typeof req.query.before === 'string' && req.query.before) {
             const before = parseDate(req.query.before);
@@ -203,11 +208,24 @@ router.get('/', async (req: CircleRequest, res: Response) => {
     }
 });
 
-// Create an entry (every role except recipient). Optional photos as image data URLs
+// Create an entry (every role except recipient; recipient only with an open team area, E64,
+// then with the writer's name in team_author_name). Optional photos as image data URLs
 // (the client compresses before upload). A 'vital' entry whose data carries a
 // measurement also feeds the vitals table, linked by journal_entry_id.
-router.post('/', requireJournalWriter, async (req: CircleRequest, res: Response) => {
+router.post('/', requireRoleOrTeam(...JOURNAL_WRITER_ROLES), async (req: CircleRequest, res: Response) => {
     const { type, content, data, occurred_at, photos } = req.body;
+
+    // E64: im Teambereich schreiben alle ueber das Konto der betreuten Person, der Name kommt mit.
+    const teamEntry = req.teamAccess === true;
+    const teamAuthor = typeof req.body.team_author_name === 'string' ? req.body.team_author_name.trim() : '';
+    if (teamEntry && (!teamAuthor || teamAuthor.length > TEAM_AUTHOR_NAME_MAX)) {
+        return res.status(400).json({ success: false, error: 'TEAM_AUTHOR_REQUIRED' });
+    }
+    // Name field of the care diary (all roles): optional, empty falls back to the account name.
+    const typedAuthor = typeof req.body.author_name === 'string' ? req.body.author_name.trim() : '';
+    if (typedAuthor.length > TEAM_AUTHOR_NAME_MAX) {
+        return res.status(400).json({ success: false, error: 'Author name too long' });
+    }
 
     if (typeof type !== 'string' || !JOURNAL_ENTRY_TYPES.includes(type)) {
         return res.status(400).json({ success: false, error: 'Invalid entry type' });
@@ -278,15 +296,15 @@ router.post('/', requireJournalWriter, async (req: CircleRequest, res: Response)
         if (userResult.rows.length === 0) {
             return res.status(404).json({ success: false, error: 'User not found' });
         }
-        const authorName = userResult.rows[0].name;
+        const authorName = teamEntry ? teamAuthor : typedAuthor || userResult.rows[0].name;
 
         await client.query('BEGIN');
 
         const entryResult = await client.query(
-            `INSERT INTO journal_entries (circle_id, author_user_id, author_name, type, content, data, occurred_at)
-             VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, CURRENT_TIMESTAMP))
+            `INSERT INTO journal_entries (circle_id, author_user_id, author_name, type, content, data, occurred_at, team_entry)
+             VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, CURRENT_TIMESTAMP), $8)
              RETURNING *`,
-            [req.circleId, req.userId, authorName, type, cleanContent, JSON.stringify(cleanData), occurredAt]
+            [req.circleId, req.userId, authorName, type, cleanContent, JSON.stringify(cleanData), occurredAt, teamEntry]
         );
         const entry = entryResult.rows[0];
 
@@ -312,7 +330,8 @@ router.post('/', requireJournalWriter, async (req: CircleRequest, res: Response)
                     vitalPayload.unit,
                     entry.occurred_at,
                     entry.id,
-                    req.userId,
+                    // E64: kein Urheber "betreute Person", sonst gaelte ihr 10-Minuten-Rueckgaengig.
+                    teamEntry ? null : req.userId,
                 ]
             );
         }

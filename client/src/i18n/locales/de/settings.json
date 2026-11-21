@@ -177,5 +177,43 @@
         "glucose": "Blutzucker"
       }
     }
+  },
+  "team": {
+    "title": "Teambereich am Tablet",
+    "subtitle": "Mit einer gemeinsamen PIN öffnen Familie und Pflegekräfte am Tablet der betreuten Person weitere Funktionen. Ohne PIN oder ohne gewählte Funktion erscheint dort keine Taste. Jede Änderung schließt einen offenen Teambereich.",
+    "functions": {
+      "title": "Funktionen",
+      "subtitle": "Diese Funktionen erscheinen im offenen Teambereich.",
+      "items": {
+        "journal": "Pflegetagebuch",
+        "medplan": "Medikamentenplan",
+        "consultation": "Arztgespräch prüfen und freigeben"
+      },
+      "hints": {
+        "journal": "Lesen und neu eintragen, mit Namen. Bearbeiten und Löschen nur hier in der App.",
+        "medplan": "Ansehen wie die Druckansicht, ohne Drucken.",
+        "consultation": "Mitschrift und Zusammenfassung am Tablet ändern und freigeben. Zurücknehmen nur hier in der App."
+      }
+    },
+    "password": {
+      "title": "Gemeinsame PIN",
+      "isSet": "Eine PIN ist gesetzt.",
+      "notSet": "Noch keine PIN gesetzt.",
+      "first": "PIN",
+      "new": "Neue PIN",
+      "repeat": "PIN wiederholen",
+      "save": "PIN speichern",
+      "remove": "Teambereich ausschalten",
+      "hint": "{{min}} bis {{max}} Ziffern. Geben Sie die PIN nur an Ihr Pflegeteam weiter. Nach 5 falschen Versuchen ist das Öffnen 5 Minuten gesperrt."
+    },
+    "savedFunctions": "Die Auswahl ist gespeichert.",
+    "savedPassword": "Die PIN ist gespeichert.",
+    "removed": "Der Teambereich ist ausgeschaltet.",
+    "errors": {
+      "length": "Die PIN braucht {{min}} bis {{max}} Ziffern.",
+      "repeat": "Die beiden PINs sind nicht gleich.",
+      "save": "Das hat nicht geklappt. Bitte versuchen Sie es noch einmal.",
+      "load": "Der Teambereich konnte nicht geladen werden."
+    }
   }
 }

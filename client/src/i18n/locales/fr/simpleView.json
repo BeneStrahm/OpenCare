@@ -411,10 +411,54 @@
       "important": "L’essentiel",
       "medications": "Médicaments",
       "nextSteps": "À faire",
-      "appointments": "Prochain rendez-vous"
+      "appointments": "Prochain rendez-vous",
+      "unclear": "À vérifier (reconnaissance incertaine)"
     },
     "offline": "Pour cela, la tablette a besoin d’internet. Réessayez plus tard.",
     "linkError": "Le rendez-vous est enregistré, mais pas encore la consultation. Prévenez votre famille.",
-    "toConsultation": "Voir la consultation"
+    "toConsultation": "Voir la consultation",
+    "review": {
+      "button": "Vérifier et valider",
+      "transcriptTitle": "Vérifier la transcription",
+      "summaryTitle": "Vérifier le résumé",
+      "pinIntro": "La validation est réservée à votre famille. Veuillez saisir le code PIN de l'espace équipe.",
+      "transcriptIntro": "Vérifiez surtout les chiffres et les médicaments. Vous pouvez modifier le texte directement.",
+      "summaryIntro": "Vérifiez surtout les chiffres et les médicaments. Vous pouvez tout modifier directement.",
+      "overview": "En bref",
+      "answers": "Réponses à vos questions",
+      "lineHint": "Une ligne par point.",
+      "medicationHint": "Une ligne par médicament, ainsi : Nom : changement",
+      "appointmentsHint": "La famille modifie les rendez-vous dans l'application.",
+      "cancel": "Annuler",
+      "approve": "Valider",
+      "done": "Validé, merci beaucoup.",
+      "notAllowed": "La validation n'est pas activée dans l'espace équipe. Veuillez utiliser l'application.",
+      "error": {
+        "empty": "Veuillez ne laisser aucun texte vide.",
+        "medications": "Veuillez écrire chaque médicament ainsi : Nom : changement",
+        "failed": "Cela n'a pas fonctionné. Veuillez réessayer.",
+        "offline": "Pour cela, la tablette a besoin d’internet. Veuillez réessayer plus tard."
+      }
+    }
+  },
+  "team": {
+    "button": "Espace équipe",
+    "close": "Fermer l'espace équipe",
+    "title": "Espace équipe",
+    "intro": "Cet espace est réservé à votre famille et à vos soignants.",
+    "passwordLabel": "Code PIN",
+    "back": "Retour",
+    "open": "Ouvrir",
+    "openHint_one": "L'espace équipe est ouvert. Il se ferme tout seul après {{count}} minute sans utilisation.",
+    "openHint_other": "L'espace équipe est ouvert. Il se ferme tout seul après {{count}} minutes sans utilisation.",
+    "journal": "Journal de soins",
+    "medplan": "Plan de médication",
+    "error": {
+      "empty": "Veuillez saisir le code PIN.",
+      "wrong": "Le code PIN n'est pas correct. Veuillez réessayer.",
+      "locked": "Trop de tentatives erronées. Veuillez patienter quelques minutes, puis réessayer.",
+      "off": "L'espace équipe est désactivé pour le moment. Il se configure dans les réglages de l'application.",
+      "failed": "Cela n'a pas fonctionné. Veuillez vérifier la connexion internet et réessayer."
+    }
   }
 }

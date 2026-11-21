@@ -411,10 +411,54 @@
       "important": "Das Wichtigste",
       "medications": "Medikamente",
       "nextSteps": "Was zu tun ist",
-      "appointments": "Nächster Termin"
+      "appointments": "Nächster Termin",
+      "unclear": "Bitte prüfen (unsicher erkannt)"
     },
     "offline": "Dafür braucht das Tablet Internet. Bitte versuchen Sie es später noch einmal.",
     "linkError": "Der Termin ist eingetragen, das Gespräch aber noch nicht. Bitte sagen Sie Ihrer Familie Bescheid.",
-    "toConsultation": "Zum Arztgespräch"
+    "toConsultation": "Zum Arztgespräch",
+    "review": {
+      "button": "Prüfen und freigeben",
+      "transcriptTitle": "Mitschrift prüfen",
+      "summaryTitle": "Zusammenfassung prüfen",
+      "pinIntro": "Die Freigabe ist für Ihre Familie. Bitte geben Sie die PIN des Teambereichs ein.",
+      "transcriptIntro": "Prüfen Sie vor allem Zahlen und Medikamente. Sie können den Text direkt ändern.",
+      "summaryIntro": "Prüfen Sie vor allem Zahlen und Medikamente. Sie können alles direkt ändern.",
+      "overview": "Kurz zusammengefasst",
+      "answers": "Antworten auf Ihre Fragen",
+      "lineHint": "Eine Zeile je Punkt.",
+      "medicationHint": "Eine Zeile je Medikament, so: Name: Änderung",
+      "appointmentsHint": "Termine ändert die Familie in der App.",
+      "cancel": "Abbrechen",
+      "approve": "Freigeben",
+      "done": "Freigegeben, vielen Dank.",
+      "notAllowed": "Das Freigeben ist im Teambereich nicht eingeschaltet. Bitte nutzen Sie die App.",
+      "error": {
+        "empty": "Bitte lassen Sie keinen Text leer.",
+        "medications": "Bitte schreiben Sie jedes Medikament so: Name: Änderung",
+        "failed": "Das hat nicht geklappt. Bitte versuchen Sie es noch einmal.",
+        "offline": "Dafür braucht das Tablet Internet. Bitte versuchen Sie es später noch einmal."
+      }
+    }
+  },
+  "team": {
+    "button": "Teambereich",
+    "close": "Teambereich schließen",
+    "title": "Teambereich",
+    "intro": "Dieser Bereich ist für Ihre Familie und Ihre Pflegekräfte.",
+    "passwordLabel": "PIN",
+    "back": "Zurück",
+    "open": "Öffnen",
+    "openHint_one": "Der Teambereich ist offen. Er schließt sich nach {{count}} Minute ohne Bedienung von selbst.",
+    "openHint_other": "Der Teambereich ist offen. Er schließt sich nach {{count}} Minuten ohne Bedienung von selbst.",
+    "journal": "Pflegetagebuch",
+    "medplan": "Medikamentenplan",
+    "error": {
+      "empty": "Bitte geben Sie die PIN ein.",
+      "wrong": "Die PIN stimmt nicht. Bitte versuchen Sie es noch einmal.",
+      "locked": "Zu viele falsche Versuche. Bitte warten Sie einige Minuten und versuchen Sie es dann noch einmal.",
+      "off": "Der Teambereich ist gerade ausgeschaltet. Er wird in den Einstellungen der App eingerichtet.",
+      "failed": "Das hat nicht geklappt. Bitte prüfen Sie die Internetverbindung und versuchen Sie es noch einmal."
+    }
   }
 }

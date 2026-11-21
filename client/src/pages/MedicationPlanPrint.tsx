@@ -32,12 +32,16 @@ const PRINT_ROLES = ['admin', 'family', 'professional'];
 /** CSS-Text in Anführungszeichen (für content: in @page). */
 const cssString = (value: string) => `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 
-const MedicationPlanPrint: React.FC = () => {
+/**
+ * E64 embedded: im Teambereich am Tablet nur ansehen, ohne Zurueck und Drucken
+ * (der Server prueft den offenen Teambereich).
+ */
+const MedicationPlanPrint: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
     const { t, i18n } = useTranslation(['medications', 'common']);
     const navigate = useNavigate();
     const { activeCircle, myRole } = useCircle();
     const weekStart = circleWeekStart(activeCircle);
-    const mayPrint = PRINT_ROLES.includes(myRole ?? '');
+    const mayPrint = embedded || PRINT_ROLES.includes(myRole ?? '');
     const [data, setData] = useState<PlanData | null>(null);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(true);
@@ -76,7 +80,7 @@ const MedicationPlanPrint: React.FC = () => {
         return `${label}: ${historyText.valueText(change.field, change.old, form)} → ${historyText.valueText(change.field, change.new, form)}`;
     };
 
-    const toolbar = (
+    const toolbar = embedded ? null : (
         <div className="mb-6 flex flex-wrap gap-3 print:hidden">
             <button
                 type="button"
@@ -163,8 +167,12 @@ const MedicationPlanPrint: React.FC = () => {
                 </div>
                 <p className="mt-1 text-body">{t('medications:print.notice', { date: shortDate(data.print_date) })}</p>
                 <p className="text-body">
-                    {t('medications:print.createdBy', { name: data.created_by ?? t('medications:history.unknownUser') })}
-                    {' · '}
+                    {!(embedded && !data.created_by) && (
+                        <>
+                            {t('medications:print.createdBy', { name: data.created_by ?? t('medications:history.unknownUser') })}
+                            {' · '}
+                        </>
+                    )}
                     {t('medications:print.printedOn', { date: shortDate(data.print_date) })}
                 </p>
             </header>

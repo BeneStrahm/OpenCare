@@ -177,5 +177,43 @@
         "glucose": "Glycémie"
       }
     }
+  },
+  "team": {
+    "title": "Espace équipe sur la tablette",
+    "subtitle": "Avec un code PIN commun, la famille et les soignants ouvrent d'autres fonctions sur la tablette de la personne aidée. Sans code PIN ou sans fonction choisie, aucun bouton n'y apparaît. Chaque modification ferme un espace équipe ouvert.",
+    "functions": {
+      "title": "Fonctions",
+      "subtitle": "Ces fonctions apparaissent dans l'espace équipe ouvert.",
+      "items": {
+        "journal": "Journal de soins",
+        "medplan": "Plan de médication",
+        "consultation": "Vérifier et valider la consultation"
+      },
+      "hints": {
+        "journal": "Lire et ajouter des entrées, avec un nom. Modifier et supprimer uniquement ici dans l'application.",
+        "medplan": "Consulter comme l'aperçu d'impression, sans imprimer.",
+        "consultation": "Modifier et valider la transcription et le résumé sur la tablette. Annuler uniquement ici dans l'application."
+      }
+    },
+    "password": {
+      "title": "Code PIN commun",
+      "isSet": "Un code PIN est défini.",
+      "notSet": "Aucun code PIN pour le moment.",
+      "first": "Code PIN",
+      "new": "Nouveau code PIN",
+      "repeat": "Répéter le code PIN",
+      "save": "Enregistrer le code PIN",
+      "remove": "Désactiver l'espace équipe",
+      "hint": "De {{min}} à {{max}} chiffres. Ne communiquez le code PIN qu'à votre équipe de soins. Après 5 tentatives erronées, l'ouverture est bloquée 5 minutes."
+    },
+    "savedFunctions": "La sélection est enregistrée.",
+    "savedPassword": "Le code PIN est enregistré.",
+    "removed": "L'espace équipe est désactivé.",
+    "errors": {
+      "length": "Le code PIN doit comporter de {{min}} à {{max}} chiffres.",
+      "repeat": "Les deux codes PIN ne sont pas identiques.",
+      "save": "Cela n'a pas fonctionné. Veuillez réessayer.",
+      "load": "L'espace équipe n'a pas pu être chargé."
+    }
   }
 }

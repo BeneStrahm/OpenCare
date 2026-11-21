@@ -7,6 +7,7 @@ import {
     requireContentWriter,
     requireJournalWriter,
     requireRole,
+    requireRoleOrTeam,
     HEALTH_READER_ROLES,
     INTAKE_CONFIRMER_ROLES,
     recipientMayChangeIntake,
@@ -654,7 +655,8 @@ router.put('/:id', requireContentWriter, async (req: CircleRequest, res: Respons
 
 // Medikamentenplan zum Drucken nach Vorbild BMP (E54): admin, family, professional.
 // Gueltige und kuenftige Medikamente am Druckdatum, Kopfdaten und die Aenderungen der letzten 14 Tage.
-router.get('/plan', requireRole(...PLAN_PRINT_ROLES), async (req: CircleRequest, res: Response) => {
+// E64: auch im offenen Teambereich am Tablet (nur ansehen).
+router.get('/plan', requireRoleOrTeam(...PLAN_PRINT_ROLES), async (req: CircleRequest, res: Response) => {
     try {
         const printDate = toDateString(new Date());
         const [meds, recipient, user, history] = await Promise.all([
@@ -679,7 +681,8 @@ router.get('/plan', requireRole(...PLAN_PRINT_ROLES), async (req: CircleRequest,
                 print_date: printDate,
                 history_from: historyFrom(printDate),
                 recipient: recipient.rows[0] ?? null,
-                created_by: user.rows[0]?.name ?? null,
+                // Im Teambereich ist das Konto das der betreuten Person: dann kein Name.
+                created_by: req.teamAccess ? null : user.rows[0]?.name ?? null,
                 sections: buildMedicationPlan(meds.rows, printDate),
                 changes: recentHistory(history.rows, printDate),
             },

@@ -411,10 +411,54 @@
       "important": "Key points",
       "medications": "Medication",
       "nextSteps": "What to do",
-      "appointments": "Next appointment"
+      "appointments": "Next appointment",
+      "unclear": "Please check (uncertain)"
     },
     "offline": "The tablet needs internet for this. Please try again later.",
     "linkError": "The appointment is saved, but the visit is not yet. Please tell your family.",
-    "toConsultation": "Go to doctor's visit"
+    "toConsultation": "Go to doctor's visit",
+    "review": {
+      "button": "Check and approve",
+      "transcriptTitle": "Check transcript",
+      "summaryTitle": "Check summary",
+      "pinIntro": "Approving is for your family. Please enter the PIN of the team area.",
+      "transcriptIntro": "Check numbers and medications in particular. You can change the text directly.",
+      "summaryIntro": "Check numbers and medications in particular. You can change everything directly.",
+      "overview": "In short",
+      "answers": "Answers to your questions",
+      "lineHint": "One line per point.",
+      "medicationHint": "One line per medication, like this: Name: change",
+      "appointmentsHint": "The family changes appointments in the app.",
+      "cancel": "Cancel",
+      "approve": "Approve",
+      "done": "Approved, thank you.",
+      "notAllowed": "Approving is not switched on in the team area. Please use the app.",
+      "error": {
+        "empty": "Please do not leave any text empty.",
+        "medications": "Please write each medication like this: Name: change",
+        "failed": "That did not work. Please try again.",
+        "offline": "The tablet needs internet for this. Please try again later."
+      }
+    }
+  },
+  "team": {
+    "button": "Team area",
+    "close": "Close team area",
+    "title": "Team area",
+    "intro": "This area is for your family and your carers.",
+    "passwordLabel": "PIN",
+    "back": "Back",
+    "open": "Open",
+    "openHint_one": "The team area is open. It closes by itself after {{count}} minute without use.",
+    "openHint_other": "The team area is open. It closes by itself after {{count}} minutes without use.",
+    "journal": "Care journal",
+    "medplan": "Medication plan",
+    "error": {
+      "empty": "Please enter the PIN.",
+      "wrong": "The PIN is not correct. Please try again.",
+      "locked": "Too many wrong attempts. Please wait a few minutes and then try again.",
+      "off": "The team area is switched off at the moment. It is set up in the app settings.",
+      "failed": "That did not work. Please check the internet connection and try again."
+    }
   }
 }

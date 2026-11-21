@@ -95,5 +95,11 @@
         "valueRequired": "Introduzca un valor numérico válido.",
         "photoTooLarge": "La foto pesa demasiado después de comprimirla (1,5 MB máx.).",
         "photoRead": "No se pudo leer esta imagen."
+    },
+    "team": {
+        "nameLabel": "Su nombre",
+        "nameHint": "Elija su nombre de la lista o escriba uno nuevo.",
+        "nameRequired": "Por favor, escriba su nombre.",
+        "badge": "en el área del equipo"
     }
 }

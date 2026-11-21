@@ -520,6 +520,26 @@ export const runMigrations = async () => {
         // E62: geheimer Aufgaben-Link (JSON) pro Nutzer, z. B. für eine Morgen-Mail über n8n
         `ALTER TABLE users ADD COLUMN IF NOT EXISTS tasks_token VARCHAR(64);`,
         `CREATE UNIQUE INDEX IF NOT EXISTS idx_users_tasks_token ON users(tasks_token);`,
+        // E64 Teambereich: gemeinsames Passwort (bcrypt) und freigegebene Funktionen pro Kreis,
+        // offene Teambereiche nur als SHA-256-Hash des Tokens, Eintraege im Tagebuch markiert.
+        `CREATE TABLE IF NOT EXISTS team_access (
+            circle_id UUID PRIMARY KEY REFERENCES care_circles(id) ON DELETE CASCADE,
+            password_hash VARCHAR(100),
+            functions TEXT[] NOT NULL DEFAULT '{}',
+            failed_attempts SMALLINT NOT NULL DEFAULT 0,
+            locked_until TIMESTAMP,
+            updated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );`,
+        `CREATE TABLE IF NOT EXISTS team_access_sessions (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            circle_id UUID NOT NULL REFERENCES care_circles(id) ON DELETE CASCADE,
+            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            token_hash VARCHAR(64) NOT NULL UNIQUE,
+            expires_at TIMESTAMP NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );`,
+        `ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS team_entry BOOLEAN NOT NULL DEFAULT FALSE;`,
     ];
 
     for (const migration of migrations) {

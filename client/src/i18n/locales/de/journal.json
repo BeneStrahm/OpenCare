@@ -95,5 +95,11 @@
         "valueRequired": "Bitte geben Sie einen gültigen Zahlenwert ein.",
         "photoTooLarge": "Das Foto ist auch nach dem Verkleinern zu groß (höchstens 1,5 MB).",
         "photoRead": "Dieses Bild konnte nicht gelesen werden."
+    },
+    "team": {
+        "nameLabel": "Ihr Name",
+        "nameHint": "Wählen Sie Ihren Namen aus der Liste oder schreiben Sie ihn neu.",
+        "nameRequired": "Bitte geben Sie Ihren Namen ein.",
+        "badge": "im Teambereich"
     }
 }

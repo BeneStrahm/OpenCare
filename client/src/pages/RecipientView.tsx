@@ -5,6 +5,7 @@ import {
     Settings as SettingsIcon, ThermometerSun, Users, Backpack, Car, Volume2, Square, X,
     Stethoscope, CalendarRange, CalendarClock, Droplet, Scale, HeartPulse, Moon, ChevronLeft, ChevronRight, ChevronDown,
     IdCard, ShoppingCart, CalendarPlus, Plus, Activity, SkipForward, CircleAlert, Clock, CircleHelp, Apple,
+    ClipboardList, FileText, Lock,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -22,6 +23,8 @@ import AppleBitten from '../components/ui/AppleBitten';
 import { ViewWindow } from '../components/recipient/ViewWindow';
 import RecipientEventForm, { emptyEventForm, eventFormBody, type EventFormValues } from '../components/recipient/RecipientEventForm';
 import RecipientConsultations from '../components/recipient/RecipientConsultations';
+import { TeamJournalWindow, TeamPasswordWindow, TeamPlanWindow } from '../components/recipient/TeamArea';
+import { isTeamFunction, type TeamAccessInfo, type TeamFunction, type TeamUnlockResult } from '../lib/teamAccess';
 import type { RecipientUi } from '../components/recipient/ui';
 import { VIEW_COLORS, medicationColorOf, viewColorOf } from '../lib/viewColors';
 import {
@@ -330,6 +333,11 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     const [infoId, setInfoId] = useState<string | null>(null);
 
     const [win, setWin] = useState<WindowId | null>(null);
+    // E64 Teambereich: eingerichtet? offen (mit Funktionen)? welches Fenster? Hinweis gelesen?
+    const [teamInfo, setTeamInfo] = useState<TeamAccessInfo | null>(null);
+    const [team, setTeam] = useState<{ functions: TeamFunction[]; idleMinutes: number } | null>(null);
+    const [teamWin, setTeamWin] = useState<'password' | TeamFunction | null>(null);
+    const [teamHintSeen, setTeamHintSeen] = useState(false);
     const [info, setInfo] = useState<{ state: 'loading' | 'done' | 'error'; data: OwnInfo | null }>({ state: 'loading', data: null });
     const [question, setQuestion] = useState<RecipientQuestion | null>(null);
     const [answer, setAnswer] = useState<{ state: 'loading' | 'done' | 'error'; text: string }>({ state: 'loading', text: '' });
@@ -963,6 +971,62 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
         }
     };
 
+    // ── E64 Teambereich (Figma T1 bis T5) ──
+    // Ohne Internet keine Antwort und damit keine Taste: freischalten kann nur der Server.
+    const loadTeamInfo = useCallback(async (): Promise<TeamAccessInfo | null> => {
+        try {
+            const res = await api.get<{ success: boolean; data: TeamAccessInfo }>('/api/team-access');
+            const data = { ...res.data, functions: (res.data.functions ?? []).filter(isTeamFunction) };
+            setTeamInfo(data);
+            return data;
+        } catch {
+            setTeamInfo(null);
+            return null;
+        }
+    }, []);
+    useEffect(() => { void loadTeamInfo(); }, [loadTeamInfo, circle.id]);
+
+    const closeTeam = useCallback(() => {
+        // Der Kopf X-Team-Token geht noch mit, erst danach wird das Token vergessen.
+        if (api.getTeamToken()) void api.post('/api/team-access/lock', {}).catch(() => undefined);
+        api.setTeamToken(null);
+        setTeam(null);
+        setTeamWin(null);
+        void loadTeamInfo();
+    }, [loadTeamInfo]);
+
+    const onTeamUnlocked = (result: TeamUnlockResult) => {
+        api.setTeamToken(result.token);
+        setTeam({ functions: result.functions, idleMinutes: result.idle_minutes || 5 });
+        setTeamHintSeen(false);
+        setTeamWin(null);
+    };
+
+    // Nach idleMinutes ohne Bedienung zu. Solange jemand das Tablet bedient, fragt es hoechstens
+    // einmal pro Minute nach, damit der Server den Teambereich offen haelt.
+    useEffect(() => {
+        if (!team) return;
+        const idleMs = team.idleMinutes * 60_000;
+        let timer = window.setTimeout(closeTeam, idleMs);
+        let lastPing = Date.now();
+        const onActivity = () => {
+            window.clearTimeout(timer);
+            timer = window.setTimeout(closeTeam, idleMs);
+            if (Date.now() - lastPing > 60_000) {
+                lastPing = Date.now();
+                void loadTeamInfo().then((info) => { if (info && info.open === false) closeTeam(); });
+            }
+        };
+        const events = ['pointerdown', 'keydown', 'wheel', 'touchmove'] as const;
+        events.forEach((name) => window.addEventListener(name, onActivity, { capture: true, passive: true }));
+        return () => {
+            window.clearTimeout(timer);
+            events.forEach((name) => window.removeEventListener(name, onActivity, { capture: true }));
+        };
+    }, [team, closeTeam, loadTeamInfo]);
+    // Verlassen der Ansicht schliesst den Teambereich.
+    useEffect(() => () => { api.setTeamToken(null); }, []);
+
     /** Kachel antippen: Fenster oeffnen, wo noetig mit frischen Daten. */
     const openWindow = (id: WindowId) => {
         if (id === 'emergency') { void openEmergency(); return; }
@@ -1097,6 +1161,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
     // Startseite nichts.
     const backRef = useRef<() => void>(() => {});
     backRef.current = () => {
+        if (teamWin) { setTeamWin(null); return; }
         if (win === 'doctor' && doctorBackRef.current?.()) return;
         if (vitalHelp) { setVitalHelp(false); return; }
         if (vitalForm) { setVitalForm(null); return; }
@@ -1355,11 +1420,11 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
 
     // ── Kacheln (Block L1): alle gleich, weiss mit gleichem Rand; Farbe nur mit Bedeutung ──
     const tileStyle: React.CSSProperties = { backgroundColor: C.card, border: `2px solid ${C.border}`, color: C.text };
-    const renderTile = (id: WindowId, Icon: React.FC<{ className?: string; style?: React.CSSProperties }>, title: string, hint: string | null, iconColor: string = C.blue) => (
+    const renderTile = (id: WindowId | 'team-journal' | 'team-medplan', Icon: React.FC<{ className?: string; style?: React.CSSProperties }>, title: string, hint: string | null, iconColor: string = C.blue, onOpen?: () => void) => (
         <button
             key={id}
             type="button"
-            onClick={() => openWindow(id)}
+            onClick={() => (onOpen ? onOpen() : openWindow(id as WindowId))}
             className="flex min-h-[13.1875rem] flex-col items-start justify-between gap-3 rounded-3xl p-5 text-left shadow-sm"
             style={tileStyle}
         >
@@ -1405,13 +1470,26 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                             <p className="font-bold tabular-nums" style={{ ...fs(36), lineHeight: 1.2 }}>{clockOf(now)}</p>
                         </div>
                     </div>
-                    {tileOn('emergency') && (
-                        <button type="button" onClick={() => openWindow('emergency')} className="flex min-h-[3.5rem] items-center gap-2 rounded-2xl px-4 font-bold" style={secondaryButton}>
-                            <HeartPulse className="h-7 w-7 shrink-0" style={{ color: C.red }} aria-hidden="true" />
-                            {t('simpleView:emergency.button')}
-                        </button>
-                    )}
+                    <div className="flex flex-wrap items-center gap-3">
+                        {tileOn('emergency') && (
+                            <button type="button" onClick={() => openWindow('emergency')} className="flex min-h-[3.5rem] items-center gap-2 rounded-2xl px-4 font-bold" style={secondaryButton}>
+                                <HeartPulse className="h-7 w-7 shrink-0" style={{ color: C.red }} aria-hidden="true" />
+                                {t('simpleView:emergency.button')}
+                            </button>
+                        )}
+                        {/* E64: Teambereich ganz rechts, nur wenn eingerichtet. Ist nur "Arztgespraech pruefen"
+                            gewaehlt, gibt es die PIN dort (A11/A13) und hier keine Taste. */}
+                        {(team || (teamInfo?.configured && teamInfo.functions.some((f) => f !== 'consultation'))) && (
+                            <button type="button" onClick={() => (team ? closeTeam() : setTeamWin('password'))} className="flex min-h-[3.5rem] items-center gap-2 rounded-2xl px-4 font-bold" style={secondaryButton}>
+                                <Lock className="h-7 w-7 shrink-0" aria-hidden="true" />
+                                {team ? t('simpleView:team.close') : t('simpleView:team.button')}
+                            </button>
+                        )}
+                    </div>
                 </header>
+
+                {team && !teamHintSeen && renderNotice('team', Lock, t('simpleView:team.openHint', { count: team.idleMinutes }),
+                    { label: t('simpleView:ok'), onClick: () => setTeamHintSeen(true) })}
 
                 {/* Begruessung mit Foto */}
                 <section
@@ -1495,6 +1573,22 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                         openShopping.length === 0 ? t('simpleView:shopping.empty') : t('simpleView:tiles.shoppingOpen', { count: openShopping.length }))}
                     {renderTile('settings', SettingsIcon, t('simpleView:settings.title'), null)}
                 </nav>
+
+                {/* E64: Funktionen des offenen Teambereichs (Auswahl in den Einstellungen, admin) */}
+                {team && (() => {
+                    const showJournal = team.functions.includes('journal') && on('journal');
+                    const showPlan = team.functions.includes('medplan') && medsOn;
+                    if (!showJournal && !showPlan) return null;
+                    return (
+                        <section aria-labelledby="rv-team-title">
+                            <h2 id="rv-team-title" className="mb-3" style={sectionTitle(C.text)}>{t('simpleView:team.title')}</h2>
+                            <nav aria-labelledby="rv-team-title" className="grid auto-rows-[1fr] grid-cols-1 gap-4 min-[512px]:grid-cols-2 min-[614px]:grid-cols-3">
+                                {showJournal && renderTile('team-journal', ClipboardList, t('simpleView:team.journal'), null, C.blue, () => setTeamWin('journal'))}
+                                {showPlan && renderTile('team-medplan', FileText, t('simpleView:team.medplan'), null, C.blue, () => setTeamWin('medplan'))}
+                            </nav>
+                        </section>
+                    );
+                })()}
 
                 {/* Fotos der Familie, ruhig im Wechsel (Block D) */}
                 {currentPhoto && (
@@ -2277,12 +2371,24 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
             {win === 'doctor' && (
                 <RecipientConsultations
                     ui={ui}
+                    teamReview={{
+                        enabled: Boolean(team?.functions.includes('consultation') || (teamInfo?.configured && teamInfo.functions.includes('consultation'))),
+                        open: Boolean(team?.functions.includes('consultation')),
+                        onUnlocked: onTeamUnlocked,
+                    }}
                     circleId={circle.id}
                     initialId={doctorOpenId}
                     backRef={doctorBackRef}
                     onClose={() => { setDoctorOpenId(null); windowProps.onClose(); }}
                 />
             )}
+
+            {/* E64: Teambereich (Figma T2/T3), Pflegetagebuch und Medikamentenplan */}
+            {teamWin === 'password' && (
+                <TeamPasswordWindow ui={ui} onClose={() => setTeamWin(null)} onUnlocked={onTeamUnlocked} />
+            )}
+            {team && teamWin === 'journal' && <TeamJournalWindow ui={ui} onClose={() => setTeamWin(null)} />}
+            {team && teamWin === 'medplan' && <TeamPlanWindow ui={ui} onClose={() => setTeamWin(null)} />}
 
             {/* Block L4: Rueckfrage vor dem Hinzufuegen und Abhaken */}
             {shopConfirm && (

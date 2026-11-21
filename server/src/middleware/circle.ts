@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { query } from '../db';
 import { featureEnabledForCircle } from '../lib/features';
+import { teamSessionAllows } from '../lib/teamAccess';
 import { AuthRequest } from './auth';
 
 export type CircleRole = 'admin' | 'family' | 'professional' | 'neighbor' | 'recipient';
@@ -118,12 +119,56 @@ export const RECIPIENT_ALLOWED_REQUESTS: Array<{ method: 'GET' | 'POST' | 'PUT' 
     { method: 'POST', path: new RegExp(`^/api/consultations/recordings/${SEGMENT}/complete$`) },
     { method: 'GET', path: new RegExp(`^/api/consultations/recordings/${SEGMENT}/audio$`) },
     { method: 'GET', path: /^\/api\/companion\/answer\/(medications|visitors|appointments|week|date|contacts)$/ },
+    // Teambereich (E64): ist er eingerichtet, freischalten mit dem gemeinsamen Passwort, wieder sperren.
+    // Die Funktionen dahinter stehen in TEAM_FUNCTION_REQUESTS und brauchen das Team-Token.
+    { method: 'GET', path: /^\/api\/team-access$/ },
+    { method: 'POST', path: /^\/api\/team-access\/(unlock|lock)$/ },
 ];
 
 /** Darf recipient diese Anfrage stellen? url ist die volle Adresse (req.originalUrl). */
 export function recipientMayAccess(method: string, url: string): boolean {
     const path = (url.split('?')[0] || '').replace(/\/+$/, '');
     return RECIPIENT_ALLOWED_REQUESTS.some((rule) => rule.method === method && rule.path.test(path));
+}
+
+/*
+ * Teambereich (E64): Am Tablet der betreuten Person schaltet das gemeinsame Passwort des
+ * Pflegeteams weitere Funktionen frei. Welche, waehlt admin (team_access.functions).
+ * Der Server erkennt den offenen Teambereich am Kopf X-Team-Token (lib/teamAccess.ts),
+ * nach TEAM_IDLE_MINUTES ohne Anfrage ist er wieder zu. Nur die Anfragen unten sind
+ * damit zusaetzlich erlaubt; die Routen pruefen mit requireRoleOrTeam.
+ * - journal: Pflegetagebuch lesen und neu eintragen (mit Namen, team_entry), nicht aendern
+ *   oder loeschen. Vorschlaege fuer den Namen ueber GET /api/team-access/names.
+ * - medplan: Medikamentenplan ansehen (GET /api/medications/plan).
+ * - consultation: im Arztgespraech Mitschrift und Zusammenfassung pruefen, aendern und freigeben
+ *   (E59, Figma A11 bis A14). Zuruecknehmen, Loeschen, Neu erstellen nur in der App.
+ * Verwaltung (Passwort, Auswahl, Mitglieder, Rollen, Loeschen) gibt es im Teambereich nie.
+ */
+export const TEAM_FUNCTIONS = ['journal', 'medplan', 'consultation'] as const;
+export type TeamFunction = (typeof TEAM_FUNCTIONS)[number];
+
+export const TEAM_FUNCTION_REQUESTS: Record<TeamFunction, Array<{ method: 'GET' | 'POST' | 'PUT'; path: RegExp }>> = {
+    journal: [
+        { method: 'GET', path: /^\/api\/journal$/ },
+        { method: 'POST', path: /^\/api\/journal$/ },
+        { method: 'GET', path: /^\/api\/team-access\/names$/ },
+    ],
+    medplan: [
+        { method: 'GET', path: /^\/api\/medications\/plan$/ },
+    ],
+    consultation: [
+        { method: 'PUT', path: new RegExp(`^/api/consultations/${SEGMENT}/(transcript|summary)$`) },
+        { method: 'POST', path: new RegExp(`^/api/consultations/${SEGMENT}/(transcript|summary)/approve$`) },
+    ],
+};
+
+/** Zu welcher Funktion des Teambereichs gehoert diese Anfrage? Sonst null. */
+export function teamFunctionFor(method: string, url: string): TeamFunction | null {
+    const path = (url.split('?')[0] || '').replace(/\/+$/, '');
+    for (const fn of TEAM_FUNCTIONS) {
+        if (TEAM_FUNCTION_REQUESTS[fn].some((rule) => rule.method === method && rule.path.test(path))) return fn;
+    }
+    return null;
 }
 
 /** Felder einer Einnahme, die fuer das Rueckgaengig der betreuten Person zaehlen. */
@@ -466,6 +511,8 @@ export interface CircleRequest extends AuthRequest {
     memberId?: string;
     /** Role of the logged-in user in the active circle */
     circleRole?: CircleRole;
+    /** E64: recipient mit offenem Teambereich, nur fuer die freigegebene Anfrage gesetzt */
+    teamAccess?: boolean;
 }
 
 /**
@@ -494,13 +541,21 @@ export const circleMiddleware = async (req: CircleRequest, res: Response, next: 
         }
 
         // Betreute Person: nur die freigegebenen Bereiche (siehe RECIPIENT_ALLOWED_REQUESTS).
+        // E64: sonst nur mit offenem Teambereich und freigegebener Funktion.
+        let teamAccess = false;
         if (membership.role === 'recipient' && !recipientMayAccess(req.method, req.originalUrl ?? req.url ?? '')) {
-            return res.status(403).json({ success: false, error: 'Insufficient role' });
+            const fn = teamFunctionFor(req.method, req.originalUrl ?? req.url ?? '');
+            const token = req.headers['x-team-token'];
+            if (!fn || typeof token !== 'string' || !(await teamSessionAllows(circleId, req.userId, token, fn))) {
+                return res.status(403).json({ success: false, error: 'Insufficient role' });
+            }
+            teamAccess = true;
         }
 
         req.circleId = circleId;
         req.memberId = membership.id;
         req.circleRole = membership.role;
+        req.teamAccess = teamAccess;
         next();
     } catch {
         return res.status(500).json({ success: false, error: 'Internal server error' });
@@ -513,6 +568,20 @@ export const circleMiddleware = async (req: CircleRequest, res: Response, next: 
  */
 export const requireRole = (...roles: CircleRole[]) => {
     return (req: CircleRequest, res: Response, next: NextFunction) => {
+        if (!req.circleRole || !roles.includes(req.circleRole)) {
+            return res.status(403).json({ success: false, error: 'Insufficient role' });
+        }
+        next();
+    };
+};
+
+/**
+ * E64: wie requireRole, zusaetzlich fuer recipient mit offenem Teambereich. teamAccess setzt
+ * circleMiddleware nur fuer Anfragen aus TEAM_FUNCTION_REQUESTS mit gueltigem Team-Token.
+ */
+export const requireRoleOrTeam = (...roles: CircleRole[]) => {
+    return (req: CircleRequest, res: Response, next: NextFunction) => {
+        if (req.teamAccess === true) return next();
         if (!req.circleRole || !roles.includes(req.circleRole)) {
             return res.status(403).json({ success: false, error: 'Insufficient role' });
         }

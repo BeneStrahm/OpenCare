@@ -177,5 +177,43 @@
         "glucose": "Blood sugar"
       }
     }
+  },
+  "team": {
+    "title": "Team area on the tablet",
+    "subtitle": "With a shared PIN, family and carers open more functions on the tablet of the person cared for. Without a PIN or without a selected function, no button appears there. Every change closes an open team area.",
+    "functions": {
+      "title": "Functions",
+      "subtitle": "These functions appear in the open team area.",
+      "items": {
+        "journal": "Care journal",
+        "medplan": "Medication plan",
+        "consultation": "Check and approve doctor visit"
+      },
+      "hints": {
+        "journal": "Read and add entries, with a name. Editing and deleting only here in the app.",
+        "medplan": "View like the print view, without printing.",
+        "consultation": "Change and approve transcript and summary on the tablet. Undo only here in the app."
+      }
+    },
+    "password": {
+      "title": "Shared PIN",
+      "isSet": "A PIN is set.",
+      "notSet": "No PIN set yet.",
+      "first": "PIN",
+      "new": "New PIN",
+      "repeat": "Repeat PIN",
+      "save": "Save PIN",
+      "remove": "Switch off team area",
+      "hint": "{{min}} to {{max}} digits. Only share the PIN with your care team. After 5 wrong attempts, opening is blocked for 5 minutes."
+    },
+    "savedFunctions": "The selection is saved.",
+    "savedPassword": "The PIN is saved.",
+    "removed": "The team area is switched off.",
+    "errors": {
+      "length": "The PIN needs {{min}} to {{max}} digits.",
+      "repeat": "The two PINs are not the same.",
+      "save": "That did not work. Please try again.",
+      "load": "The team area could not be loaded."
+    }
   }
 }

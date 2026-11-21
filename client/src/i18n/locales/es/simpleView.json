@@ -411,10 +411,54 @@
       "important": "Lo más importante",
       "medications": "Medicamentos",
       "nextSteps": "Qué hacer",
-      "appointments": "Próxima cita"
+      "appointments": "Próxima cita",
+      "unclear": "Revisar (reconocimiento dudoso)"
     },
     "offline": "Para esto, la tableta necesita internet. Inténtelo más tarde.",
     "linkError": "La cita está guardada, pero la consulta todavía no. Avise a su familia.",
-    "toConsultation": "Ir a la consulta"
+    "toConsultation": "Ir a la consulta",
+    "review": {
+      "button": "Revisar y aprobar",
+      "transcriptTitle": "Revisar transcripción",
+      "summaryTitle": "Revisar resumen",
+      "pinIntro": "La aprobación es para su familia. Por favor, escriba el PIN del área del equipo.",
+      "transcriptIntro": "Revise sobre todo cifras y medicamentos. Puede cambiar el texto directamente.",
+      "summaryIntro": "Revise sobre todo cifras y medicamentos. Puede cambiarlo todo directamente.",
+      "overview": "En resumen",
+      "answers": "Respuestas a sus preguntas",
+      "lineHint": "Una línea por punto.",
+      "medicationHint": "Una línea por medicamento, así: Nombre: cambio",
+      "appointmentsHint": "La familia cambia las citas en la aplicación.",
+      "cancel": "Cancelar",
+      "approve": "Aprobar",
+      "done": "Aprobado, muchas gracias.",
+      "notAllowed": "La aprobación no está activada en el área del equipo. Por favor, use la aplicación.",
+      "error": {
+        "empty": "Por favor, no deje ningún texto vacío.",
+        "medications": "Por favor, escriba cada medicamento así: Nombre: cambio",
+        "failed": "No ha funcionado. Por favor, inténtelo de nuevo.",
+        "offline": "Para esto la tableta necesita internet. Por favor, inténtelo más tarde."
+      }
+    }
+  },
+  "team": {
+    "button": "Área del equipo",
+    "close": "Cerrar área del equipo",
+    "title": "Área del equipo",
+    "intro": "Esta área es para su familia y sus cuidadores.",
+    "passwordLabel": "PIN",
+    "back": "Volver",
+    "open": "Abrir",
+    "openHint_one": "El área del equipo está abierta. Se cierra sola tras {{count}} minuto sin uso.",
+    "openHint_other": "El área del equipo está abierta. Se cierra sola tras {{count}} minutos sin uso.",
+    "journal": "Diario de cuidados",
+    "medplan": "Plan de medicación",
+    "error": {
+      "empty": "Por favor, escriba el PIN.",
+      "wrong": "El PIN no es correcto. Por favor, inténtelo de nuevo.",
+      "locked": "Demasiados intentos fallidos. Por favor, espere unos minutos e inténtelo de nuevo.",
+      "off": "El área del equipo está desactivada en este momento. Se configura en los ajustes de la aplicación.",
+      "failed": "No ha funcionado. Por favor, compruebe la conexión a internet e inténtelo de nuevo."
+    }
   }
 }

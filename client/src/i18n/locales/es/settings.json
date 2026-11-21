@@ -177,5 +177,43 @@
         "glucose": "Glucosa"
       }
     }
+  },
+  "team": {
+    "title": "Área del equipo en la tableta",
+    "subtitle": "Con un PIN común, la familia y los cuidadores abren más funciones en la tableta de la persona cuidada. Sin PIN o sin función elegida, allí no aparece ningún botón. Cada cambio cierra un área del equipo abierta.",
+    "functions": {
+      "title": "Funciones",
+      "subtitle": "Estas funciones aparecen en el área del equipo abierta.",
+      "items": {
+        "journal": "Diario de cuidados",
+        "medplan": "Plan de medicación",
+        "consultation": "Revisar y aprobar la consulta médica"
+      },
+      "hints": {
+        "journal": "Leer y añadir entradas, con nombre. Editar y borrar solo aquí en la aplicación.",
+        "medplan": "Ver como la vista de impresión, sin imprimir.",
+        "consultation": "Cambiar y aprobar la transcripción y el resumen en la tableta. Deshacer solo aquí en la aplicación."
+      }
+    },
+    "password": {
+      "title": "PIN común",
+      "isSet": "Hay un PIN establecido.",
+      "notSet": "Todavía no hay PIN.",
+      "first": "PIN",
+      "new": "Nuevo PIN",
+      "repeat": "Repetir PIN",
+      "save": "Guardar PIN",
+      "remove": "Desactivar área del equipo",
+      "hint": "De {{min}} a {{max}} cifras. Comparta el PIN solo con su equipo de cuidados. Tras 5 intentos fallidos, abrir queda bloqueado 5 minutos."
+    },
+    "savedFunctions": "La selección está guardada.",
+    "savedPassword": "El PIN está guardado.",
+    "removed": "El área del equipo está desactivada.",
+    "errors": {
+      "length": "El PIN necesita de {{min}} a {{max}} cifras.",
+      "repeat": "Los dos PIN no son iguales.",
+      "save": "No ha funcionado. Por favor, inténtelo de nuevo.",
+      "load": "No se pudo cargar el área del equipo."
+    }
   }
 }

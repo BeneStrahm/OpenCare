@@ -26,6 +26,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import EscalationCard from '../components/app/EscalationCard';
 import RegionSettingsCard from '../components/app/RegionSettingsCard';
 import FeaturesCard from '../components/app/FeaturesCard';
+import TeamAccessCard from '../components/app/TeamAccessCard';
 import { refreshAiStatus } from '../lib/aiStatus';
 import { aiErrorKey } from '../components/app/MagicInput';
 
@@ -717,6 +718,9 @@ const Settings: React.FC = () => {
 
             {/* Fork: Funktionen ein- und ausschalten (Admins) */}
             {isAdmin && <FeaturesCard />}
+
+            {/* E64: Teambereich am Tablet der betreuten Person (Admins) */}
+            {isAdmin && <TeamAccessCard />}
 
             {/* AI assistant: per-circle settings, circle admins only */}
             {isAdmin && <AiAssistantCard />}

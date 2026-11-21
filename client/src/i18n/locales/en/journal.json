@@ -95,5 +95,11 @@
         "valueRequired": "Enter a valid numeric value.",
         "photoTooLarge": "Photo is too large after compression (1.5 MB max).",
         "photoRead": "Could not read this image."
+    },
+    "team": {
+        "nameLabel": "Your name",
+        "nameHint": "Choose your name from the list or type a new one.",
+        "nameRequired": "Please enter your name.",
+        "badge": "in the team area"
     }
 }

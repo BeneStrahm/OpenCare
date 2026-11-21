@@ -1,41 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { format, isToday, isYesterday } from 'date-fns';
-import {
-    Activity,
-    AlertTriangle,
-    BookOpen,
-    Edit2,
-    Footprints,
-    ImagePlus,
-    Mic,
-    Pill,
-    Smile,
-    Sparkles,
-    Square,
-    StickyNote,
-    Trash2,
-    X,
-    type LucideIcon,
-} from 'lucide-react';
+import { BookOpen, Edit2, ImagePlus, Mic, Square, Trash2, X } from 'lucide-react';
 import { api } from '../lib/api';
-import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 import { useFeatures } from '../lib/features';
 import { useCircle } from '../contexts/CircleContext';
 import { useWebSocketUpdates } from '../hooks/useWebSocketUpdates';
-import { Badge, Button, Card, CardContent, Dialog, Input, Select, Textarea, useToast } from '../components/ui';
+import { Button, Card, CardContent, Dialog, Input, Textarea, useToast } from '../components/ui';
 import { EmptyState } from '../components/app';
-import { dateLocale, formatClock, intlLocale } from '../i18n/format';
-import {
-    displayUnit,
-    formatVital,
-    storageUnit,
-    toStorageValue,
-    type UnitSystem,
-    type VitalType,
-} from '../lib/units';
-
+import { dateLocale, formatClock } from '../i18n/format';
 // ─── Types alignés sur server/src/routes/journal.ts ─────────────────────────
 
 type EntryType = 'visit' | 'note' | 'vital' | 'medication' | 'incident' | 'mood';
@@ -47,20 +21,15 @@ interface JournalPhoto {
     mime_type: string;
 }
 
-interface EntryData {
-    vital_type?: VitalType;
-    value?: number | string;
-    value2?: number | string | null;
-    unit?: string | null;
-}
-
 interface JournalEntry {
     id: string;
     author_user_id: string | null;
     author_name: string;
+    /** E64: im Teambereich am Tablet eingetragen, author_name ist der eingegebene Name */
+    team_entry?: boolean;
     type: EntryType;
     content: string;
-    data: EntryData | null;
+    data: Record<string, unknown> | null;
     occurred_at: string;
     photos: JournalPhoto[];
 }
@@ -72,31 +41,9 @@ const MAX_PHOTOS = 4;
 const MAX_PHOTO_BYTES = Math.floor(1.5 * 1024 * 1024);
 const MAX_PHOTO_DIMENSION = 1280;
 
-/** Types proposés dans le composeur (medication est alimenté par le module dédié). */
-const COMPOSER_TYPES: EntryType[] = ['visit', 'note', 'vital', 'incident', 'mood'];
-const FILTER_TYPES: EntryType[] = ['visit', 'note', 'vital', 'medication', 'incident', 'mood'];
-const VITAL_TYPES: VitalType[] = ['weight', 'bp', 'pain', 'mood', 'temperature', 'glucose'];
-
-const TYPE_ICONS: Record<EntryType, LucideIcon> = {
-    visit: Footprints,
-    note: StickyNote,
-    vital: Activity,
-    medication: Pill,
-    incident: AlertTriangle,
-    mood: Smile,
-};
-
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const toLocalInputValue = (date: Date) => format(date, "yyyy-MM-dd'T'HH:mm");
-
-/**
- * Systeme d'unites du cercle, lu sans faire confiance au reglage stocke: un
- * cercle cree avant l'option, ou un reglage abime, doit retomber en metrique
- * plutot que d'afficher des livres sur des kilos.
- */
-const circleUnitSystem = (circle: { settings?: { unit_system?: string } } | null): UnitSystem =>
-    circle?.settings?.unit_system === 'imperial' ? 'imperial' : 'metric';
 
 /** Taille décodée approximative d'une data URL base64, sans allouer de buffer. */
 const dataUrlBytes = (dataUrl: string): number => {
@@ -139,8 +86,6 @@ const compressImage = async (file: File): Promise<string | null> => {
     return null;
 };
 
-const parseLocaleNumber = (raw: string): number => Number(raw.trim().replace(',', '.'));
-
 // ─── Dictée vocale ───────────────────────────────────────────────────────────
 
 // Le body JSON global du serveur est limité à 8 Mo: on garde une marge
@@ -168,43 +113,43 @@ const formatRecordDuration = (seconds: number): string => {
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
-const Journal: React.FC = () => {
+/**
+ * E64 teamMode: im Teambereich am Tablet der betreuten Person. Lesen und neu eintragen mit
+ * Namen ("Ihr Name", Vorschlaege aus GET /api/team-access/names, neue Namen erlaubt).
+ * Kein Bearbeiten, Loeschen, Diktieren und keine grosse Fotoansicht (laege hinter dem Fenster).
+ * Einfaches Tagebuch: keine Art des Eintrags (neue Eintraege sind 'note'), Name fuer alle Rollen
+ * (eigener Name vorab). Einnahmen und Messungen stehen nicht in der Liste (Server blendet aus).
+ */
+const Journal: React.FC<{ teamMode?: boolean }> = ({ teamMode = false }) => {
     const { t } = useTranslation(['journal', 'common']);
     const { user } = useAuth();
-    const { activeCircle, canWriteJournal, isAdmin, myRole } = useCircle();
-    const voiceJournalOn = useFeatures().isOn('voice_journal');
-    // Le rôle voisin écrit des notes simples: pas de constantes de santé (règle serveur).
-    const composerTypes = myRole === 'neighbor'
-        ? COMPOSER_TYPES.filter((type) => type !== 'vital')
-        : COMPOSER_TYPES;
-    const unitSystem = circleUnitSystem(activeCircle);
+    const circle = useCircle();
+    const { activeCircle, myRole } = circle;
+    const canWriteJournal = teamMode || circle.canWriteJournal;
+    const isAdmin = !teamMode && circle.isAdmin;
+    const voiceJournalOn = useFeatures().isOn('voice_journal') && !teamMode;
+    const [authorName, setAuthorName] = useState(() => (teamMode ? '' : user?.name ?? ''));
+    const [authorNames, setAuthorNames] = useState<string[]>([]);
     const { showToast } = useToast();
 
     const [entries, setEntries] = useState<JournalEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const [hasMore, setHasMore] = useState(false);
-    const [typeFilter, setTypeFilter] = useState<EntryType | ''>('');
     const [error, setError] = useState('');
 
     // Composeur
     const [content, setContent] = useState('');
-    const [entryType, setEntryType] = useState<EntryType>('note');
     const [occurredAt, setOccurredAt] = useState(() => toLocalInputValue(new Date()));
     const [photos, setPhotos] = useState<string[]>([]);
     const [photoError, setPhotoError] = useState('');
     const [publishing, setPublishing] = useState(false);
-    const [vitalType, setVitalType] = useState<VitalType>('bp');
-    const [vitalValue, setVitalValue] = useState('');
-    const [vitalValue2, setVitalValue2] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Dictée vocale (Whisper)
     const [recording, setRecording] = useState(false);
     const [recordSeconds, setRecordSeconds] = useState(0);
     const [transcribing, setTranscribing] = useState(false);
-    const [hasTranscript, setHasTranscript] = useState(false);
-    const [autoFiling, setAutoFiling] = useState(false);
     const recorderRef = useRef<MediaRecorder | null>(null);
     const chunksRef = useRef<Blob[]>([]);
     const recordTimerRef = useRef<number | null>(null);
@@ -220,11 +165,25 @@ const Journal: React.FC = () => {
     const entriesCountRef = useRef(0);
     entriesCountRef.current = entries.length;
 
+    // Eigener Name vorab, sobald das Konto geladen ist (im Teambereich bleibt das Feld leer).
+    useEffect(() => {
+        if (!teamMode && user?.name) setAuthorName((prev) => prev || user.name);
+    }, [teamMode, user?.name]);
+
+    // Namensvorschlaege (GET /api/team-access/names: admin, family, professional und Teambereich).
+    // Freunde (neighbor) bekommen keine Liste, das Feld bleibt frei beschreibbar.
+    const canListNames = teamMode || myRole === 'admin' || myRole === 'family' || myRole === 'professional';
+    useEffect(() => {
+        if (!canListNames || !activeCircle?.id) return;
+        api.get<{ success: boolean; data: string[] }>('/api/team-access/names')
+            .then((res) => setAuthorNames(Array.isArray(res.data) ? res.data : []))
+            .catch(() => setAuthorNames([]));
+    }, [canListNames, activeCircle?.id]);
+
     const buildQuery = (limit: number, before?: string) => {
         const params = new URLSearchParams();
         params.set('limit', String(limit));
         if (before) params.set('before', before);
-        if (typeFilter) params.set('type', typeFilter);
         return `/api/journal?${params.toString()}`;
     };
 
@@ -249,12 +208,12 @@ const Journal: React.FC = () => {
         }
     };
 
-    // Recharger quand le cercle actif ou le filtre change.
+    // Recharger quand le cercle actif change.
     useEffect(() => {
         if (!activeCircle?.id) return;
         void refresh({ spinner: true, reset: true });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeCircle?.id, typeFilter]);
+    }, [activeCircle?.id]);
 
     // Temps réel: un autre membre publie, modifie ou supprime une entrée.
     useWebSocketUpdates('journal', () => {
@@ -317,9 +276,6 @@ const Journal: React.FC = () => {
         setPhotos([]);
         setPhotoError('');
         setOccurredAt(toLocalInputValue(new Date()));
-        setVitalValue('');
-        setVitalValue2('');
-        setHasTranscript(false);
     };
 
     // ─── Dictée vocale: enregistrement, transcription, rangement ────────────
@@ -356,7 +312,6 @@ const Journal: React.FC = () => {
             }
             // Le texte est placé dans la zone de saisie: l'aidant relit avant de publier.
             setContent((prev) => (prev.trim() ? `${prev.trimEnd()}\n${text}` : text));
-            setHasTranscript(true);
         } catch (err) {
             const message = err instanceof Error ? err.message : '';
             if (message === 'WHISPER_NOT_CONFIGURED') {
@@ -425,61 +380,14 @@ const Journal: React.FC = () => {
         };
     }, []);
 
-    /** « Ranger automatiquement »: l'IA du cercle classe la dictée (journal + courses). */
-    const handleAutoFile = async () => {
-        const text = content.trim();
-        if (!text || autoFiling || publishing) return;
-        setAutoFiling(true);
-        try {
-            const res = await api.post<{
-                success: boolean;
-                data: { entry: JournalEntry; shopping_items: Array<{ name: string }> };
-            }>('/api/voice/journal', { text });
-            if (res.success) {
-                const items = res.data.shopping_items.map((item) => item.name);
-                showToast({
-                    title: t('journal:voice.filedTitle', { type: t(`journal:types.${res.data.entry.type}`) }),
-                    description: items.length > 0
-                        ? t('journal:voice.filedShopping', { items: items.join(', ') })
-                        : res.data.entry.content.slice(0, 120),
-                });
-                resetComposer();
-                await refresh();
-            }
-        } catch (err) {
-            console.error('Auto file failed:', err);
-            showToast({ variant: 'error', title: t('journal:voice.fileError') });
-        } finally {
-            setAutoFiling(false);
-        }
-    };
-
     const handlePublish = async (e: React.FormEvent) => {
         e.preventDefault();
         if (publishing) return;
         const trimmed = content.trim();
-
-        let vitalData: EntryData | null = null;
-        if (entryType === 'vital') {
-            const typed = parseLocaleNumber(vitalValue);
-            if (!vitalValue.trim() || !Number.isFinite(typed)) {
-                setError(t('journal:errors.valueRequired'));
-                return;
-            }
-            let typed2: number | null = null;
-            if (vitalType === 'bp') {
-                typed2 = parseLocaleNumber(vitalValue2);
-                if (!vitalValue2.trim() || !Number.isFinite(typed2)) {
-                    setError(t('journal:errors.valueRequired'));
-                    return;
-                }
-            }
-            // L'aidant saisit dans le systeme du cercle, la base reste metrique:
-            // sans cette conversion, 130 livres seraient enregistrees comme 130 kilos.
-            const value = toStorageValue(vitalType, typed, unitSystem);
-            const value2 = typed2 === null ? null : toStorageValue(vitalType, typed2, unitSystem);
-            vitalData = { vital_type: vitalType, value, value2, unit: storageUnit(vitalType) };
-        } else if (!trimmed && photos.length === 0) {
+        const name = authorName.trim();
+        if (!trimmed && photos.length === 0) return;
+        if (!name) {
+            setError(t('journal:team.nameRequired'));
             return;
         }
 
@@ -487,12 +395,13 @@ const Journal: React.FC = () => {
         setError('');
         try {
             const payload: Record<string, unknown> = {
-                type: entryType,
+                type: 'note',
                 content: trimmed,
                 photos,
             };
             if (occurredAt) payload.occurred_at = new Date(occurredAt).toISOString();
-            if (vitalData) payload.data = vitalData;
+            if (teamMode) payload.team_author_name = name;
+            else payload.author_name = name;
 
             await api.post('/api/journal', payload);
             resetComposer();
@@ -509,7 +418,7 @@ const Journal: React.FC = () => {
     // ─── Edition et suppression ──────────────────────────────────────────────
 
     const canManage = (entry: JournalEntry) =>
-        isAdmin || (entry.author_user_id !== null && entry.author_user_id === user?.id);
+        !teamMode && (isAdmin || (entry.author_user_id !== null && entry.author_user_id === user?.id));
 
     const openEdit = (entry: JournalEntry) => {
         setEditingEntry(entry);
@@ -571,22 +480,6 @@ const Journal: React.FC = () => {
         return format(date, 'EEEE d MMMM yyyy', { locale: dateLocale() });
     };
 
-    const vitalSummary = (data: EntryData | null): string | null => {
-        if (!data?.vital_type || !VITAL_TYPES.includes(data.vital_type)) return null;
-        const value = Number(data.value);
-        if (!Number.isFinite(value)) return null;
-        const raw2 = data.value2 !== null && data.value2 !== undefined ? Number(data.value2) : null;
-        const value2 = raw2 !== null && Number.isFinite(raw2) ? raw2 : null;
-        // L'unite enregistree avec l'entree est toujours metrique: on ne la
-        // rend pas telle quelle, on convertit vers le systeme du cercle.
-        return t('journal:vitalSummary', {
-            label: t(`journal:vitalTypes.${data.vital_type}`),
-            measure: formatVital(data.vital_type, value, value2, unitSystem, intlLocale()),
-        });
-    };
-
-    const badgeVariant = (type: EntryType) => (type === 'incident' ? 'danger' : 'secondary');
-
     if (loading) {
         return (
             <div className="flex h-full items-center justify-center min-h-[50vh]">
@@ -606,45 +499,18 @@ const Journal: React.FC = () => {
                 </div>
             ) : null}
 
-            <div>
-                <h1 className="text-h1 mb-1">{t('journal:title')}</h1>
-                <p className="text-muted-foreground text-body">{t('journal:subtitle')}</p>
-            </div>
+            {!teamMode && (
+                <div>
+                    <h1 className="text-h1 mb-1">{t('journal:title')}</h1>
+                    <p className="text-muted-foreground text-body">{t('journal:subtitle')}</p>
+                </div>
+            )}
 
             {/* Composeur */}
             {canWriteJournal && (
                 <Card>
                     <CardContent className="p-4 md:p-5">
                         <form onSubmit={handlePublish} className="space-y-4">
-                            <div>
-                                <span className="mb-1.5 block text-caption font-medium text-foreground">
-                                    {t('journal:composer.typeLabel')}
-                                </span>
-                                <div className="flex flex-wrap gap-2" role="group" aria-label={t('journal:composer.typeLabel')}>
-                                    {composerTypes.map((type) => {
-                                        const Icon = TYPE_ICONS[type];
-                                        const active = entryType === type;
-                                        return (
-                                            <button
-                                                key={type}
-                                                type="button"
-                                                aria-pressed={active}
-                                                onClick={() => setEntryType(type)}
-                                                className={cn(
-                                                    'flex min-h-[44px] items-center gap-1.5 rounded-pill border px-3.5 text-caption font-medium transition-colors',
-                                                    active
-                                                        ? 'border-primary/30 bg-primary-soft text-primary'
-                                                        : 'border-border bg-card text-muted-foreground hover:border-border-strong hover:text-foreground'
-                                                )}
-                                            >
-                                                <Icon className="h-4 w-4" />
-                                                {t(`journal:types.${type}`)}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-
                             <Textarea
                                 label={t('journal:composer.contentLabel')}
                                 value={content}
@@ -653,49 +519,64 @@ const Journal: React.FC = () => {
                                 rows={3}
                             />
 
-                            {entryType === 'vital' && (
-                                <div className="grid grid-cols-1 gap-3 rounded-input border border-border bg-surface-2/40 p-3 sm:grid-cols-3">
-                                    <div>
-                                        <span className="mb-1.5 block text-caption font-medium text-foreground">
-                                            {t('journal:composer.vitalTypeLabel')}
-                                        </span>
-                                        <Select
-                                            value={vitalType}
-                                            onValueChange={(value) => setVitalType(value as VitalType)}
-                                            options={VITAL_TYPES.map((type) => ({
-                                                value: type,
-                                                label: t(`journal:vitalTypes.${type}`),
-                                            }))}
-                                        />
-                                    </div>
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                                <div className="sm:max-w-[220px]">
                                     <Input
-                                        label={
-                                            vitalType === 'bp'
-                                                ? t('journal:composer.systolicLabel')
-                                                : t('journal:composer.valueWithUnit', {
-                                                    unit: displayUnit(vitalType, unitSystem),
-                                                })
-                                        }
-                                        type="text"
-                                        inputMode="decimal"
-                                        value={vitalValue}
-                                        onChange={(e) => setVitalValue(e.target.value)}
-                                        aria-invalid={error === t('journal:errors.valueRequired') && (!vitalValue.trim() || !Number.isFinite(parseLocaleNumber(vitalValue))) ? true : undefined}
-                                        aria-describedby={error === t('journal:errors.valueRequired') && (!vitalValue.trim() || !Number.isFinite(parseLocaleNumber(vitalValue))) ? 'journal-error' : undefined}
+                                        label={t('journal:composer.dateLabel')}
+                                        type="datetime-local"
+                                        value={occurredAt}
+                                        onChange={(e) => setOccurredAt(e.target.value)}
                                     />
-                                    {vitalType === 'bp' && (
-                                        <Input
-                                            label={t('journal:composer.diastolicLabel')}
-                                            type="text"
-                                            inputMode="decimal"
-                                            value={vitalValue2}
-                                            onChange={(e) => setVitalValue2(e.target.value)}
-                                            aria-invalid={error === t('journal:errors.valueRequired') && (!vitalValue2.trim() || !Number.isFinite(parseLocaleNumber(vitalValue2))) ? true : undefined}
-                                            aria-describedby={error === t('journal:errors.valueRequired') && (!vitalValue2.trim() || !Number.isFinite(parseLocaleNumber(vitalValue2))) ? 'journal-error' : undefined}
-                                        />
-                                    )}
                                 </div>
-                            )}
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    className="hidden"
+                                    onChange={(e) => void handlePhotoSelect(e)}
+                                />
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={photos.length >= MAX_PHOTOS}
+                                >
+                                    <ImagePlus className="mr-2 h-4 w-4" />
+                                    {t('journal:composer.addPhotos')}
+                                    <span className="ml-2 text-micro text-muted-foreground">
+                                        {t('journal:composer.photoHint', { current: photos.length, max: MAX_PHOTOS })}
+                                    </span>
+                                </Button>
+                                {!voiceJournalOn ? null : recording ? (
+                                    <div className="flex h-11 items-center gap-2 rounded-input border border-border bg-surface-2/40 px-3 md:h-10">
+                                        <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-danger animate-pulse" aria-hidden="true" />
+                                        <span className="text-caption font-medium tabular-nums text-foreground">
+                                            {formatRecordDuration(recordSeconds)}
+                                        </span>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            aria-label={t('journal:voice.stop')}
+                                            onClick={stopRecording}
+                                        >
+                                            <Square className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        onClick={() => void startRecording()}
+                                        disabled={transcribing}
+                                        aria-label={t('journal:voice.record')}
+                                    >
+                                        <Mic className="mr-2 h-4 w-4" />
+                                        {transcribing ? t('journal:voice.transcribing') : t('journal:voice.record')}
+                                    </Button>
+                                )}
+                            </div>
 
                             {photos.length > 0 && (
                                 <div className="flex flex-wrap gap-2">
@@ -720,126 +601,41 @@ const Journal: React.FC = () => {
                             )}
                             {photoError ? <p className="text-micro text-danger">{photoError}</p> : null}
 
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                                <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-end">
-                                    <div className="sm:max-w-[220px]">
-                                        <Input
-                                            label={t('journal:composer.dateLabel')}
-                                            type="datetime-local"
-                                            value={occurredAt}
-                                            onChange={(e) => setOccurredAt(e.target.value)}
-                                        />
-                                    </div>
-                                    <input
-                                        ref={fileInputRef}
-                                        type="file"
-                                        accept="image/*"
-                                        multiple
-                                        className="hidden"
-                                        onChange={(e) => void handlePhotoSelect(e)}
-                                    />
-                                    <Button
-                                        type="button"
-                                        variant="secondary"
-                                        onClick={() => fileInputRef.current?.click()}
-                                        disabled={photos.length >= MAX_PHOTOS}
-                                    >
-                                        <ImagePlus className="mr-2 h-4 w-4" />
-                                        {t('journal:composer.addPhotos')}
-                                        <span className="ml-2 text-micro text-muted-foreground">
-                                            {t('journal:composer.photoHint', { current: photos.length, max: MAX_PHOTOS })}
-                                        </span>
-                                    </Button>
-                                    {!voiceJournalOn ? null : recording ? (
-                                        <div className="flex h-11 items-center gap-2 rounded-input border border-border bg-surface-2/40 px-3 md:h-10">
-                                            <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-danger animate-pulse" aria-hidden="true" />
-                                            <span className="text-caption font-medium tabular-nums text-foreground">
-                                                {formatRecordDuration(recordSeconds)}
-                                            </span>
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon"
-                                                aria-label={t('journal:voice.stop')}
-                                                onClick={stopRecording}
-                                            >
-                                                <Square className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    ) : (
-                                        <Button
-                                            type="button"
-                                            variant="secondary"
-                                            onClick={() => void startRecording()}
-                                            disabled={transcribing}
-                                            aria-label={t('journal:voice.record')}
-                                        >
-                                            <Mic className="mr-2 h-4 w-4" />
-                                            {transcribing ? t('journal:voice.transcribing') : t('journal:voice.record')}
-                                        </Button>
-                                    )}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    {hasTranscript && content.trim() !== '' && (
-                                        <Button
-                                            type="button"
-                                            variant="secondary"
-                                            onClick={() => void handleAutoFile()}
-                                            disabled={autoFiling || publishing}
-                                        >
-                                            <Sparkles className="mr-2 h-4 w-4" />
-                                            {autoFiling ? t('journal:voice.autoFiling') : t('journal:voice.autoFile')}
-                                        </Button>
-                                    )}
-                                    <Button type="submit" disabled={publishing}>
-                                        {publishing ? t('journal:composer.publishing') : t('journal:composer.publish')}
-                                    </Button>
-                                </div>
+                            <div className="sm:max-w-sm">
+                                <Input
+                                    id="journal-author-name"
+                                    label={t('journal:team.nameLabel')}
+                                    value={authorName}
+                                    onChange={(e) => setAuthorName(e.target.value)}
+                                    list={authorNames.length > 0 ? 'journal-author-names' : undefined}
+                                    autoComplete="off"
+                                    maxLength={100}
+                                    required
+                                />
+                                {authorNames.length > 0 && (
+                                    <datalist id="journal-author-names">
+                                        {authorNames.map((n) => <option key={n} value={n} />)}
+                                    </datalist>
+                                )}
+                                <p className="mt-1 text-caption text-muted-foreground">{t('journal:team.nameHint')}</p>
+                            </div>
+
+                            <div className="flex justify-end">
+                                <Button type="submit" disabled={publishing}>
+                                    {publishing ? t('journal:composer.publishing') : t('journal:composer.publish')}
+                                </Button>
                             </div>
                         </form>
                     </CardContent>
                 </Card>
             )}
 
-            {/* Filtres par type */}
-            <div className="flex flex-wrap gap-2" role="group" aria-label={t('common:actions.filter')}>
-                <button
-                    type="button"
-                    aria-pressed={typeFilter === ''}
-                    onClick={() => setTypeFilter('')}
-                    className={cn(
-                        'min-h-[36px] rounded-pill border px-3 text-micro font-medium transition-colors',
-                        typeFilter === ''
-                            ? 'border-primary/30 bg-primary-soft text-primary'
-                            : 'border-border bg-card text-muted-foreground hover:text-foreground'
-                    )}
-                >
-                    {t('journal:filters.all')}
-                </button>
-                {FILTER_TYPES.map((type) => (
-                    <button
-                        key={type}
-                        type="button"
-                        aria-pressed={typeFilter === type}
-                        onClick={() => setTypeFilter(type)}
-                        className={cn(
-                            'min-h-[36px] rounded-pill border px-3 text-micro font-medium transition-colors',
-                            typeFilter === type
-                                ? 'border-primary/30 bg-primary-soft text-primary'
-                                : 'border-border bg-card text-muted-foreground hover:text-foreground'
-                        )}
-                    >
-                        {t(`journal:types.${type}`)}
-                    </button>
-                ))}
-            </div>
-
             {/* Timeline groupée par jour */}
             {entries.length === 0 ? (
                 <EmptyState
                     icon={<BookOpen className="h-10 w-10" />}
-                    title={typeFilter ? t('journal:empty.filtered') : t('journal:empty.title')}
-                    description={typeFilter ? undefined : t('journal:empty.description')}
+                    title={t('journal:empty.title')}
+                    description={t('journal:empty.description')}
                 />
             ) : (
                 <div className="space-y-6">
@@ -850,7 +646,6 @@ const Journal: React.FC = () => {
                             </h2>
                             <div className="space-y-3">
                                 {dayEntries.map((entry) => {
-                                    const summary = vitalSummary(entry.data);
                                     return (
                                         <Card key={entry.id}>
                                             <CardContent className="p-4">
@@ -861,16 +656,13 @@ const Journal: React.FC = () => {
                                                     <div className="min-w-0 flex-1">
                                                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                                                             <span className="text-body font-semibold">{entry.author_name}</span>
+                                                            {entry.team_entry && (
+                                                                <span className="text-micro text-muted-foreground">{t('journal:team.badge')}</span>
+                                                            )}
                                                             <span className="text-micro text-muted-foreground">
                                                                 {formatClock(entry.occurred_at)}
                                                             </span>
-                                                            <Badge variant={badgeVariant(entry.type)}>
-                                                                {t(`journal:types.${entry.type}`)}
-                                                            </Badge>
                                                         </div>
-                                                        {summary ? (
-                                                            <p className="mt-1 text-body font-medium text-foreground">{summary}</p>
-                                                        ) : null}
                                                         {entry.content ? (
                                                             <p className="mt-1 whitespace-pre-wrap text-body text-foreground">
                                                                 {entry.content}
@@ -883,7 +675,7 @@ const Journal: React.FC = () => {
                                                                         key={photo.id}
                                                                         type="button"
                                                                         aria-label={t('journal:photo.open')}
-                                                                        onClick={() => setLightboxPhoto(photo)}
+                                                                        onClick={() => { if (!teamMode) setLightboxPhoto(photo); }}
                                                                         className="rounded-input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                                                                     >
                                                                         <img

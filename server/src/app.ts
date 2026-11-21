@@ -9,6 +9,7 @@ import passwordResetRoutes from './routes/passwordReset';
 import visitsRoutes from './routes/visits';
 import viewPhotosRoutes from './routes/viewPhotos';
 import circlesRoutes from './routes/circles';
+import teamAccessRoutes from './routes/teamAccess';
 import circleInvitesRoutes from './routes/circleInvites';
 import shoppingRoutes from './routes/shopping';
 import tasksRoutes from './routes/tasks';
@@ -108,6 +109,8 @@ const spaContentSecurityPolicy = {
         'img-src': ["'self'", 'data:', 'blob:', 'https:'],
         'connect-src': ["'self'", 'ws:', 'wss:'],
         'font-src': ["'self'", 'data:'],
+        // Arztgespraech: Aufnahmen werden ueber blob:-Adressen abgespielt (lokale Kopie und Server-Audio).
+        'media-src': ["'self'", 'blob:'],
         'worker-src': ["'self'"],
         'manifest-src': ["'self'"],
         'object-src': ["'none'"],
@@ -168,6 +171,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/auth', userSettingsRoutes);
 app.use('/api/auth', passwordResetRoutes);
 app.use('/api/circles', circlesRoutes);
+// E64: Teambereich am Tablet (Freischalten wie eine Anmeldung begrenzt)
+app.use('/api/team-access/unlock', authRateLimiter);
+app.use('/api/team-access', teamAccessRoutes);
 app.use('/api/invites', circleInvitesRoutes);
 app.use('/api/journal', requireFeature('journal'), journalRoutes);
 app.use('/api/vitals', requireFeature('health'), vitalsRoutes);
