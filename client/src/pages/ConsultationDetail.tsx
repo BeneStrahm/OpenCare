@@ -400,7 +400,8 @@ const ConsultationDetail: React.FC = () => {
                                 }}
                             />
                             <datalist id="p-doctor-options">
-                                {doctors.map((d) => <option key={d.name} value={d.name}>{d.organization ?? ''}</option>)}
+                                {/* Name immer in der Beschriftung: manche Browser (z. B. Chrome auf Android) zeigen nur sie an */}
+                                {doctors.map((d) => <option key={d.name} value={d.name}>{[d.name, d.organization].filter(Boolean).join(', ')}</option>)}
                             </datalist>
                             <Input id="p-specialty" label={t('consultations:form.specialty')} value={prep.specialty} onChange={(e) => { setPrep({ ...prep, specialty: e.target.value }); setPrepDirty(true); }} />
                             <Input id="p-when" type="datetime-local" label={t('consultations:form.scheduledAt')} value={prep.scheduled_at} onChange={(e) => { setPrep({ ...prep, scheduled_at: e.target.value }); setPrepDirty(true); }} />
