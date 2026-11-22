@@ -10,7 +10,7 @@ import { useCircle } from '../contexts/CircleContext';
 import { useWebSocketUpdates } from '../hooks/useWebSocketUpdates';
 import { Card, CardContent, Button, Badge, Input, Textarea, useToast } from '../components/ui';
 import RecorderPanel from '../components/consultations/RecorderPanel';
-import SummaryEditor from '../components/consultations/SummaryEditor';
+import SummarySectionsEditor from '../components/consultations/SummarySectionsEditor';
 import { useLocalRecordings } from '../components/consultations/useLocalRecordings';
 import { discardLocalRecording, kick, retryLocalRecording, saveAsNewConsultation } from '../lib/consultationUploader';
 import { consultationTitle, formatConsultationDate } from './Consultations';
@@ -95,6 +95,8 @@ const ConsultationDetail: React.FC = () => {
     const [editPrep, setEditPrep] = useState(false);
     const [editTranscript, setEditTranscript] = useState(false);
     const [editSummary, setEditSummary] = useState(false);
+    // E67: Medikamente ohne "Name: Änderung" im Bearbeiten (dann nicht speichern oder freigeben)
+    const [summaryInvalid, setSummaryInvalid] = useState(false);
     const [busy, setBusy] = useState(false);
 
     // Aktueller Stand der ungespeicherten Eingaben fuer load(): Intervall und
@@ -690,11 +692,10 @@ const ConsultationDetail: React.FC = () => {
                 )}
 
                 {editSummary && !readOnly ? (
-                    <SummaryEditor
-                        value={currentSummary}
-                        onChange={(next) => { setSummary(next); setSummaryDirty(true); }}
+                    <SummarySectionsEditor
+                        original={currentSummary}
                         questions={questions}
-                        readOnly={false}
+                        onChange={(next, invalid) => { setSummary(next); setSummaryDirty(true); setSummaryInvalid(invalid); }}
                     />
                 ) : (view.overview || view.groups.length > 0) && (
                     <div className="space-y-4">
@@ -714,8 +715,8 @@ const ConsultationDetail: React.FC = () => {
                     <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-4">
                         {editSummary ? (
                             <>
-                                <Button variant="secondary" onClick={() => { setEditSummary(false); void load(); }} disabled={busy}>{t('common:actions.cancel')}</Button>
-                                <Button variant="secondary" onClick={() => void saveSummary().then(() => setEditSummary(false))} disabled={busy || !summaryDirty}>
+                                <Button variant="secondary" onClick={() => { setEditSummary(false); setSummaryInvalid(false); void load(); }} disabled={busy}>{t('common:actions.cancel')}</Button>
+                                <Button variant="secondary" onClick={() => void saveSummary().then(() => setEditSummary(false))} disabled={busy || !summaryDirty || summaryInvalid}>
                                     <Save className="mr-2 h-4 w-4" aria-hidden="true" />{t('consultations:summary.save')}
                                 </Button>
                             </>
@@ -736,7 +737,7 @@ const ConsultationDetail: React.FC = () => {
                                 <Undo2 className="mr-2 h-4 w-4" aria-hidden="true" />{t('consultations:summary.unapprove')}
                             </Button>
                         ) : (c.summary || summaryDirty) && (
-                            <Button onClick={approveSummary} disabled={busy || isSummaryEmpty(currentSummary)}>
+                            <Button onClick={approveSummary} disabled={busy || isSummaryEmpty(currentSummary) || (editSummary && summaryInvalid)}>
                                 <CheckCircle2 className="mr-2 h-4 w-4" aria-hidden="true" />{t('consultations:summary.approve')}
                             </Button>
                         )}
