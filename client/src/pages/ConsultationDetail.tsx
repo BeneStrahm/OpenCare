@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
     ArrowLeft, Printer, Trash2, Plus, Save, CheckCircle2, RefreshCw, AlertTriangle,
-    Sparkles, FileText, Mic, ClipboardList, CloudUpload, Pencil, Play, Lock, Undo2,
+    Sparkles, FileText, Mic, ClipboardList, CloudUpload, Pencil, Play, Lock, Undo2, Loader2,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useCircle } from '../contexts/CircleContext';
@@ -76,6 +76,8 @@ const ConsultationDetail: React.FC = () => {
     const [transcriptDirty, setTranscriptDirty] = useState(false);
     // Abspielen: geladene Aufnahmen (Objekt-URL je Aufnahme)
     const [audioUrls, setAudioUrls] = useState<Record<string, string>>({});
+    // Aufnahme wird geladen: Taste zeigt "Wird geladen" und ist gesperrt (sonst klickt man doppelt)
+    const [loadingAudio, setLoadingAudio] = useState<string | null>(null);
     const audioUrlsRef = useRef<Record<string, string>>({});
     audioUrlsRef.current = audioUrls;
     useEffect(() => () => { Object.values(audioUrlsRef.current).forEach((u) => URL.revokeObjectURL(u)); }, []);
@@ -322,11 +324,15 @@ const ConsultationDetail: React.FC = () => {
     };
 
     const playRecording = async (r: Recording) => {
+        if (loadingAudio) return;
+        setLoadingAudio(r.id);
         try {
             const { blob } = await loadRecordingAudio({ id: r.id, client_id: r.client_id });
             setAudioUrls((prev) => ({ ...prev, [r.id]: URL.createObjectURL(blob) }));
         } catch {
             showToast({ variant: 'error', title: navigator.onLine ? t('consultations:recordings.playError') : t('consultations:recordings.playOffline') });
+        } finally {
+            setLoadingAudio(null);
         }
     };
 
@@ -576,8 +582,10 @@ const ConsultationDetail: React.FC = () => {
                                         </div>
                                         {r.status !== 'done' && <Badge variant={recordingBadgeVariant(r.status)}>{t(`consultations:recordingStatus.${r.status}`)}</Badge>}
                                         {!audioUrls[r.id] && !r.audio_deleted_at && !isRecordingInProgress(r.status) && r.status !== 'uploading' && (
-                                            <Button variant="secondary" onClick={() => void playRecording(r)}>
-                                                <Play className="mr-1 h-4 w-4" aria-hidden="true" />{t('consultations:recordings.play')}
+                                            <Button variant="secondary" onClick={() => void playRecording(r)} disabled={loadingAudio !== null} aria-busy={loadingAudio === r.id || undefined}>
+                                                {loadingAudio === r.id
+                                                    ? <><Loader2 className="mr-1 h-4 w-4 motion-safe:animate-spin" aria-hidden="true" />{t('consultations:recordings.playLoading')}</>
+                                                    : <><Play className="mr-1 h-4 w-4" aria-hidden="true" />{t('consultations:recordings.play')}</>}
                                             </Button>
                                         )}
                                     </div>

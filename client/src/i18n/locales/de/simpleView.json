@@ -392,6 +392,7 @@
     "recordingMeta_one": "{{time}} Uhr · {{count}} Minute",
     "recordingMeta_other": "{{time}} Uhr · {{count}} Minuten",
     "play": "Abspielen",
+    "playLoading": "Wird geladen, bitte warten …",
     "pause": "Anhalten",
     "progress": "{{current}} von {{total}}",
     "audioGone": "Die Aufnahme ist gelöscht. Die Mitschrift bleibt.",

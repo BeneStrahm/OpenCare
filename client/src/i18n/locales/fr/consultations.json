@@ -135,6 +135,7 @@
     "audioDeleted": "Audio supprimé",
     "retried": "Le traitement a été relancé",
     "play": "Écouter",
+    "playLoading": "Chargement, veuillez patienter …",
     "player": "Écouter l’enregistrement",
     "playError": "L’enregistrement ne peut pas être lu pour le moment. Réessayez plus tard.",
     "playOffline": "Pour écouter, cet appareil a besoin d’internet.",

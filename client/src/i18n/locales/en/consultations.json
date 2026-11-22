@@ -135,6 +135,7 @@
     "audioDeleted": "Audio deleted",
     "retried": "Processing started again",
     "play": "Play",
+    "playLoading": "Loading, please wait …",
     "player": "Play recording",
     "playError": "The recording cannot be played right now. Please try again later.",
     "playOffline": "This device needs internet to play the recording.",

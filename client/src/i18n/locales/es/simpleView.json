@@ -392,6 +392,7 @@
     "recordingMeta_one": "{{time}} · {{count}} minuto",
     "recordingMeta_other": "{{time}} · {{count}} minutos",
     "play": "Reproducir",
+    "playLoading": "Cargando, espere por favor …",
     "pause": "Pausa",
     "progress": "{{current}} de {{total}}",
     "audioGone": "La grabación se ha borrado. La transcripción se mantiene.",

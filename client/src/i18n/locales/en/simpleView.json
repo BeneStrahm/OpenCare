@@ -392,6 +392,7 @@
     "recordingMeta_one": "{{time}} · {{count}} minute",
     "recordingMeta_other": "{{time}} · {{count}} minutes",
     "play": "Play",
+    "playLoading": "Loading, please wait …",
     "pause": "Pause",
     "progress": "{{current}} of {{total}}",
     "audioGone": "The recording was deleted. The transcript remains.",

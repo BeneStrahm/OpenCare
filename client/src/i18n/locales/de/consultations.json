@@ -135,6 +135,7 @@
     "audioDeleted": "Ton gelöscht",
     "retried": "Die Verarbeitung wurde neu gestartet",
     "play": "Abspielen",
+    "playLoading": "Wird geladen, bitte warten …",
     "player": "Aufnahme abspielen",
     "playError": "Die Aufnahme lässt sich gerade nicht abspielen. Bitte versuchen Sie es später noch einmal.",
     "playOffline": "Zum Abspielen braucht dieses Gerät Internet.",

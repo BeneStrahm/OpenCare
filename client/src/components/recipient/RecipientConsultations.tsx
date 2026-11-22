@@ -10,7 +10,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-    CalendarClock, CalendarPlus, Check, ChevronRight, CircleAlert, ClipboardList, CloudOff, FileText, Mic, Pause, Play, Plus,
+    CalendarClock, CalendarPlus, Check, ChevronRight, CircleAlert, ClipboardList, CloudOff, FileText, Loader2, Mic, Pause, Play, Plus,
     Square, Stethoscope, Trash2, Users,
 } from 'lucide-react';
 import { api } from '../../lib/api';
@@ -114,6 +114,8 @@ const RecipientConsultations: React.FC<Props> = ({ ui, circleId, initialId, onCl
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const urlRef = useRef<string | null>(null);
     const [player, setPlayer] = useState<Player>(null);
+    // Aufnahme wird geladen (Abspielen dauert manchmal): Taste zeigt "Wird geladen" und ist gesperrt
+    const [loadingKey, setLoadingKey] = useState<string | null>(null);
     const recordingsRef = useRef<HTMLDivElement>(null);
 
     const offlineText = t('simpleView:doctor.offline');
@@ -246,7 +248,9 @@ const RecipientConsultations: React.FC<Props> = ({ ui, circleId, initialId, onCl
             else { void audioRef.current.play(); setPlayer({ ...player, playing: true }); }
             return;
         }
+        if (loadingKey) return;
         stopPlayer();
+        setLoadingKey(row.key);
         try {
             const { blob } = await loadRecordingAudio({ id: row.serverId, client_id: row.clientId });
             const url = URL.createObjectURL(blob);
@@ -262,6 +266,8 @@ const RecipientConsultations: React.FC<Props> = ({ ui, circleId, initialId, onCl
         } catch {
             stopPlayer();
             setNotice({ kind: 'error', text: navigator.onLine ? t('simpleView:doctor.playError') : t('simpleView:doctor.playOffline') });
+        } finally {
+            setLoadingKey(null);
         }
     };
 
@@ -794,9 +800,11 @@ const RecipientConsultations: React.FC<Props> = ({ ui, circleId, initialId, onCl
                                         </p>
                                     </div>
                                     {!row.audioGone && (
-                                        <button type="button" onClick={() => void togglePlay(row)} className="flex min-h-[3.5rem] shrink-0 items-center gap-2 rounded-2xl px-5 font-bold" style={secondaryButton}>
-                                            {p?.playing ? <Pause className="h-6 w-6 shrink-0" aria-hidden="true" /> : <Play className="h-6 w-6 shrink-0" aria-hidden="true" />}
-                                            {p?.playing ? t('simpleView:doctor.pause') : t('simpleView:doctor.play')}
+                                        <button type="button" onClick={() => void togglePlay(row)} disabled={loadingKey !== null} aria-busy={loadingKey === row.key || undefined} className="flex min-h-[3.5rem] shrink-0 items-center gap-2 rounded-2xl px-5 font-bold disabled:cursor-wait" style={secondaryButton}>
+                                            {loadingKey === row.key
+                                                ? <Loader2 className="h-6 w-6 shrink-0 motion-safe:animate-spin" aria-hidden="true" />
+                                                : p?.playing ? <Pause className="h-6 w-6 shrink-0" aria-hidden="true" /> : <Play className="h-6 w-6 shrink-0" aria-hidden="true" />}
+                                            {loadingKey === row.key ? t('simpleView:doctor.playLoading') : p?.playing ? t('simpleView:doctor.pause') : t('simpleView:doctor.play')}
                                         </button>
                                     )}
                                 </div>

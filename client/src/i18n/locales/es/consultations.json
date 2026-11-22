@@ -135,6 +135,7 @@
     "audioDeleted": "Audio borrado",
     "retried": "El procesamiento se ha vuelto a iniciar",
     "play": "Reproducir",
+    "playLoading": "Cargando, espere por favor …",
     "player": "Reproducir grabación",
     "playError": "Ahora no se puede reproducir la grabación. Inténtelo más tarde.",
     "playOffline": "Para reproducirla, este dispositivo necesita internet.",
