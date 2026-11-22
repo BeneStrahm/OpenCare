@@ -16,7 +16,7 @@ import { clockDate } from '../lib/clock';
 import { SUPPORTED_LANGUAGES, LANGUAGE_NAMES } from '../i18n';
 import { changeAppLanguage } from '../lib/language';
 import { formatAmount } from '../lib/medications';
-import { enabledVitalTypes, isFeatureEnabled, isViewTileOn, type FeatureId, type ViewTileId } from '../lib/features';
+import { SPLIT_VISITORS, enabledVitalTypes, isFeatureEnabled, isViewTileOn, type FeatureId, type ViewTileId } from '../lib/features';
 import { displayUnit, formatVital, toDisplayValue, toStorageValue } from '../lib/units';
 import { cn } from '../lib/utils';
 import AppleBitten from '../components/ui/AppleBitten';
@@ -1062,7 +1062,8 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
 
     // Block L3: Besuche und Dienste unter "Wer heute kommt", Arzt und Sonstige unter "Termine heute"
     // (dort erscheinen auch die selbst angelegten Termine, Kategorie "Sonstige").
-    const VISIT_CATEGORIES = ['visit', 'nurse', 'aide'];
+    // E68 (Übergang): solange SPLIT_VISITORS aus ist, stehen alle Einträge unter "Termine".
+    const VISIT_CATEGORIES: string[] = SPLIT_VISITORS ? ['visit', 'nurse', 'aide'] : [];
     const visitorEvents = events.filter((e) => VISIT_CATEGORIES.includes(e.category));
     const appointmentEvents = events.filter((e) => !VISIT_CATEGORIES.includes(e.category));
     // Fenster "Termine": heute aus `events`, andere Tage aus dem eigenen Abruf.
@@ -1569,7 +1570,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                         dueVitals.length > 0 ? t(`simpleView:vitals.${dueVitals[0].type}`) : null)}
                     {calendarOn && tileOn('appointments') && renderTile('appointments', CalendarDays, t('simpleView:appointments.title'),
                         appointmentEvents.length === 0 ? t('simpleView:appointments.empty') : t('simpleView:tiles.appointments', { count: appointmentEvents.length }))}
-                    {calendarOn && tileOn('visitors') && renderTile('visitors', Users, t('simpleView:visitors.title'),
+                    {SPLIT_VISITORS && calendarOn && tileOn('visitors') && renderTile('visitors', Users, t('simpleView:visitors.title'),
                         visitorEvents.length === 0 ? t('simpleView:visitors.empty') : t('simpleView:tiles.visits', { count: visitorEvents.length }))}
                     {contactsOn && tileOn('contacts') && renderTile('contacts', Phone, t('simpleView:contacts.title'), null)}
                     {questions.length > 0 && tileOn('ask') && renderTile('ask', MessageCircle, t('simpleView:ask.button'), t('simpleView:ask.hint'))}

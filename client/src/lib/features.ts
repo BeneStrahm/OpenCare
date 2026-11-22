@@ -77,6 +77,12 @@ export const VIEW_TILE_IDS = [
 ] as const;
 export type ViewTileId = (typeof VIEW_TILE_IDS)[number];
 
+/**
+ * E68 (Übergang): Besuch, Pflegedienst und Haushaltshilfe stehen mit unter "Termine", die Kachel
+ * "Wer heute kommt" und ihr Schalter sind ausgeblendet. Zurück zur Aufteilung: auf true setzen.
+ */
+export const SPLIT_VISITORS = false;
+
 export const isViewTileOn = (settings: Settings, id: ViewTileId): boolean =>
     flags(settings, 'view_tiles')[id] !== false;
 

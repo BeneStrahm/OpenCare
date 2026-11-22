@@ -4,7 +4,7 @@ import { api } from '../../lib/api';
 import { useCircle } from '../../contexts/CircleContext';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui';
 import { SwitchRow } from './FeaturesCard';
-import { VIEW_TILE_IDS, VIEW_TILE_FEATURES, isFeatureEnabled, isViewTileOn, type ViewTileId } from '../../lib/features';
+import { SPLIT_VISITORS, VIEW_TILE_IDS, VIEW_TILE_FEATURES, isFeatureEnabled, isViewTileOn, type ViewTileId } from '../../lib/features';
 
 /**
  * Kacheln der einfachen Ansicht ein- und ausblenden (nur Admins).
@@ -44,7 +44,7 @@ const ViewTilesCard: React.FC = () => {
             <CardContent className="space-y-4">
                 <p className="text-caption text-muted-foreground">{t('viewTiles.description')}</p>
                 <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                    {VIEW_TILE_IDS.map((id) => {
+                    {VIEW_TILE_IDS.filter((id) => SPLIT_VISITORS || id !== 'visitors').map((id) => {
                         const feature = VIEW_TILE_FEATURES[id];
                         const featureOff = feature !== undefined && !isFeatureEnabled(settings, feature);
                         return (
