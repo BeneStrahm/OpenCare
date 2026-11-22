@@ -147,6 +147,20 @@ export function recipientMayAccess(method: string, url: string): boolean {
 export const TEAM_FUNCTIONS = ['journal', 'medplan', 'consultation'] as const;
 export type TeamFunction = (typeof TEAM_FUNCTIONS)[number];
 
+/**
+ * Roadmap 21.2: "consultation" gilt immer, sobald eine PIN gesetzt ist. admin waehlt sie nicht
+ * aus; gespeichert werden nur die waehlbaren Funktionen (lib/teamAccess.ts prueft dasselbe).
+ */
+export const TEAM_ALWAYS_ON_FUNCTIONS: readonly TeamFunction[] = ['consultation'];
+export const isSelectableTeamFunction = (fn: string): boolean =>
+    !(TEAM_ALWAYS_ON_FUNCTIONS as readonly string[]).includes(fn);
+
+/** Gespeicherte Auswahl plus die immer geltenden Funktionen, in fester Reihenfolge. */
+export function effectiveTeamFunctions(stored: readonly string[] | null | undefined): TeamFunction[] {
+    const set = new Set<string>([...(stored ?? []), ...TEAM_ALWAYS_ON_FUNCTIONS]);
+    return TEAM_FUNCTIONS.filter((fn) => set.has(fn));
+}
+
 export const TEAM_FUNCTION_REQUESTS: Record<TeamFunction, Array<{ method: 'GET' | 'POST' | 'PUT'; path: RegExp }>> = {
     journal: [
         { method: 'GET', path: /^\/api\/journal$/ },

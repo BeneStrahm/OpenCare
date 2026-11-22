@@ -52,7 +52,7 @@ const handle = async (sql: string, params: unknown[] = []) => {
         return { rows: [{ data: db.chunks[params[1] as number] }] };
     }
     if (sql.includes('SELECT e.id, e.category FROM events')) return { rows: db.event && params[0] === db.event.id ? [db.event] : [] };
-    if (sql.includes('SELECT 1 FROM consultations WHERE event_id')) return { rows: db.eventTaken ? [{}] : [] };
+    if (sql.includes('SELECT id FROM consultations WHERE event_id')) return { rows: db.eventTaken ? [{ id: ID }] : [] };
     if (sql.includes("created_by = $2 AND category = 'doctor'")) return { rows: db.eventOwn ? [{}] : [] };
     if (sql.includes('INSERT INTO consultations')) {
         db.c = { id: NEW_ID, circle_id: 'kreis-1', event_id: params[6], transcript_status: 'none', summary_status: 'none' };
@@ -258,9 +258,16 @@ describe('Arztgespraech: Standardfrage und Termin', () => {
         expect(db.log.some((l) => l.sql.includes('INSERT INTO events'))).toBe(false);
     });
 
-    it('Termin schon verknuepft 409, fremder Termin 404, ungueltig 400', async () => {
+    it('Termin hat schon ein Gespraech (21.4): Angaben dort eintragen, kein zweites; fremder Termin 404, ungueltig 400', async () => {
         db.eventTaken = true;
-        expect((await call('family', 'POST', '/', { scheduled_at: '2026-12-01T10:00', event_id: EVENT })).body?.error).toBe('EVENT_ALREADY_LINKED');
+        db.c = { id: ID, circle_id: 'kreis-1', event_id: EVENT, transcript_status: 'none', summary_status: 'none' };
+        const r = await call('family', 'POST', '/', { scheduled_at: '2026-12-01T10:00', doctor_name: 'Dr. Test', event_id: EVENT });
+        expect(r.status).toBe(200);
+        expect(db.log.some((l) => l.sql.includes('INSERT INTO consultations'))).toBe(false);
+        expect(db.log.some((l) => l.sql.includes('INSERT INTO consultation_questions'))).toBe(false);
+        const update = db.log.find((l) => l.sql.includes('UPDATE consultations SET doctor_name'));
+        expect(update?.params[0]).toBe('Dr. Test');
+        expect(update?.params[4]).toBe(ID);
         db.eventTaken = false;
         db.event = null;
         expect((await call('family', 'POST', '/', { scheduled_at: '2026-12-01T10:00', event_id: EVENT })).status).toBe(404);

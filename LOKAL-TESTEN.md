@@ -220,12 +220,10 @@ Token abgelehnt“. Falsche Produkt-ID: „Die Produkt-ID wurde … nicht gefund
 5. SabineMuster (App): Mitschrift lesen, eine Zahl korrigieren, freigeben. Zusammenfassung prüfen, freigeben.
 6. Sperre: Am Tablet keine Tasten mehr für Fragen, Angaben, Aufnahmen. In der App ebenso.
 7. „Freigabe zurücknehmen“ (Mitschrift): Tablet zeigt die Tasten wieder.
-8. Vorschläge übernehmen (Termin, Aufgabe, Notiz): nur nach Bestätigung, erscheinen im Kalender bzw. bei den
-   Aufgaben. Medikamentenplan bleibt unverändert.
-9. Datum überall deutsch („Dienstag, 1. Dezember 2026“, „10:00 Uhr“). Relative Folgetermine („in drei Monaten“)
+8. Datum überall deutsch („Dienstag, 1. Dezember 2026“, „10:00 Uhr“). Relative Folgetermine („in drei Monaten“)
    ohne Datum: richtig so (E63), die Familie trägt das Datum ein.
-10. Gegenprobe: PetraSonnenschein (Fachkraft) liest, darf aber nicht freigeben; KarlNachbar (Freunde) sieht kein
-    Arztgespräch.
+9. Gegenprobe: PetraSonnenschein (Fachkraft) liest, darf aber nicht freigeben; KarlNachbar (Freunde) sieht kein
+   Arztgespräch.
 
 **B. Offline (Tablet, Flugmodus)**
 

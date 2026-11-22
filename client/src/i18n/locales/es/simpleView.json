@@ -236,7 +236,8 @@
       "date": "Elija un día a partir de hoy, por favor.",
       "time": "Elija una hora, por favor."
     },
-    "time": "Hora",
+    "time": "Fecha y hora",
+    "dateTimeValue": "{{date}}, {{time}}",
     "place": "Lugar",
     "travelTo": "Ida",
     "travelBack": "Vuelta",
@@ -404,8 +405,10 @@
     "readTranscript": "Leer toda la transcripción",
     "transcriptTitle": "Transcripción",
     "transcriptLater": "La transcripción llegará más tarde.",
+    "transcriptProcessing": "La transcripción todavía se está procesando.",
     "noTranscript": "Después de una grabación, aquí aparece la transcripción.",
     "summaryLater": "El resumen llegará más tarde.",
+    "summaryProcessing": "El resumen todavía se está procesando.",
     "noSummary": "Después de una grabación, aquí aparece el resumen.",
     "summary": {
       "important": "Lo más importante",
@@ -432,7 +435,7 @@
       "cancel": "Cancelar",
       "approve": "Aprobar",
       "done": "Aprobado, muchas gracias.",
-      "notAllowed": "La aprobación no está activada en el área del equipo. Por favor, use la aplicación.",
+      "notSetUp": "Pida a su familia que configure el área del equipo.",
       "error": {
         "empty": "Por favor, no deje ningún texto vacío.",
         "medications": "Por favor, escriba cada medicamento así: Nombre: cambio",
@@ -459,6 +462,35 @@
       "locked": "Demasiados intentos fallidos. Por favor, espere unos minutos e inténtelo de nuevo.",
       "off": "El área del equipo está desactivada en este momento. Se configura en los ajustes de la aplicación.",
       "failed": "No ha funcionado. Por favor, compruebe la conexión a internet e inténtelo de nuevo."
+    }
+  },
+  "teamJournal": {
+    "when": "{{day}}, {{time}}",
+    "newEntry": "Nueva entrada",
+    "hint": "Aquí puede leer y añadir entradas. Editar y borrar solo en la aplicación.",
+    "empty": "Todavía no hay entradas.",
+    "loadError": "No se pudo cargar el diario de cuidados. Por favor, compruebe la conexión a Internet.",
+    "loadMore": "Cargar más",
+    "byTeam": "{{name}}, en el área del equipo",
+    "photoN": "Foto {{n}}",
+    "newTitle": "Nueva entrada",
+    "contentLabel": "Entrada",
+    "dateLabel": "Fecha",
+    "photosLabel": "Fotos (opcional)",
+    "addPhoto": "Añadir foto",
+    "removePhoto": "Quitar",
+    "removePhotoN": "Quitar la foto {{n}}",
+    "photoLimit": "Como máximo {{max}} fotos.",
+    "nameLabel": "Su nombre",
+    "publish": "Publicar",
+    "saved": "La entrada se ha guardado.",
+    "error": {
+      "content": "Por favor, escriba algo o añada una foto.",
+      "date": "Por favor, elija una fecha que no sea futura.",
+      "name": "Por favor, escriba su nombre.",
+      "photo": "No se pudo usar una foto. Por favor, pruebe con otra.",
+      "offline": "Sin Internet no se puede guardar nada. Por favor, inténtelo más tarde.",
+      "failed": "No ha funcionado. Por favor, inténtelo de nuevo."
     }
   }
 }

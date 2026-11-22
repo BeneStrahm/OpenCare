@@ -186,14 +186,13 @@
       "subtitle": "Ces fonctions apparaissent dans l'espace équipe ouvert.",
       "items": {
         "journal": "Journal de soins",
-        "medplan": "Plan de médication",
-        "consultation": "Vérifier et valider la consultation"
+        "medplan": "Plan de médication"
       },
       "hints": {
         "journal": "Lire et ajouter des entrées, avec un nom. Modifier et supprimer uniquement ici dans l'application.",
-        "medplan": "Consulter comme l'aperçu d'impression, sans imprimer.",
-        "consultation": "Modifier et valider la transcription et le résumé sur la tablette. Annuler uniquement ici dans l'application."
-      }
+        "medplan": "Consulter comme l'aperçu d'impression, sans imprimer."
+      },
+      "consultationNote": "Avec le code PIN, la transcription et le résumé d'une consultation peuvent aussi toujours être vérifiés et validés sur la tablette. Annuler la validation uniquement ici dans l'application."
     },
     "password": {
       "title": "Code PIN commun",

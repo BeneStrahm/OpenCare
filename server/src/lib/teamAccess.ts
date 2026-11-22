@@ -45,7 +45,8 @@ export async function teamSessionAllows(
          WHERE s.token_hash = $1 AND s.circle_id = $2 AND s.user_id = $3
            AND s.expires_at > CURRENT_TIMESTAMP
            AND a.circle_id = s.circle_id AND a.password_hash IS NOT NULL
-           AND $4 = ANY(a.functions)
+           -- Roadmap 21.2: 'consultation' gilt immer (TEAM_ALWAYS_ON_FUNCTIONS in middleware/circle.ts)
+           AND ($4 = ANY(a.functions) OR $4 = 'consultation')
          RETURNING s.id`,
         [hashTeamToken(token), circleId, userId, fn, TEAM_IDLE_MINUTES]
     );

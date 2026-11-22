@@ -186,14 +186,13 @@
       "subtitle": "These functions appear in the open team area.",
       "items": {
         "journal": "Care journal",
-        "medplan": "Medication plan",
-        "consultation": "Check and approve doctor visit"
+        "medplan": "Medication plan"
       },
       "hints": {
         "journal": "Read and add entries, with a name. Editing and deleting only here in the app.",
-        "medplan": "View like the print view, without printing.",
-        "consultation": "Change and approve transcript and summary on the tablet. Undo only here in the app."
-      }
+        "medplan": "View like the print view, without printing."
+      },
+      "consultationNote": "With the PIN, the transcript and summary of a doctor visit can also always be checked and approved on the tablet. Withdrawing approval only here in the app."
     },
     "password": {
       "title": "Shared PIN",

@@ -236,7 +236,8 @@
       "date": "Please choose a day from today onwards.",
       "time": "Please choose a time."
     },
-    "time": "Time",
+    "time": "Date and time",
+    "dateTimeValue": "{{date}}, {{time}}",
     "place": "Place",
     "travelTo": "Getting there",
     "travelBack": "Getting back",
@@ -404,8 +405,10 @@
     "readTranscript": "Read full transcript",
     "transcriptTitle": "Transcript",
     "transcriptLater": "The transcript will follow.",
+    "transcriptProcessing": "The transcript is still being processed.",
     "noTranscript": "After a recording, the transcript appears here.",
     "summaryLater": "The summary will follow.",
+    "summaryProcessing": "The summary is still being processed.",
     "noSummary": "After a recording, the summary appears here.",
     "summary": {
       "important": "Key points",
@@ -432,7 +435,7 @@
       "cancel": "Cancel",
       "approve": "Approve",
       "done": "Approved, thank you.",
-      "notAllowed": "Approving is not switched on in the team area. Please use the app.",
+      "notSetUp": "Please ask your family to set up the team area.",
       "error": {
         "empty": "Please do not leave any text empty.",
         "medications": "Please write each medication like this: Name: change",
@@ -459,6 +462,35 @@
       "locked": "Too many wrong attempts. Please wait a few minutes and then try again.",
       "off": "The team area is switched off at the moment. It is set up in the app settings.",
       "failed": "That did not work. Please check the internet connection and try again."
+    }
+  },
+  "teamJournal": {
+    "when": "{{day}}, {{time}}",
+    "newEntry": "New entry",
+    "hint": "Read and add new entries here. Editing and deleting only in the app.",
+    "empty": "No entries yet.",
+    "loadError": "The care diary could not be loaded. Please check the internet connection.",
+    "loadMore": "Load more",
+    "byTeam": "{{name}}, in the team area",
+    "photoN": "Photo {{n}}",
+    "newTitle": "New entry",
+    "contentLabel": "Entry",
+    "dateLabel": "Date",
+    "photosLabel": "Photos (optional)",
+    "addPhoto": "Add photo",
+    "removePhoto": "Remove",
+    "removePhotoN": "Remove photo {{n}}",
+    "photoLimit": "At most {{max}} photos.",
+    "nameLabel": "Your name",
+    "publish": "Publish",
+    "saved": "The entry has been saved.",
+    "error": {
+      "content": "Please write something or add a photo.",
+      "date": "Please choose a date that is not in the future.",
+      "name": "Please enter your name.",
+      "photo": "A photo could not be used. Please try another one.",
+      "offline": "Nothing can be saved without internet. Please try again later.",
+      "failed": "That did not work. Please try again."
     }
   }
 }

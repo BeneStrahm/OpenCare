@@ -24,7 +24,6 @@ export interface ConsultationInfo {
     summary_status: SummaryStatus;
     approved_by_name: string | null;
     approved_at: string | null;
-    applied?: Record<string, string> | null;
     summary_source?: 'ai' | 'human' | null;
     summary_outdated?: boolean;
     transcript_status: TranscriptStatus;

@@ -186,14 +186,13 @@
       "subtitle": "Estas funciones aparecen en el área del equipo abierta.",
       "items": {
         "journal": "Diario de cuidados",
-        "medplan": "Plan de medicación",
-        "consultation": "Revisar y aprobar la consulta médica"
+        "medplan": "Plan de medicación"
       },
       "hints": {
         "journal": "Leer y añadir entradas, con nombre. Editar y borrar solo aquí en la aplicación.",
-        "medplan": "Ver como la vista de impresión, sin imprimir.",
-        "consultation": "Cambiar y aprobar la transcripción y el resumen en la tableta. Deshacer solo aquí en la aplicación."
-      }
+        "medplan": "Ver como la vista de impresión, sin imprimir."
+      },
+      "consultationNote": "Con el PIN también se pueden revisar y aprobar siempre en la tableta la transcripción y el resumen de una consulta médica. Retirar la aprobación solo aquí en la aplicación."
     },
     "password": {
       "title": "PIN común",

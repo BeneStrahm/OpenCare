@@ -4,6 +4,8 @@
 /** Funktionen, die admin fuer den Teambereich freigeben kann (gleich TEAM_FUNCTIONS auf dem Server). */
 export const TEAM_FUNCTIONS = ['journal', 'medplan', 'consultation'] as const;
 export type TeamFunction = (typeof TEAM_FUNCTIONS)[number];
+/** Roadmap 21.2: "consultation" gilt immer, sobald eine PIN gesetzt ist. admin waehlt nur diese. */
+export const TEAM_SELECTABLE_FUNCTIONS: readonly TeamFunction[] = ['journal', 'medplan'];
 
 /** Das gemeinsame Passwort ist eine PIN aus 6 bis 12 Ziffern (gleich auf dem Server). */
 export const TEAM_PIN_MIN = 6;
@@ -14,7 +16,7 @@ export const onlyDigits = (value: string): string => value.replace(/[^0-9]/g, ''
 
 /** Antwort von GET /api/team-access */
 export interface TeamAccessInfo {
-    /** Passwort gesetzt und mindestens eine Funktion gewaehlt */
+    /** PIN gesetzt (Roadmap 21.2: Arztgespraech pruefen gilt dann immer) */
     configured: boolean;
     has_password: boolean;
     functions: TeamFunction[];

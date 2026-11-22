@@ -186,14 +186,13 @@
       "subtitle": "Diese Funktionen erscheinen im offenen Teambereich.",
       "items": {
         "journal": "Pflegetagebuch",
-        "medplan": "Medikamentenplan",
-        "consultation": "Arztgespräch prüfen und freigeben"
+        "medplan": "Medikamentenplan"
       },
       "hints": {
         "journal": "Lesen und neu eintragen, mit Namen. Bearbeiten und Löschen nur hier in der App.",
-        "medplan": "Ansehen wie die Druckansicht, ohne Drucken.",
-        "consultation": "Mitschrift und Zusammenfassung am Tablet ändern und freigeben. Zurücknehmen nur hier in der App."
-      }
+        "medplan": "Ansehen wie die Druckansicht, ohne Drucken."
+      },
+      "consultationNote": "Mit der PIN lassen sich am Tablet außerdem immer Mitschrift und Zusammenfassung eines Arztgesprächs prüfen und freigeben. Zurücknehmen nur hier in der App."
     },
     "password": {
       "title": "Gemeinsame PIN",

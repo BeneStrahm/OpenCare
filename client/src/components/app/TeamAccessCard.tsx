@@ -5,7 +5,7 @@ import { api } from '../../lib/api';
 import { Button, Card, CardContent, Input } from '../ui';
 import { SwitchRow } from './FeaturesCard';
 import RegionSectionHeader from './RegionSectionHeader';
-import { TEAM_FUNCTIONS, TEAM_PIN_MAX, TEAM_PIN_MIN, isTeamFunction, isTeamPin, onlyDigits, type TeamAccessInfo, type TeamFunction } from '../../lib/teamAccess';
+import { TEAM_SELECTABLE_FUNCTIONS, TEAM_PIN_MAX, TEAM_PIN_MIN, isTeamFunction, isTeamPin, onlyDigits, type TeamAccessInfo, type TeamFunction } from '../../lib/teamAccess';
 
 /**
  * E64 Teambereich (nur admin): gemeinsames Passwort des Pflegeteams fuer das Tablet der
@@ -50,7 +50,8 @@ const TeamAccessCard: React.FC = () => {
 
     const toggle = (fn: TeamFunction) => {
         if (!info) return;
-        const next = info.functions.includes(fn) ? info.functions.filter((f) => f !== fn) : [...info.functions, fn];
+        const current = info.functions.filter((f) => TEAM_SELECTABLE_FUNCTIONS.includes(f));
+        const next = current.includes(fn) ? current.filter((f) => f !== fn) : [...current, fn];
         void save({ functions: next }, t('team.savedFunctions'));
     };
 
@@ -92,7 +93,7 @@ const TeamAccessCard: React.FC = () => {
                         <section>
                             <RegionSectionHeader title={t('team.functions.title')} subtitle={t('team.functions.subtitle')} scope="circle" />
                             <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
-                                {TEAM_FUNCTIONS.map((fn) => (
+                                {TEAM_SELECTABLE_FUNCTIONS.map((fn) => (
                                     <SwitchRow
                                         key={fn}
                                         label={t(`team.functions.items.${fn}`)}
@@ -103,6 +104,7 @@ const TeamAccessCard: React.FC = () => {
                                     />
                                 ))}
                             </div>
+                            <p className="mt-3 text-caption text-muted-foreground">{t('team.functions.consultationNote')}</p>
                         </section>
 
                         <section>

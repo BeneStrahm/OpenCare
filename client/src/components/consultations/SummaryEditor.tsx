@@ -261,8 +261,6 @@ const SummaryEditor: React.FC<Props> = ({ value, onChange, questions, readOnly }
                 )}
             </fieldset>
 
-            <TextList label={t('consultations:summary.familyNotes')} items={value.family_notes} onChange={(v) => set('family_notes', v)} {...common} />
-
             {/* Antworten auf die vorbereiteten Fragen */}
             {questions.length > 0 && (
                 <fieldset className="space-y-3">

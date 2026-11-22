@@ -236,7 +236,8 @@
       "date": "Bitte wählen Sie einen Tag ab heute.",
       "time": "Bitte wählen Sie eine Uhrzeit."
     },
-    "time": "Uhrzeit",
+    "time": "Datum und Uhrzeit",
+    "dateTimeValue": "{{date}}, {{time}} Uhr",
     "place": "Ort",
     "travelTo": "Hinfahrt",
     "travelBack": "Rückfahrt",
@@ -404,8 +405,10 @@
     "readTranscript": "Ganze Mitschrift lesen",
     "transcriptTitle": "Mitschrift",
     "transcriptLater": "Die Mitschrift kommt später.",
+    "transcriptProcessing": "Die Mitschrift wird noch verarbeitet.",
     "noTranscript": "Nach einer Aufnahme steht hier die Mitschrift.",
     "summaryLater": "Die Zusammenfassung kommt später.",
+    "summaryProcessing": "Die Zusammenfassung wird noch verarbeitet.",
     "noSummary": "Nach einer Aufnahme steht hier die Zusammenfassung.",
     "summary": {
       "important": "Das Wichtigste",
@@ -432,7 +435,7 @@
       "cancel": "Abbrechen",
       "approve": "Freigeben",
       "done": "Freigegeben, vielen Dank.",
-      "notAllowed": "Das Freigeben ist im Teambereich nicht eingeschaltet. Bitte nutzen Sie die App.",
+      "notSetUp": "Bitten Sie Ihre Familie, den Teambereich einzurichten.",
       "error": {
         "empty": "Bitte lassen Sie keinen Text leer.",
         "medications": "Bitte schreiben Sie jedes Medikament so: Name: Änderung",
@@ -459,6 +462,35 @@
       "locked": "Zu viele falsche Versuche. Bitte warten Sie einige Minuten und versuchen Sie es dann noch einmal.",
       "off": "Der Teambereich ist gerade ausgeschaltet. Er wird in den Einstellungen der App eingerichtet.",
       "failed": "Das hat nicht geklappt. Bitte prüfen Sie die Internetverbindung und versuchen Sie es noch einmal."
+    }
+  },
+  "teamJournal": {
+    "when": "{{day}}, {{time}}",
+    "newEntry": "Neuer Eintrag",
+    "hint": "Hier lesen und neu eintragen. Ändern und Löschen nur in der App.",
+    "empty": "Noch keine Einträge.",
+    "loadError": "Das Pflegetagebuch konnte nicht geladen werden. Bitte prüfen Sie die Internetverbindung.",
+    "loadMore": "Weitere laden",
+    "byTeam": "{{name}}, im Teambereich",
+    "photoN": "Foto {{n}}",
+    "newTitle": "Neuer Eintrag",
+    "contentLabel": "Eintrag",
+    "dateLabel": "Datum",
+    "photosLabel": "Fotos (freiwillig)",
+    "addPhoto": "Foto hinzufügen",
+    "removePhoto": "Entfernen",
+    "removePhotoN": "Foto {{n}} entfernen",
+    "photoLimit": "Höchstens {{max}} Fotos.",
+    "nameLabel": "Ihr Name",
+    "publish": "Veröffentlichen",
+    "saved": "Der Eintrag ist gespeichert.",
+    "error": {
+      "content": "Bitte schreiben Sie etwas oder fügen Sie ein Foto hinzu.",
+      "date": "Bitte wählen Sie ein Datum, das nicht in der Zukunft liegt.",
+      "name": "Bitte geben Sie Ihren Namen ein.",
+      "photo": "Ein Foto ließ sich nicht verwenden. Bitte versuchen Sie ein anderes.",
+      "offline": "Ohne Internet lässt sich nichts speichern. Bitte versuchen Sie es später noch einmal.",
+      "failed": "Das hat nicht geklappt. Bitte versuchen Sie es noch einmal."
     }
   }
 }

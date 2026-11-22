@@ -11,7 +11,6 @@ import { useWebSocketUpdates } from '../hooks/useWebSocketUpdates';
 import { Card, CardContent, Button, Badge, Input, Textarea, useToast } from '../components/ui';
 import RecorderPanel from '../components/consultations/RecorderPanel';
 import SummaryEditor from '../components/consultations/SummaryEditor';
-import ProposalsPanel from '../components/consultations/ProposalsPanel';
 import { useLocalRecordings } from '../components/consultations/useLocalRecordings';
 import { discardLocalRecording, kick, retryLocalRecording, saveAsNewConsultation } from '../lib/consultationUploader';
 import { consultationTitle, formatConsultationDate } from './Consultations';
@@ -96,14 +95,12 @@ const ConsultationDetail: React.FC = () => {
     const [editPrep, setEditPrep] = useState(false);
     const [editTranscript, setEditTranscript] = useState(false);
     const [editSummary, setEditSummary] = useState(false);
-    const [notes, setNotes] = useState('');
-    const [notesDirty, setNotesDirty] = useState(false);
     const [busy, setBusy] = useState(false);
 
     // Aktueller Stand der ungespeicherten Eingaben fuer load(): Intervall und
     // WebSocket rufen eine aeltere load()-Fassung auf, darum ueber eine Ref.
-    const dirtyRef = useRef({ prep: false, summary: false, notes: false, transcript: false });
-    dirtyRef.current = { prep: prepDirty, summary: summaryDirty, notes: notesDirty, transcript: transcriptDirty };
+    const dirtyRef = useRef({ prep: false, summary: false, transcript: false });
+    dirtyRef.current = { prep: prepDirty, summary: summaryDirty, transcript: transcriptDirty };
 
     const questions = useMemo(
         () => (detail ? [...detail.questions].sort((a, b) => a.position - b.position) : []),
@@ -135,10 +132,6 @@ const ConsultationDetail: React.FC = () => {
                 if (!opts.keepEdits || !dirty.summary) {
                     setSummary(c.summary ? withDefaults(c.summary, questionIds) : null);
                     setSummaryDirty(false);
-                }
-                if (!opts.keepEdits || !dirty.notes) {
-                    setNotes(c.notes ?? '');
-                    setNotesDirty(false);
                 }
                 if (!opts.keepEdits || !dirty.transcript) {
                     const next: Record<string, string> = {};
@@ -341,7 +334,6 @@ const ConsultationDetail: React.FC = () => {
         void run(() => api.delete(`/api/consultations/recordings/${r.id}/audio`), t('consultations:recordings.audioDeleted'));
     };
 
-    const saveNotes = () => run(() => api.put(`/api/consultations/${id}`, { notes: notes.trim() || null }).then(() => setNotesDirty(false)), t('consultations:detail.saved'));
 
     const latestError = [...detail.recordings].reverse().find((r) => r.error_code)?.error_code ?? null;
     // B5: gleicher Aufbau wie am Tablet (vier Karten), Bearbeiten erst auf Knopfdruck.
@@ -747,45 +739,6 @@ const ConsultationDetail: React.FC = () => {
                             <Button onClick={approveSummary} disabled={busy || isSummaryEmpty(currentSummary)}>
                                 <CheckCircle2 className="mr-2 h-4 w-4" aria-hidden="true" />{t('consultations:summary.approve')}
                             </Button>
-                        )}
-                    </div>
-                )}
-
-                {c.summary && !editSummary && (
-                    <div className="space-y-3 border-t border-border pt-4">
-                        <h3 className="text-body font-semibold text-foreground">{t('consultations:proposals.title_section')}</h3>
-                        <ProposalsPanel
-                            consultationId={c.id}
-                            summary={withDefaults(c.summary, questionIds)}
-                            applied={c.applied ?? {}}
-                            readOnly={readOnly}
-                            onApplied={() => void load({ keepEdits: true })}
-                        />
-                    </div>
-                )}
-
-                {(!readOnly || c.notes) && (
-                    <div className="space-y-2 border-t border-border pt-4">
-                        {readOnly ? (
-                            <>
-                                <h3 className="text-body font-semibold text-foreground">{t('consultations:followUp.notes')}</h3>
-                                <p className="whitespace-pre-wrap text-body">{c.notes}</p>
-                            </>
-                        ) : (
-                            <>
-                                <Textarea
-                                    label={t('consultations:followUp.notes')}
-                                    placeholder={t('consultations:followUp.notesPlaceholder')}
-                                    rows={3}
-                                    value={notes}
-                                    onChange={(e) => { setNotes(e.target.value); setNotesDirty(true); }}
-                                />
-                                <div className="flex justify-end">
-                                    <Button variant="secondary" onClick={() => void saveNotes()} disabled={busy || !notesDirty}>
-                                        <Save className="mr-2 h-4 w-4" aria-hidden="true" />{t('common:actions.save')}
-                                    </Button>
-                                </div>
-                            </>
                         )}
                     </div>
                 )}

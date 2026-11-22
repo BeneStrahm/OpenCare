@@ -13,10 +13,11 @@ import {
 import { cleanPersonName } from '../../lib/eventExtras';
 import { broadcastToCircle } from '../../lib/broadcaster';
 import logger from '../../lib/logger';
-import { sanitizeSummaryForQuestions, isValidIsoDate, isValidTime, type ConsultationSummary } from './summary';
+import { sanitizeSummaryForQuestions, isValidIsoDate, type ConsultationSummary } from './summary';
 import { loadVocabulary, normalizeTerm } from './vocabulary';
 import { kickConsultationProcessor } from './processing';
 import { consultationText } from './texts';
+import { addDefaultQuestion } from './eventLink';
 
 // Lesen: admin, family, professional und (E59) recipient; neighbor nie (zentral in middleware/circle.ts).
 export const READER_ROLES: CircleRole[] = CONSULTATION_READER_ROLES;
@@ -67,7 +68,7 @@ const serverError = (res: Response, where: string, error: unknown) => {
 // Begleitung und Fahrt stehen nur am Termin (companion_*, travel_*, driver).
 const CONSULTATION_COLUMNS = `c.id, c.circle_id, c.doctor_name, c.specialty,
     COALESCE(e.start_time, c.scheduled_at) AS scheduled_at, COALESCE(e.location, c.location) AS location, c.reason,
-    c.event_id, c.notes, c.summary, c.summary_status, c.approved_at, u.name AS approved_by_name, c.applied, c.summary_source, c.summary_outdated,
+    c.event_id, c.notes, c.summary, c.summary_status, c.approved_at, u.name AS approved_by_name, c.summary_source, c.summary_outdated,
     c.transcript_status, c.transcript_approved_at, tu.name AS transcript_approved_by_name,
     e.companion_needed AS event_companion_needed, e.member_ids AS event_member_ids, e.guests AS event_guests,
     e.travel_needed AS event_travel_needed, e.driver_to AS event_driver, e.take_along AS event_take_along,
@@ -127,14 +128,6 @@ async function loadConsultation(id: string, circleId: string) {
  */
 export function isLocked(c: { transcript_status?: string | null; summary_status?: string | null }): boolean {
     return c.transcript_status === 'approved' && c.summary_status === 'approved';
-}
-
-/** Standardfrage in jedem neuen Gespraech (E61), loeschbar wie jede Frage. */
-async function addDefaultQuestion(db: { query: (sql: string, params?: unknown[]) => Promise<unknown> }, consultationId: string, circleId: string, lang: unknown, userId: string | undefined) {
-    await db.query(
-        `INSERT INTO consultation_questions (consultation_id, circle_id, text, position, created_by) VALUES ($1, $2, $3, 0, $4)`,
-        [consultationId, circleId, consultationText(lang, 'defaultQuestion'), userId ?? null]
-    );
 }
 
 /** Titel des Termins zu einem Arztgespraech: "Arztgespraech: Dr. ..." */
@@ -528,8 +521,7 @@ consultationsRouter.post('/', requirePreparer, async (req: CircleRequest, res: R
                 [linkEventId, req.circleId]
             );
             if (!ev.rows[0]) { await client.query('ROLLBACK'); return fail(res, 404, 'Event not found'); }
-            const taken = await client.query(`SELECT 1 FROM consultations WHERE event_id = $1`, [linkEventId]);
-            if (taken.rows.length > 0) { await client.query('ROLLBACK'); return fail(res, 409, 'EVENT_ALREADY_LINKED'); }
+            const taken = await client.query(`SELECT id FROM consultations WHERE event_id = $1`, [linkEventId]);
             // recipient verknuepft nur eigene, gerade angelegte Arzttermine (Rechte an fremden Terminen: keine).
             if (req.circleRole === 'recipient') {
                 const own = await client.query(
@@ -541,6 +533,21 @@ consultationsRouter.post('/', requirePreparer, async (req: CircleRequest, res: R
             }
             await client.query(`UPDATE events SET title = $1 WHERE id = $2`, [eventTitle(lang, doctor, specialty), linkEventId]);
             eventId = linkEventId;
+            // Roadmap 21.4: Das Gespraech zum Arzttermin gibt es schon (beim Anlegen des Termins
+            // entstanden). Dann nur die Angaben eintragen, kein zweites Gespraech.
+            const existingId: string | undefined = taken.rows[0]?.id;
+            if (existingId) {
+                await client.query(
+                    `UPDATE consultations SET doctor_name = $1, specialty = $2,
+                        location = COALESCE($3, location), reason = COALESCE($4, reason), updated_at = CURRENT_TIMESTAMP
+                     WHERE id = $5`,
+                    [doctor, specialty, location, req.circleRole === 'recipient' ? null : reason, existingId]
+                );
+                await client.query('COMMIT');
+                await notify(req.circleId!, 'updated');
+                await broadcastToCircle(req.circleId!, { type: 'update', entity: 'events', action: 'updated' });
+                return res.json({ success: true, data: await loadConsultation(existingId, req.circleId!) });
+            }
         } else if (b.create_event === true && scheduledAt && req.circleRole !== 'recipient') {
             const ev = await client.query(
                 `INSERT INTO events (circle_id, title, description, category, start_time, location, created_by, reminder_1hour)
@@ -620,7 +627,6 @@ consultationsRouter.put('/:id', requirePreparer, async (req: CircleRequest, res:
         if ('specialty' in b) add('specialty', text(b.specialty, 120));
         if ('location' in b) add('location', text(b.location, 255));
         if (!isRecipient && 'reason' in b) add('reason', text(b.reason, 4000));
-        if (!isRecipient && 'notes' in b) add('notes', text(b.notes, 20000));
         if ('scheduled_at' in b) {
             const ts = timestamp(b.scheduled_at);
             if (ts === undefined) return fail(res, 400, 'INVALID_SCHEDULED_AT');
@@ -963,114 +969,5 @@ consultationsRouter.post('/:id/summary/regenerate', requireWriter, async (req: C
         res.json({ success: true, data: { status: 'queued' } });
     } catch (error) {
         return serverError(res, 'summary_regenerate', error);
-    }
-});
-
-// ─── Vorschlaege uebernehmen (nur nach Bestaetigung) ─────────────────────────
-//
-// Aus dem Gespraech entstehen nur VORSCHLAEGE. Angelegt wird erst hier, wenn
-// ein Mensch einzelne Vorschlaege bestaetigt (und vorher ggf. geaendert) hat.
-// Bereits uebernommene Vorschlaege werden ueber ihren Inhalt erkannt, damit
-// nach dem Neuerzeugen der Zusammenfassung nichts doppelt angelegt wird.
-
-/** Schluessel eines Vorschlags: Art + Text ohne Gross/Klein und Mehrfach-Leerzeichen. */
-export function appliedKey(kind: 'task' | 'event' | 'note', textValue: string): string {
-    return `${kind}:${textValue.replace(/\s+/g, ' ').trim().toLocaleLowerCase()}`;
-}
-
-consultationsRouter.post('/:id/apply', requireWriter, async (req: CircleRequest, res: Response) => {
-    const c = await loadConsultation(String(req.params.id), req.circleId!).catch(() => null);
-    if (!c) return fail(res, 404, 'Consultation not found');
-    const b = req.body ?? {};
-    const list = (v: unknown) => (Array.isArray(v) ? v.slice(0, 20) : []);
-
-    // Erst alles pruefen, dann alles in einer Transaktion anlegen.
-    const tasks: Array<{ title: string; due: string | null }> = [];
-    for (const item of list(b.tasks)) {
-        const title = text(item?.text, 255);
-        if (!title) return fail(res, 400, 'TASK_TEXT_REQUIRED');
-        const due = item?.due === null || item?.due === undefined || item?.due === '' ? null : String(item.due);
-        if (due !== null && !isValidIsoDate(due)) return fail(res, 400, 'INVALID_TASK_DUE');
-        tasks.push({ title, due });
-    }
-    const events: Array<{ title: string; start: string; location: string | null }> = [];
-    for (const item of list(b.appointments)) {
-        const title = text(item?.title, 255);
-        if (!title) return fail(res, 400, 'APPOINTMENT_TITLE_REQUIRED');
-        const date = typeof item?.date === 'string' ? item.date : '';
-        const time = typeof item?.time === 'string' ? item.time : '';
-        // Kein Termin ohne Datum UND Uhrzeit: lieber nachfragen als eine Zeit erfinden.
-        if (!isValidIsoDate(date) || !isValidTime(time)) return fail(res, 400, 'APPOINTMENT_DATE_TIME_REQUIRED');
-        events.push({ title, start: `${date}T${time}:00`, location: text(item?.location, 255) });
-    }
-    const notes: string[] = [];
-    for (const item of list(b.notes)) {
-        const content = text(item?.content, 500);
-        if (!content) return fail(res, 400, 'NOTE_TEXT_REQUIRED');
-        notes.push(content);
-    }
-    if (tasks.length + events.length + notes.length === 0) return fail(res, 400, 'NOTHING_TO_APPLY');
-
-    const label = consultationText(req.headers['accept-language'], 'defaultTitle');
-    const who = [c.doctor_name, c.specialty].filter(Boolean).join(', ');
-    const origin = who ? `${label}: ${who}` : label;
-
-    const client = await getClient();
-    try {
-        await client.query('BEGIN');
-        const current = (await client.query(
-            `SELECT applied FROM consultations WHERE id = $1 FOR UPDATE`, [c.id]
-        )).rows[0]?.applied ?? {};
-        const applied: Record<string, string> = { ...current };
-        const result = { tasks: 0, appointments: 0, notes: 0, skipped: 0 };
-
-        for (const t of tasks) {
-            const key = appliedKey('task', t.title);
-            if (applied[key]) { result.skipped++; continue; }
-            const r = await client.query(
-                `INSERT INTO tasks (circle_id, title, description, category, due_date, assigned_to)
-                 VALUES ($1, $2, $3, 'other', $4, '[]'::jsonb) RETURNING id`,
-                [req.circleId, t.title, origin, t.due]
-            );
-            applied[key] = r.rows[0].id;
-            result.tasks++;
-        }
-        for (const e of events) {
-            const key = appliedKey('event', `${e.title} ${e.start}`);
-            if (applied[key]) { result.skipped++; continue; }
-            const r = await client.query(
-                `INSERT INTO events (circle_id, title, description, category, start_time, location, created_by, reminder_1hour)
-                 VALUES ($1, $2, $3, 'doctor', $4, $5, $6, TRUE) RETURNING id`,
-                [req.circleId, e.title, origin, e.start, e.location, req.userId]
-            );
-            applied[key] = r.rows[0].id;
-            result.appointments++;
-        }
-        if (notes.length > 0) {
-            const author = (await client.query(`SELECT name FROM users WHERE id = $1`, [req.userId])).rows[0]?.name ?? label;
-            for (const n of notes) {
-                const key = appliedKey('note', n);
-                if (applied[key]) { result.skipped++; continue; }
-                const r = await client.query(
-                    `INSERT INTO circle_notes (circle_id, author_name, content, color) VALUES ($1, $2, $3, 'blue') RETURNING id`,
-                    [req.circleId, String(author).slice(0, 100), n]
-                );
-                applied[key] = r.rows[0].id;
-                result.notes++;
-            }
-        }
-        await client.query(`UPDATE consultations SET applied = $1::jsonb WHERE id = $2`, [JSON.stringify(applied), c.id]);
-        await client.query('COMMIT');
-
-        await notify(req.circleId!, 'updated');
-        if (result.tasks) await broadcastToCircle(req.circleId!, { type: 'update', entity: 'tasks', action: 'created' });
-        if (result.appointments) await broadcastToCircle(req.circleId!, { type: 'update', entity: 'events', action: 'created' });
-        if (result.notes) await broadcastToCircle(req.circleId!, { type: 'update', entity: 'notes', action: 'created' });
-        res.json({ success: true, data: { ...result, applied: Object.keys(applied) } });
-    } catch (error) {
-        await client.query('ROLLBACK').catch(() => undefined);
-        return serverError(res, 'apply', error);
-    } finally {
-        client.release();
     }
 });

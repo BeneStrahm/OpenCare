@@ -8,6 +8,8 @@ import { toNullIfEmpty } from '../lib/normalize';
 import { cleanFlag, cleanGuests, cleanPersonName, cleanTakeAlong, cleanTravelMinutes, isInvalidTravelMinutes } from '../lib/eventExtras';
 import { broadcastToCircle } from '../lib/broadcaster';
 import { langFromRequest, t } from '../lib/i18n';
+import logger from '../lib/logger';
+import { ensureConsultationForEvent } from '../modules/consultations/eventLink';
 
 const router = Router();
 
@@ -558,6 +560,19 @@ router.get('/mine/undoable', async (req: CircleRequest, res: Response) => {
     }
 });
 
+/**
+ * Roadmap 21.4: Termin mit Art "Arzt" bekommt ein Arztgespraech (modules/consultations/eventLink.ts).
+ * Klappt das nicht, bleibt der Termin trotzdem gespeichert; das Gespraech laesst sich dann im
+ * Arztgespraech anlegen.
+ */
+const linkConsultation = async (req: CircleRequest, eventId: string) => {
+    try {
+        await ensureConsultationForEvent(req.circleId!, eventId, req.headers['accept-language'], req.userId);
+    } catch (error) {
+        logger.warn('events.consultation_link_failed', { error: error instanceof Error ? error.message : String(error) });
+    }
+};
+
 // Create an event
 router.post('/', async (req: CircleRequest, res: Response) => {
     try {
@@ -659,6 +674,7 @@ router.post('/', async (req: CircleRequest, res: Response) => {
         );
 
         await broadcastToCircle(req.circleId!, { type: 'update', entity: 'events', action: 'created' });
+        if (result.rows[0]?.category === 'doctor') await linkConsultation(req, result.rows[0].id);
         res.json({ success: true, data: result.rows[0] });
     } catch (error) {
         console.error('Create event error:', error);
@@ -800,6 +816,8 @@ router.put('/:id', async (req: CircleRequest, res: Response) => {
         );
 
         await broadcastToCircle(req.circleId!, { type: 'update', entity: 'events', action: 'updated' });
+        // Roadmap 21.4: Art nachtraeglich auf "Arzt" geaendert: Gespraech anlegen.
+        if (result.rows[0]?.category === 'doctor' && existing.category !== 'doctor') await linkConsultation(req, result.rows[0].id);
         res.json({ success: true, data: result.rows[0] });
     } catch (error) {
         console.error('Update event error:', error);
@@ -828,8 +846,26 @@ router.delete('/:id', async (req: CircleRequest, res: Response) => {
             return res.status(403).json({ success: false, error: 'Insufficient role' });
         }
 
+        // Roadmap 21.3: Rueckgaengig der betreuten Person nimmt auch das Arztgespraech zurueck, das mit
+        // dem Termin entstanden ist ("Arzttermin eintragen"). Mit Aufnahme bleibt das Gespraech (dann
+        // nur ohne Termin), damit keine Aufnahme verloren geht. Vor dem Termin loeschen, sonst ist
+        // event_id schon leer (ON DELETE SET NULL).
+        let consultationsDeleted = 0;
+        if (req.circleRole === 'recipient') {
+            const removed = await query(
+                `DELETE FROM consultations c
+                 WHERE c.event_id = $1 AND c.circle_id = $2
+                   AND NOT EXISTS (SELECT 1 FROM consultation_recordings r WHERE r.consultation_id = c.id)
+                 RETURNING c.id`,
+                [req.params.id, req.circleId]
+            );
+            consultationsDeleted = removed.rows.length;
+        }
         await query('DELETE FROM events WHERE id = $1 AND circle_id = $2', [req.params.id, req.circleId]);
         await broadcastToCircle(req.circleId!, { type: 'update', entity: 'events', action: 'deleted' });
+        if (consultationsDeleted > 0) {
+            await broadcastToCircle(req.circleId!, { type: 'update', entity: 'consultations', action: 'deleted' });
+        }
         res.json({ success: true });
     } catch (error) {
         console.error('Delete event error:', error);

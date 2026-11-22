@@ -24,7 +24,7 @@ import {
 } from '../../lib/consultationRecorder';
 import { isUnsent, type LocalRecording } from '../../lib/consultationStore';
 import {
-    consultationDayParts, formatConsultationWhen, loadRecordingAudio, reviewState, summaryView,
+    answerFor, consultationDayParts, formatConsultationWhen, loadRecordingAudio, reviewState, summaryView,
     type ConsultationDetailData, type ConsultationQuestion, type ConsultationRecordingInfo,
 } from '../../lib/consultationView';
 import type { RecordingStatus, SummaryStatus } from '../../lib/consultationLogic';
@@ -77,7 +77,7 @@ interface Props {
      * E64: Pruefen und Freigeben im Teambereich (Funktion "consultation", Figma A11 bis A14).
      * enabled: von admin gewaehlt; open: Teambereich schon offen (dann keine PIN).
      */
-    teamReview?: { enabled: boolean; open: boolean; onUnlocked: (result: TeamUnlockResult) => void };
+    teamReview?: { configured: boolean | null; open: boolean; onUnlocked: (result: TeamUnlockResult) => void };
 }
 
 const EXCERPT_CHARS = 180;
@@ -628,7 +628,7 @@ const RecipientConsultations: React.FC<Props> = ({ ui, circleId, initialId, onCl
                             setReview({ ...review, step: 'edit' });
                         } else {
                             setReview(null);
-                            setNotice({ kind: 'error', text: t('simpleView:doctor.review.notAllowed') });
+                            setNotice({ kind: 'error', text: t('simpleView:doctor.review.notSetUp') });
                         }
                     }}
                 />
@@ -649,7 +649,14 @@ const RecipientConsultations: React.FC<Props> = ({ ui, circleId, initialId, onCl
             />
         );
     }
-    const startReview = (kind: 'transcript' | 'summary') => setReview({ kind, step: teamReview?.open ? 'edit' : 'pin' });
+    // Roadmap 21.2: Taste immer da. Ohne PIN (sicher bekannt, nicht nur offline) ein Hinweis statt der PIN-Seite.
+    const startReview = (kind: 'transcript' | 'summary') => {
+        if (!teamReview?.open && teamReview?.configured === false) {
+            setNotice({ kind: 'error', text: t('simpleView:doctor.review.notSetUp') });
+            return;
+        }
+        setReview({ kind, step: teamReview?.open ? 'edit' : 'pin' });
+    };
     const reviewButton = (kind: 'transcript' | 'summary') => (
         <button
             type="button"
@@ -719,10 +726,15 @@ const RecipientConsultations: React.FC<Props> = ({ ui, circleId, initialId, onCl
         const summary = c.summary;
         // B3: Kurzfassung als eigener Absatz, Punkte darunter ohne Wiederholungen (lib/consultationView.ts).
         const { overview: summaryOverview, groups: summaryGroups } = summaryView(summary);
+        // Mindestens eine Aufnahme ist beim Server und wird noch verarbeitet (nicht fehlgeschlagen).
+        const sentRows = detail.recordings.some((r: ConsultationRecordingInfo) => r.status !== 'failed' && r.status !== 'done');
+        const summaryAnswers = questions
+            .map((q, i) => ({ q, a: answerFor(q, i, summary) }))
+            .filter((x): x is { q: ConsultationQuestion; a: string } => Boolean(x.a));
         const title = c.doctor_name || c.specialty || t('consultations:defaultTitle');
-        // E64: nur wenn admin die Funktion gewaehlt hat und noch nicht freigegeben ist
-        const canReviewTranscript = Boolean(teamReview?.enabled) && Boolean(transcript) && c.transcript_status !== 'approved';
-        const canReviewSummary = Boolean(teamReview?.enabled) && c.summary_status !== 'approved';
+        // Roadmap 21.2: immer, solange nicht freigegeben (die PIN fragt startReview ab)
+        const canReviewTranscript = Boolean(teamReview) && Boolean(transcript) && c.transcript_status !== 'approved';
+        const canReviewSummary = Boolean(teamReview) && c.summary_status !== 'approved';
 
         return (
             <ViewWindow id="rv-doc-detail" title={title} icon={<Stethoscope className="h-9 w-9 shrink-0" style={{ color: C.blue }} aria-hidden="true" />} {...windowProps} onClose={close}>
@@ -825,14 +837,16 @@ const RecipientConsultations: React.FC<Props> = ({ ui, circleId, initialId, onCl
                             </div>
                         </>
                     ) : (
-                        <p style={{ ...fs(20), color: C.muted }}>{rows.length > 0 ? t('simpleView:doctor.transcriptLater') : t('simpleView:doctor.noTranscript')}</p>
+                        // Roadmap 21.6: Aufnahme auf dem Server, aber noch keine Mitschrift: gelbe Box
+                        sentRows ? statusLine('unchecked', t('simpleView:doctor.transcriptProcessing'))
+                            : <p style={{ ...fs(20), color: C.muted }}>{rows.length > 0 ? t('simpleView:doctor.transcriptLater') : t('simpleView:doctor.noTranscript')}</p>
                     )}
                 </section>
 
                 {/* 4 Zusammenfassung */}
                 <section aria-labelledby="rv-doc-c4" className="space-y-4 rounded-3xl p-5 min-[512px]:p-6" style={tile}>
                     {cardTitle(4, t('simpleView:doctor.card.summary'), 'rv-doc-c4')}
-                    {summary && (summaryOverview || summaryGroups.length > 0) ? (
+                    {summary && (summaryOverview || summaryGroups.length > 0 || summaryAnswers.length > 0) ? (
                         <>
                             {c.summary_status === 'approved'
                                 ? statusLine('checked', t('simpleView:doctor.checkedByFamily'))
@@ -846,8 +860,20 @@ const RecipientConsultations: React.FC<Props> = ({ ui, circleId, initialId, onCl
                                     </ul>
                                 </div>
                             ))}
+                            {/* Roadmap 21.5: Antworten auf die vorbereiteten Fragen auch am Tablet */}
+                            {summaryAnswers.length > 0 && (
+                                <div>
+                                    <p className="font-bold" style={{ ...fs(20), color: C.blueDark }}>{t('simpleView:doctor.review.answers')}</p>
+                                    <ul className="mt-1 list-disc space-y-1 pl-7" style={fs(21)}>
+                                        {summaryAnswers.map(({ q, a }) => <li key={q.id}><span className="font-bold">{q.text}</span> {a}</li>)}
+                                    </ul>
+                                </div>
+                            )}
                             {canReviewSummary && reviewButton('summary')}
                         </>
+                    ) : sentRows ? (
+                        // Roadmap 21.6: Aufnahme auf dem Server, Zusammenfassung noch nicht da: gelbe Box
+                        statusLine('unchecked', t('simpleView:doctor.summaryProcessing'))
                     ) : (
                         <p style={{ ...fs(20), color: C.muted }}>{rows.length > 0 ? t('simpleView:doctor.summaryLater') : t('simpleView:doctor.noSummary')}</p>
                     )}

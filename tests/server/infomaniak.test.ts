@@ -206,7 +206,7 @@ describe('Infomaniak: Zusammenfassung', () => {
         state.requests = [];
         state.infomaniak = { encrypted_credentials: 'verschluesselt', config: { product_id: '4711', summary_model: 'testmodell' } };
         state.replyStatus = 200;
-        state.reply = JSON.stringify({ overview: 'Ramipril wird reduziert.', findings: [], medication_changes: [], recommendations: [], next_steps: [], question_answers: [], unclear: [], appointments: [], family_notes: [] });
+        state.reply = JSON.stringify({ overview: 'Ramipril wird reduziert.', findings: [], medication_changes: [], recommendations: [], next_steps: [], question_answers: [], unclear: [], appointments: [] });
     });
 
     it('sendet Mitschrift, Fragen, Fachwoerter und Fachrichtung, aber keinen Arztnamen, kein Datum, keinen Anlass', async () => {

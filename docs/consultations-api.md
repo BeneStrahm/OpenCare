@@ -7,7 +7,7 @@ Zeiten sind naive lokale Zeitstempel `YYYY-MM-DDTHH:mm:ss` wie im übrigen OpenC
 
 - Lesen: admin, family, professional, recipient (recipient sieht Mitschrift und Zusammenfassung auch ungeprüft, mit Hinweis)
 - Vorbereiten (Gespräch anlegen, Angaben ändern, Fragen hinzufügen und löschen, aufnehmen, abspielen): admin, family, recipient
-- Prüfen, bearbeiten, freigeben (Mitschrift, Zusammenfassung), Fragen bearbeiten, Vorschläge übernehmen, Audio löschen, Gespräch löschen, Fachwörter: admin, family
+- Prüfen, bearbeiten, freigeben (Mitschrift, Zusammenfassung), Fragen bearbeiten, Audio löschen, Gespräch löschen, Fachwörter: admin, family
 - Fachwörter lesen: admin, family, professional
 - neighbor: kein Zugriff
 
@@ -31,9 +31,9 @@ Audio wird nie automatisch gelöscht, von Hand nur durch admin und family.
 | Methode | Pfad | Body | Antwort `data` |
 |---|---|---|---|
 | GET | `/` | | `ConsultationListItem[]` |
-| POST | `/` | `{ doctor_name, specialty, scheduled_at, location, reason, event_id?, create_event?: boolean }` | `Consultation`. Mit `event_id`: vorhandenen Termin verknüpfen (recipient nur den eigenen, gerade angelegten Arzttermin; schon verknüpft → 409 `EVENT_ALREADY_LINKED`). `create_event` (nicht recipient): Termin Art `doctor` hier mit anlegen. Ohne beides: „Gespräch jetzt aufnehmen“. |
+| POST | `/` | `{ doctor_name, specialty, scheduled_at, location, reason, event_id?, create_event?: boolean }` | `Consultation`. Mit `event_id`: vorhandenen Termin verknüpfen (recipient nur den eigenen, gerade angelegten Arzttermin). Hat der Termin schon ein Gespräch (jeder Termin mit Art `doctor` bekommt beim Anlegen oder beim Ändern auf `doctor` automatisch eins, Roadmap 21.4), werden die Angaben dort eingetragen und dieses Gespräch zurückgegeben. `create_event` (nicht recipient): Termin Art `doctor` hier mit anlegen. Ohne beides: „Gespräch jetzt aufnehmen“. |
 | GET | `/:id` | | `ConsultationDetail` |
-| PUT | `/:id` | Teilmenge von `{ doctor_name, specialty, scheduled_at, location, reason, notes, companion_needed, companion_member_id, companion_name, travel_needed, driver, take_along }` | `Consultation`. Der verknüpfte Termin wird mit angepasst (Begleitung, Fahrt, Mitnehmen nur dort). recipient: ohne `reason` und `notes`. |
+| PUT | `/:id` | Teilmenge von `{ doctor_name, specialty, scheduled_at, location, reason, companion_needed, companion_member_id, companion_name, travel_needed, driver, take_along }` | `Consultation`. Der verknüpfte Termin wird mit angepasst (Begleitung, Fahrt, Mitnehmen nur dort). recipient: ohne `reason`. |
 | DELETE | `/:id` | | `null`. Der beim Anlegen erzeugte Kalendertermin wird mit gelöscht. |
 
 ## Fragen (Vorbereitung und Nachbereitung)
@@ -52,7 +52,6 @@ Audio wird nie automatisch gelöscht, von Hand nur durch admin und family.
 | POST | `/:id/summary/approve` | `{ summary?: ConsultationSummary }` | Status `approved`, Antworten zu Fragen werden in leere `answer`-Felder übernommen |
 | POST | `/:id/summary/unapprove` | | Freigabe zurücknehmen, Status `draft` (hebt die Sperre auf) |
 | POST | `/:id/summary/regenerate` | | Zusammenfassung aus allen Mitschriften neu erstellen (läuft im Hintergrund). ERSETZT auch eine freigegebene oder von Hand bearbeitete Fassung, der Client muss das vorher deutlich bestätigen lassen. |
-| POST | `/:id/apply` | `{ tasks?: { text, due: string \| null }[], appointments?: { title, date, time, location }[], notes?: { content }[] }` | legt NUR die bestätigten Vorschläge an (je Liste höchstens 20). Termine brauchen Datum (JJJJ-MM-TT) UND Uhrzeit (HH:MM), sonst 400 `APPOINTMENT_DATE_TIME_REQUIRED`. Bereits übernommene werden übersprungen. `data: { tasks, appointments, notes, skipped, applied: string[] }` |
 
 ### Schutz von Freigaben
 
@@ -61,19 +60,10 @@ freigegeben (`approved`) oder von Hand bearbeitet (`summary_source: 'human'`) un
 Aufnahme dazu, bleibt sie unverändert und `summary_outdated` wird `true`. Die Oberfläche zeigt dann
 einen Hinweis mit der Möglichkeit, über `regenerate` neu zu erstellen.
 
-### Vorschläge und Bestätigung
+### Folgetermine und nächste Schritte
 
-Die Zusammenfassung enthält nur Vorschläge: `next_steps` (Aufgaben), `appointments` (Termine) und
-`family_notes` (Notizen für die Familien-Pinnwand). Angelegt wird nichts automatisch. Die Oberfläche
-zeigt jeden Vorschlag bearbeitbar mit Auswahl an und schickt erst nach Bestätigung `POST /:id/apply`.
-
-`Consultation.applied` ist ein Objekt `{ [key]: createdId }`. Schlüssel:
-- Aufgabe: `task:` + Text
-- Termin: `event:` + Titel + Leerzeichen + `JJJJ-MM-TTTHH:MM:00`
-- Notiz: `note:` + Text
-
-Der Text wird dabei normalisiert: Mehrfach-Leerraum zu einem Leerzeichen, trim, Kleinschreibung
-(`toLocaleLowerCase`). Ein Vorschlag gilt als übernommen, wenn sein Schlüssel in `applied` steht.
+`next_steps` und `appointments` stehen nur zum Lesen in der Zusammenfassung. Angelegt wird daraus nichts,
+Termine und Aufgaben trägt die Familie selbst ein (die frühere Übernahme über `POST /:id/apply` ist entfernt).
 
 ## Mitschrift (E59)
 
@@ -150,7 +140,6 @@ interface Consultation {
   summary: ConsultationSummary | null;
   summary_status: 'none' | 'draft' | 'approved';
   approved_by_name: string | null; approved_at: string | null;
-  applied: Record<string, string>;  // übernommene Vorschläge, siehe oben
   summary_source: 'ai' | 'human' | null;
   summary_outdated: boolean;        // neue Aufnahme nach Freigabe/Bearbeitung
   transcript_status: 'draft' | 'approved';
@@ -190,7 +179,6 @@ interface ConsultationSummary {
   // question_id ist maßgeblich (seit Fork-Fix). question_index nur noch zur Anzeige älterer Entwürfe.
   question_answers: { question_id: string | null; question_index: number; answer: string | null }[];
   unclear: string[];
-  appointments: { title: string; date: string | null; time: string | null; location: string | null }[]; // Vorschläge
-  family_notes: string[]; // Vorschläge für die Pinnwand
+  appointments: { title: string; date: string | null; time: string | null; location: string | null }[]; // Folgetermine, nur zum Lesen
 }
 ```

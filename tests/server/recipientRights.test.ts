@@ -99,13 +99,12 @@ const run = async (role: CircleRole, method: string, url: string) => {
 const BLOCKED: Array<[string, string]> = [
     ['GET', '/api/journal'],
     ['POST', '/api/journal'],
-    // E59: Arztgespraech nur vorbereiten, aufnehmen, lesen; nicht pruefen, freigeben, uebernehmen.
+    // E59: Arztgespraech nur vorbereiten, aufnehmen, lesen; nicht pruefen, freigeben.
     ['GET', '/api/consultations/vocabulary'],
     ['PUT', '/api/consultations/gespraech-1/summary'],
     ['POST', '/api/consultations/gespraech-1/summary/approve'],
     ['POST', '/api/consultations/gespraech-1/transcript/approve'],
     ['PUT', '/api/consultations/gespraech-1/transcript'],
-    ['POST', '/api/consultations/gespraech-1/apply'],
     ['PUT', '/api/consultations/gespraech-1/questions/frage-1'],
     ['DELETE', '/api/consultations/gespraech-1'],
     ['DELETE', '/api/consultations/recordings/aufnahme-1/audio'],

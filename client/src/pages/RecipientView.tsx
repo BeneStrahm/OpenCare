@@ -1089,6 +1089,13 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
 
     const timeRange = (e: CalendarEvent) =>
         e.end_time ? `${clockOf(e.start_time)} – ${clockOf(e.end_time)}` : clockOf(e.start_time);
+    /** Terminkarte (Figma-Komponente "Terminkarte", 48, 49, A16): "22. November 2026, 15:00 – 15:30 Uhr" */
+    const dateTimeText = (e: CalendarEvent) => {
+        const start = clockDate(e.start_time);
+        if (!start) return timeRange(e);
+        const date = new Intl.DateTimeFormat(intlLocale(), { day: 'numeric', month: 'long', year: 'numeric' }).format(start);
+        return t('simpleView:event.dateTimeValue', { date, time: timeRange(e) });
+    };
     /** Wer dabei ist: nur wenn "Jemand muss mitkommen" aktiv ist (eventExtras.ts). */
     const peopleOf = (e: CalendarEvent): string[] => isCompanionActive(e)
         ? [...(e.members_data ?? []).map((m) => m.name), ...(e.guests ?? [])]
@@ -2313,7 +2320,9 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                 const driverText = (name: string | null | undefined) =>
                     (name || '').trim() ? t('calendar:card.driver', { name: (name || '').trim() }) : t('calendar:card.driverMissing');
                 return (
-                    <ViewWindow id="rv-win-event" title={e.title} icon={<CalendarDays className="h-9 w-9 shrink-0" style={{ color: C.blue }} aria-hidden="true" />} {...windowProps} onClose={() => setEventCard(null)}>
+                    <ViewWindow id="rv-win-event" title={e.title} icon={e.category === 'doctor'
+                        ? <Stethoscope className="h-9 w-9 shrink-0" style={{ color: C.blue }} aria-hidden="true" />
+                        : <CalendarDays className="h-9 w-9 shrink-0" style={{ color: C.blue }} aria-hidden="true" />} {...windowProps} onClose={() => setEventCard(null)}>
                         {/* E59, A16: Terminkarte eines Arztgespraechs */}
                         {e.consultation_id && on('consultations') && tileOn('doctor') && (
                             <button
@@ -2327,7 +2336,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                             </button>
                         )}
                         <section className="space-y-5 rounded-3xl p-5 min-[512px]:p-6" style={tile}>
-                            {row(CalendarClock, t('simpleView:event.time'), <span className="font-bold tabular-nums" style={fs(30)}>{timeRange(e)}</span>)}
+                            {row(CalendarClock, t('simpleView:event.time'), <span className="font-bold tabular-nums" style={fs(30)}>{dateTimeText(e)}</span>)}
                             {e.location && row(MapPin, t('simpleView:event.place'), <span className="font-bold">{e.location}</span>)}
                             {travel && e.travel_to_minutes != null && leave && row(Car, t('simpleView:event.travelTo'), (
                                 <>
@@ -2372,7 +2381,7 @@ const RecipientView: React.FC<RecipientViewProps> = ({ circle }) => {
                 <RecipientConsultations
                     ui={ui}
                     teamReview={{
-                        enabled: Boolean(team?.functions.includes('consultation') || (teamInfo?.configured && teamInfo.functions.includes('consultation'))),
+                        configured: team ? true : teamInfo ? teamInfo.configured : null,
                         open: Boolean(team?.functions.includes('consultation')),
                         onUnlocked: onTeamUnlocked,
                     }}

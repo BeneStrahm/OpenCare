@@ -236,7 +236,8 @@
       "date": "Veuillez choisir un jour à partir d'aujourd'hui.",
       "time": "Veuillez choisir une heure."
     },
-    "time": "Heure",
+    "time": "Date et heure",
+    "dateTimeValue": "{{date}}, {{time}}",
     "place": "Lieu",
     "travelTo": "Aller",
     "travelBack": "Retour",
@@ -404,8 +405,10 @@
     "readTranscript": "Lire toute la transcription",
     "transcriptTitle": "Transcription",
     "transcriptLater": "La transcription arrivera plus tard.",
+    "transcriptProcessing": "La transcription est encore en cours de traitement.",
     "noTranscript": "Après un enregistrement, la transcription apparaît ici.",
     "summaryLater": "Le résumé arrivera plus tard.",
+    "summaryProcessing": "Le résumé est encore en cours de traitement.",
     "noSummary": "Après un enregistrement, le résumé apparaît ici.",
     "summary": {
       "important": "L’essentiel",
@@ -432,7 +435,7 @@
       "cancel": "Annuler",
       "approve": "Valider",
       "done": "Validé, merci beaucoup.",
-      "notAllowed": "La validation n'est pas activée dans l'espace équipe. Veuillez utiliser l'application.",
+      "notSetUp": "Demandez à votre famille de configurer l'espace équipe.",
       "error": {
         "empty": "Veuillez ne laisser aucun texte vide.",
         "medications": "Veuillez écrire chaque médicament ainsi : Nom : changement",
@@ -459,6 +462,35 @@
       "locked": "Trop de tentatives erronées. Veuillez patienter quelques minutes, puis réessayer.",
       "off": "L'espace équipe est désactivé pour le moment. Il se configure dans les réglages de l'application.",
       "failed": "Cela n'a pas fonctionné. Veuillez vérifier la connexion internet et réessayer."
+    }
+  },
+  "teamJournal": {
+    "when": "{{day}}, {{time}}",
+    "newEntry": "Nouvelle entrée",
+    "hint": "Lire et ajouter des entrées ici. Modifier et supprimer uniquement dans l'application.",
+    "empty": "Pas encore d'entrées.",
+    "loadError": "Le journal de soins n'a pas pu être chargé. Veuillez vérifier la connexion Internet.",
+    "loadMore": "Charger plus",
+    "byTeam": "{{name}}, dans l'espace équipe",
+    "photoN": "Photo {{n}}",
+    "newTitle": "Nouvelle entrée",
+    "contentLabel": "Entrée",
+    "dateLabel": "Date",
+    "photosLabel": "Photos (facultatif)",
+    "addPhoto": "Ajouter une photo",
+    "removePhoto": "Retirer",
+    "removePhotoN": "Retirer la photo {{n}}",
+    "photoLimit": "{{max}} photos au maximum.",
+    "nameLabel": "Votre nom",
+    "publish": "Publier",
+    "saved": "L'entrée est enregistrée.",
+    "error": {
+      "content": "Veuillez écrire quelque chose ou ajouter une photo.",
+      "date": "Veuillez choisir une date qui n'est pas dans le futur.",
+      "name": "Veuillez saisir votre nom.",
+      "photo": "Une photo n'a pas pu être utilisée. Veuillez en essayer une autre.",
+      "offline": "Sans Internet, rien ne peut être enregistré. Veuillez réessayer plus tard.",
+      "failed": "Cela n'a pas fonctionné. Veuillez réessayer."
     }
   }
 }

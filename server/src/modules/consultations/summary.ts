@@ -74,10 +74,8 @@ export interface ConsultationSummary {
     next_steps: NextStep[];
     question_answers: QuestionAnswer[];
     unclear: string[];
-    /** Vorschlaege fuer Termine (werden erst nach Bestaetigung angelegt) */
+    /** Folgetermine aus dem Gespraech (nur zum Lesen, die Familie traegt sie selbst ein) */
     appointments: ProposedAppointment[];
-    /** Vorschlaege fuer kurze Notizen an der Familien-Pinnwand */
-    family_notes: string[];
 }
 
 // ─── JSON-Schemata (gleiche Regeln wie services/ai/assistant.ts) ─────────────
@@ -96,7 +94,7 @@ export const SUMMARY_SCHEMA: Record<string, unknown> = {
     additionalProperties: false,
     required: [
         'overview', 'findings', 'medication_changes', 'recommendations',
-        'next_steps', 'question_answers', 'unclear', 'appointments', 'family_notes',
+        'next_steps', 'question_answers', 'unclear', 'appointments',
     ],
     properties: {
         overview: { type: 'string' },
@@ -156,7 +154,6 @@ export const SUMMARY_SCHEMA: Record<string, unknown> = {
                 },
             },
         },
-        family_notes: { type: 'array', items: { type: 'string' } },
     },
 };
 
@@ -201,6 +198,8 @@ const RULES = [
     'Gib nur wieder, was im Text tatsächlich gesagt wurde. Erfinde nichts und ergänze nichts aus eigenem Wissen.',
     'Gib keine eigenen medizinischen Ratschläge, Bewertungen oder Diagnosen.',
     'Medikamentennamen, Dosierungen, Zahlen und Termine übernimmst du genau so, wie sie im Text stehen.',
+    'Nenne die behandelnde Person ohne Geschlecht (nicht "der Arzt" oder "die Ärztin"), schreibe zum Beispiel "Besprochen wurde" oder "In der Praxis".',
+    'Was nur angekündigt wurde, gibst du als Ankündigung wieder (zum Beispiel "Der neue Plan wird ausgedruckt"), nicht als erledigt.',
     'Wenn etwas unklar, widersprüchlich oder vermutlich falsch erkannt ist, schreibst du es in die Liste "unclear" statt zu raten.',
     'Antworte ausschließlich mit JSON nach dem vorgegebenen Schema.',
 ];
@@ -234,14 +233,13 @@ export function buildSummaryPrompt(material: { transcript?: string; notes?: stri
         'Felder:',
         '- overview: Kurzfassung in 1 bis 3 Sätzen: Anlass und Ergebnis. Wiederhole dort keine Werte und Einzelheiten, die in findings, medication_changes, recommendations oder next_steps stehen.',
         '- findings: genannte Befunde und Diagnosen.',
-        '- medication_changes: jede genannte Änderung an Medikamenten (neu, abgesetzt, Dosis geändert), mit Name und Änderung.',
+        '- medication_changes: jedes im Gespräch genannte Medikament mit Name und dem, was dazu gesagt wurde: neu, abgesetzt, Dosis geändert oder unverändert weiter (zum Beispiel "bleibt zweimal täglich"). Wurde ausdrücklich gesagt, dass es kein neues Medikament gibt, nimm das als eigenen Eintrag auf (name: "Neues Medikament", change: was gesagt wurde, zum Beispiel "keins, stattdessen nach 18 Uhr weniger trinken").',
         '- recommendations: Empfehlungen und Hinweise des Arztes.',
         '- next_steps: konkrete nächste Schritte. "due" nur als Datum JJJJ-MM-TT, wenn ein Datum oder eine eindeutige Frist genannt wurde, sonst leerer Text.',
-        '- question_answers: für jede vorbereitete Frage ein Eintrag mit ihrer Nummer (question_index, beginnend bei 0) und der Antwort aus dem Gespräch. Wurde sie nicht beantwortet, ist answer ein leerer Text.',
+        '- question_answers: für jede vorbereitete Frage ein Eintrag mit ihrer Nummer (question_index, beginnend bei 0) und der Antwort aus dem Gespräch. Auch eine kurze Antwort wie "Ja" zählt, gib sie mit dem Satz dazu wieder. Wurde sie nicht beantwortet, ist answer ein leerer Text.',
         '- unclear: Stellen, die unklar oder vermutlich falsch erkannt sind.',
         '- appointments: im Gespräch vereinbarte oder empfohlene Folgetermine (Kontrolle, Überweisung, Untersuchung). "date" als JJJJ-MM-TT nur, wenn ein Datum genannt wurde oder es sich eindeutig aus dem Gesprächsdatum ergibt (zum Beispiel "in zwei Wochen"), sonst leerer Text. "time" als HH:MM nur, wenn eine Uhrzeit genannt wurde, sonst leerer Text. "location" nur, wenn genannt.',
-        '- family_notes: höchstens fünf kurze Hinweise für die Familie (je ein Satz), zum Beispiel eine geänderte Dosis. Nur was im Gespräch gesagt wurde.',
-        'Termine, Aufgaben und Hinweise sind nur Vorschläge. Ein Mensch prüft und bestätigt sie.',
+        'Die Zusammenfassung ist ein Entwurf. Ein Mensch prüft und bestätigt sie.',
         'Leere Listen sind erlaubt. Lieber weniger und richtig als mehr und geraten.',
     ].join('\n');
 
@@ -385,7 +383,6 @@ export function validateSummary(raw: Record<string, unknown>, questionCount: num
         question_answers,
         unclear: cleanList(raw.unclear),
         appointments,
-        family_notes: cleanList(raw.family_notes, 5).map((n) => cleanText(n, 300)),
     };
 
     const empty = !summary.overview
@@ -394,7 +391,6 @@ export function validateSummary(raw: Record<string, unknown>, questionCount: num
         && summary.recommendations.length === 0
         && summary.next_steps.length === 0
         && summary.appointments.length === 0
-        && summary.family_notes.length === 0
         && answers.size === 0;
     if (empty) {
         throw new Error('EMPTY_SUMMARY');
@@ -420,7 +416,6 @@ export function sanitizeEditedSummary(raw: unknown, questionCount: number): Cons
             question_answers: Array.from({ length: questionCount }, (_, i) => ({ question_index: i, answer: null })),
             unclear: [],
             appointments: [],
-            family_notes: [],
         };
     }
 }

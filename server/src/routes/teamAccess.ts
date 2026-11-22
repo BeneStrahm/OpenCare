@@ -8,6 +8,8 @@ import {
     requireRoleOrTeam,
     TEAM_FUNCTIONS,
     CircleRequest,
+    effectiveTeamFunctions,
+    isSelectableTeamFunction,
 } from '../middleware/circle';
 import {
     TEAM_IDLE_MINUTES,
@@ -48,10 +50,11 @@ const loadTeamAccess = async (circleId: string): Promise<TeamAccessRow | null> =
     return (result.rows[0] as TeamAccessRow | undefined) ?? null;
 };
 
+// Roadmap 21.2: Mit PIN ist der Teambereich eingerichtet, "consultation" gilt dann immer.
 const publicState = (row: TeamAccessRow | null) => ({
-    configured: !!row?.password_hash && (row?.functions ?? []).length > 0,
+    configured: !!row?.password_hash,
     has_password: !!row?.password_hash,
-    functions: row?.functions ?? [],
+    functions: row?.password_hash ? effectiveTeamFunctions(row.functions) : (row?.functions ?? []),
     idle_minutes: TEAM_IDLE_MINUTES,
 });
 
@@ -83,7 +86,8 @@ router.put('/', requireRole('admin'), async (req: CircleRequest, res: Response) 
     if (!Array.isArray(functions) || functions.some((fn) => !(TEAM_FUNCTIONS as readonly unknown[]).includes(fn))) {
         return res.status(400).json({ success: false, error: 'Invalid functions' });
     }
-    const cleanFunctions = [...new Set(functions as string[])];
+    // Immer geltende Funktionen (consultation) werden nicht gespeichert.
+    const cleanFunctions = [...new Set(functions as string[])].filter(isSelectableTeamFunction);
 
     // undefined: Passwort bleibt; null: Passwort entfernen (Teambereich aus); Text: neues Passwort
     let passwordHash: string | null | undefined;
@@ -162,7 +166,7 @@ router.post('/unlock', requireRole('recipient'), async (req: CircleRequest, res:
              VALUES ($1, $2, $3, CURRENT_TIMESTAMP + make_interval(mins => $4))`,
             [req.circleId, req.userId, hashTeamToken(token), TEAM_IDLE_MINUTES]
         );
-        res.json({ success: true, data: { token, functions: row.functions ?? [], idle_minutes: TEAM_IDLE_MINUTES } });
+        res.json({ success: true, data: { token, functions: effectiveTeamFunctions(row.functions), idle_minutes: TEAM_IDLE_MINUTES } });
     } catch (error) {
         console.error('Unlock team access error:', error);
         res.status(500).json({ success: false, error: 'Internal server error' });
