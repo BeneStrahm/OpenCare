@@ -75,6 +75,7 @@
     "sortName": "Name",
     "sortTime": "Time",
     "archived": "Archived",
+    "ended": "Ended",
     "archive": "Archive",
     "unarchive": "Reactivate",
     "edit": "Edit",

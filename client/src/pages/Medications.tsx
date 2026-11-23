@@ -1302,6 +1302,7 @@ const Medications: React.FC = () => {
         return byName;
     });
 
+    const todayDate = format(new Date(), 'yyyy-MM-dd');
     const treatmentsSection = (
         <div className="space-y-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1364,6 +1365,8 @@ const Medications: React.FC = () => {
                             med.form ? formLabel(med.form) : '',
                             unitCell(med),
                         ].filter(Boolean);
+                        // Enddatum vor heute: weiter sichtbar, deutlich markiert, archivieren von Hand.
+                        const ended = med.active && Boolean(med.end_date) && med.end_date!.slice(0, 10) < todayDate;
                         return (
                             <li key={med.id}>
                                 <Card className={cn(!med.active && 'opacity-70')}>
@@ -1382,10 +1385,13 @@ const Medications: React.FC = () => {
                                                         {details.join(' · ')}
                                                     </p>
                                                 )}
-                                                {(med.prn || !med.active) && (
+                                                {(med.prn || !med.active || ended) && (
                                                     <p className="mt-1 flex flex-wrap gap-1">
                                                         {med.prn && (
                                                             <Badge variant="default">{t('medications:treatments.prn')}</Badge>
+                                                        )}
+                                                        {ended && (
+                                                            <Badge variant="warning">{t('medications:treatments.ended')}</Badge>
                                                         )}
                                                         {!med.active && (
                                                             <Badge variant="default">{t('medications:treatments.archived')}</Badge>
