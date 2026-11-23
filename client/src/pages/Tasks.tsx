@@ -627,8 +627,8 @@ const Tasks: React.FC = () => {
                 renderGrouped(mainList)
             )}
 
-            {/* E62: Aufgaben-Link für die Morgen-Mail (n8n), nur Rolle family */}
-            {myRole === 'family' && <TaskFeedCard />}
+            {/* E62: Aufgaben-Link für die Morgen-Mail (n8n), nur Rollen admin und family */}
+            {(myRole === 'admin' || myRole === 'family') && <TaskFeedCard />}
 
             {/* Création / édition */}
             <Dialog

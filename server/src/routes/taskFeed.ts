@@ -7,7 +7,7 @@ import { publicSettings, WeekStart } from '../lib/circleSettings';
 
 // E62: Aufgaben-Link (JSON) für Abrufe von außen, etwa eine Morgen-Mail über n8n.
 // Aufbau wie das Kalender-Abo (routes/calendar.ts): geheimer Link pro Nutzer, nur lesen.
-// Nur Kreise, in denen der Nutzer die Rolle family hat. Keine Beschreibung, keine IDs.
+// Nur Kreise, in denen der Nutzer die Rolle admin oder family hat. Keine Beschreibung, keine IDs.
 const router = Router();
 
 const TOKEN_RE = /^[a-f0-9]{64}$/;
@@ -22,9 +22,9 @@ export const weekEndOf = (today: Date, weekStart: WeekStart): string => {
     return localDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + diff));
 };
 
-const isFamilySomewhere = async (userId: string): Promise<boolean> => {
+const canUseTaskFeed = async (userId: string): Promise<boolean> => {
     const result = await query(
-        `SELECT 1 FROM circle_members WHERE user_id = $1 AND role = 'family' LIMIT 1`,
+        `SELECT 1 FROM circle_members WHERE user_id = $1 AND role IN ('admin', 'family') LIMIT 1`,
         [userId]
     );
     return result.rows.length > 0;
@@ -33,7 +33,7 @@ const isFamilySomewhere = async (userId: string): Promise<boolean> => {
 // GET /api/task-feed/token: Link-Token des angemeldeten Nutzers (null, wenn noch keiner)
 router.get('/token', authMiddleware, async (req: AuthRequest, res) => {
     try {
-        const allowed = await isFamilySomewhere(req.userId!);
+        const allowed = await canUseTaskFeed(req.userId!);
         const result = await query('SELECT tasks_token FROM users WHERE id = $1', [req.userId]);
         res.json({ success: true, data: { allowed, token: allowed ? (result.rows[0]?.tasks_token ?? null) : null } });
     } catch (error) {
@@ -45,7 +45,7 @@ router.get('/token', authMiddleware, async (req: AuthRequest, res) => {
 // POST /api/task-feed/token: Token erzeugen oder erneuern (der alte Link wird ungültig)
 router.post('/token', authMiddleware, async (req: AuthRequest, res) => {
     try {
-        if (!(await isFamilySomewhere(req.userId!))) {
+        if (!(await canUseTaskFeed(req.userId!))) {
             return res.status(403).json({ success: false, error: 'FORBIDDEN' });
         }
         const token = crypto.randomBytes(32).toString('hex');
@@ -76,7 +76,7 @@ router.get('/feed/:token.json', async (req, res) => {
                     (SELECT r.first_name FROM care_recipients r WHERE r.circle_id = c.id LIMIT 1) AS first_name
              FROM circle_members m
              JOIN care_circles c ON c.id = m.circle_id
-             WHERE m.user_id = $1 AND m.role = 'family'`,
+             WHERE m.user_id = $1 AND m.role IN ('admin', 'family')`,
             [userId]
         );
 
